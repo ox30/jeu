@@ -1,0 +1,305 @@
+{
+  "note": "Map labels. minScale/maxScale in pixels per km: about 0.22 in the Atlantic view, about 1.6 in the England view. Coordinates are approximate.",
+  "labels": [
+    {
+      "text": "OCÉAN ATLANTIQUE NORD",
+      "lon": -36,
+      "lat": 47,
+      "kind": "sea",
+      "maxScale": 0.9
+    },
+    {
+      "text": "MER DU LABRADOR",
+      "lon": -54,
+      "lat": 58.5,
+      "kind": "sea",
+      "maxScale": 0.6
+    },
+    {
+      "text": "MER DU NORD",
+      "lon": 3.5,
+      "lat": 56.3,
+      "kind": "sea"
+    },
+    {
+      "text": "MANCHE",
+      "lon": -2.2,
+      "lat": 50.05,
+      "kind": "sea",
+      "minScale": 0.5
+    },
+    {
+      "text": "PAS DE CALAIS",
+      "lon": 1.45,
+      "lat": 50.98,
+      "kind": "sea",
+      "minScale": 2.5
+    },
+    {
+      "text": "MER D'IRLANDE",
+      "lon": -5.1,
+      "lat": 53.75,
+      "kind": "sea",
+      "minScale": 0.5
+    },
+    {
+      "text": "MER CELTIQUE",
+      "lon": -7.5,
+      "lat": 50.6,
+      "kind": "sea",
+      "minScale": 0.5
+    },
+    {
+      "text": "GOLFE DE GASCOGNE",
+      "lon": -5.5,
+      "lat": 45.6,
+      "kind": "sea",
+      "maxScale": 1.2
+    },
+    {
+      "text": "MER DE NORVÈGE",
+      "lon": 1,
+      "lat": 66.5,
+      "kind": "sea",
+      "maxScale": 0.6
+    },
+    {
+      "text": "CANADA",
+      "lon": -71,
+      "lat": 52,
+      "kind": "region",
+      "maxScale": 0.6
+    },
+    {
+      "text": "TERRE-NEUVE",
+      "lon": -56.3,
+      "lat": 48.7,
+      "kind": "region",
+      "maxScale": 0.9
+    },
+    {
+      "text": "NOUVELLE-ÉCOSSE",
+      "lon": -63.4,
+      "lat": 45.25,
+      "kind": "region",
+      "minScale": 0.35,
+      "maxScale": 2
+    },
+    {
+      "text": "GROENLAND",
+      "lon": -42,
+      "lat": 66,
+      "kind": "region",
+      "maxScale": 0.6
+    },
+    {
+      "text": "ISLANDE",
+      "lon": -18.6,
+      "lat": 64.9,
+      "kind": "region",
+      "maxScale": 1
+    },
+    {
+      "text": "IRLANDE",
+      "lon": -8.1,
+      "lat": 53.2,
+      "kind": "region"
+    },
+    {
+      "text": "ANGLETERRE",
+      "lon": -1.6,
+      "lat": 52.35,
+      "kind": "region",
+      "minScale": 0.9
+    },
+    {
+      "text": "FRANCE OCCUPÉE",
+      "lon": 2.4,
+      "lat": 47.3,
+      "kind": "region",
+      "maxScale": 0.9
+    },
+    {
+      "text": "FRANCE OCCUPÉE",
+      "lon": 1.1,
+      "lat": 49.75,
+      "kind": "region",
+      "minScale": 0.9
+    },
+    {
+      "text": "BELGIQUE",
+      "lon": 4.5,
+      "lat": 50.6,
+      "kind": "region",
+      "minScale": 0.6
+    },
+    {
+      "text": "PAYS-BAS",
+      "lon": 5.6,
+      "lat": 52.3,
+      "kind": "region",
+      "minScale": 0.6
+    },
+    {
+      "text": "ALLEMAGNE",
+      "lon": 10,
+      "lat": 51.2,
+      "kind": "region",
+      "maxScale": 0.9
+    },
+    {
+      "text": "ESPAGNE",
+      "lon": -3.8,
+      "lat": 40.3,
+      "kind": "region",
+      "maxScale": 0.9
+    },
+    {
+      "text": "PORTUGAL",
+      "lon": -8.1,
+      "lat": 39.6,
+      "kind": "region",
+      "maxScale": 0.6
+    },
+    {
+      "text": "NORVÈGE",
+      "lon": 9,
+      "lat": 61.5,
+      "kind": "region",
+      "maxScale": 0.9
+    },
+    {
+      "text": "Londres",
+      "lon": -0.128,
+      "lat": 51.507,
+      "kind": "city",
+      "major": true
+    },
+    {
+      "text": "Glasgow",
+      "lon": -4.25,
+      "lat": 55.86,
+      "kind": "city",
+      "minScale": 0.5
+    },
+    {
+      "text": "Southampton",
+      "lon": -1.404,
+      "lat": 50.904,
+      "kind": "city",
+      "minScale": 1.2
+    },
+    {
+      "text": "Brighton",
+      "lon": -0.137,
+      "lat": 50.822,
+      "kind": "city",
+      "minScale": 1.2
+    },
+    {
+      "text": "Folkestone",
+      "lon": 1.166,
+      "lat": 51.081,
+      "kind": "city",
+      "minScale": 2
+    },
+    {
+      "text": "Plymouth",
+      "lon": -4.143,
+      "lat": 50.375,
+      "kind": "city",
+      "minScale": 0.9
+    },
+    {
+      "text": "Calais",
+      "lon": 1.858,
+      "lat": 50.951,
+      "kind": "city",
+      "minScale": 0.9
+    },
+    {
+      "text": "Boulogne",
+      "lon": 1.614,
+      "lat": 50.726,
+      "kind": "city",
+      "minScale": 1.2
+    },
+    {
+      "text": "Dunkerque",
+      "lon": 2.377,
+      "lat": 51.034,
+      "kind": "city",
+      "minScale": 0.9
+    },
+    {
+      "text": "Ostende",
+      "lon": 2.927,
+      "lat": 51.215,
+      "kind": "city",
+      "minScale": 1.2
+    },
+    {
+      "text": "Cherbourg",
+      "lon": -1.616,
+      "lat": 49.633,
+      "kind": "city",
+      "minScale": 0.9
+    },
+    {
+      "text": "Le Havre",
+      "lon": 0.107,
+      "lat": 49.494,
+      "kind": "city",
+      "minScale": 0.9
+    },
+    {
+      "text": "Saint-Omer",
+      "lon": 2.25,
+      "lat": 50.75,
+      "kind": "city",
+      "minScale": 1.5
+    },
+    {
+      "text": "Amiens",
+      "lon": 2.3,
+      "lat": 49.894,
+      "kind": "city",
+      "minScale": 1.2
+    },
+    {
+      "text": "Rouen",
+      "lon": 1.099,
+      "lat": 49.443,
+      "kind": "city",
+      "minScale": 1.2
+    },
+    {
+      "text": "Paris",
+      "lon": 2.352,
+      "lat": 48.857,
+      "kind": "city",
+      "minScale": 0.5
+    },
+    {
+      "text": "Saint-Jean de Terre-Neuve",
+      "lon": -52.713,
+      "lat": 47.561,
+      "kind": "city",
+      "maxScale": 1.5
+    },
+    {
+      "text": "Reykjavik",
+      "lon": -21.94,
+      "lat": 64.146,
+      "kind": "city",
+      "maxScale": 1.5
+    },
+    {
+      "text": "Brest",
+      "lon": -4.486,
+      "lat": 48.39,
+      "kind": "city",
+      "minScale": 0.5
+    }
+  ]
+}

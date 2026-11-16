@@ -1,0 +1,62 @@
+{
+  "default": "standard",
+  "presets": {
+    "arcade": {
+      "detection": "exact",
+      "interceptAid": "point",
+      "fuel": "unlimited",
+      "falseAlarms": false,
+      "orders": "draw",
+      "logistics": "auto"
+    },
+    "standard": {
+      "detection": "approximate",
+      "interceptAid": "track",
+      "fuel": "simple",
+      "falseAlarms": false,
+      "orders": "draw",
+      "logistics": "manual"
+    },
+    "realistic": {
+      "detection": "delayed",
+      "interceptAid": "none",
+      "fuel": "realistic",
+      "falseAlarms": true,
+      "orders": "headings",
+      "logistics": "manual"
+    }
+  },
+  "choices": {
+    "detection": [
+      "exact",
+      "approximate",
+      "delayed"
+    ],
+    "interceptAid": [
+      "point",
+      "track",
+      "none"
+    ],
+    "fuel": [
+      "unlimited",
+      "simple",
+      "realistic"
+    ],
+    "orders": [
+      "draw",
+      "headings"
+    ],
+    "logistics": [
+      "auto",
+      "manual"
+    ]
+  },
+  "options": {
+    "autoZoom": true,
+    "slowOnAlert": true,
+    "sound": true,
+    "radarCover": false,
+    "altitudeStalks": true,
+    "grid": true
+  }
+}

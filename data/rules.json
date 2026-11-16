@@ -1,0 +1,230 @@
+{
+  "note": "Game balance. Aircraft figures are rounded and approximate. Speeds in km/h, climb in metres per minute, endurance in minutes, altitudes in feet. Site damage is in percent; repairs in percent per hour.",
+  "fighters": {
+    "Hurricane": {
+      "name": "Hurricane Mk I",
+      "cruiseKmh": 400,
+      "maxKmh": 510,
+      "climbMpm": 760,
+      "enduranceMin": 90,
+      "vsBombers": 1.0,
+      "vsFighters": 0.9
+    },
+    "Spitfire": {
+      "name": "Spitfire Mk I",
+      "cruiseKmh": 430,
+      "maxKmh": 560,
+      "climbMpm": 840,
+      "enduranceMin": 85,
+      "vsBombers": 0.95,
+      "vsFighters": 1.15
+    }
+  },
+  "bombers": {
+    "Do 17": {
+      "name": "Dornier Do 17",
+      "vulnerability": 1.0,
+      "accuracy": 1.0
+    },
+    "Ju 87": {
+      "name": "Junkers Ju 87",
+      "vulnerability": 1.3,
+      "accuracy": 1.5
+    },
+    "He 111": {
+      "name": "Heinkel He 111",
+      "vulnerability": 0.85,
+      "accuracy": 0.85
+    }
+  },
+  "escorts": {
+    "Bf 109": {
+      "name": "Messerschmitt Bf 109",
+      "threat": 1.25
+    },
+    "Bf 110": {
+      "name": "Messerschmitt Bf 110",
+      "threat": 0.8
+    }
+  },
+  "squadron": {
+    "scrambleSeconds": 120,
+    "turnRateDegPerSec": 6,
+    "orbitTurnDegPerSec": 3,
+    "descentMpm": 1200,
+    "refuelMinutes": 20,
+    "landingRangeKm": 3,
+    "approachDescentKm": 25,
+    "waypointReachedKm": 2,
+    "engageRangeKm": 6,
+    "engageBelowM": 1200,
+    "engageAboveM": 3000,
+    "heightAdvantageM": 300,
+    "maxSpeedBurn": 1.8,
+    "combatBurn": 2,
+    "fuelReserveMin": {
+      "simple": 5,
+      "realistic": 8
+    },
+    "defaultAltitudeFt": 15000,
+    "minAltitudeFt": 1000,
+    "maxAltitudeFt": 32000,
+    "altitudeStepFt": 1000,
+    "watchKm": 35,
+    "missHysteresisKm": 1.0,
+    "coverRadiusKm": 8
+  },
+  "combat": {
+    "roundSeconds": 60,
+    "ammoPerRound": 0.34,
+    "pKillBomber": 0.07,
+    "pKillEscort": 0.05,
+    "pLossVsEscort": 0.035,
+    "pLossVsGunners": 0.01,
+    "heightBonus": 1.4,
+    "escortPressureMax": 0.75,
+    "escortPressureWeight": 0.8,
+    "abortBase": 0.08,
+    "abortPerLoss": 0.9,
+    "abortPerExtraSquadron": 0.08
+  },
+  "raid": {
+    "assemblyRadiusKm": 6,
+    "bombingSeconds": 60,
+    "arrivalKm": 1.5
+  },
+  "sites": {
+    "airfield": {
+      "damagePerBomber": 2.4,
+      "outAt": 80,
+      "repairPerHour": 4,
+      "groundLossPerDamage": 0.008
+    },
+    "radar": {
+      "damagePerBomber": 3.2,
+      "outAt": 60,
+      "repairPerHour": 1.2
+    },
+    "port": {
+      "damagePerBomber": 1.8,
+      "outAt": 85,
+      "repairPerHour": 1.0
+    },
+    "factory": {
+      "damagePerBomber": 2.0,
+      "outAt": 80,
+      "repairPerHour": 0.6
+    }
+  },
+  "navigation": {
+    "pointRadiusKm": {
+      "air": 4,
+      "sea": 15
+    },
+    "passedMarginKm": 0.5,
+    "pilotKm": 40,
+    "checkEveryS": 60,
+    "coastLookaheadKm": 3,
+    "harbourKm": 20,
+    "openLegKm": {
+      "air": 60,
+      "sea": 300
+    }
+  },
+  "convoy": {
+    "portSnapKm": 80,
+    "harbourMarginKm": 45,
+    "gateRadiusKm": 160,
+    "approachEndKm": 450
+  },
+  "detection": {
+    "plotIntervalS": 60,
+    "plotLifetimeS": 1200,
+    "lostAfterS": 300,
+    "radarMinRangeKm": 35,
+    "radarRangePerM": 0.042,
+    "radarMaxRangeKm": 190,
+    "radarHalfArcDeg": 60,
+    "observerMaxAltM": 6500,
+    "observerAccuracy": 0.5,
+    "modes": {
+      "exact": {
+        "posSigmaKm": 0,
+        "countError": 0,
+        "altSigmaM": 0,
+        "delayS": [
+          0,
+          0
+        ]
+      },
+      "approximate": {
+        "posSigmaKm": 2.5,
+        "countError": 0.3,
+        "altSigmaM": 600,
+        "delayS": [
+          0,
+          0
+        ]
+      },
+      "delayed": {
+        "posSigmaKm": 4,
+        "countError": 0.45,
+        "altSigmaM": 1100,
+        "delayS": [
+          90,
+          180
+        ]
+      }
+    }
+  },
+  "logistics": {
+    "trainKmh": 30,
+    "loadHours": 2,
+    "unloadHours": 1,
+    "routeFactor": 1.25,
+    "trainTonnes": {
+      "fuel": 100,
+      "materiel": 120
+    },
+    "unloadPerHour": 25,
+    "fuelPerAircraftSortie": 0.35,
+    "baseDailyFuel": 3,
+    "lowFuelDays": 1,
+    "ferryHours": 3,
+    "stockLossPerDamage": 0.004,
+    "autoMinimum": {
+      "airfield": 40,
+      "factory": 30
+    }
+  },
+  "uboats": {
+    "patrolKn": 8,
+    "shadowKn": 14,
+    "sightKmDay": 25,
+    "sightKmNight": 16,
+    "shadowDistanceKm": 14,
+    "reportEveryH": 6,
+    "dfErrorKm": 30,
+    "dfRadiusKm": 70,
+    "dfLifetimeH": 30,
+    "attackGapH": 4,
+    "pHit": 0.85,
+    "escortFactor": 0.6,
+    "secondShipP": 0.5,
+    "pKillPerEscort": 0.07,
+    "pDriveOffPerEscort": 0.22,
+    "nightFromH": 21,
+    "nightToH": 4,
+    "giveUpH": 48,
+    "lostKm": 60,
+    "callKm": 250
+  },
+  "escortGroups": {
+    "joinKm": 15,
+    "refitHours": 24,
+    "lowEnduranceDays": 1
+  },
+  "convoyAir": {
+    "pSinkPerBomber": 0.09
+  }
+}
