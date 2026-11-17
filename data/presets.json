@@ -44,7 +44,8 @@
     "fatigue": ["off", "on", "losses"],
     "carry": ["none", "light", "full"],
     "rosterHours": ["6", "12", "24", "48"],
-    "viewZones": ["none", "selected", "all"]
+    "viewZones": ["none", "selected", "all"],
+    "sheetPos": ["right", "left", "bottom"]
   },
   "options": {
     "autoZoom": true,
@@ -57,6 +58,10 @@
     "questions": true,
     "rosterHours": "24",
     "viewZones": "selected",
-    "volume": 80
+    "volume": 80,
+    "lowRes": false,
+    "sheetPos": "right",
+    "sheetW": 400,
+    "sheetH": 300
   }
 }

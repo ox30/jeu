@@ -102,7 +102,33 @@ function drawLand(ctx, cam, layer, haloPx) {
   ctx.stroke(layer.coast);
 }
 
+/**
+ * The base map (sea, land, graticule, names, paper grain) changes only when the view does: it
+ * is painted once into a canvas of its own and copied on every frame until the camera moves.
+ */
 export function drawMap(ctx, cam, dpr, mr) {
+  const width = Math.max(1, Math.round(cam.width * dpr));
+  const height = Math.max(1, Math.round(cam.height * dpr));
+  const key = `${cam.cx}|${cam.cy}|${cam.scale}|${cam.width}|${cam.height}|${dpr}`;
+  if (typeof document === 'undefined') {
+    paintMap(ctx, cam, dpr, mr);
+    return;
+  }
+  if (!mr.cache) mr.cache = { canvas: document.createElement('canvas'), key: '' };
+  const c = mr.cache;
+  if (c.key !== key) {
+    if (c.canvas.width !== width || c.canvas.height !== height) {
+      c.canvas.width = width;
+      c.canvas.height = height;
+    }
+    paintMap(c.canvas.getContext('2d'), cam, dpr, mr);
+    c.key = key;
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(c.canvas, 0, 0);
+}
+
+function paintMap(ctx, cam, dpr, mr) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = PALETTE.sea;
   ctx.fillRect(0, 0, cam.width, cam.height);

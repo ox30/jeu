@@ -91,6 +91,9 @@ export function createEscortGroup(world, def) {
     escorting: null, // convoy the group is with
     leftConvoy: null, // convoy it was ordered to leave: it does not take station again by itself
     schedule: null, // a sailing ordered for later (timetable.js)
+    exitChannel: null, // how it goes out of port: null (the roads) or a channel's name
+    boost: false, // sprinting above its sea speed (endurance burnt faster)
+    boostKn: null,
     lateFor: null, // a support group it is catching up with (rally.js)
     enduranceMax: def.enduranceDays * 86400,
     endurance: def.enduranceDays * 86400,
@@ -187,16 +190,25 @@ function closestOnSegment(a, b, p) {
   return { x, y, d: distance(x, y, p[0], p[1]) };
 }
 
-/** Ports the group can go back to, nearest by sea first: [{ port, km, hours }]. */
+/**
+ * Ports the group can go back to, nearest by sea first: [{ port, km, hours }]. Routes round the
+ * land take time to work out: the list is kept while the group stays within 5 km and 10 minutes.
+ */
 export function portChoices(world, e) {
+  const memo = PORT_MEMO.get(e);
+  if (memo && world.t - memo.t < 600 && distance(e.x, e.y, memo.x, memo.y) < 5 && memo.world === world) return memo.list;
   const list = [];
   for (const port of acceptingPorts(world, e)) {
     if (port.foreign) continue;
     const r = homeRoute(world, e, port);
     if (r) list.push({ port, km: r.km, hours: r.km / KNOT_KMH / e.speedKn });
   }
-  return list.sort((a, b) => a.km - b.km);
+  list.sort((a, b) => a.km - b.km);
+  PORT_MEMO.set(e, { t: world.t, x: e.x, y: e.y, list, world });
+  return list;
 }
+
+const PORT_MEMO = new WeakMap();
 
 /** Sends the group into a port (the one given, or the nearest by sea), around the land. */
 export function sendEscortHome(world, e, portId = null) {
@@ -244,7 +256,7 @@ export function updateEscort(world, e, dt) {
     return;
   }
   if (e.state === 'inPort') return;
-  e.endurance -= dt;
+  e.endurance -= dt * (e.boost ? R.boostEndurance : 1);
   if (e.state === 'hunting') {
     stepHunt(world, e, dt);
     return;

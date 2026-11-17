@@ -7,6 +7,7 @@
 import { KNOT_KMH, distance, headingOf, headingVector, polylineLength, project } from './geo.js';
 import { emit } from './events.js';
 import { followPlan } from './navigation.js';
+import { seaPath } from './searoute.js';
 
 export function createConvoy(world, def) {
   const port = def.from ? world.byId.port.get(def.from) : null;
@@ -76,9 +77,27 @@ function madeGood(u, kn) {
   return u.zigzag ? kn * (u.zigzagFactor || 0.85) : kn;
 }
 
-/** Knots ordered without a leg speed: the convoy's speed order, or its best. */
+/** Knots ordered without a leg speed: the convoy's speed order, or its best (an escort's boost above it). */
 function standingKn(u) {
+  if (u.boost && u.boostKn) return u.boostKn;
   return u.orderedKn ? Math.min(u.orderedKn, u.speedKn) : u.speedKn;
+}
+
+/**
+ * The speed a ship's « 100 % » stands for: a convoy's speed that keeps it together, a group's
+ * sea speed. Its boost: a convoy's best (ships fall behind), a group's sprint (it burns its
+ * endurance faster).
+ */
+export function fullKnots(world, u) {
+  return u.kind === 'escort' || u.type !== 'ocean' || u.straggler ? u.speedKn : safeKnots(u.speedKn, world.rules.asw.stragglerFrom);
+}
+
+/** Throttle of a ship: { pct, boost } as the panel shows it. */
+export function shipThrottle(world, u) {
+  const full = fullKnots(world, u);
+  if (u.kind === 'escort' ? u.boost : u.orderedKn === null ? u.speedKn > full : u.orderedKn > full) return { pct: 100, boost: true };
+  const kn = u.orderedKn ? Math.min(u.orderedKn, u.speedKn) : u.speedKn;
+  return { pct: Math.round(Math.min(100, (kn / full) * 100) / 5) * 5, boost: false };
 }
 
 /** Speed in km/s on a leg (a leg can be slower than the ship, never faster). */
@@ -342,6 +361,36 @@ function closestOnSegment(ax, ay, bx, by, px, py) {
  * the port, the end of the route is replaced by the channel: the player draws the ocean
  * crossing, the Admiralty pilots the coastal waters.
  */
+/**
+ * The roads of a port: the first point of its channel out at sea, just off the harbour (the
+ * one nearest (x, y) when the channels part there). Null for a port without channel.
+ */
+export function harbourExit(world, portId, x = null, y = null) {
+  const port = world.byId.port.get(portId);
+  let best = null;
+  for (const a of (port && port.approaches) || []) {
+    if (a.points.length < 2) continue;
+    const p = a.points[a.points.length - 2];
+    const d = x === null ? 0 : distance(p[0], p[1], x, y);
+    if (!best || d < best.d) best = { p, d };
+  }
+  return best ? [best.p[0], best.p[1]] : null;
+}
+
+/**
+ * How an escort group in port goes out (route points from the harbour): to the roads, or, when
+ * the player chose a channel (e.exitChannel, « Nord de l'Irlande »), down that channel to its
+ * far end. Its route or its legs start there. (x, y): where the player's line starts, to pick
+ * the roads nearest it.
+ */
+export function harbourWayOut(world, e, x = null, y = null) {
+  const port = world.byId.port.get(e.portId);
+  const channel = e.exitChannel ? (port.approaches || []).find((a) => a.name === e.exitChannel) : null;
+  if (channel) return channel.points.slice(0, -1).reverse().map(([px, py]) => [px, py]);
+  const roads = harbourExit(world, e.portId, x, y);
+  return roads ? [roads] : [];
+}
+
 function applyApproach(world, c, full) {
   const rules = world.rules.convoy;
   const end = full[full.length - 1];
@@ -384,6 +433,18 @@ export function routeConvoy(world, c, points) {
   const rules = world.rules.convoy;
   let destination = null;
   let locked = 0;
+  // An escort group drawn out of port goes out to the roads first, then by sea (round the
+  // land if need be) to the start of the line drawn.
+  let roads = null;
+  if (c.kind === 'escort' && c.state === 'inPort') {
+    const out = harbourWayOut(world, c, pts[0][0], pts[0][1]);
+    if (out.length) {
+      roads = out;
+      const end = out[out.length - 1];
+      const way = seaPath(world, end, pts[0]);
+      pts = [...out, ...(way ? way.slice(0, -1) : []), ...pts];
+    }
+  }
   const approach = applyApproach(world, c, [[c.x, c.y], ...pts]);
   if (approach) {
     pts = approach.route;
@@ -407,8 +468,9 @@ export function routeConvoy(world, c, points) {
     }
   }
 
-  const full = [[c.x, c.y], ...pts];
-  const skipStart = c.state === 'inPort' && !c.anchored ? rules.harbourMarginKm : 0;
+  // From the roads on, the route must keep to the sea (the harbour channel is charted).
+  const full = roads ? pts.slice(roads.length - 1) : [[c.x, c.y], ...pts];
+  const skipStart = !roads && c.state === 'inPort' && !c.anchored ? rules.harbourMarginKm : 0;
   const skipEnd = destination ? rules.harbourMarginKm : 0;
   const land = world.terrain.findLandOnRoute(full, skipStart, skipEnd);
   if (land) {
@@ -417,7 +479,7 @@ export function routeConvoy(world, c, points) {
   }
 
   c.route = pts;
-  c.routeLocked = locked;
+  c.routeLocked = Math.max(locked, roads ? roads.length : 0);
   if (c.kind === 'escort') {
     c.homeward = Boolean(destination);
     // A route drawn for a group with a convoy, or hunting, takes it away: it does not take

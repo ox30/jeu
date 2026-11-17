@@ -340,9 +340,13 @@ export function updateAsw(world) {
       if (plot) plot.byId = e.id;
       seeUboat(world, u, { by: e.name, byId: e.id, kind: 'escort', how: seen.source });
       dive(world, u, A.diveHours);
-      emit(world, 'uboatSighted', { by: e.name, byId: e.id, source: seen.source, unitKind: 'escort' });
+      const attack = !e.engage && distance(e.x, e.y, u.x, u.y) <= A.counterKm;
+      emit(world, 'uboatSighted', {
+        by: e.name, byId: e.id, source: seen.source, unitKind: 'escort', uboatId: u.id, plotId: plot ? plot.id : null,
+        x: plot ? plot.x : u.x, y: plot ? plot.y : u.y, attack,
+      });
       // Close enough: the group attacks it with depth charges.
-      if (!e.engage && distance(e.x, e.y, u.x, u.y) <= A.counterKm) engage(world, e, u, seen.source);
+      if (attack) engage(world, e, u, seen.source);
       else if (e.state === 'escorting' && e.behaviour === 'hunt' && plot) startHunt(world, e, plot.x, plot.y);
       break;
     }
@@ -351,10 +355,13 @@ export function updateAsw(world) {
       if (!isPatrol(s) || s.role !== 'coastal' || s.state !== 'airborne' || s.aircraft <= 0) continue;
       const seen = aircraftLooks(world, s, u);
       if (!seen) continue;
-      addPlot(world, u, seen.source, s.name, seen.error);
+      const plot = addPlot(world, u, seen.source, s.name, seen.error);
       seeUboat(world, u, { by: s.name, byId: s.id, kind: 'squadron', how: seen.source });
       dive(world, u, A.diveHours);
-      emit(world, 'uboatSighted', { by: s.name, byId: s.id, source: seen.source, unitKind: 'squadron' });
+      emit(world, 'uboatSighted', {
+        by: s.name, byId: s.id, source: seen.source, unitKind: 'squadron', uboatId: u.id, plotId: plot ? plot.id : null,
+        x: plot ? plot.x : u.x, y: plot ? plot.y : u.y, attack: false,
+      });
       const spec = world.rules.patrols[s.type];
       if (distance(s.x, s.y, u.x, u.y) <= A.aircraftAttackKm) attackUboat(world, u, spec.attackKill, s.name, u.x, u.y);
       break;

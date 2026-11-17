@@ -16,7 +16,7 @@ import {
   SPEEDS, activePoint, addRulerLeg, cancelSpeed, changeAltitude, changePointAltitude, confirmSpeed, deletePoint, extendRoute, findUnit,
   finishDrawing, orderMru, goView, headingsMode, insertPoint, movePoint, orderBreakOff, orderHome, orderOrbit, placeRallyPoint, raidsInHand, requestSpeed,
   scrambleSquadron, select,
-  selectedFormation, selectedSquadron, selectedUnit, setActivePoint, toggleBuster, togglePause,
+  revealSelection, selectedFormation, selectedSquadron, selectedUnit, setActivePoint, orderBoost, togglePause,
 } from './actions.js';
 import { membersOf } from '../sim/formations.js';
 import { answerShown } from './questions.js';
@@ -42,6 +42,12 @@ function selectClicked(app, hit) {
   if (hit.formation) select(app, 'formation', hit.formation);
   else if (hit.kind === 'rally') select(app, 'formation', hit.id);
   else select(app, hit.kind, hit.id);
+}
+
+/** A plain click on a symbol: selected, and brought out from under the sheet that opens. */
+function clickSelect(app, hit) {
+  selectClicked(app, hit);
+  revealSelection(app);
 }
 
 function selectHit(app, hit) {
@@ -208,7 +214,7 @@ export function attachInput(app) {
         const endHit = hitTest(app, q[0], q[1], 8);
         finishDrawing(app, gesture.hit, points, endHit);
       } else if (!gesture.moved) {
-        selectClicked(app, gesture.hit);
+        clickSelect(app, gesture.hit);
       }
       app.drawing = null;
     } else if (gesture.type === 'extend') {
@@ -231,13 +237,13 @@ export function attachInput(app) {
       }
       app.routeDrag = null;
     } else if (gesture.type === 'measure') {
-      if (!gesture.moved) selectClicked(app, gesture.hit);
+      if (!gesture.moved) clickSelect(app, gesture.hit);
     } else if (gesture.type === 'mru') {
       if (up && app.ruler && Math.hypot(pos(e)[0] - gesture.start[0], pos(e)[1] - gesture.start[1]) > 12) orderMru(app, app.ruler.a, app.ruler.b);
       app.ruler = null;
     } else if (gesture.type === 'pan' && !gesture.moved && up) {
       // A click on the map itself no longer clears the selection (the panel's cross does).
-      if (gesture.hit) selectClicked(app, gesture.hit);
+      if (gesture.hit) clickSelect(app, gesture.hit);
     }
     gesture = null;
     canvas.style.cursor = app.tool === 'ruler' ? 'crosshair' : 'grab';
@@ -318,8 +324,8 @@ export function attachInput(app) {
       || (selectedFormation(app) && !(sq.state === 'scrambling' || sq.state === 'airborne' || sq.state === 'combat' || sq.state === 'returning')
         && membersOf(app.world, selectedFormation(app)).some((s) => s.state === 'ready')))) {
       scrambleSquadron(app, sq);
-    } else if ((key === 'b' || key === 'B') && sq) {
-      toggleBuster(app, sq);
+    } else if ((key === 'b' || key === 'B') && unit) {
+      orderBoost(app, unit);
     } else if ((key === 'o' || key === 'O') && sq) {
       orderOrbit(app, sq);
     } else if ((key === 'p' || key === 'P') && sq) {

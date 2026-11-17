@@ -7,10 +7,10 @@ import { disengage } from './combat.js';
 import {
   aircraftSpec, airfieldsAround, applyEndAction, applyPointAltitude, isFlying, squadronSpeed, startReturn,
 } from './squadron.js';
-import { currentSpeed as currentSpeedOf, editShipRoute, editablePoints, legSpeed, routeConvoy } from './convoy.js';
+import { currentSpeed as currentSpeedOf, editShipRoute, editablePoints, fullKnots, harbourWayOut, legSpeed, routeConvoy } from './convoy.js';
 import { projectPlan, resolveClock } from './navigation.js';
 import { airfieldDelayFactor, isOperational } from './sites.js';
-import { bearing, distance, headingDiff, polylineLength } from './geo.js';
+import { distance } from './geo.js';
 import { sendEscortHome } from './naval.js';
 import { endHunt, startHunt } from './asw.js';
 import { interceptChance } from './control.js';
@@ -311,6 +311,14 @@ export function setSpeed(world, s, mode) {
   s.speedMode = mode === 'max' ? 'max' : 'cruise';
 }
 
+/** Throttle of a squadron: a share of cruising speed (50 to 100 %); it ends the boost. */
+export function setSpeedPct(world, s, pct) {
+  const min = world.rules.squadron.minSpeedPct;
+  s.speedPct = Math.max(min, Math.min(100, Math.round(Number(pct) / 5) * 5 || 100));
+  s.speedMode = 'cruise';
+  return s.speedPct;
+}
+
 export function returnToBase(world, s) {
   if (s.state !== 'airborne' && s.state !== 'combat') return false;
   startReturn(world, s, 'order');
@@ -341,12 +349,16 @@ export function planTrack(world, u, legs = u.plan) {
   const N = world.rules.navigation;
   let start = null;
   if (u.kind === 'escort' && u.state === 'inPort' && legs.length) {
-    // An escort group leaves port by a charted channel; its legs start at the entrance.
-    const exit = exitApproach(world, u, legs[0].heading);
-    if (exit) {
-      const [gx, gy] = exit.points[0];
-      const km = polylineLength(exit.points);
-      start = { x: gx, y: gy, t: world.t + km / currentSpeedOf(u) };
+    // An escort group goes out to the roads (or down the channel chosen); its legs start there.
+    const out = harbourWayOut(world, u);
+    if (out.length) {
+      let km = 0;
+      let prev = [u.x, u.y];
+      for (const p of out) {
+        km += distance(prev[0], prev[1], p[0], p[1]);
+        prev = p;
+      }
+      start = { x: prev[0], y: prev[1], t: world.t + km / currentSpeedOf(u) };
     }
   }
   if (u.kind === 'squadron' && (u.state === 'ready' || u.state === 'scrambling')) {
@@ -472,25 +484,33 @@ export function clearPlan(world, u) {
 }
 
 /** The channel an escort group takes out of port for a first leg on `heading`. */
-export function exitApproach(world, e, heading) {
-  const port = world.byId.port.get(e.portId);
-  let best = null;
-  for (const a of port.approaches || []) {
-    const [gx, gy] = a.points[0];
-    const diff = Math.abs(headingDiff(bearing(port.x, port.y, gx, gy), heading));
-    if (!best || diff < best.diff) best = { a, diff };
-  }
-  return best ? best.a : null;
+/**
+ * An escort group (or a support group) in port sails: out to the roads, or down the channel
+ * the player chose, then on its legs; with no legs, it waits there for orders.
+ */
+export function sailEscort(world, e) {
+  if (e.kind !== 'escort' || e.state !== 'inPort') return false;
+  e.route = harbourWayOut(world, e);
+  e.routeLocked = e.route.length;
+  e.state = 'atSea';
+  e.legState = null;
+  e.destination = null;
+  e.homeward = false;
+  emit(world, 'convoySailed', { convoy: e.name, convoyId: e.id, unitKind: e.kind });
+  return true;
+}
+
+/** The way out of port for a group: null (the roads) or the name of a channel. */
+export function setExitChannel(world, e, name) {
+  const port = e.portId ? world.byId.port.get(e.portId) : null;
+  e.exitChannel = name && port && (port.approaches || []).some((a) => a.name === name) ? name : null;
+  return e.exitChannel;
 }
 
 /** A convoy (or an escort group) in port sails on its plan. */
 export function departConvoy(world, c) {
+  if (c.kind === 'escort') return sailEscort(world, c);
   if (c.state !== 'inPort' || !c.plan.length) return false;
-  if (c.kind === 'escort') {
-    const exit = exitApproach(world, c, c.plan[0].heading);
-    c.route = exit ? exit.points.slice(0, -1).reverse().map(([x, y]) => [x, y]) : [];
-    c.routeLocked = c.route.length;
-  }
   c.state = 'atSea';
   c.legState = null;
   c.destination = null;
@@ -502,6 +522,31 @@ export function departConvoy(world, c) {
 export function setConvoySpeed(world, c, kn) {
   c.orderedKn = kn === null || !Number.isFinite(kn) ? null : Math.max(3, Math.min(c.speedKn, Math.round(kn)));
   return c.orderedKn;
+}
+
+/** Throttle of a ship: a share of its « 100 % » (25 to 100 %); it ends the boost. */
+export function setShipSpeedPct(world, u, pct) {
+  const full = fullKnots(world, u);
+  const min = world.rules.escortGroups.minSpeedPct;
+  const p = Math.max(min, Math.min(100, Math.round(Number(pct) / 5) * 5 || 100));
+  u.boost = false;
+  u.orderedKn = p >= 100 && u.kind === 'escort' ? null : Math.max(2, Math.round(full * p) / 100);
+  return p;
+}
+
+/**
+ * Boost of a ship: a convoy at its best (some ships may fall behind), a group at sprint speed
+ * (+15 %, its endurance burnt 1.6 times faster). Off: back to « 100 % ».
+ */
+export function setShipBoost(world, u, on) {
+  if (u.kind === 'escort') {
+    u.boost = Boolean(on);
+    u.boostKn = u.speedKn * world.rules.escortGroups.boostSpeed;
+    if (on) u.orderedKn = null;
+  } else {
+    u.orderedKn = on ? u.speedKn : fullKnots(world, u);
+  }
+  return Boolean(on);
 }
 
 export function setZigzag(world, c, on) {

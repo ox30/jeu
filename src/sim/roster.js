@@ -117,7 +117,7 @@ export function dailyStateAt(world, s, t) {
  */
 export function plannedChanges(world, s, end) {
   const r = s.roster;
-  if (!r || Array.isArray(r)) return [];
+  if (!r || Array.isArray(r) || s.alertManual) return [];
   const out = [];
   const o = overrideOf(world, s);
   const from = o ? o.until : world.t;
@@ -156,6 +156,11 @@ export function applyRoster(world, s) {
   const t = world.t;
   const prev = t - 60;
   const o = r.override;
+  // A state set by hand holds until the player hands back to the plan (« Retour au planning »).
+  if (s.alertManual) {
+    if (o && o.until <= t) r.override = null;
+    return;
+  }
   if (o && o.until <= t) {
     // The plan for the coming hours is over: back to the daily plan.
     r.override = null;
@@ -183,4 +188,39 @@ export function normalizeRoster(world, s) {
   const old = Array.isArray(s.roster) ? s.roster : [];
   s.roster = emptyRoster();
   for (const e of old) if (e.daily && ALERT_STATES.includes(e.alert)) addDaily(world, s, timeOfDay(world, e.at), e.alert);
+}
+
+/** The state the plan calls for now: the plan for the coming hours, or the daily plan. */
+export function plannedStateNow(world, s) {
+  const r = s.roster;
+  if (!r || Array.isArray(r)) return null;
+  const o = overrideOf(world, s);
+  if (o) {
+    let state = null;
+    for (const e of o.entries) if (e.at <= world.t) state = e.alert;
+    return state || dailyStateAt(world, s, o.from);
+  }
+  return dailyStateAt(world, s, world.t);
+}
+
+/** The player sets a state by hand: it holds until « Retour au planning ». */
+export function holdManual(world, s) {
+  s.alertManual = true;
+}
+
+/** « Retour au planning »: the plan takes over again, with the state it calls for now. */
+export function resumeRoster(world, s) {
+  s.alertManual = false;
+  const state = plannedStateNow(world, s);
+  if (state) apply(world, s, state, true);
+  return state;
+}
+
+/** Copies the daily plan of `from` to `to` (each change a new entry); the plan for the coming hours stays. */
+export function copyDaily(world, from, to) {
+  if (from === to) return false;
+  const r = to.roster && !Array.isArray(to.roster) ? to.roster : (to.roster = { daily: [], override: null });
+  r.daily = [];
+  for (const e of from.roster.daily) addDaily(world, to, e.tod, e.alert);
+  return true;
 }

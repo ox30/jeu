@@ -1,9 +1,8 @@
 import { isDaylight } from '../src/sim/patrols.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { project } from '../src/sim/geo.js';
 import { reachKm, isSubmerged } from '../src/sim/asw.js';
-import { joinConvoy, setConvoySpeed, setEscortBehaviour, setZigzag, scramble, setCover } from '../src/sim/orders.js';
+import { joinConvoy, setConvoySpeed, setEscortBehaviour, setZigzag, scramble } from '../src/sim/orders.js';
 import { cargoShare, currentSpeed } from '../src/sim/convoy.js';
 import { makeKanalkampf, run } from './helpers.js';
 

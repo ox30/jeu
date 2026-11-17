@@ -1,7 +1,7 @@
 // Dialogs: settings, help, success and end of the scenario.
 
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
-import { objectiveText } from './format.js';
+import { dateTimeText, objectiveText } from './format.js';
 import { checkDevPassword } from './dev.js';
 import { markHelpSeen, matchingPreset, saveSettings } from '../save/settings.js';
 import { showPage } from './pages.js';
@@ -81,6 +81,9 @@ export function openSettings(app) {
         ${checkbox('altitudeStalks', s.altitudeStalks, t('settings.altitudeStalks'))}
         ${checkbox('grid', s.grid, t('settings.grid'))}
         ${checkbox('autoZoom', s.autoZoom, t('settings.autoZoom'))}
+        ${checkbox('lowRes', s.lowRes, t('settings.lowRes'))}
+        <label>${escapeHtml(t('settings.sheetPos'))} ${select('sheetPos', s.sheetPos || 'right', presets.choices.sheetPos, 'settings.sheetPosChoices')}</label>
+        <p class="hint">${escapeHtml(t('settings.sheetHint'))}</p>
         <label>${escapeHtml(t('settings.viewZones'))} ${select('viewZones', s.viewZones || 'selected', presets.choices.viewZones, 'settings.viewZonesChoices')}</label>
         <p class="hint">${escapeHtml(t('settings.viewZonesHint'))}</p>
       </fieldset>`)}
@@ -133,6 +136,8 @@ export function openSettings(app) {
     s.preset = matchingPreset(s, presets);
     saveSettings(s);
     if (field.name === 'volume') setVolume(app);
+    if (field.name === 'lowRes' && app.resize) app.resize();
+    if (field.name === 'sheetPos' && app.applySheet) app.applySheet();
     if (field.name === 'orders' || field.name === 'preset') {
       app.drawing = null;
       app.el.unitKeyed.__key = '';
@@ -224,19 +229,45 @@ openSettings.refresh = (form, s, presets) => {
 /** The steps of the help, for the scenario being played. */
 function helpSteps(app) {
   const own = t(`help.scenario.${app.world.scenario.id}`);
-  if (Array.isArray(own)) return [...own, t('help.alerts'), ...t('help.common')];
-  return [...t(app.world.rail.enabled ? 'help.steps' : 'help.stepsTraining'), t('help.alerts')];
+  if (Array.isArray(own)) return own;
+  return t(app.world.rail.enabled ? 'help.steps' : 'help.stepsTraining');
 }
 
+const HELP_TABS = ['scenario', 'sheet', 'air', 'sea', 'time', 'keys'];
+
+/** A picture from the test bench, beside the text it illustrates (data/help/images.json). */
+function helpImage(app, name) {
+  const src = app.data.helpImages && app.data.helpImages[name];
+  return src ? `<figure class="help-image"><img src="${src}" alt="${escapeHtml(t(`help.images.${name}`))}"><figcaption>${escapeHtml(t(`help.images.${name}`))}</figcaption></figure>` : '';
+}
+
+/** The help, in tabs: this scenario, the sheet, the air, the sea, time and alerts, the keys. */
 export function openHelp(app) {
   const dlg = app.el.dlgHelp;
+  const tab = HELP_TABS.includes(app.helpTab) ? app.helpTab : 'scenario';
+  const list = (items) => `<ol>${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
+  const bodies = {
+    scenario: list(helpSteps(app)),
+    sheet: `${helpImage(app, 'sheet')}${list(t('help.sheet'))}`,
+    air: `${list(t('help.air'))}${helpImage(app, 'roster')}`,
+    sea: `${helpImage(app, 'escort')}${list(t('help.sea'))}`,
+    time: list(t('help.time')),
+    keys: `<p class="keys">${escapeHtml(t('help.keys'))}</p>`,
+  };
   dlg.innerHTML = `
-    <form method="dialog">
+    <form method="dialog" class="help-page">
       <h2>${escapeHtml(t('help.title'))}</h2>
-      <ol>${helpSteps(app).map((step) => `<li>${escapeHtml(step)}</li>`).join('')}</ol>
-      <p class="keys">${escapeHtml(t('help.keys'))}</p>
+      <nav class="settings-tabs" role="tablist">${HELP_TABS.map((id) => `<button type="button" role="tab" data-htab="${id}" class="${id === tab ? 'active' : ''}">${escapeHtml(t(`help.tabs.${id}`))}</button>`).join('')}</nav>
+      ${HELP_TABS.map((id) => `<section class="help-pane" data-hpane="${id}"${id === tab ? '' : ' hidden'}>${bodies[id]}</section>`).join('')}
       <div class="dialog-buttons"><button value="close">${escapeHtml(t('help.close'))}</button></div>
     </form>`;
+  dlg.querySelector('.settings-tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-htab]');
+    if (!b) return;
+    app.helpTab = b.dataset.htab;
+    for (const x of dlg.querySelectorAll('[data-htab]')) x.classList.toggle('active', x === b);
+    for (const p of dlg.querySelectorAll('[data-hpane]')) p.hidden = p.dataset.hpane !== b.dataset.htab;
+  });
   dlg.addEventListener('close', markHelpSeen, { once: true });
   showPage(app, dlg);
 }
@@ -380,6 +411,80 @@ export function openScenarios(app) {
     openScenarios(app); // rebuilt in place
   });
   showPage(app, dlg);
+}
+
+/**
+ * The main menu: carry on with the game in progress, the campaign (its scenarios), the
+ * training with its tutorial, a game saved in a file, the settings, the help. The game stands
+ * still while it is open; « Continuer » sets it going again as it was.
+ */
+export function openMainMenu(app) {
+  const dlg = app.el.dlgMenu;
+  const w = app.world;
+  if (!dlg.open) {
+    app.menuWasRunning = !app.paused && !w.ended;
+    app.paused = true;
+    app.dirtyHud = true;
+  }
+  const inGame = !w.ended && (w.t > 0 || app.resumed);
+  const when = dateTimeText(w.startMs + w.t * 1000);
+  dlg.innerHTML = `
+    <form method="dialog" class="main-menu">
+      <div class="mm-title"><h1>${escapeHtml(t('app.title'))}</h1><p>${escapeHtml(t('app.subtitle'))}</p></div>
+      <div class="mm-buttons">
+        ${inGame ? `<button type="button" class="mm-main" data-menu="continue">${escapeHtml(t('menu.continue'))}<small>${escapeHtml(t('menu.continueText', { scenario: t(`scenarios.${w.scenario.id}.title`), when }))}</small></button>` : ''}
+        <button type="button"${inGame ? '' : ' class="mm-main"'} data-menu="campaign">${escapeHtml(t('menu.campaign'))}<small>${escapeHtml(t('menu.campaignText'))}</small></button>
+        <button type="button" data-menu="training">${escapeHtml(t('menu.training'))}<small>${escapeHtml(t('menu.trainingText'))}</small></button>
+        <label class="mm-file">${escapeHtml(t('menu.load'))}<small>${escapeHtml(t('menu.loadText'))}</small><input type="file" accept=".json,application/json" data-menu-file hidden></label>
+        <div class="mm-row">
+          <button type="button" data-menu="settings">${escapeHtml(t('menu.settings'))}</button>
+          <button type="button" data-menu="help">${escapeHtml(t('menu.help'))}</button>
+        </div>
+      </div>
+      <p class="message" data-menu-message hidden></p>
+      <p class="hint mm-note">${escapeHtml(t('menu.note'))}</p>
+    </form>`;
+  const close = (run) => {
+    dlg.close();
+    if (run && app.menuWasRunning) {
+      app.paused = false;
+      app.accumulator = 0;
+    }
+    app.dirtyHud = true;
+  };
+  dlg.querySelector('[data-menu-file]').addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      app.importGame(await file.text());
+      close(false);
+    } catch (err) {
+      const msg = dlg.querySelector('[data-menu-message]');
+      msg.hidden = false;
+      msg.textContent = t('save.importError');
+      console.warn(err);
+    }
+  });
+  dlg.querySelector('.mm-buttons').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-menu]');
+    if (!b) return;
+    const what = b.dataset.menu;
+    if (what === 'continue') close(true);
+    else if (what === 'campaign') {
+      close(false);
+      openScenarios(app);
+    } else if (what === 'training') {
+      close(false);
+      app.restart(TRAINING, { tutorial: true });
+    } else if (what === 'settings') openSettings(app);
+    else if (what === 'help') openHelp(app);
+  });
+  // Escape carries on with the game, like « Continuer ».
+  dlg.oncancel = (e) => {
+    e.preventDefault();
+    if (inGame) close(true);
+  };
+  if (!dlg.open) dlg.showModal();
 }
 
 /** Shown once on a small or touch-only screen: the game is made for a computer. */

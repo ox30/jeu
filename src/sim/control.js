@@ -10,7 +10,7 @@ import { solveIntercept } from './intercept.js';
 import { contactEstimate } from './query.js';
 import { isActive } from './raid.js';
 import { radarRangeFactor } from './sites.js';
-import { aircraftSpec } from './squadron.js';
+import { aircraftSpec, throttle, typeKmh } from './squadron.js';
 import { patrolSeeing } from './patrols.js';
 
 /**
@@ -61,8 +61,7 @@ function roundChance(q) {
 
 /** Speed of a squadron (km/s) as the controller reckons it. */
 function speedOf(world, s) {
-  const type = aircraftSpec(world, s.type);
-  return (s.speedMode === 'max' ? type.maxKmh : type.cruiseKmh) / 3600;
+  return typeKmh(aircraftSpec(world, s.type), throttle(s)) / 3600;
 }
 
 /**

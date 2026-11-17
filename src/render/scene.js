@@ -22,7 +22,7 @@ import { isSubmerged, reachKm } from '../sim/asw.js';
 import { isPatrol, sightKm } from '../sim/patrols.js';
 import { fuelDays } from '../sim/logistics.js';
 import { drawDevLayer } from './devLayer.js';
-import { formationById } from '../sim/formations.js';
+import { formationById, leaderOf } from '../sim/formations.js';
 import { rallyPoint } from '../sim/rally.js';
 import { allViewZones } from '../sim/sight.js';
 
@@ -42,6 +42,23 @@ function onScreen(cam, sx, sy, margin = 60) {
 
 function isSelected(app, kind, id) {
   return app.selection && app.selection.kind === kind && app.selection.id === id;
+}
+
+/** The aerodrome of the chosen squadron (or formation) when it is on the ground, or the chosen aerodrome. */
+function chosenField(app, world) {
+  const sel = app.selection;
+  if (!sel) return null;
+  if (sel.kind === 'site') {
+    const f = world.airfields.find((a) => a.key === sel.id);
+    return f ? f.id : null;
+  }
+  let sq = null;
+  if (sel.kind === 'squadron') sq = world.squadrons.find((x) => x.id === sel.id);
+  else if (sel.kind === 'formation') {
+    const f = formationById(world, sel.id);
+    sq = f && f.kind === 'air' ? leaderOf(world, f) : null;
+  }
+  return sq && !isFlying(sq) && sq.state !== 'lost' ? sq.airfield : null;
 }
 
 /** Formation of each squadron or escort group: id → { f, index } (0: the leader). */
@@ -350,8 +367,12 @@ function drawPlaces(ctx, cam, app) {
     grounded.get(sq.airfield).push(sq);
   }
   const fields = [];
-  if (s > 0.45) {
+  // Far out the aerodromes are hidden, except the one of the chosen squadron: a route can be
+  // drawn from it at any zoom (Coastal Command over the Atlantic).
+  const chosen = s > 0.45 ? null : chosenField(app, world);
+  if (s > 0.45 || chosen) {
     for (const f of world.airfields) {
+      if (chosen && f.id !== chosen) continue;
       const [sx, sy] = toScreen(cam, f.x, f.y);
       if (!onScreen(cam, sx, sy)) continue;
       aerodrome(ctx, sx, sy, f.sector, isSelected(app, 'site', f.key));

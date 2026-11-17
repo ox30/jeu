@@ -3,7 +3,7 @@
 Prototype du jeu navigateur sur la Seconde Guerre mondiale : le joueur commande le soutien
 allié (aviation, escortes, logistique), jamais les armées. Le M2 réunit l'Âge I en une
 campagne de quatre scénarios, de la bataille de la Manche à l'hiver 1941 dans l'Atlantique,
-avec un tutoriel guidé.
+avec un menu principal, un tutoriel guidé et une aide illustrée.
 
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
@@ -29,7 +29,10 @@ d'entrée.
 
 ## Scénarios et campagne
 
-Le bouton « Scénario » ouvre la campagne de l'acte I. Une victoire ouvre le scénario suivant ;
+Le jeu s'ouvre sur le **menu principal** : Continuer (la partie en cours), Campagne,
+Entraînement (avec le tutoriel), Charger une partie, Réglages et Aide. Le bouton « Menu » du
+bandeau le rouvre ; le jeu est arrêté tant qu'il est ouvert, Échap ou « Continuer » le
+reprend. « Campagne » ouvre la campagne de l'acte I. Une victoire ouvre le scénario suivant ;
 la case « Débloquer tous les scénarios » les ouvre tous d'un coup.
 
 | Scénario | Période | L'essentiel |
@@ -46,42 +49,65 @@ Standard, la chasse commence la bataille suivante avec la moitié des avions per
 convoyeurs comblent ensuite les vides.
 
 La partie en cours est enregistrée toute seule dans le navigateur et reprend où on l'a
-laissée. Le menu « Scénario » permet aussi de l'exporter dans un fichier `.json` et de la
-réimporter.
+laissée. La page Campagne permet aussi de l'exporter dans un fichier `.json`, et « Charger
+une partie » du menu de la réimporter.
 
 ## Comment jouer
 
-Trois cartes : Atlantique (touche A), Grande-Bretagne (L) et Angleterre (G). L'aide (?)
-donne les étapes propres au scénario en cours.
+Trois cartes : Atlantique (touche A), Grande-Bretagne (L) et Angleterre (G). L'**aide**
+(bouton « Aide ») tient en onglets — Ce scénario, La fiche, Air, Mer, Temps et alertes,
+Touches — avec quelques images prises sur le banc d'essai (`data/help/images.json`).
 
-**La fiche d'une unité** s'ouvre à droite de la carte, à côté de la colonne (Objectifs,
-Tableau d'état, Journal), quand on clique une unité ou une installation. Elle tient en
-onglets courts : **Ordres** (ce que l'unité doit faire : décoller, missions, état d'alerte,
-attitude face à l'ennemi, formation, départs programmés), **Navigation** (comment elle y va :
-route, étapes, cap, altitude, vitesse, fin de route, profil de montée), **État** et **Fiche
-technique** ; une formation a aussi **Rassemblement** et **Membres**, un aérodrome
-**Effectifs**. Tant qu'elle est ouverte, tout
-s'adresse à cette unité : la règle, Entrée pour ajouter l'étape mesurée, ↑ ↓ pour l'altitude.
-Un clic sur une autre unité change de fiche ; un clic sur la carte ne ferme plus rien ; la
-croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte sur l'unité.
+**La fiche d'une unité** s'ouvre quand on clique une unité ou une installation, sur la carte
+ou dans le tableau d'état : à droite de la carte, ou à gauche, ou en bas (Réglages, onglet
+Carte et fiche) ; on tire son bord pour l'élargir (ou la grandir en bas), et la taille est
+gardée. En haut, la **barre de commandes**, toujours visible, donne les ordres en icônes :
+Décoller, Orbiter, Rentrer, Rompre H05 ; Défense, Attaque, Poursuite ; l'altitude ↑ ↓ ; la
+vitesse et le boost. Pour un navire : Appareiller, Au port, Rester, Chasser, Stop ; pour un
+convoi : Appareiller, Amirauté, Zigzag. Un survol de la souris donne le détail de chaque
+bouton. Dessous, des onglets courts : **Commandes**, dont les sections suivent l'état de
+l'unité (au sol : décollage et état d'alerte ; route et étapes, avec le profil de montée ;
+mission ; formation ; au port : sortie et appareillage ; convois ; chasse aux U-Boote ; retour
+au port…) — un clic sur un titre replie ou rouvre la section, et elle reste comme on la
+laisse —, **État** et **Fiche technique** ; une formation a aussi **Rassemblement** et
+**Membres**, un aérodrome **Ordres** et **Effectifs**. Tant qu'elle est ouverte, tout
+s'adresse à cette unité : la règle, Entrée pour ajouter l'étape mesurée, ↑ ↓ pour l'altitude,
+B pour le boost. Un clic sur une autre unité change de fiche ; un clic sur la carte ne ferme
+plus rien ; la croix (ou Échap) ferme la fiche et la sélection. Une unité choisie que la fiche
+cacherait (ou hors de l'écran, choisie dans le tableau d'état) est ramenée en vue ; le bouton
+⌖ centre la carte sur elle. L'aérodrome de l'escadrille choisie reste visible à toutes les
+échelles : on trace la route d'un avion du Coastal Command depuis la carte de l'Atlantique.
 
-1. **Convois.** Tracez leur route, ou cliquez sur « Route de l'Amirauté », jusqu'au chenal du
+**Vitesse.** Le curseur règle un avion de 50 à 100 % de sa vitesse de croisière ; le boost
+(bouton ⚡ ou touche B) donne la pleine vitesse (127 % pour un Hurricane, 130 % pour un
+Spitfire) et consomme beaucoup plus ; sous 100 %, il consomme un peu moins. Un convoi à
+100 % garde ses navires groupés ; son boost (sa meilleure vitesse) laisse décrocher les plus
+lents. Un groupe d'escorte va de 25 à 100 % de sa vitesse de mer ; son boost (+15 %) use son
+autonomie 1,6 fois plus vite.
+
+1. **Convois.** Tracez leur route, ou cliquez sur « Amirauté », jusqu'au chenal du
    nord de l'Irlande ou au canal Saint-Georges : un pilote les conduit au port. La vitesse
    ordonnée garde le convoi groupé ; plus près de sa vitesse maximale, des navires lents
    décrochent et deviennent des traînards. Le zigzag gêne les U-Boote mais ralentit.
+   **Appareiller** : un groupe d'escorte sort en rade, juste au large de son port, ou suit
+   jusqu'au bout le chenal choisi (« Sortie », section Au port) ; il y attend vos ordres, ou
+   prend votre tracé ou vos étapes. Un tracé tiré depuis le port part de la rade et contourne
+   la terre par la mer.
 2. **U-Boote.** Ils attaquent de nuit, en surface. Les zones hachurées viennent de la
    radiogoniométrie ; un repère U-Boot (vu par une vigie, un avion, l'ASDIC ou le radar)
    porte deux cercles : où il peut être en surface, et en plongée. Un groupe d'escorte
    « Rejoint » un convoi et, « Face aux U-Boote », « Reste » avec lui (il n'attaque que ce
    qui s'approche, 30 min et 15 km au plus) ou « Chasse » un contact frais pendant la durée
-   choisie (3 h par défaut, de 1 à 12 h) ; « Interrompre la chasse » ou tout autre ordre
-   l'arrête, et un repère frais à moins de 80 km peut être chassé d'un clic. Un U-Boot tenu
+   choisie (3 h par défaut, de 1 à 12 h) ; « Stop » ou tout autre ordre l'arrête, et un
+   repère frais à moins de 80 km peut être chassé d'un clic. Un U-Boot vu par un avion ou
+   par une escorte, où qu'il soit, lève l'alerte « U-Boot en vue » et ramène le jeu à ×1
+   (une fois par heure et par U-Boot ; une attaque a sa propre alerte). Un U-Boot tenu
    (ASDIC, ou vu tout près) reçoit une passe de grenades toutes les 10 minutes : coulé,
-   touché (il rentre), perdu ou rien de visible ; chaque attaque a son rapport. « Rentrer au
-   port » laisse choisir le port, du plus proche par mer au plus loin, avec distance et
-   durée ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un
-   port (15 km, montrée quand un navire est choisi) y entre. Comme pour les avions, l'onglet
-   Navigation dit que faire en fin de tracé : s'arrêter et attendre, garder le cap, chasser
+   touché (il rentre), perdu ou rien de visible ; chaque attaque a son rapport. « Au port »
+   rentre au port choisi dans la section « Retour au port », du plus proche par mer au plus
+   loin, avec distance et durée ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un
+   port (15 km, montrée quand un navire est choisi) y entre. Comme pour les avions, la section
+   « Route et étapes » dit que faire en fin de tracé : s'arrêter et attendre, garder le cap, chasser
    sur place, rejoindre un convoi ou entrer au port. Un groupe qui attend ses ordres garde
    la veille ; un groupe attaqué en rentrant reprend ensuite sa route vers le port.
 3. **Patrouilles.** La section de guet (Spitfire) et le Coastal Command voient ce que les
@@ -98,7 +124,7 @@ croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte
    De même, un U-Boot vu par une escorte (vigie ou ASDIC) ou par un avion est suivi en direct ;
    perdu, il laisse un repère à sa dernière position, d'où partent ses cercles. Les
    observateurs (Observer Corps) restent des plots.
-   **Face à l'ennemi** (onglet Ordres d'une escadrille ou d'une big wing) : en *Défense*,
+   **Face à l'ennemi** (barre de commandes d'une escadrille ou d'une big wing) : en *Défense*,
    l'unité n'attaque pas d'elle-même (sauf un raid sur le convoi qu'elle couvre) et demande
    l'autorisation d'engager quand elle voit un raid ; en *Attaque* (le défaut, comme au M2.2),
    elle attaque les raids qui arrivent et demande avant de poursuivre un raid qui rentre ; en
@@ -107,8 +133,8 @@ croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte
    laisse après la réponse ; sans réponse en 60 s de jeu, c'est non. Il n'y a qu'une question
    par raid et par escadrille (une seule pour une big wing), et on peut couper les questions
    dans « Réglages » (l'unité applique alors son attitude sans demander). Un tracé qui finit
-   sur le raid, ou « Intercepter », vaut autorisation. **« Désengager H05 »** (onglet Ordres,
-   ou touche D) sort l'unité — toute la big wing — du combat, de la poursuite ou du guidage :
+   sur le raid, ou « Intercepter », vaut autorisation. **« Rompre H05 »** (barre de
+   commandes, ou touche D) désengage l'unité — toute la big wing — du combat, de la poursuite ou du guidage :
    elle tourne sur place en attendant les ordres et laisse ce raid tranquille, quelle que soit
    son attitude, jusqu'à un nouvel ordre sur lui (un tracé qui finit dessus, « Intercepter »).
    Passer à une attitude plus prudente retire les autorisations déjà données : une escadrille
@@ -118,7 +144,7 @@ croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte
 5. **Tracés.** Cliquez une unité pour voir les carrés de sa route : glissez-les, ajoutez-en
    avec « + », prolongez par l'anneau du bout, double-cliquez pour retirer ; un point choisi
    prend une altitude (↑ ↓). En fin de tracé, l'escadrille orbite, sauf autre choix dans
-   l'onglet Route de sa fiche (se poser, rentrer, couvrir un convoi). Maj + glisser mesure
+   la section « Route et étapes » de sa fiche (se poser, rentrer, couvrir un convoi). Maj + glisser mesure
    avec la règle. Une ligne tirée depuis n'importe quelle escadrille d'une big wing (ou depuis
    son aérodrome) devient la route de toute la formation.
 6. **Formations.** Le bouton « Formations » (ou « Créer une big wing » dans la fiche d'une
@@ -150,9 +176,13 @@ croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte
    délai pour être en l'air après l'ordre de décoller : *Repos* 2 h (le personnel peut être
    n'importe où ; on le confirme, récupération rapide), *Disponible* 30 min, *Alerte* 5 min,
    *Cockpit* 2 min (fatigue). Monter d'un état prend la différence (du repos à l'alerte :
-   1 h 55, la fiche montre le rappel en cours) ; descendre est immédiat. L'onglet
-   **Effectifs** d'un aérodrome tient le plan de chaque jour de ses escadrilles (heures de
-   00:00 à 24:00, avec une frise des 24 heures à venir). Pour un jour de mission, la case
+   1 h 55, la fiche montre le rappel en cours) ; descendre est immédiat. Un état choisi à la
+   main dans la fiche garde la main sur le planning jusqu'à **« Retour au planning »**. La
+   page **Effectifs** (bouton du bandeau, ou « Programmation des effectifs… » dans la fiche
+   d'une escadrille ou d'un aérodrome) montre les aérodromes à gauche et, à droite, les
+   escadrilles de celui qu'on choisit : leur état, la frise des 24 heures à venir et le plan
+   de chaque jour (heures de 00:00 à 24:00, il se répète), qu'on peut copier vers les autres
+   escadrilles de l'aérodrome ou vers une autre. Pour un jour de mission, la case
    « Seulement les prochaines 24 h » ouvre un plan vierge en heures H depuis maintenant
    (H0 – H+6 repos, H+6 – H+9 alerte, H+9 – H+20 cockpit…) ; passé ce délai (24 h, réglable),
    le plan du jour reprend. Les heures se tapent librement (`5:30`, `5h30`, `0530`). En
@@ -160,7 +190,7 @@ croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte
 8. **Départs programmés.** « Décollage programmé » (ou « Appareillage programmé » pour un
    convoi ou un groupe d'escorte, à un jour et une heure) donne l'ordre à l'heure dite : la
    route se trace depuis la base (en pointillé, elle attend) ou les étapes se préparent dans
-   l'onglet Navigation. L'heure est celle de l'ordre : le délai de l'état d'alerte s'y ajoute,
+   la section « Route et étapes ». L'heure est celle de l'ordre : le délai de l'état d'alerte s'y ajoute,
    d'où un rappel la première fois qu'on programme. « Chaque jour » répète l'ordre (une
    patrouille côtière à l'aube, par exemple). « Rejoindre une formation » (ou « Rejoindre un
    groupe de soutien ») fait partir l'unité à son heure pour rejoindre une big wing en vol
@@ -188,7 +218,7 @@ performances des avions et des navires. Les pages mettent le jeu en pause (régl
 
 **Alertes.** Tout événement qui demande le joueur lève une alerte au-dessus de la carte et
 ralentit le temps (réglable) : un raid ramène à ×10 ; en mer, toute alerte (convoi attaqué ou
-bombardé, escorte au combat, convoi pisté, contact U-Boot près d'un convoi, convoi à portée
+bombardé, escorte au combat, convoi pisté, U-Boot en vue, convoi à portée
 des escortes, escorte qui doit rentrer, traînards, navires arrêtés ou qui attendent) ramène
 à ×1 : on décide, puis on accélère soi-même ; une base sans carburant ou sans munitions, une
 installation hors service, un ordre retardé ou une patrouille surprise, à ×600, en ambre.
@@ -202,7 +232,7 @@ prochain événement : le joueur doit pouvoir être surpris.
 Raccourcis : Espace pause · 1 à 6 vitesse · A Atlantique · L Grande-Bretagne · G Angleterre ·
 R ou Maj + glisser règle (la croix de son encart l'efface) · Entrée ajouter l'étape mesurée ·
 C couverture radar · Échap annuler, puis fermer la fiche · ↑ ↓ altitude · Suppr retirer le point choisi ·
-S décoller · B pleine vitesse · O orbite · P rentrer · D désengager du raid en cours · question à l'écran : Entrée oui (au
+S décoller · B boost (avion ou navire) · O orbite · P rentrer · D rompre le combat (désengager le raid en cours) · question à l'écran : Entrée oui (au
 rendez-vous : le choix du plan), Échap non (au rendez-vous : partir).
 
 ## Mode développeur
@@ -232,7 +262,7 @@ mesurée. Une étape déjà posée se corrige avec ✎.
 ## Réglages
 
 Les « Réglages » tiennent en onglets : **Partie** (préréglage et réglages ci-dessous),
-**Temps et alertes**, **Carte**, **Sons**, **Développeur**. Trois préréglages, modifiables un
+**Temps et alertes**, **Carte et fiche**, **Sons**, **Développeur**. Trois préréglages, modifiables un
 par un :
 
 | Réglage | Arcade | Standard | Réaliste |
@@ -252,7 +282,9 @@ pendant une action ennemie, questions d'engagement et de poursuite (Temps et ale
 d'altitude, grille de carrés, zoom automatique et **zones de vue** (aucune, de l'unité
 choisie, de toutes) : ce qu'un avion voit des autres avions et, pour une patrouille côtière,
 d'un U-Boot en surface ; ce qu'un groupe d'escorte voit d'un U-Boot en surface (vigies,
-radar) et en plongée (ASDIC), de jour et de nuit (Carte) ; sons et volume (Sons).
+radar) et en plongée (ASDIC), de jour et de nuit ; la place de la fiche (à droite, à gauche
+ou en bas de la carte) et l'affichage économe, un peu moins net mais plus fluide sur un grand
+écran (Carte et fiche) ; sons et volume (Sons).
 
 ## Organisation du code
 
@@ -271,10 +303,10 @@ radar) et en plongée (ASDIC), de jour et de nuit (Carte) ; sons et volume (Sons
 │   │                          radars mobiles, événements datés, convois réguliers et dollars,
 │   │                          rapports, objectifs
 │   ├── render/                caméra, carte, symboles, animations, vue de profil
-│   ├── ui/                    souris, clavier, panneaux et fiche d'unité, pages (rapports,
-│   │                          fiches techniques, formations), alertes, questions, campagne,
-│   │                          tutoriel,
-│   │                          mode développeur, sons
+│   ├── ui/                    souris, clavier, panneaux, fiche d'unité et sa barre de
+│   │                          commandes, pages (rapports, fiches techniques, formations,
+│   │                          effectifs), menu principal, alertes, questions, campagne,
+│   │                          tutoriel, aide, mode développeur, sons
 │   └── save/                  réglages et parties gardés dans le navigateur
 ├── data/
 │   ├── maps/                  côtes Natural Earth projetées, noms de lieux
@@ -282,6 +314,7 @@ radar) et en plongée (ASDIC), de jour et de nuit (Carte) ; sons et volume (Sons
 │   │                          m0-july-1940 (entraînement)
 │   ├── rules.json             équilibrage (avions, combat, détection, logistique, U-Boote)
 │   ├── presets.json           préréglages Arcade, Standard, Réaliste
+│   ├── help/images.json       images de l'aide, prises sur le banc d'essai
 │   └── i18n/fr.json           tous les textes affichés
 ├── tests/                     tests de la simulation (Node)
 ├── tools/                     génération des cartes et de la version en un seul fichier
@@ -302,7 +335,7 @@ facilite les tests et l'équilibrage.
 npm test
 ```
 
-Les 129 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
+Les 140 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
 terre et la mer, les routes, les étapes et leur édition, le pilote à l'entrée des chenaux,
 les interceptions, le guidage du contrôleur et les ratés, les rapports, les installations,
 les trains mélangés, les munitions, la fatigue et les pilotes, les patrouilles, les U-Boote
@@ -312,7 +345,7 @@ confirmation des vitesses, le mode développeur, le contact direct (raids et U-B
 formations (rassemblement, vitesse de la plus lente, relève du chef, fusion, guidage d'une
 big wing, groupe de soutien qui suit son chef et rentre ensemble), l'attitude face à
 l'ennemi (questions d'engagement, de poursuite et de mi-Manche, refus, questions coupées,
-attitude abaissée pendant une poursuite, « Désengager » d'une escadrille ou d'une big wing),
+attitude abaissée pendant une poursuite, « Rompre » (désengager) une escadrille ou une big wing),
 les états d'alerte et la programmation des effectifs, les décollages et appareillages
 programmés (chaque jour, rejoindre une formation, ordre qui attend), les plans de
 rassemblement (départs calculés, retardataire, attendre ou ralentir, groupe de soutien sur un
@@ -321,7 +354,9 @@ M2.4 (routes autour de la terre, retour au port choisi par le chenal, durée et 
 la chasse, passes de grenades et leurs rapports, fin de tracé des navires, bulle de port,
 chasse jamais à terre, veille d'un groupe qui attend, retour au port après une attaque), les
 zones de vue, la vitesse de chaque alerte, des rapports qui ne disent que ce que la RAF sait,
-et une quinzaine complète sans ordres.
+au M2.5 la sortie en rade ou par un chenal, l'alerte « U-Boot en vue », la vitesse en % et le
+boost des avions et des navires, l'état choisi à la main et « Retour au planning », la copie
+d'un plan, l'aide et le tutoriel, et une quinzaine complète sans ordres.
 
 ## Outils
 

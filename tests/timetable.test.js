@@ -179,3 +179,26 @@ test('the timetable is saved and restored', () => {
   assert.equal(t.schedule.at, s.schedule.at);
   assert.equal(b.nextTimetableId, w.nextTimetableId);
 });
+
+test('a state set by hand holds against the plan until « Retour au planning »; a plan copied to another squadron', async () => {
+  const { holdManual, resumeRoster, copyDaily, plannedChanges } = await import('../src/sim/roster.js');
+  const w = makeKanalkampf('standard', { fatigue: 'on' });
+  const s = w.squadrons.find((x) => x.id === '32');
+  setAlert(w, s, 'available');
+  addDaily(w, s, todIn(w, 10), 'rest');
+  setAlert(w, s, 'cockpit');
+  holdManual(w, s);
+  assert.deepEqual(plannedChanges(w, s, w.t + 24 * H), [], 'the bar shows no change while held');
+  let ev = run(w, 30 * 60);
+  assert.ok(!ev.some((e) => e.type === 'rosterApplied'), 'the plan waits');
+  assert.equal(s.alert, 'cockpit');
+  assert.equal(resumeRoster(w, s), 'rest', 'back to the plan: the state it calls for now');
+  assert.equal(s.alert, 'rest');
+  assert.equal(s.alertManual, false);
+  const other = w.squadrons.find((x) => x.id !== s.id && x.role === 'fighter');
+  assert.ok(copyDaily(w, s, other));
+  assert.deepEqual(other.roster.daily.map((e) => [e.tod, e.alert]), s.roster.daily.map((e) => [e.tod, e.alert]));
+  assert.notEqual(other.roster.daily[0].id, s.roster.daily[0].id, 'its own entries');
+  ev = run(w, 24 * H);
+  assert.ok(ev.some((e) => e.type === 'rosterApplied' && e.squadronId === other.id));
+});

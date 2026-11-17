@@ -91,6 +91,7 @@ function missionOf(s) {
     intercept: s.intercept ? { ...s.intercept } : null,
     targetAlt: s.targetAlt,
     speedMode: s.speedMode,
+    speedPct: s.speedPct ?? 100,
     endAction: { ...s.endAction },
   };
 }
@@ -105,6 +106,7 @@ function applyMission(s, m) {
   s.intercept = m.intercept ? { ...m.intercept } : null;
   s.targetAlt = m.targetAlt;
   s.speedMode = m.speedMode;
+  s.speedPct = m.speedPct ?? 100;
   s.endAction = { ...m.endAction };
 }
 

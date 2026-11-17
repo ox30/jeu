@@ -14,12 +14,12 @@ const VALUES = ['t', 'nextPlotId', 'nextTrainId', 'stats', 'objectives', 'allDon
 
 // Fields added after a save was made: a game saved by an earlier version gets them on restore.
 const SQUADRON_DEFAULTS = () => ({
-  formation: null, holdForWing: false, wingSlowest: null, roe: 'attack', cleared: new Set(), letGo: new Set(), clearedBeyond: new Set(),
-  attackRaid: null, breakOff: null, alertAt: null, alertFrom: null, alertLong: false, roster: { daily: [], override: null }, schedule: null, lateFor: null, rallySlow: null,
+  formation: null, holdForWing: false, wingSlowest: null, roe: 'attack', speedPct: 100, cleared: new Set(), letGo: new Set(), clearedBeyond: new Set(),
+  attackRaid: null, breakOff: null, alertAt: null, alertFrom: null, alertLong: false, roster: { daily: [], override: null }, alertManual: false, schedule: null, lateFor: null, rallySlow: null,
 });
 const SHIP_DEFAULTS = () => ({
   formation: null, followEscort: null, followSlot: 0, waitForGroup: false, leftConvoy: null, schedule: null, lateFor: null,
-  huntHours: null, huntPath: null, huntGoal: null, huntStay: false, engage: null, endAction: { kind: 'stop' }, routeEnded: false,
+  huntHours: null, huntPath: null, huntGoal: null, huntStay: false, engage: null, endAction: { kind: 'stop' }, routeEnded: false, exitChannel: null, boost: false, boostKn: null,
 });
 const WORLD_DEFAULTS = () => ({
   formations: [], nextFormationId: 1, questions: [], nextQuestionId: 1, asked: new Set(), nextTimetableId: 1,

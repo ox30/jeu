@@ -32,6 +32,7 @@
         <button type="button" id="btn-radar" data-i18n="hud.radarShort" data-i18n-title="hud.radarCover"></button>
         <button type="button" id="btn-reports" data-i18n="hud.reports"></button>
         <button type="button" id="btn-formations" data-i18n="hud.formations" data-i18n-title="hud.formationsTitle"></button>
+        <button type="button" id="btn-roster" data-i18n="hud.roster"></button>
         <button type="button" id="btn-cards" data-i18n="hud.cards"></button>
         <button type="button" id="btn-scenario" data-i18n="hud.scenario"></button>
         <button type="button" id="btn-settings" data-i18n="hud.settings"></button>
@@ -67,6 +68,7 @@
       </div>
       <div id="coach" class="coach" hidden role="status" aria-live="polite"></div>
       <aside id="unit-panel" class="unit-panel" hidden aria-labelledby="unit-title">
+        <div class="sheet-grip" data-grip="sheet" aria-hidden="true"></div>
         <header class="unit-head">
           <h2 id="unit-title"></h2>
           <span class="unit-head-buttons">
@@ -75,8 +77,9 @@
           </span>
         </header>
         <p id="unit-summary" class="unit-summary"></p>
+        <div id="unit-bar" class="unit-bar" hidden></div>
         <nav id="unit-tabs" class="unit-tabs" role="tablist"></nav>
-        <div class="unit-body">
+        <div class="unit-body" id="unit-body">
           <div id="unit-message"></div>
           <div id="unit-pre"></div>
           <canvas id="unit-profile" class="profile" hidden></canvas>
@@ -120,6 +123,8 @@
   <dialog id="dlg-reports" class="page-dialog"></dialog>
   <dialog id="dlg-cards" class="page-dialog"></dialog>
   <dialog id="dlg-formations" class="page-dialog"></dialog>
+  <dialog id="dlg-roster" class="page-dialog"></dialog>
+  <dialog id="dlg-menu" class="menu-dialog"></dialog>
   <dialog id="dlg-event"></dialog>
 
   <script type="module" src="src/main.js"></script>

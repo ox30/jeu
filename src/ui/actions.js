@@ -4,16 +4,16 @@ import { t } from '../core/i18n.js';
 import { bearing, distance, simplifyPolyline } from '../sim/geo.js';
 import { contactEstimate } from '../sim/query.js';
 import {
-  addLeg, clearPlan, departConvoy, editShipRoute, editableRoute, escortHome, joinConvoy, leaveConvoy, removeLeg, removeRoutePoint, returnToBase, routeCanExtend, routeConvoy, scramble, sendTrain, setAltitude, setCover, setEndAction, setMinStock, setOrbit, setPointAltitude, setRoute, setSpeed, setVector, updateLeg, interceptRaid, setAlert, setConvoySpeed, setEscortBehaviour, setZigzag, followSquadron, leaveFormation, planGroundRoute, huntPlot, setHuntHours,
+  addLeg, clearPlan, departConvoy, setExitChannel, setShipBoost, setShipSpeedPct, setSpeedPct, editShipRoute, editableRoute, escortHome, joinConvoy, leaveConvoy, removeLeg, removeRoutePoint, returnToBase, routeCanExtend, routeConvoy, scramble, sendTrain, setAltitude, setCover, setEndAction, setMinStock, setOrbit, setPointAltitude, setRoute, setSpeed, setVector, updateLeg, interceptRaid, setAlert, setConvoySpeed, setEscortBehaviour, setZigzag, followSquadron, leaveFormation, planGroundRoute, huntPlot, setHuntHours,
 } from '../sim/orders.js';
 import { stopHunt } from '../sim/asw.js';
 import { setShipEndAction } from '../sim/naval.js';
 import { buyOffer, setPurchase } from '../sim/shipping.js';
 import { feetOf, squadronSpeed } from '../sim/squadron.js';
-import { currentSpeed, legSpeed } from '../sim/convoy.js';
+import { currentSpeed, legSpeed, shipThrottle } from '../sim/convoy.js';
 import { parseLegEnd } from '../sim/navigation.js';
 import { deployMru } from '../sim/mru.js';
-import { VIEWS, animateTo, toWorld, viewFrame } from '../render/camera.js';
+import { VIEWS, animateTo, toScreen, toWorld, viewFrame } from '../render/camera.js';
 import {
   addMember, dissolveFormation, formationById, formationOf, interceptFormation, launchWaiting, leaderOf, membersOf, mergeFormations, newFormation,
   removeMember, scrambleFormation,
@@ -21,9 +21,7 @@ import {
 import { authorize, setRoe } from '../sim/engagement.js';
 import { breakOffRaid } from '../sim/combat.js';
 import { isActive } from '../sim/raid.js';
-import {
-  addDaily, addOverride, endOverride, overrideOf, removeRosterEntry, startOverride,
-} from '../sim/roster.js';
+import { addDaily, addOverride, copyDaily, endOverride, holdManual, overrideOf, removeRosterEntry, resumeRoster, startOverride } from '../sim/roster.js';
 import {
   cancelSail, cancelTakeoff, cancelWing, scheduleSail, scheduleTakeoff, scheduleWing,
 } from '../sim/timetable.js';
@@ -170,14 +168,66 @@ export function goView(app, name) {
 function unitPanelWidth(app) {
   if (!app.selection || typeof window === 'undefined' || window.innerWidth <= 820) return 0;
   const el = app.el && app.el.unitPanel;
-  return el && !el.hidden && el.offsetWidth ? el.offsetWidth : 340;
+  const w = el && !el.hidden && el.offsetWidth ? el.offsetWidth : 400;
+  // Sheet on the right: the visible map is to its left; on the left, to its right; at the bottom, no shift.
+  const pos = app.settings.sheetPos || 'right';
+  return pos === 'bottom' ? 0 : pos === 'left' ? -w : w;
 }
 
 /** Brings (x, y) to the middle of the part of the map that can be seen. */
 export function centreOn(app, x, y, minScale = 0) {
   const cam = app.camera;
   const scale = Math.max(cam.scale, minScale);
-  animateTo(cam, { cx: x + unitPanelWidth(app) / 2 / scale, cy: y, scale }, 0.6);
+  // A sheet at the bottom of the map: the point goes to the middle of the part above it.
+  const el = app.el && app.el.unitPanel;
+  const below = app.selection && (app.settings.sheetPos || 'right') === 'bottom' && el && !el.hidden ? el.offsetHeight : 0;
+  animateTo(cam, { cx: x + unitPanelWidth(app) / 2 / scale, cy: y - below / 2 / scale, scale }, 0.6);
+}
+
+/** Where the chosen thing stands on the map (a squadron on the ground: its aerodrome), or null. */
+function selectionPosition(app) {
+  const sel = app.selection;
+  if (!sel) return null;
+  const w = app.world;
+  if (sel.kind === 'raid') {
+    const contact = w.contacts.get(sel.id);
+    const est = contact ? contactEstimate(w, contact) : null;
+    return est ? [est.x, est.y] : null;
+  }
+  const u = selectedUnit(app) || findUnit(app, sel.kind, sel.id);
+  if (!u) return null;
+  if (u.kind === 'squadron' && !isFlying(u)) {
+    const f = w.byId.airfield.get(u.airfield);
+    if (f) return [f.x, f.y];
+  }
+  return Number.isFinite(u.x) && Number.isFinite(u.y) ? [u.x, u.y] : null;
+}
+
+/**
+ * Brings the chosen unit into view when the sheet that opens (or the edge of the map) would
+ * hide it: a choice in the status board, or a click near the side where the sheet stands.
+ */
+export function revealSelection(app) {
+  if (typeof window === 'undefined') return;
+  const p = selectionPosition(app);
+  if (!p) return;
+  const cam = app.camera;
+  const [sx, sy] = toScreen(cam, p[0], p[1]);
+  const m = 30;
+  let x0 = m;
+  let x1 = cam.width - m;
+  let y0 = m;
+  let y1 = cam.height - m;
+  if (window.innerWidth > 820) {
+    const where = app.settings.sheetPos || 'right';
+    const w = Math.min(app.settings.sheetW || 400, cam.width * 0.92);
+    const h = Math.min(app.settings.sheetH || 300, cam.height * 0.8);
+    if (where === 'right') x1 = cam.width - w - m;
+    else if (where === 'left') x0 = w + m;
+    else y1 = cam.height - h - m;
+  }
+  if (sx >= x0 && sx <= x1 && sy >= y0 && sy <= y1) return;
+  centreOn(app, p[0], p[1]);
 }
 
 /** Speed of a unit in km/s, for the ruler and the legs. */
@@ -276,6 +326,23 @@ export function toggleBuster(app, sq) {
   app.dirtyPanels = true;
 }
 
+/** Speed slider of a unit's command bar: a share of its « 100 % ». */
+export function orderSpeedPct(app, u, pct) {
+  if (u.kind === 'squadron') setSpeedPct(app.world, u, pct);
+  else for (const x of u.kind === 'escort' ? groupsOf(app, u) : [u]) setShipSpeedPct(app.world, x, pct);
+  app.dirtyPanels = true;
+}
+
+/** Boost button of the command bar: full speed for aircraft, best or sprint speed for ships. */
+export function orderBoost(app, u) {
+  if (u.kind === 'squadron') toggleBuster(app, u);
+  else {
+    const on = !shipThrottle(app.world, u).boost;
+    for (const x of u.kind === 'escort' ? groupsOf(app, u) : [u]) setShipBoost(app.world, x, on);
+  }
+  app.dirtyPanels = true;
+}
+
 export function orderVector(app, sq, heading) {
   if (Number.isFinite(heading)) setVector(app.world, sq, heading);
   app.dirtyPanels = true;
@@ -342,7 +409,13 @@ export function orderAdmiraltyRoute(app, convoy) {
 }
 
 export function orderSail(app, convoy) {
-  departConvoy(app.world, convoy);
+  for (const c of convoy.kind === 'escort' ? groupsOf(app, convoy) : [convoy]) departConvoy(app.world, c);
+  app.dirtyPanels = true;
+}
+
+/** How a group (its support group) goes out of port: the roads, or a channel. */
+export function orderExitChannel(app, escort, name) {
+  for (const e of groupsOf(app, escort)) setExitChannel(app.world, e, name || null);
   app.dirtyPanels = true;
 }
 
@@ -811,9 +884,30 @@ export function orderAlertChecked(app, u, state) {
     return false;
   }
   app.confirm = null;
-  for (const s of list) setAlert(app.world, s, state);
+  for (const s of list) {
+    setAlert(app.world, s, state);
+    holdManual(app.world, s);
+  }
   app.dirtyPanels = true;
   return true;
+}
+
+/** « Retour au planning »: the plan takes over again for the squadron (or its wing). */
+export function orderRosterResume(app, u) {
+  for (const s of wingOf(app, u)) if (s && s.kind === 'squadron') resumeRoster(app.world, s);
+  app.dirtyPanels = true;
+}
+
+/** Copies a squadron's daily plan to another squadron, or to every other one of its aerodrome. */
+export function orderRosterCopy(app, s, target) {
+  const w = app.world;
+  const field = s.home || s.airfield;
+  const to = target === 'field'
+    ? w.squadrons.filter((x) => x !== s && x.role === 'fighter' && x.state !== 'lost' && (x.home || x.airfield) === field)
+    : w.squadrons.filter((x) => x.id === target && x !== s);
+  for (const x of to) copyDaily(w, s, x);
+  sheetMessage(app, t('roster.copied', { n: to.length }), 'info');
+  app.dirtyPanels = true;
 }
 
 export function cancelConfirm(app) {

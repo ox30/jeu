@@ -112,7 +112,8 @@ test('a support group gathered on its leader: the leader sails its legs, the oth
   setDeparture(w, f, 'eg1', w.t + 600);
   setDeparture(w, f, 'eg2', w.t + 3600);
   assert.equal(armRally(w, f), 2);
-  // The leader's own orders, prepared in port: out to the west for a day.
+  // The leader's own orders, prepared in port: out by the North Channel, then west for a day.
+  eg1.exitChannel = "Nord de l'Irlande";
   assert.ok(addLeg(w, eg1, { heading: 300, end: { kind: 'duration', s: 86400 }, speedKn: eg1.speedKn }).ok);
   run(w, 20 * 60);
   assert.equal(eg1.state, 'atSea', 'the leader sails at its time, with its own legs');

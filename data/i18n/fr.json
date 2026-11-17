@@ -42,12 +42,13 @@
     "paused": "EN PAUSE",
     "grid": "Grille",
     "britain": "Grande-Bretagne",
-    "scenario": "Scénario",
+    "scenario": "Menu",
     "reports": "Rapports",
     "radarShort": "Radar",
     "cards": "Fiches",
     "formations": "Formations",
-    "formationsTitle": "Grouper des escadrilles en big wing, ou des groupes d'escorte en groupe de soutien"
+    "formationsTitle": "Grouper des escadrilles en big wing, ou des groupes d'escorte en groupe de soutien",
+    "roster": "Effectifs"
   },
   "panel": {
     "objectives": "Objectifs",
@@ -105,7 +106,6 @@
     "scramble": "Décoller (Scramble)",
     "altitude": "Altitude",
     "cruise": "Croisière",
-    "max": "Pleine vitesse (Buster)",
     "orbit": "Orbiter (Orbit)",
     "home": "Rentrer (Pancake)",
     "vector": "Cap direct (Vector)",
@@ -233,7 +233,7 @@
     "scheduled": "Décollage programmé à {time} (heure de l'ordre)",
     "scheduledDaily": "Décollage programmé chaque jour à {time} (heure de l'ordre)",
     "scheduledJoin": "Départ programmé à {time} pour rejoindre {formation}",
-    "scheduledRouteHint": "Glissez depuis l'aérodrome pour tracer la route : elle attend le décollage. Ou préparez des étapes dans l'onglet Navigation. Sans route ni étapes, l'escadrille patrouillera au-dessus de sa base.",
+    "scheduledRouteHint": "Glissez depuis l'aérodrome pour tracer la route : elle attend le décollage. Ou préparez des étapes dans la section « Route et étapes ». Sans route ni étapes, l'escadrille patrouillera au-dessus de sa base.",
     "waiting": "en attente : l'unité n'est pas prête",
     "joinWing": "Rejoindre une formation",
     "sailAt": "Appareillage programmé",
@@ -274,7 +274,16 @@
     "breakOff": "Désengager {raid}",
     "breakOffNone": "Plus rien à rompre : l'unité n'est plus sur ce raid.",
     "letGo": "Désengagée de {raids} : elle laisse ce raid tranquille, quelle que soit son attitude, jusqu'à un nouvel ordre sur lui (tracé qui finit sur le raid, ou « Intercepter »).",
-    "letGoMany": "Désengagée de {raids} : elle laisse ces raids tranquilles, quelle que soit son attitude, jusqu'à un nouvel ordre sur eux (tracé qui finit sur le raid, ou « Intercepter »)."
+    "letGoMany": "Désengagée de {raids} : elle laisse ces raids tranquilles, quelle que soit son attitude, jusqu'à un nouvel ordre sur eux (tracé qui finit sur le raid, ou « Intercepter »).",
+    "homePortPick": "Rentrer au port…",
+    "exitBy": "Sortie :",
+    "exitRoads": "en rade (au large du port)",
+    "exitChannel": "chenal {name}",
+    "exitHint": "Appareiller : le groupe sort en rade (ou suit le chenal choisi jusqu'au bout), puis prend votre tracé ou vos étapes ; sans ordre, il y attend. Un tracé tiré depuis le port part de là, par la mer.",
+    "rosterResume": "Retour au planning",
+    "openRoster": "Programmation des effectifs…",
+    "manual": "à la main",
+    "manualNow": "Choisi à la main : il tient jusqu'à « Retour au planning ». En l'air {d} après l'ordre de décoller."
   },
   "sheet": {
     "type": "Appareil",
@@ -314,8 +323,7 @@
     "phantom": "aucun avion trouvé",
     "readyIn": "prête dans {n} min",
     "takeoffIn": "décollage dans {n} min",
-    "speedCruise": "croisière ({n} km/h)",
-    "speedMax": "pleine vitesse ({n} km/h)",
+    "speedMax": "boost, pleine vitesse ({n} km/h)",
     "airfieldTitle": "Aérodrome de {name}",
     "sector": "station de secteur",
     "satellite": "aérodrome satellite",
@@ -411,7 +419,8 @@
     "surfaced": "en surface",
     "submerged": "en plongée",
     "ucontactHint": "Le U-Boot est suivi tant qu'il reste en vue ou au contact de l'ASDIC. Perdu, il laisse un repère à sa dernière position.",
-    "gathering": "rassemblement"
+    "gathering": "rassemblement",
+    "speedPct": "{p} % de la croisière ({n} km/h)"
   },
   "settings": {
     "title": "Réglages",
@@ -493,7 +502,7 @@
     "tabs": {
       "game": "Partie",
       "time": "Temps et alertes",
-      "map": "Carte",
+      "map": "Carte et fiche",
       "sound": "Sons",
       "dev": "Développeur"
     },
@@ -524,8 +533,17 @@
       "noAmmo": "Base à court de munitions",
       "noFuel": "Base sans carburant",
       "lowFuel": "Carburant bas sur une base",
-      "scheduleDelayed": "Ordre programmé retardé"
-    }
+      "scheduleDelayed": "Ordre programmé retardé",
+      "uboatSighted": "U-Boot vu par un avion ou une escorte"
+    },
+    "lowRes": "Affichage économe : carte un peu moins nette, plus fluide sur un grand écran",
+    "sheetPos": "Fiche d'unité",
+    "sheetPosChoices": {
+      "right": "à droite de la carte",
+      "left": "à gauche de la carte",
+      "bottom": "en bas de la carte"
+    },
+    "sheetHint": "Tirez le bord de la fiche pour l'élargir (ou la grandir en bas). Ses sections se replient d'un clic sur leur titre et restent comme vous les laissez."
   },
   "objectives": {
     "convoyArrived": "Amener le convoi {convoy} dans un port britannique",
@@ -891,10 +909,10 @@
       "Le convoi côtier CW 7 attend dans la Tamise avec du matériel pour Southampton. Faites-le appareiller quand vous pourrez le couvrir : de jour, la Luftwaffe l'attaque dans la Manche. Une escadrille peut « Couvrir » le convoi.",
       "Logistique : les convois déchargent carburant et matériel dans les ports. Envoyez des trains vers les bases (carburant) et les usines (matériel), ou fixez un stock minimum dans la fiche d'une base : les trains partent seuls. Sans carburant, une escadrille ne refait pas le plein. Les usines remplacent les avions perdus.",
       "Défense : à l'alerte, faites décoller une escadrille vers le raid, réglez son altitude (↑ ↓) pour arriver au-dessus. En Arcade, « Intercepter » (ou glisser jusqu'au raid) laisse le contrôleur la guider : sa chance dépend de la couverture radar. Le trait pointillé d'un raid manqué donne l'écart ; chaque raid finit par un rapport, rangé dans « Rapports ».",
-      "Tracés : cliquez une unité pour ouvrir sa fiche, à droite de la carte, et voir les carrés de sa route. Glissez un carré pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. En fin de tracé, l'escadrille orbite, sauf si vous choisissez autre chose dans l'onglet Route de sa fiche (se poser si le tracé finit dans la bulle d'un aérodrome).",
+      "Tracés : cliquez une unité pour ouvrir sa fiche et voir les carrés de sa route. Glissez un carré pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. En fin de tracé, l'escadrille orbite, sauf si vous choisissez autre chose dans la section « Route et étapes » de sa fiche (se poser si le tracé finit dans la bulle d'un aérodrome).",
       "Victoire si les convois livrent l'essentiel de leur cargaison, si 4 bases sur 5 sont en service et si la chasse garde 60 % de ses avions le 24 juillet. Défaite immédiate si toutes les bases restent sans carburant 24 heures."
     ],
-    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle (la croix de son encart l'efface) · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler, puis fermer la fiche · ↑ ↓ : altitude (de l'unité choisie, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : pleine vitesse · O : orbiter · P : rentrer · D : désengager du raid en cours · Question à l'écran : Entrée = oui (au rendez-vous : le choix du plan), Échap = non (au rendez-vous : partir)",
+    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle (la croix de son encart l'efface) · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler, puis fermer la fiche · ↑ ↓ : altitude (de l'unité choisie, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : boost (avion ou navire) · O : orbiter · P : rentrer · D : rompre le combat (désengager le raid en cours) · Question à l'écran : Entrée = oui (au rendez-vous : le choix du plan), Échap = non (au rendez-vous : partir)",
     "close": "Compris",
     "stepsTraining": [
       "Carte de l'Atlantique : glissez depuis le convoi HX (à Halifax) pour tracer sa route jusqu'à Liverpool ou la Clyde, ou cliquez sur « Route de l'Amirauté ». En réglage Réaliste, on navigue au cap : mesurez avec la règle, ajoutez des étapes, puis appareillez. Près de l'entrée d'un chenal, un pilote prend le relais.",
@@ -904,20 +922,10 @@
       "Un raid manqué est signalé par un trait pointillé : il donne l'écart en distance et en altitude. Chaque combat se termine par un rapport dans le journal.",
       "Les installations bombardées (aérodromes, radars, ports) apparaissent dans l'onglet Installations : un radar hors service ouvre un trou dans la couverture, un aérodrome endommagé fait décoller plus lentement."
     ],
-    "common": [
-      "Tracés : cliquez une unité pour ouvrir sa fiche à droite de la carte. L'onglet Ordres regroupe ce qu'elle doit faire (décoller, missions, état d'alerte, attitude face à l'ennemi, formation) ; l'onglet Navigation, comment elle y va (route, étapes, cap, altitude, vitesse, fin de route, profil). Tant que la fiche est ouverte, la règle, Entrée et ↑ ↓ s'adressent à cette unité. La croix ou Échap la ferme. Glissez les carrés de la route, ajoutez-en avec « + », prolongez par l'anneau du bout, double-cliquez pour retirer. Maj + glisser mesure (règle) ; la croix de son encart l'efface.",
-      "Formations (menu du haut) : groupez des escadrilles en big wing, ou des groupes d'escorte en groupe de soutien. La formation devient une seule unité, avec une fiche et les mêmes ordres pour tous ; son chef (★) mène, le suivant prend la relève. Les fiches techniques (menu du haut) donnent vitesses, plafonds et autonomies.",
-      "Face à l'ennemi (onglet Ordres) : en Défense, une escadrille n'attaque pas d'elle-même et demande l'autorisation quand elle voit un raid ; en Attaque (le défaut), elle attaque les raids qui arrivent et demande avant de poursuivre un raid qui rentre ; en Attaque et poursuite, elle poursuit sans demander jusqu'à mi-Manche, puis demande. Une question passe le jeu à ×1 et y reste ; sans réponse en 60 s, c'est non. Une seule question par raid et par escadrille ; on peut couper les questions dans Réglages. Un tracé qui finit sur un raid, ou « Intercepter », vaut autorisation. « Désengager H05 » (touche D) sort l'unité du combat : elle tourne sur place et laisse ce raid tranquille jusqu'à un nouvel ordre sur lui. Passer à une attitude plus prudente retire les autorisations déjà données : une escadrille qui poursuivait rompt au round suivant.",
-      "États d'alerte : Repos (2 h : le personnel peut être n'importe où), Disponible (30 min), Alerte (5 min), Cockpit (2 min). Le délai est le temps pour être en l'air après l'ordre de décoller ; monter d'un état prend la différence (du repos à l'alerte : 1 h 55), descendre est immédiat. L'onglet Effectifs d'un aérodrome tient le plan de chaque jour (heures de 00:00 à 24:00) ; « Seulement les prochaines 24 h » ouvre un plan d'exception en heures H (H0 – H+6 repos, H+6 – H+9 alerte…), puis on revient au plan du jour. La durée se règle dans Réglages.",
-      "Programmer : « Décollage programmé » (ou « Appareillage programmé ») donne l'ordre à l'heure dite, avec la route tracée depuis la base ou les étapes préparées ; l'heure saisie est celle de l'ordre, le délai de l'état d'alerte s'y ajoute. « Rejoindre une formation » fait partir une escadrille à son heure pour rejoindre une big wing (ou un groupe de soutien).",
-      "Rassemblement (onglet d'une big wing ou d'un groupe de soutien) : sur le chef, ou sur un point à une heure donnée (ou au plus tôt), avec la route à suivre ensuite. Chaque membre a son heure de départ : en Arcade elles sont calculées, en Standard la fiche montre l'heure d'arrivée de chacun, en Réaliste à vous de compter (délai, montée, trajet). Avec une heure fixée, la formation part à cette heure (les premiers arrivés tournent) ; au plus tôt, dès que tous sont là. À l'heure, s'il manque quelqu'un : attendre (un temps maximum), ralentir vers la cible ou partir ; une big wing vous pose la question. Les retardataires suivent le plan en retard et rejoignent en route.",
-      "En mer (onglet Ordres d'un groupe d'escorte) : « Face aux U-Boote », Rester avec le convoi ou Chasser les contacts, pour une durée choisie (3 h par défaut) ; « Interrompre la chasse » ou tout autre ordre l'arrête. Un U-Boot tenu à l'ASDIC reçoit une passe de grenades toutes les 10 minutes. « Rentrer au port » laisse choisir le port ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un port y entre. Onglet Navigation : que faire en fin de tracé (s'arrêter, garder le cap, chasser sur place, rejoindre un convoi, entrer au port).",
-      "Chaque raid se termine par un rapport, rangé dans « Rapports », avec ce que la RAF en sait : le premier plot, la composition une fois le raid vu, les bombes tombées ; chaque attaque à la grenade d'un groupe d'escorte aussi. La partie est gardée dans le navigateur ; le menu « Scénario » permet de l'exporter dans un fichier."
-    ],
     "scenario": {
       "adlertag": [
         "Adlertag, 12-18 août 1940. La Luftwaffe vise d'abord les radars de la côte (Dover, Rye, Pevensey, Ventnor), puis les aérodromes. Un radar détruit ouvre un trou dans la couverture : placez la station mobile (onglet Installations, « Déployer ») quand elle arrive.",
-        "Les raids sans bombardiers, très haut et rapides, sont des chasses libres de Bf 109 : elles cherchent à user vos escadrilles. Gardez vos forces pour les bombardiers. L'état d'alerte (repos 2 h, disponible 30 min, alerte 5 min, cockpit 2 min) règle le délai de décollage et la fatigue ; l'onglet Effectifs d'un aérodrome le programme.",
+        "Les raids sans bombardiers, très haut et rapides, sont des chasses libres de Bf 109 : elles cherchent à user vos escadrilles. Gardez vos forces pour les bombardiers. L'état d'alerte (repos 2 h, disponible 30 min, alerte 5 min, cockpit 2 min) règle le délai de décollage et la fatigue ; la page Effectifs le programme.",
         "Les bases de secteur (Biggin Hill, Kenley, Hornchurch, North Weald, Tangmere, Middle Wallop, Northolt) doivent rester en service. Sans munitions ni carburant, une base ne réarme plus : surveillez les stocks et les trains depuis Chilmark et les ports.",
         "Victoire si 5 bases de secteur sur 7 et 7 radars sur 9 sont en service le 18 août au soir, si 90 avions ennemis sont abattus, si la chasse garde la moitié de ses avions et si le HX 62 livre 60 % de sa cargaison."
       ],
@@ -928,12 +936,50 @@
       ],
       "hiver-atlantique": [
         "Hiver 1941, du 10 janvier au 31 mars. Les convois HX (Halifax, tous les cinq jours) et SC (Sydney, tous les huit jours, plus lents) partent seuls sur la route de l'Amirauté. Changez-la pour contourner les U-Boote repérés.",
-        "Envoyez un groupe d'escorte au-devant de chaque convoi qui approche : vos groupes ont sept ou huit jours d'autonomie et rentrent se ravitailler. « Chasser » laisse l'escorte poursuivre un contact frais le temps choisi ; « Rester » la garde serrée autour du convoi. Les nuits d'hiver sont longues : c'est alors que les meutes attaquent. Réglages, onglet Carte : les zones de vue montrent ce que voient vos navires et vos avions.",
-        "Le Coastal Command patrouille de jour au-dessus des convois et oblige les U-Boote à plonger ; le radar ASV des Hudson et des Sunderland voit aussi un sous-marin en surface. Les deux cercles d'un repère U-Boot montrent où il peut être, en surface et en plongée.",
+        "Envoyez un groupe d'escorte au-devant de chaque convoi qui approche : vos groupes ont sept ou huit jours d'autonomie et rentrent se ravitailler. « Chasser » laisse l'escorte poursuivre un contact frais le temps choisi ; « Rester » la garde serrée autour du convoi. « Appareiller » sort le groupe en rade, au large de son port (ou au bout du chenal choisi) : tracez ensuite sa route, ou cliquez « Rejoindre » un convoi. Les nuits d'hiver sont longues : c'est alors que les meutes attaquent. Réglages, onglet Carte et fiche : les zones de vue montrent ce que voient vos navires et vos avions.",
+        "Le Coastal Command patrouille de jour au-dessus des convois et oblige les U-Boote à plonger ; le radar ASV des Hudson et des Sunderland voit aussi un sous-marin en surface. Un U-Boot vu lève l'alerte « U-Boot en vue » et ramène le jeu à ×1. Les deux cercles d'un repère U-Boot montrent où il peut être, en surface et en plongée.",
         "Onglet Logistique : la réserve de dollars paie la cargaison des convois. Réglez la part achetée, ou commandez des Hudson ou des Catalina en Amérique. Après le prêt-bail, tout est gratuit. Victoire si 6 800 t de carburant et 4 400 t de matériel sont déchargées et si moins de 8 % des navires sont perdus ; défaite si les pertes dépassent 20 %."
       ]
     },
-    "alerts": "Les alertes ralentissent le temps : un raid ramène à ×10 ; en mer, toute alerte ramène à ×1 (on décide, puis on accélère) ; une base à ×600. Chaque vitesse se règle dans Réglages, onglet Temps et alertes. Pendant une action ennemie, une vitesse élevée demande confirmation (réglable)."
+    "tabs": {
+      "scenario": "Ce scénario",
+      "sheet": "La fiche",
+      "air": "Air",
+      "sea": "Mer",
+      "time": "Temps et alertes",
+      "keys": "Touches"
+    },
+    "sheet": [
+      "La fiche d'une unité s'ouvre quand on clique l'unité, sur la carte ou dans le tableau d'état. En haut, sa barre de commandes : ses ordres en icônes, toujours visibles (Décoller, Orbiter, Rentrer, Rompre un combat ; Défense, Attaque, Poursuite ; l'altitude ; la vitesse de 50 à 100 % et le boost). Un survol de la souris donne le détail de chaque bouton.",
+      "Dessous, l'onglet Commandes : ses sections suivent l'état de l'unité (au sol, en vol, au port, en mer). Un clic sur leur titre les replie ou les rouvre, et elles restent comme vous les laissez. À côté, État et Fiche technique ; une formation a aussi Rassemblement et Membres.",
+      "Réglages, onglet Carte et fiche : la fiche à droite, à gauche ou en bas de la carte. Tirez son bord pour l'élargir (ou la grandir en bas). La croix ou Échap la ferme ; ⌖ centre la carte sur l'unité.",
+      "Tracés : glissez depuis une unité pour tracer sa route. Glissez un carré de la route pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. La section « Route et étapes » donne la courbe de montée, un cap direct, la fin de tracé et les étapes au cap. Maj + glisser mesure (règle) ; la croix de son encart l'efface.",
+      "Chaque raid se termine par un rapport, rangé dans « Rapports », avec ce que la RAF en sait : le premier plot, la composition une fois le raid vu, les bombes tombées ; chaque attaque à la grenade d'un groupe d'escorte aussi. La partie est gardée dans le navigateur ; « Menu », puis « Campagne », permet de l'exporter dans un fichier."
+    ],
+    "air": [
+      "Face à l'ennemi (barre de commandes) : en Défense, une escadrille n'attaque pas d'elle-même et demande l'autorisation quand elle voit un raid ; en Attaque (le défaut), elle attaque les raids qui arrivent et demande avant de poursuivre un raid qui rentre ; en Attaque et poursuite, elle poursuit sans demander jusqu'à mi-Manche, puis demande. Une question passe le jeu à ×1 et y reste ; sans réponse en 60 s, c'est non. Une seule question par raid et par escadrille ; on peut couper les questions dans Réglages. Un tracé qui finit sur un raid, ou « Intercepter », vaut autorisation. « Rompre H05 » dans la barre de commandes (touche D) sort l'unité du combat : elle tourne sur place et laisse ce raid tranquille jusqu'à un nouvel ordre sur lui. Passer à une attitude plus prudente retire les autorisations déjà données : une escadrille qui poursuivait rompt au round suivant.",
+      "Les états d'alerte : Repos (2 h : le personnel peut être n'importe où), Disponible (30 min), Alerte (5 min), Cockpit (2 min). Le délai est le temps pour être en l'air après l'ordre de décoller ; monter d'un état prend la différence (du repos à l'alerte : 1 h 55), descendre est immédiat. Un état choisi à la main dans la fiche garde la main sur le planning jusqu'à « Retour au planning ».",
+      "La page Effectifs (menu du haut, ou « Programmation des effectifs… » dans une fiche) montre chaque aérodrome et ses escadrilles : le plan de chaque jour (de 00:00 à 24:00, il se répète), ou, case cochée, un plan d'exception pour les prochaines 24 h en heures H (H0 – H+6 repos, H+6 – H+9 alerte…), la frise des 24 heures à venir, et de quoi copier un plan vers d'autres escadrilles. La durée de l'exception se règle dans Réglages.",
+      "Programmer : « Décollage programmé » (ou « Appareillage programmé ») donne l'ordre à l'heure dite, avec la route tracée depuis la base ou les étapes préparées ; l'heure saisie est celle de l'ordre, le délai de l'état d'alerte s'y ajoute. « Rejoindre une formation » fait partir une escadrille à son heure pour rejoindre une big wing (ou un groupe de soutien).",
+      "Formations (menu du haut) : groupez des escadrilles en big wing, ou des groupes d'escorte en groupe de soutien. La formation devient une seule unité, avec une fiche et les mêmes ordres pour tous ; son chef (★) mène, le suivant prend la relève. Les fiches techniques (menu du haut) donnent vitesses, plafonds et autonomies.",
+      "Rassemblement (onglet d'une big wing ou d'un groupe de soutien) : sur le chef, ou sur un point à une heure donnée (ou au plus tôt), avec la route à suivre ensuite. Chaque membre a son heure de départ : en Arcade elles sont calculées, en Standard la fiche montre l'heure d'arrivée de chacun, en Réaliste à vous de compter (délai, montée, trajet). Avec une heure fixée, la formation part à cette heure (les premiers arrivés tournent) ; au plus tôt, dès que tous sont là. À l'heure, s'il manque quelqu'un : attendre (un temps maximum), ralentir vers la cible ou partir ; une big wing vous pose la question. Les retardataires suivent le plan en retard et rejoignent en route."
+    ],
+    "sea": [
+      "Appareiller : un groupe d'escorte sort en rade, juste au large du port, ou suit jusqu'au bout le chenal choisi (« Sortie » dans la section Au port) ; il y attend vos ordres, ou prend votre tracé ou vos étapes. Un tracé tiré depuis le port part de la rade et contourne la terre par la mer.",
+      "En mer, la barre de commandes d'un groupe d'escorte donne « Face aux U-Boote » : Rester avec le convoi ou Chasser les contacts, pour une durée choisie (3 h par défaut, section « Chasse aux U-Boote ») ; « Stop » ou tout autre ordre arrête la chasse. Un U-Boot tenu à l'ASDIC reçoit une passe de grenades toutes les 10 minutes. « Au port » rentre au port choisi dans la section « Retour au port » ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un port y entre. Section « Route et étapes » : que faire en fin de tracé (s'arrêter, garder le cap, chasser sur place, rejoindre un convoi, entrer au port).",
+      "Vitesse des navires : un convoi à 100 % garde ses navires groupés ; son boost (sa meilleure vitesse) en laisse décrocher. Un groupe d'escorte à 100 % file à sa vitesse de mer ; son boost (+15 %) use son autonomie 1,6 fois plus vite. Zigzag et route de l'Amirauté sont dans la barre d'un convoi.",
+      "Un U-Boot vu par un avion ou par une escorte lève une alerte « U-Boot en vue » et ramène le jeu à ×1. Les deux cercles d'un repère montrent où il peut être, en surface et en plongée ; Réglages, onglet Carte et fiche, « Zones de vue », montre ce que voient vos navires et vos avions."
+    ],
+    "time": [
+      "Les alertes ralentissent le temps : un raid ramène à ×10 ; en mer, toute alerte ramène à ×1 (on décide, puis on accélère) ; une base à ×600. Chaque vitesse se règle dans Réglages, onglet Temps et alertes. Pendant une action ennemie, une vitesse élevée demande confirmation (réglable).",
+      "Le menu (bouton du haut) : Continuer, Campagne (les scénarios, la sauvegarde dans un fichier), Entraînement avec le tutoriel, Charger une partie, Réglages, Aide. Le jeu s'arrête tant qu'il est ouvert.",
+      "Les pages (rapports, fiches techniques, formations, effectifs, aide, réglages) mettent le jeu en pause (réglable). La partie est gardée dans le navigateur."
+    ],
+    "images": {
+      "sheet": "La fiche d'une escadrille en vol : la barre de commandes en haut, l'onglet Commandes dessous.",
+      "roster": "La page Effectifs : les aérodromes à gauche, les escadrilles et leurs plannings à droite.",
+      "escort": "La fiche d'un groupe d'escorte en mer : sortie, convois, chasse, retour au port."
+    }
   },
   "end": {
     "title": "Fin de service",
@@ -1460,7 +1506,7 @@
     },
     "convoy": {
       "title": "Faire partir le convoi",
-      "text": "Le convoi HX attend à Halifax, dans l'Atlantique. Sa fiche est ouverte à droite : cliquez « Route de l'Amirauté », ou glissez depuis le convoi jusqu'au nord de l'Irlande pour tracer sa route. Un pilote le conduira au port."
+      "text": "Le convoi HX attend à Halifax, dans l'Atlantique. Sa fiche est ouverte : cliquez « Amirauté » dans sa barre de commandes, en haut, ou glissez depuis le convoi jusqu'au nord de l'Irlande pour tracer sa route. Un pilote le conduira au port."
     },
     "time": {
       "title": "Lancer le temps",
@@ -1472,15 +1518,15 @@
     },
     "scramble": {
       "title": "Alerte !",
-      "text": "Un raid est détecté : sa plaque donne son numéro, le nombre d'avions et l'altitude. Faites décoller une escadrille proche (Biggin Hill, Croydon, Hornchurch) : glissez depuis son aérodrome jusqu'au raid, ou choisissez-la dans l'onglet Unités et cliquez « Décoller »."
+      "text": "Un raid est détecté : sa plaque donne son numéro, le nombre d'avions et l'altitude. Faites décoller une escadrille proche (Biggin Hill, Croydon, Hornchurch) : glissez depuis son aérodrome jusqu'au raid, ou choisissez-la dans l'onglet Unités et cliquez « Décoller » dans la barre de commandes de sa fiche."
     },
     "altitude": {
       "title": "Monter au-dessus",
-      "text": "Réglez l'altitude avec ↑ ↓ (par 1 000 ft) pour arriver au-dessus du raid : l'attaque en piqué donne l'avantage. La vue de profil de la fiche montre si la montée sera finie à temps. Corrigez la route si le raid change de cap."
+      "text": "Sans tracé, l'escadrille tourne au-dessus de sa base : glissez depuis elle jusqu'au raid. Réglez l'altitude avec ↑ ↓ (par 1 000 ft), ou les flèches de la barre de commandes, pour arriver au-dessus du raid : l'attaque en piqué donne l'avantage. La courbe de montée, dans la section « Route et étapes », montre si la montée sera finie à temps. Corrigez la route si le raid change de cap."
     },
     "combat": {
       "title": "Tally-ho !",
-      "text": "Le combat se règle tout seul, passe après passe. Contre un gros raid, envoyez une deuxième escadrille. Une escadrille à court de munitions ou de carburant rentre d'elle-même."
+      "text": "Le combat se règle tout seul, passe après passe. Contre un gros raid, envoyez une deuxième escadrille. Une escadrille à court de munitions ou de carburant rentre d'elle-même ; « Rompre » (touche D) la sort du combat."
     },
     "reports": {
       "title": "Le rapport",
@@ -1488,7 +1534,7 @@
     },
     "end": {
       "title": "À vous de jouer",
-      "text": "Vous connaissez l'essentiel. L'aide (?) résume le reste : stocks et trains, escortes, U-Boote, fiches techniques. La campagne commence avec Kanalkampf, dans le menu « Scénario »."
+      "text": "Vous connaissez l'essentiel. L'aide (en haut) détaille le reste par onglets : la fiche, l'air, la mer, le temps et les alertes. La campagne commence avec Kanalkampf : « Menu », puis « Campagne »."
     }
   },
   "alerts": {
@@ -1505,9 +1551,10 @@
       "title": "Convoi pisté",
       "text": "Un U-Boot piste {convoy} : la meute peut attaquer dès la nuit."
     },
-    "uboatPlot": {
-      "title": "Contact U-Boot",
-      "text": "U-Boot repéré par {by}, à {km} km de {convoy}."
+    "uboatSighted": {
+      "title": "U-Boot en vue",
+      "text": "{by} voit un U-Boot ({how}) en {where}.",
+      "near": "{by} voit un U-Boot ({how}) à {km} km de {convoy}."
     },
     "straggler": {
       "title": "Traînards",
@@ -1663,13 +1710,12 @@
   "unit": {
     "tabs": {
       "orders": "Ordres",
-      "nav": "Navigation",
-      "route": "Route",
       "state": "État",
       "card": "Fiche technique",
       "rally": "Rassemblement",
       "members": "Membres",
-      "roster": "Effectifs"
+      "roster": "Effectifs",
+      "cmd": "Commandes"
     },
     "centre": "Centrer la carte sur l'unité",
     "close": "Fermer la fiche (Échap)",
@@ -1704,7 +1750,7 @@
     "launchWaiting": "Faire décoller les {n} restées au sol",
     "scrambleRefused": "Aucune escadrille de la formation ne peut décoller.",
     "wingHintGround": "Glissez depuis le chef (ou son aérodrome) pour tracer la route de la formation, ou décollez ensemble : elle se rassemble au-dessus du chef avant de partir.",
-    "wingHintGroundHeadings": "Préparez des branches dans l'onglet Route, ou décollez ensemble : la formation se rassemble au-dessus du chef avant de partir.",
+    "wingHintGroundHeadings": "Préparez des branches dans la section « Route et étapes », ou décollez ensemble : la formation se rassemble au-dessus du chef avant de partir.",
     "wingHintAir": "Glissez depuis la formation pour tracer sa route : toutes ses escadrilles la suivent, à la vitesse de la plus lente.",
     "wingHintAirHeadings": "Donnez un cap ou des branches au chef : toutes les escadrilles le suivent, à la vitesse de la plus lente.",
     "groupHint": "Tracez la route depuis le groupe de soutien : ses groupes suivent le chef en ligne de file. Quand le plus court arrive au bout de son autonomie, tous rentrent.",
@@ -1803,5 +1849,80 @@
       "arm": "Placez d'abord le point de rendez-vous sur la carte."
     },
     "leaderHintSea": "Sur le chef : le chef appareille à son heure avec ses propres ordres (étapes ou route tracée depuis le port) ; chaque groupe appareille à la sienne, rejoint le chef en mer et prend son poste."
+  },
+  "cmd": {
+    "orders": "Ordres",
+    "takeoff": "Décoller",
+    "orbit": "Orbiter",
+    "orbitTitle": "Orbiter sur place (O)",
+    "home": "Rentrer",
+    "homeTitle": "Rentrer à la base (P)",
+    "breakOff": "Rompre {raid}",
+    "breakOffTitle": "Désengager {raid} (D) : sortir du combat, tourner sur place et laisser ce raid",
+    "roeCaption": "Face à l'ennemi",
+    "roe": {
+      "defend": "Défense",
+      "attack": "Attaque",
+      "pursue": "Poursuite"
+    },
+    "altitude": "Altitude",
+    "altUp": "Monter de 1 000 ft (↑)",
+    "altDown": "Descendre de 1 000 ft (↓)",
+    "speed": "Vitesse",
+    "boost": "{p} %",
+    "boostOn": "boost {p} %",
+    "boostTitle": "Boost : {p} % de la vitesse normale (B) ; consomme beaucoup plus",
+    "kmh": "{n} km/h",
+    "knots": "{n} nœuds",
+    "knotsConvoy": "{n} nœuds (au mieux {best}, avec traînards)",
+    "sail": "Appareiller",
+    "sailConvoy": "Appareiller",
+    "port": "Au port",
+    "portTitle": "Rentrer au port (le port choisi dans la section « Retour au port », sinon le plus proche par mer)",
+    "huntStop": "Stop",
+    "uboats": "Face aux U-Boote",
+    "behaviour": {
+      "stay": "Rester",
+      "hunt": "Chasser"
+    },
+    "admiralty": "Amirauté",
+    "zigzag": "Zigzag"
+  },
+  "sec": {
+    "ground": "Au sol : décollage et état d'alerte",
+    "route": "Route et étapes",
+    "mission": "Mission",
+    "formation": "Formation",
+    "manage": "Gérer la formation",
+    "port": "Au port : sortie et appareillage",
+    "convoys": "Convois",
+    "uboats": "Chasse aux U-Boote",
+    "home": "Retour au port",
+    "group": "Groupe de soutien"
+  },
+  "roster": {
+    "title": "Effectifs : états d'alerte et plannings",
+    "intro": "Choisissez un aérodrome, puis réglez chaque escadrille : son état maintenant, son plan de chaque jour (de 00:00 à 24:00, il se répète) ou, case cochée, un plan d'exception pour les prochaines {n} h en heures H. Un état choisi à la main garde la main jusqu'à « Retour au planning ».",
+    "noFatigue": "Sans fatigue des pilotes (réglage), les états d'alerte n'ont pas d'effet.",
+    "fields": "Aérodromes",
+    "fieldLine": "{n} escadrille(s) · {ready} prête(s)",
+    "copy": "Copier ce plan vers",
+    "copyField": "toutes les escadrilles de l'aérodrome",
+    "copyGo": "Copier",
+    "copied": "Plan copié vers {n} escadrille(s).",
+    "none": "Aucune escadrille de chasse ici."
+  },
+  "menu": {
+    "continue": "Continuer",
+    "continueText": "{scenario}, {when}",
+    "campaign": "Campagne",
+    "campaignText": "Les scénarios de l'acte I, l'un après l'autre ; sauvegarde dans un fichier",
+    "training": "Entraînement",
+    "trainingText": "Le scénario d'essai avec le tutoriel guidé",
+    "load": "Charger une partie",
+    "loadText": "Depuis un fichier .json exporté",
+    "settings": "Réglages",
+    "help": "Aide",
+    "note": "La partie en cours est gardée dans ce navigateur. Le jeu est arrêté tant que ce menu est ouvert ; Échap ou « Continuer » le reprend."
   }
 }

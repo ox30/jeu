@@ -8,17 +8,19 @@ import { drainEvents } from './sim/events.js';
 import { createCamera, clampCentre, setFrame, updateCamera, viewFrame, VIEWS } from './render/camera.js';
 import { createMapRenderer } from './render/map.js';
 import { drawScene } from './render/scene.js';
-import { helpSeen, loadSettings, saveSettings } from './save/settings.js';
+import { loadSettings, saveSettings } from './save/settings.js';
+import { openRoster, renderRosterPage } from './ui/rosterPage.js';
 import {
   activePoint, addRulerLeg, addTypedLeg, cancelConfirm, cancelEditLeg, centreOn, changeAltitude,
   changePointAltitude, clearPointAltitude, deletePoint, findUnit, goView, orderAdmiraltyRoute,
-  orderAlertChecked, orderBreakOff, orderCancelSchedule, orderClearPlan, orderConvoySpeed, orderCover,
-  orderDissolve, orderEndAction, orderEscortBehaviour, orderEscortHome, orderFormationAlert, orderHome,
-  orderHuntHours, orderHuntPlot, orderHuntStop, orderIntercept, orderJoin, orderLaunchWaiting, orderLeave,
-  orderLeaveFormationOf, orderMerge, orderMinStock, orderNewFormation, orderOffer, orderOrbit, orderPurchase,
-  orderRally, orderRemoveLeg, orderRoe, orderRosterAdd, orderRosterOverride, orderRosterRemove, orderSail,
-  orderScheduleJoin, orderScheduleSail, orderScheduleTakeoff, orderScheduleWing, orderShipEnd, orderTrain,
-  orderVector, orderZigzag, scrambleSquadron, select, selectedUnit, startEditLeg, toggleBuster
+  orderAlertChecked, orderBoost, orderBreakOff, orderCancelSchedule, orderClearPlan, orderConvoySpeed,
+  orderCover, orderDissolve, orderEndAction, orderEscortBehaviour, orderEscortHome, orderExitChannel,
+  orderFormationAlert, orderHome, orderHuntHours, orderHuntPlot, orderHuntStop, orderIntercept, orderJoin,
+  orderLaunchWaiting, orderLeave, orderLeaveFormationOf, orderMerge, orderMinStock, orderNewFormation,
+  orderOffer, orderOrbit, orderPurchase, orderRally, orderRemoveLeg, orderRoe, orderRosterAdd,
+  orderRosterCopy, orderRosterOverride, orderRosterRemove, orderRosterResume, orderSail, orderScheduleJoin,
+  orderScheduleSail, orderScheduleTakeoff, orderScheduleWing, orderShipEnd, orderSpeedPct, orderTrain,
+  orderVector, orderZigzag, revealSelection, scrambleSquadron, select, selectedUnit, startEditLeg, toggleBuster
 } from './ui/actions.js';
 import { formationById, leaderOf } from './sim/formations.js';
 import { contactEstimate } from './sim/query.js';
@@ -30,7 +32,9 @@ import { alertForEvent, initAlert, resetAlerts, updateAlerts } from './ui/alerts
 import { initQuestions, questionAsked, renderQuestion } from './ui/questions.js';
 import { ALERT_TYPES } from './ui/alertRules.js';
 import { loadDev, saveDev } from './ui/dev.js';
-import { openDesktopNotice, openEnd, openHelp, openScenarios, openSettings, openSuccess } from './ui/dialogs.js';
+import {
+  openDesktopNotice, openEnd, openHelp, openMainMenu, openSettings, openSuccess,
+} from './ui/dialogs.js';
 import { playBombs, playGuns, playRadio, unlockAudio } from './ui/sound.js';
 import { addEffectsForEvent } from './render/fx.js';
 import { eventMessage } from './ui/format.js';
@@ -42,6 +46,7 @@ import { clearBrowserSave, exportText, loadFromBrowser, parseExport, restore, sa
 import { addMobileRadar } from './sim/mru.js';
 import { openEvent } from './ui/dialogs.js';
 import { setSpeed } from './sim/orders.js';
+import { portChoices } from './sim/naval.js';
 
 const MAX_STEPS_PER_FRAME = 6000;
 // Events handled at once, without the rest of the frame's steps: every alert, and a few more.
@@ -86,6 +91,8 @@ function collectElements() {
     tote: $('tote'),
     panelHint: $('panel-hint'),
     unitPanel: $('unit-panel'),
+    unitBar: $('unit-bar'),
+    unitBody: $('unit-body'),
     unitTitle: $('unit-title'),
     unitSummary: $('unit-summary'),
     unitTabs: $('unit-tabs'),
@@ -123,22 +130,26 @@ function collectElements() {
     dlgReports: $('dlg-reports'),
     dlgCards: $('dlg-cards'),
     dlgFormations: $('dlg-formations'),
+    dlgRoster: $('dlg-roster'),
+    dlgMenu: $('dlg-menu'),
+    btnRoster: $('btn-roster'),
     dlgEvent: $('dlg-event'),
   };
 }
 
 async function loadData() {
-  const [fr, rules, presets, dev, atlantic, channel, labels, ...scenarios] = await Promise.all([
+  const [fr, rules, presets, dev, helpImages, atlantic, channel, labels, ...scenarios] = await Promise.all([
     loadJSON('data/i18n/fr.json'),
     loadJSON('data/rules.json'),
     loadJSON('data/presets.json'),
     loadJSON('data/dev.json'),
+    loadJSON('data/help/images.json').catch(() => ({})),
     loadJSON('data/maps/atlantic.json'),
     loadJSON('data/maps/channel.json'),
     loadJSON('data/maps/labels.json'),
     ...SCENARIOS.map((id) => loadJSON(`data/scenarios/${id}.json`)),
   ]);
-  return { fr, rules, presets, dev, atlantic, channel, labels, scenarios };
+  return { fr, rules, presets, dev, helpImages, atlantic, channel, labels, scenarios };
 }
 
 function scenarioById(data, id) {
@@ -176,7 +187,36 @@ function handleEvents(app, events) {
       openEnd(app);
     }
   }
-  if (events.length) app.dirtyPanels = true;
+  if (events.length) app.panelsStale = true;
+}
+
+/** Dragging the edge of the unit sheet makes it wider (or higher at the bottom); remembered. */
+function attachSheetGrip(app) {
+  const grip = app.el.unitPanel.querySelector('[data-grip="sheet"]');
+  if (!grip) return;
+  let drag = null;
+  grip.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    grip.setPointerCapture(e.pointerId);
+    const rect = app.el.unitPanel.getBoundingClientRect();
+    drag = { x: e.clientX, y: e.clientY, w: rect.width, h: rect.height };
+  });
+  grip.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const s = app.settings;
+    const pos = s.sheetPos || 'right';
+    const table = app.el.table.getBoundingClientRect();
+    if (pos === 'bottom') s.sheetH = Math.max(180, Math.min(table.height * 0.8, drag.h - (e.clientY - drag.y)));
+    else s.sheetW = Math.max(320, Math.min(Math.min(720, table.width * 0.7), drag.w + (pos === 'left' ? 1 : -1) * (e.clientX - drag.x)));
+    app.applySheet();
+  });
+  const end = () => {
+    if (!drag) return;
+    drag = null;
+    saveSettings(app.settings);
+  };
+  grip.addEventListener('pointerup', end);
+  grip.addEventListener('pointercancel', end);
 }
 
 function inputValue(id) {
@@ -238,6 +278,7 @@ function onPanelClick(app, e) {
   switch (action) {
     case 'select':
       select(app, kind, id);
+      revealSelection(app);
       break;
     case 'cards':
       openCards(app, b.dataset.type);
@@ -260,6 +301,9 @@ function onPanelClick(app, e) {
       break;
     case 'speed-max':
       if (sq && sq.speedMode !== 'max') toggleBuster(app, sq);
+      break;
+    case 'boost':
+      if (unit) orderBoost(app, unit);
       break;
     case 'vector': {
       const value = Number(inputValue('vector-input'));
@@ -316,7 +360,17 @@ function onPanelClick(app, e) {
       if (unit) orderLeave(app, unit);
       break;
     case 'escort-home':
-      if (unit) orderEscortHome(app, unit, inputValue(`home-port-${id}`));
+      if (unit) orderEscortHome(app, unit, b.dataset.port || inputValue(`home-port-${id}`));
+      app.portPick = null;
+      break;
+    case 'port-pick':
+      // The sea routes to every port are worked out now, once, not on every refresh.
+      if (unit) app.portPick = { id: unit.id, t: app.world.t, list: portChoices(app.world, unit) };
+      app.dirtyPanels = true;
+      break;
+    case 'port-pick-close':
+      app.portPick = null;
+      app.dirtyPanels = true;
       break;
     case 'hunt-stop':
       if (unit) orderHuntStop(app, unit);
@@ -329,6 +383,15 @@ function onPanelClick(app, e) {
       break;
     case 'break-off':
       if (sq) orderBreakOff(app, sq, b.dataset.raid);
+      break;
+    case 'open-roster':
+      openRoster(app, { squadronId: id || null, fieldId: b.dataset.field || null });
+      break;
+    case 'roster-resume':
+      if (unit) orderRosterResume(app, unit);
+      break;
+    case 'roster-copy':
+      if (sq) orderRosterCopy(app, sq, inputValue(`rp-copy-${id}`));
       break;
     case 'intercept':
       if (sq) orderIntercept(app, sq, b.dataset.raid);
@@ -538,6 +601,12 @@ function onPanelChange(app, e) {
   } else if (target.dataset.change === 'ship-end') {
     const e = app.world.escorts.find((x) => x.id === target.dataset.id);
     if (e) orderShipEnd(app, e, target.value);
+  } else if (target.dataset.change === 'speed-pct') {
+    const u = findUnit(app, target.dataset.kind, target.dataset.id);
+    if (u) orderSpeedPct(app, u, Number(target.value));
+  } else if (target.dataset.change === 'exit-channel') {
+    const e = app.world.escorts.find((x) => x.id === target.dataset.id);
+    if (e) orderExitChannel(app, e, target.value);
   } else if (target.dataset.change === 'roster-override') {
     const sq = app.world.squadrons.find((s) => s.id === target.dataset.id);
     if (sq) orderRosterOverride(app, sq, target.checked);
@@ -567,7 +636,8 @@ function resize(app) {
   const cam = app.camera;
   const rect = app.el.table.getBoundingClientRect();
   const first = cam.width === 800 && cam.height === 600 && !app.sized;
-  app.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // On a big screen the map can be drawn at one pixel per point (Réglages, Carte): faster.
+  app.dpr = app.settings && app.settings.lowRes ? 1 : Math.min(window.devicePixelRatio || 1, 2);
   cam.width = Math.max(100, rect.width);
   cam.height = Math.max(100, rect.height);
   app.canvas.width = Math.round(cam.width * app.dpr);
@@ -667,6 +737,7 @@ async function start() {
 
   /** A saved game (from the browser or a file) replaces the current one. */
   app.resume = (saved) => {
+    if (el.dlgMenu.open) el.dlgMenu.close();
     const sc = scenarioById(data, saved.snap.scenario);
     if (!sc || sc.id !== saved.snap.scenario) throw new Error('save: unknown scenario');
     data.scenario = sc;
@@ -677,6 +748,7 @@ async function start() {
     drainEvents(w);
     restore(w, saved.snap, (world, def) => app.addMobileRadar && app.addMobileRadar(world, def));
     app.world = w;
+    app.resumed = true;
     Object.assign(app, { selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0 });
     clearLog(app);
     for (const entry of saved.journal || []) addLogEntry(app, entry.text, entry.level, entry.t, { report: entry.report, replay: true });
@@ -743,6 +815,7 @@ async function start() {
   };
 
   app.restart = (scenarioId = null, { tutorial = false } = {}) => {
+    if (el.dlgMenu.open) el.dlgMenu.close();
     if (scenarioId) {
       data.scenario = scenarioById(data, scenarioId);
       settings.scenario = data.scenario.id;
@@ -771,16 +844,25 @@ async function start() {
   attachInput(app);
   attachTutorial(app);
   // The side panel and the unit panel beside it answer the same buttons.
-  for (const box of [el.panel, el.unitPanel]) {
+  for (const box of [el.panel, el.unitPanel, el.dlgRoster]) {
     box.addEventListener('click', (e) => onPanelClick(app, e));
     box.addEventListener('change', (e) => onPanelChange(app, e));
     box.addEventListener('keydown', (e) => onPanelKeydown(app, e));
   }
+  // The sections of the Commandes tab stay open or folded as the player leaves them.
+  el.unitPanel.addEventListener('toggle', (e) => {
+    const d = e.target;
+    if (!d.dataset || !d.dataset.sec) return;
+    settings.sections = { ...(settings.sections || {}), [d.dataset.sec]: d.open };
+    saveSettings(settings);
+  }, true);
+  attachSheetGrip(app);
   el.btnSettings.addEventListener('click', () => openSettings(app));
-  el.btnScenario.addEventListener('click', () => openScenarios(app));
+  el.btnScenario.addEventListener('click', () => openMainMenu(app));
   el.btnReports.addEventListener('click', () => openReports(app));
   el.btnCards.addEventListener('click', () => openCards(app));
   el.btnFormations.addEventListener('click', () => openFormations(app));
+  el.btnRoster.addEventListener('click', () => openRoster(app));
   el.btnHelp.addEventListener('click', () => openHelp(app));
 
   handleEvents(app, drainEvents(app.world));
@@ -809,9 +891,19 @@ async function start() {
   el.loading.hidden = true;
   const smallScreen = window.innerWidth < 900 || (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches);
   if (smallScreen) openDesktopNotice(app);
-  else if (!helpSeen()) openHelp(app);
+  else openMainMenu(app);
 
   // Exposed for automated tests and debugging from the browser console.
+  app.resize = () => resize(app);
+  /** Where the unit sheet stands (right, left or bottom of the map) and how wide or high. */
+  app.applySheet = () => {
+    const pos = ['left', 'bottom'].includes(settings.sheetPos) ? settings.sheetPos : 'right';
+    el.table.classList.toggle('sheet-left', pos === 'left');
+    el.table.classList.toggle('sheet-bottom', pos === 'bottom');
+    el.table.style.setProperty('--sheet-w', `${Math.round(settings.sheetW || 400)}px`);
+    el.table.style.setProperty('--sheet-h', `${Math.round(settings.sheetH || 300)}px`);
+  };
+  app.applySheet();
   window.__game = app;
 
   let last = performance.now();
@@ -848,10 +940,13 @@ async function start() {
     if (!world.ended && world.t - (app.lastSaveT ?? 0) >= 900 && now - (app.lastSaveReal ?? 0) > 4000) app.save();
     drawScene(app.ctx, app, app.paused ? 1 : Math.max(0, Math.min(1, app.accumulator)));
     updateHud(app, world.startMs + world.t * 1000);
-    if (app.dirtyPanels || now - lastPanels > 250) {
+    // The sheets follow an order at once; the game's own news, at most a few times a second.
+    if (app.dirtyPanels || (app.panelsStale && now - lastPanels > 150) || now - lastPanels > 250) {
       renderPanels(app);
+      if (el.dlgRoster.open) renderRosterPage(app);
       lastPanels = now;
       app.dirtyPanels = false;
+      app.panelsStale = false;
     }
     requestAnimationFrame(frame);
   }

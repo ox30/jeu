@@ -3,9 +3,9 @@
 // is not repeated within its quiet time (a convoy attacked again during the same night).
 // Any new event that needs the player should get a rule here.
 
-import { distance } from '../sim/geo.js';
+import { distance, unproject } from '../sim/geo.js';
 import { t } from '../core/i18n.js';
-import { countText, ftText, placeText } from './format.js';
+import { countText, ftText, placeText, positionText } from './format.js';
 
 /** Highest speed left after an alert of each level ("slow down on alert" setting). */
 export const ALERT_SPEED = { raid: 10, danger: 60, warning: 600 };
@@ -19,7 +19,7 @@ export const ALERT_GROUPS = [
   {
     id: 'sea',
     speeds: {
-      uboatAttack: 1, convoyBombed: 1, escortEngaged: 1, uboatPlot: 1, convoySighted: 1, straggler: 1,
+      uboatAttack: 1, convoyBombed: 1, escortEngaged: 1, uboatSighted: 1, convoySighted: 1, straggler: 1,
       convoyInEscortRange: 1, escortLowFuel: 1, convoyStopped: 1, convoyWaiting: 1,
     },
   },
@@ -96,20 +96,27 @@ const RULES = {
     params: { convoy: e.convoy },
     focus: convoyAt(w, e.convoyId),
   }),
-  uboatPlot: (w, e) => {
+  // A U-boat seen by one of our aircraft or escort groups, wherever it is. A group that
+  // attacks it at once calls the player with « Escorte au combat » instead.
+  uboatSighted: (w, e) => {
+    if (e.attack) return null;
     let best = null;
     for (const c of w.convoys) {
       if (c.state !== 'atSea') continue;
       const d = distance(c.x, c.y, e.x, e.y);
       if (d <= CONTACT_KM && (!best || d < best.d)) best = { c, d };
     }
-    if (!best) return null;
+    const [lon, lat] = unproject(e.x, e.y);
     return {
       level: 'warning',
-      key: `contact:${best.c.id}`,
-      quiet: 6 * H,
-      params: { convoy: best.c.name, km: Math.round(best.d), by: e.by },
-      focus: { x: e.x, y: e.y },
+      key: `sighted:${e.uboatId}`,
+      quiet: H,
+      params: {
+        by: e.by, how: t(`map.uSource.${e.source}`), where: positionText(lat, lon),
+        convoy: best ? best.c.name : '', km: best ? Math.round(best.d) : 0,
+      },
+      variant: best ? 'near' : 'text',
+      focus: { x: e.x, y: e.y, kind: e.plotId ? 'uplot' : null, id: e.plotId },
     };
   },
   straggler: (w, e) => ({

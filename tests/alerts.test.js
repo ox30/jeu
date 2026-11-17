@@ -31,15 +31,40 @@ test('a convoy attacked twice in the same night calls the player once', () => {
   assert.ok(ALERT_SPEED.danger <= 60 && ALERT_SPEED.raid <= 10 && ALERT_SPEED.warning <= 600);
 });
 
-test('a U-boat contact calls the player only near a convoy at sea', () => {
+test('a U-boat seen by an aircraft or an escort calls the player anywhere, once an hour for that boat', () => {
   const w = makeKanalkampf();
   const memory = new Map();
   const c = w.convoys.find((u) => u.state === 'atSea');
   assert.ok(c);
-  const near = alertFor(w, { type: 'uboatPlot', by: 'EG 1', x: c.x + 40, y: c.y }, memory);
+  const near = alertFor(w, { type: 'uboatSighted', by: '502 Sqn', source: 'aircraft', uboatId: 'u1', x: c.x + 40, y: c.y }, memory);
   assert.equal(near.level, 'warning');
+  assert.equal(near.variant, 'near');
   assert.equal(near.params.convoy, c.name);
-  assert.equal(alertFor(w, { type: 'uboatPlot', by: 'EG 1', x: c.x + 2000, y: c.y }, new Map()), null);
+  assert.equal(alertFor(w, { type: 'uboatSighted', by: '502 Sqn', source: 'aircraft', uboatId: 'u1', x: c.x + 50, y: c.y }, memory), null, 'quiet a while');
+  const far = alertFor(w, { type: 'uboatSighted', by: '502 Sqn', source: 'asv', uboatId: 'u2', x: c.x + 2000, y: c.y }, memory);
+  assert.ok(far, 'far from any convoy too');
+  assert.equal(far.variant, 'text');
+  assert.equal(alertFor(w, { type: 'uboatSighted', by: 'EG 1', source: 'asdic', uboatId: 'u3', x: c.x, y: c.y, attack: true }, memory), null,
+    'a group that attacks at once calls with « Escorte au combat »');
+});
+
+test('Atlantic: a coastal patrol that sees a U-boat brings the game down to x1', async () => {
+  const { alertSpeed } = await import('../src/ui/alertRules.js');
+  const w = makeWorld('standard', { fuel: 'unlimited' }, 'hiver-atlantique');
+  const memory = new Map();
+  runTo(w, 4 * 3600); // 10:00, broad daylight
+  const u = w.uboats.find((x) => x.state !== 'gone' && x.state !== 'sunk');
+  u.state = 'patrol';
+  u.submergedUntil = 0;
+  const s = w.squadrons.find((x) => x.role === 'coastal' && x.asv);
+  Object.assign(s, { state: 'airborne', x: u.x + 3, y: u.y, px: u.x + 3, py: u.y, alt: 300, targetAlt: 300, orbit: true, fuel: 100 });
+  const events = run(w, 3600, (e) => e.type === 'uboatSighted' && e.unitKind === 'squadron');
+  const seen = events.find((e) => e.type === 'uboatSighted' && e.unitKind === 'squadron');
+  assert.ok(seen, 'the patrol sees the U-boat');
+  const a = alertFor(w, seen, memory);
+  assert.ok(a);
+  assert.equal(alertSpeed({}, a.type, a.level), 1);
+  assert.ok(data.fr.alerts.uboatSighted[a.variant].length > 10);
 });
 
 test('an unescorted ocean convoy coming within reach of the escorts calls the player once', () => {

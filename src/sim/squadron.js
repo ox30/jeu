@@ -39,6 +39,7 @@ export function createSquadron(world, def) {
     alertFrom: null, // the state it holds until then
     alertLong: false,
     roster: { daily: [], override: null }, // duty roster: alert states by the hour (roster.js)
+    alertManual: false, // a state set by hand holds until the player goes back to the plan
     schedule: null, // a take-off ordered for later (timetable.js)
     lateFor: null, // a formation it is catching up with, late at the rendezvous (rally.js)
     rallySlow: null, // a wing's leader slowing for its latecomers: speed factor
@@ -69,7 +70,8 @@ export function createSquadron(world, def) {
     clearedBeyond: new Set(), // raids it has leave to follow beyond mid-Channel
     attackRaid: null, // a raid it goes after while it can see it
     breakOff: null, // a raid it must leave (refused leave beyond mid-Channel)
-    speedMode: 'cruise', // cruise | max
+    speedMode: 'cruise', // cruise | max (the boost)
+    speedPct: 100, // throttle below the boost: 50 to 100 % of cruising speed
     state: 'ready', // ready | scrambling | airborne | combat | returning | refuelling | lost
     timer: 0,
     fuel: type.enduranceMin, // minutes at cruise power
@@ -95,12 +97,27 @@ export function feetOf(altM) {
 }
 
 /** Cruise or full speed of a squadron, in km/s. */
+/**
+ * Throttle of a squadron in the air: its share of cruising speed (50 to 100 %), or the boost
+ * (full speed, « Buster »). Going home it flies at cruising speed.
+ */
+export function throttle(s) {
+  if (s.state === 'returning') return { max: false, pct: 100 };
+  if (s.speedMode === 'max') return { max: true, pct: 100 };
+  return { max: false, pct: Math.max(10, Math.min(100, s.speedPct ?? 100)) };
+}
+
+/** Speed (km/h) of an aircraft type at a throttle. */
+export function typeKmh(type, th) {
+  return th.max ? type.maxKmh : (type.cruiseKmh * th.pct) / 100;
+}
+
 export function squadronSpeed(world, s) {
   const type = aircraftSpec(world, s.type);
-  const max = s.speedMode === 'max' && s.state !== 'returning';
-  let kmh = max ? type.maxKmh : type.cruiseKmh;
+  const th = throttle(s);
+  let kmh = typeKmh(type, th);
   // The leader of a big wing flies at the speed of its slowest squadron (formations.js).
-  if (s.wingSlowest) kmh = Math.min(kmh, max ? s.wingSlowest.maxKmh : s.wingSlowest.cruiseKmh);
+  if (s.wingSlowest) kmh = Math.min(kmh, typeKmh(s.wingSlowest, th));
   // A wing that left its rendezvous without everyone slows down for the latecomers (rally.js).
   if (s.rallySlow) kmh *= s.rallySlow;
   return kmh / 3600;
@@ -275,7 +292,10 @@ function updateFuel(world, s, dt) {
   if (mode === 'unlimited') return;
   const R = world.rules.squadron;
   const type = aircraftSpec(world, s.type);
-  const burn = (s.speedMode === 'max' && s.state !== 'returning' ? R.maxSpeedBurn : 1) * (s.state === 'combat' ? R.combatBurn : 1);
+  // Full speed burns much more; slower than cruising, a little less (to 80 % at half speed).
+  const th = throttle(s);
+  const slow = 1 - ((100 - th.pct) / 50) * (1 - R.slowBurnAt50);
+  const burn = (th.max ? R.maxSpeedBurn : slow) * (s.state === 'combat' ? R.combatBurn : 1);
   s.fuel -= (burn * dt) / 60;
 
   if (s.state === 'airborne' || s.state === 'combat') {
@@ -405,6 +425,7 @@ export function updateSquadron(world, s, dt) {
     s.heading = leader.heading;
     s.targetAlt = leader.targetAlt;
     s.speedMode = leader.speedMode;
+    s.speedPct = leader.speedPct;
   } else {
     const v = squadronSpeed(world, s);
     let desired = s.heading;

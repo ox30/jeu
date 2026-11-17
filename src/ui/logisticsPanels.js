@@ -275,36 +275,80 @@ export function convoyCargoRows(app, c) {
   return rows.join('');
 }
 
-/**
- * « Face aux U-Boote » (stay or hunt, and for how long), the hunt under way with « Interrompre
- * la chasse », fresh plots to hunt, « Rentrer au port » with the port: for a group, or for a
- * support group through its leader (the orders go to every group).
- */
-export function huntAndPortLines(app, e) {
-  const w = app.world;
+/** Fresh U-boat plots within reach of a group at sea (2 hours, 80 km), newest first. */
+function freshPlots(w, e) {
   const atSea = ['atSea', 'waiting', 'escorting', 'hunting'].includes(e.state);
-  const hours = huntHours(w, e);
-  const hourList = [1, 2, 3, 4, 6, 8, 12].map((h) => ({ value: String(h), label: t('orders.hours', { n: h }) }));
-  // Fresh U-boat plots within reach: hunt one now.
-  const fresh = atSea ? w.uboatPlots
+  return atSea ? w.uboatPlots
     .filter((p) => w.t - p.t < 2 * 3600 && distance(p.x, p.y, e.x, e.y) < 80)
     .sort((a, b) => b.t - a.t)
     .slice(0, 3) : [];
-  const ports = atSea ? portChoices(w, e) : [];
+}
+
+/** « Rester » or « Chasser » as two buttons (the command bar shows them as icons). */
+export function behaviourButtons(e) {
+  return `${button('escort-behaviour', t('orders.behaviours.stay'), { id: e.id, kind: 'escort', active: e.behaviour !== 'hunt', extra: ' data-behaviour="stay"' })}${button('escort-behaviour', t('orders.behaviours.hunt'), { id: e.id, kind: 'escort', active: e.behaviour === 'hunt', extra: ' data-behaviour="hunt"' })}`;
+}
+
+/**
+ * Hunting U-boats: how long a hunt lasts, the hunt under way with « Interrompre la chasse », the
+ * fresh plots to hunt now. With `behaviour`, the Rester / Chasser buttons too.
+ */
+export function huntLines(app, e, { behaviour = true } = {}) {
+  const w = app.world;
+  const hours = huntHours(w, e);
+  const hourList = [1, 2, 3, 4, 6, 8, 12].map((h) => ({ value: String(h), label: t('orders.hours', { n: h }) }));
+  const fresh = freshPlots(w, e);
   const hunting = e.state === 'hunting';
   return [
-    `<div class="sub">${escapeHtml(t('orders.behaviour'))}</div>`,
-    `<div class="order-line">${button('escort-behaviour', t('orders.behaviours.stay'), { id: e.id, kind: 'escort', active: e.behaviour !== 'hunt', extra: ' data-behaviour="stay"' })}${button('escort-behaviour', t('orders.behaviours.hunt'), { id: e.id, kind: 'escort', active: e.behaviour === 'hunt', extra: ' data-behaviour="hunt"' })}`,
+    `<div class="order-line">${behaviour ? behaviourButtons(e) : ''}`,
     `<label class="small">${escapeHtml(t('orders.huntFor'))} <select id="hunt-hours-${escapeHtml(e.id)}" data-change="hunt-hours" data-id="${escapeHtml(e.id)}">${options(hourList, String(hours))}</select></label></div>`,
     `<p class="hint">${escapeHtml(t('orders.behaviourHint'))}</p>`,
     hunting ? `<div class="order-line hunting"><span class="grow">${escapeHtml(huntText(w, e))}</span>${button('hunt-stop', t('orders.huntStop'), { id: e.id, kind: 'escort' })}</div>` : '',
     fresh.length ? `<div class="order-line">${fresh.map((p) => button('hunt-plot', t('orders.huntPlot', {
       time: formatTime(w.startMs + p.t * 1000), km: Math.round(distance(p.x, p.y, e.x, e.y)),
     }), { id: e.id, kind: 'escort', extra: ` data-plot="${escapeHtml(p.id)}"` })).join('')}</div>` : '',
-    ports.length ? `<div class="order-line"><span>${escapeHtml(t('orders.homePort'))}</span><select id="home-port-${escapeHtml(e.id)}">${options(ports.map((x) => ({
-      value: x.port.id, label: t('orders.portChoice', { port: x.port.name, km: Math.round(x.km), h: formatNumber(x.hours, x.hours < 10 ? 1 : 0) }),
-    })), ports[0].port.id)}</select>${button('escort-home', t('orders.go'), { id: e.id, kind: 'escort' })}</div>` : '',
   ].join('');
+}
+
+/** « Rentrer au port » with the port: nearest by sea first, distance and hours. */
+export function homePortLine(app, e) {
+  const atSea = ['atSea', 'waiting', 'escorting', 'hunting'].includes(e.state);
+  const ports = atSea ? portChoices(app.world, e) : [];
+  if (!ports.length) return '';
+  return `<div class="order-line"><span>${escapeHtml(t('orders.homePort'))}</span><select id="home-port-${escapeHtml(e.id)}">${options(ports.map((x) => ({
+    value: x.port.id, label: t('orders.portChoice', { port: x.port.name, km: Math.round(x.km), h: formatNumber(x.hours, x.hours < 10 ? 1 : 0) }),
+  })), ports[0].port.id)}</select>${button('escort-home', t('orders.go'), { id: e.id, kind: 'escort' })}</div>`;
+}
+
+/** Face aux U-Boote and Rentrer au port, one under the other (for a group or a support group). */
+export function huntAndPortLines(app, e) {
+  return `<div class="sub">${escapeHtml(t('orders.behaviour'))}</div>${huntLines(app, e)}${homePortLine(app, e)}`;
+}
+
+/** Convoys at sea the group can meet, as buttons; « Quitter le convoi » when it is with one. */
+export function joinLines(app, e) {
+  const w = app.world;
+  const canMove = e.state === 'inPort' || e.state === 'atSea' || e.state === 'waiting' || e.state === 'hunting';
+  const aid = w.settings.interceptAid !== 'none';
+  const joinable = w.convoys.filter((c) => c.state === 'atSea' && c.type !== 'coastal' && c.id !== e.escorting);
+  const convoyName = (c) => (c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name);
+  return [
+    aid && (canMove || e.state === 'escorting') && joinable.length
+      ? `<div class="order-line">${joinable.map((c) => button('join', t('orders.join', { convoy: convoyName(c) }), { id: e.id, kind: 'escort', extra: ` data-convoy="${escapeHtml(c.id)}"` })).join('')}</div>` : '',
+    e.state === 'escorting' ? `<div class="order-line">${button('leave', t('orders.leave'), { id: e.id, kind: 'escort' })}</div>` : '',
+    `<p class="hint">${escapeHtml(t('orders.joinHint'))}</p>`,
+  ].join('');
+}
+
+/** In port: the way out (roads or a channel); `sail`: the « Appareiller » button with it. */
+export function exitLines(app, e, { sail = true } = {}) {
+  const w = app.world;
+  const port = w.byId.port.get(e.portId);
+  const channels = (port && port.approaches) || [];
+  const list = [{ value: '', label: t('orders.exitRoads') }, ...channels.map((a) => ({ value: a.name, label: t('orders.exitChannel', { name: a.name }) }))];
+  return `<div class="order-line">${sail ? button('sail', t('orders.escortSail'), { id: e.id, kind: 'escort' }) : ''}
+    ${channels.length ? `<label class="small">${escapeHtml(t('orders.exitBy'))} <select id="exit-channel-${escapeHtml(e.id)}" data-change="exit-channel" data-id="${escapeHtml(e.id)}">${options(list, e.exitChannel || '')}</select></label>` : ''}</div>
+    <p class="hint">${escapeHtml(t('orders.exitHint'))}</p>`;
 }
 
 export function escortSheet(app, e) {
@@ -334,15 +378,11 @@ export function escortSheet(app, e) {
   const canMove = e.state === 'inPort' || e.state === 'atSea' || e.state === 'waiting' || e.state === 'hunting';
   const aid = w.settings.interceptAid !== 'none';
   const joinable = w.convoys.filter((c) => c.state === 'atSea' && c.type !== 'coastal' && c.id !== e.escorting);
-  const convoyName = (c) => (c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name);
   const orders = [
     `<div class="orders">`,
-    e.state === 'inPort' ? button('sail', t('orders.escortSail'), { id: e.id, kind: 'escort', disabled: !e.plan.length && !e.route.length }) : '',
-    aid && (canMove || e.state === 'escorting') && joinable.length
-      ? `<div class="order-line">${joinable.map((c) => button('join', t('orders.join', { convoy: convoyName(c) }), { id: e.id, kind: 'escort', extra: ` data-convoy="${escapeHtml(c.id)}"` })).join('')}</div>` : '',
-    e.state === 'escorting' ? button('leave', t('orders.leave'), { id: e.id, kind: 'escort' }) : '',
+    e.state === 'inPort' ? exitLines(app, e) : '',
+    joinLines(app, e),
     huntAndPortLines(app, e),
-    `<p class="hint">${escapeHtml(t('orders.joinHint'))}</p>`,
     `</div>`,
   ].join('');
   return {

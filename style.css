@@ -174,6 +174,9 @@ button {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 .coach[hidden] { display: none; }
+/* The tutorial box stays beside the unit sheet, wherever the sheet stands. */
+#table.with-unit.sheet-left .coach { left: calc(min(var(--sheet-w, 400px), 92%) + 12px); }
+#table.with-unit.sheet-bottom .coach { bottom: calc(min(var(--sheet-h, 300px), 80%) + 12px); }
 .coach-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .coach-head small { color: var(--ink-soft); white-space: nowrap; }
 .coach p { margin: 6px 0 8px; }
@@ -463,7 +466,7 @@ button.link { background: none; border: none; padding: 0; font: inherit; color: 
 
 .unit-panel {
   position: absolute; top: 0; right: 0; bottom: 0; z-index: 3;
-  width: min(340px, 92%);
+  width: min(var(--sheet-w, 400px), 92%);
   display: flex; flex-direction: column;
   background: var(--paper); color: var(--ink);
   border-left: 3px solid #1b150e;
@@ -558,7 +561,9 @@ button.link { background: none; border: none; padding: 0; font: inherit; color: 
 }
 
 /* With the unit panel open, the alert stays over the part of the map that can be seen. */
-#table.with-unit .alert { left: calc((100% - min(340px, 92%)) / 2); max-width: calc(100% - min(340px, 92%) - 24px); }
+#table.with-unit .alert { left: calc((100% - min(var(--sheet-w, 400px), 92%)) / 2); max-width: calc(100% - min(var(--sheet-w, 400px), 92%) - 24px); }
+#table.with-unit.sheet-left .alert { left: calc(min(var(--sheet-w, 400px), 92%) + (100% - min(var(--sheet-w, 400px), 92%)) / 2); }
+#table.with-unit.sheet-bottom .alert { left: 50%; max-width: calc(100% - 24px); }
 @media (max-width: 820px) {
   #table.with-unit .alert { left: 50%; max-width: calc(100% - 24px); }
 }
@@ -586,7 +591,9 @@ button.link { background: none; border: none; padding: 0; font: inherit; color: 
 @keyframes flash-question { 50% { background: #2c4a7c; } }
 /* With a question shown, the alert banner moves below it. */
 #table.has-question .alert { top: 110px; }
-#table.with-unit .question { left: calc((100% - min(340px, 92%)) / 2); max-width: calc(100% - min(340px, 92%) - 24px); }
+#table.with-unit .question { left: calc((100% - min(var(--sheet-w, 400px), 92%)) / 2); max-width: calc(100% - min(var(--sheet-w, 400px), 92%) - 24px); }
+#table.with-unit.sheet-left .question { left: calc(min(var(--sheet-w, 400px), 92%) + (100% - min(var(--sheet-w, 400px), 92%)) / 2); }
+#table.with-unit.sheet-bottom .question { left: 50%; max-width: calc(100% - 24px); }
 @media (max-width: 820px) {
   #table.with-unit .question { left: 50%; max-width: calc(100% - 24px); }
 }
@@ -664,3 +671,97 @@ button.link { background: none; border: none; padding: 0; font: inherit; color: 
 .alert-speeds select { font: 12.5px Georgia, serif; }
 .settings input[type="range"] { vertical-align: middle; width: 180px; }
 .report .dev-truth { margin: 4px 0 0; font-size: 11.5px; color: #8a1468; border-left: 2px solid #c0178f; padding-left: 6px; }
+
+/* ---------- the unit sheet: where it stands, its grip, its command bar and its sections ---------- */
+#table.sheet-left .unit-panel { right: auto; left: 0; border-left: none; border-right: 3px solid #1b150e; box-shadow: 6px 0 18px rgba(0, 0, 0, 0.28); }
+#table.sheet-bottom .unit-panel {
+  top: auto; left: 0; right: 0; width: auto; height: min(var(--sheet-h, 300px), 80%);
+  border-left: none; border-top: 3px solid #1b150e; box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.28);
+}
+/* At the bottom, the sections of the Commandes tab stand side by side. */
+#table.sheet-bottom #unit-keyed { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 0 22px; align-items: start; }
+#table.sheet-bottom #unit-keyed > p.hint { grid-column: 1 / -1; }
+.sheet-grip { position: absolute; top: 0; bottom: 0; left: -5px; width: 9px; cursor: ew-resize; z-index: 4; }
+#table.sheet-left .sheet-grip { left: auto; right: -5px; }
+#table.sheet-bottom .sheet-grip { top: -5px; bottom: auto; left: 0; right: 0; width: auto; height: 9px; cursor: ns-resize; }
+.sheet-grip:hover { background: rgba(43, 36, 26, 0.18); }
+
+.unit-bar { padding: 4px 8px 6px; border-bottom: 1px solid var(--paper-dark); background: rgba(255, 252, 240, 0.35); }
+.unit-bar[hidden] { display: none; }
+.cmd-bar { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: flex-end; }
+.cmd-group { display: flex; flex-direction: column; gap: 2px; }
+.cmd-caption { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+.cmd-row { display: flex; gap: 3px; align-items: center; }
+button.cmd {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  min-width: 50px; height: 46px; padding: 3px 4px; cursor: pointer;
+  background: #f7f0dc; color: var(--ink); border: 1px solid #8a7350; border-radius: 4px; font: 10.5px Georgia, serif; line-height: 1.1;
+}
+button.cmd svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+button.cmd span { white-space: nowrap; }
+button.cmd:hover:not([disabled]):not(.active) { background: #fffaf0; }
+button.cmd.active { background: var(--raf-blue); color: #fff; border-color: var(--raf-blue); }
+button.cmd.danger { color: var(--raf-red); border-color: var(--raf-red); }
+button.cmd[disabled] { opacity: 0.4; cursor: default; }
+button.cmd.small { min-width: 30px; height: 30px; flex-direction: row; gap: 3px; padding: 2px 6px; }
+button.cmd.small svg { width: 17px; height: 17px; }
+.cmd-group.alt .alt-value { min-width: 62px; text-align: center; font: bold 13px "Courier New", Courier, monospace; }
+.cmd-group.speed input[type="range"] { width: 104px; }
+.cmd-group.speed input[type="range"].off { opacity: 0.45; }
+.cmd-group.speed .speed-value { min-width: 44px; font: bold 12.5px "Courier New", Courier, monospace; }
+.cmd-group.speed .speed-text { font-size: 11px; color: var(--ink-soft); font-family: "Courier New", Courier, monospace; }
+
+details.sec { border-top: 1px dotted var(--paper-dark); padding: 2px 0; }
+details.sec > summary {
+  cursor: pointer; list-style: none; padding: 5px 0 3px; font-weight: bold; font-size: 12.5px; color: var(--ink);
+  display: flex; align-items: center; gap: 6px;
+}
+details.sec > summary::-webkit-details-marker { display: none; }
+details.sec > summary::before { content: '▸'; color: var(--ink-soft); font-size: 11px; width: 10px; }
+details.sec[open] > summary::before { content: '▾'; }
+details.sec > .sec-body { padding: 0 0 6px 2px; }
+.profile-slot canvas { display: block; margin: 4px 0; }
+
+/* The Effectifs page: aerodromes on the left, their squadrons and plans on the right. */
+.roster-page .rp-columns { display: grid; grid-template-columns: minmax(180px, 230px) 1fr; gap: 14px; }
+.roster-page .rp-col { border: 1px solid var(--paper-dark); border-radius: 4px; padding: 6px 8px; background: rgba(255, 252, 240, 0.55); max-height: 62vh; overflow-y: auto; }
+.roster-page .rp-list { list-style: none; margin: 0; padding: 0; }
+.roster-page .rp-field { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 1px; margin: 2px 0; padding: 4px 8px; cursor: pointer;
+  background: #f7f0dc; color: var(--ink); border: 1px solid #8a7350; border-radius: 3px; font: 13px Georgia, serif; }
+.roster-page .rp-field small { color: var(--ink-soft); font-size: 11.5px; }
+.roster-page .rp-field.active { background: var(--raf-blue); color: #fff; border-color: var(--raf-blue); }
+.roster-page .rp-field.active small { color: #dfe7f3; }
+.roster-page .roster-squadron { border-bottom: 1px dotted var(--paper-dark); padding: 6px 0 8px; }
+.roster-page .roster-squadron.focus { background: rgba(255, 238, 190, 0.45); }
+@media (max-width: 820px) { .roster-page .rp-columns { grid-template-columns: 1fr; } }
+.roster-page .sub { font-size: 12px; color: var(--ink-soft); margin: 8px 0 3px; }
+.roster-page label.check { font-size: 13px; }
+
+/* The main menu, over the map. */
+dialog.menu-dialog { padding: 0; border: 3px solid #1b150e; border-radius: 6px; background: var(--paper); width: min(560px, 94vw); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
+dialog.menu-dialog::backdrop { background: rgba(27, 21, 14, 0.62); }
+.main-menu { padding: 0 0 14px; }
+.main-menu .mm-title { background: #2b241a; color: #f2e9d2; padding: 18px 24px 14px; border-bottom: 3px solid var(--brass); }
+.main-menu .mm-title h1 { margin: 0; font: bold 26px Georgia, serif; letter-spacing: 0.02em; }
+.main-menu .mm-title p { margin: 2px 0 0; font-style: italic; color: #d9c9a3; }
+.main-menu .mm-buttons { display: flex; flex-direction: column; gap: 8px; padding: 16px 24px 4px; }
+.main-menu .mm-buttons > button, .main-menu .mm-file {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; cursor: pointer;
+  background: #f7f0dc; color: var(--ink); border: 1px solid #8a7350; border-radius: 4px; padding: 9px 14px; font: bold 16px Georgia, serif;
+}
+.main-menu .mm-buttons small { font: normal 12.5px Georgia, serif; color: var(--ink-soft); }
+.main-menu .mm-buttons > button:hover, .main-menu .mm-file:hover { background: #fffaf0; }
+.main-menu .mm-buttons > .mm-main { background: var(--raf-blue); color: #fff; border-color: var(--raf-blue); }
+.main-menu .mm-buttons > .mm-main small { color: #dfe7f3; }
+.main-menu .mm-row { display: flex; gap: 8px; }
+.main-menu .mm-row button { flex: 1 1 0; background: #f7f0dc; color: var(--ink); border: 1px solid #8a7350; border-radius: 4px; padding: 7px 12px; font: 14px Georgia, serif; cursor: pointer; }
+.main-menu .mm-note { margin: 10px 24px 0; }
+.main-menu .message { margin: 6px 24px 0; }
+
+/* The help, in tabs, with pictures from the test bench. */
+.help-page .help-pane[hidden] { display: none; }
+.help-page .help-pane ol { padding-left: 20px; }
+.help-page .help-pane li { margin: 0 0 8px; }
+.help-image { margin: 4px 0 10px; text-align: center; }
+.help-image img { max-width: 100%; border: 1px solid var(--paper-dark); border-radius: 3px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); }
+.help-image figcaption { font-size: 12px; color: var(--ink-soft); font-style: italic; margin-top: 3px; }
