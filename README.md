@@ -95,7 +95,9 @@ autonomie 1,6 fois plus vite.
    la terre par la mer.
 2. **U-Boote.** Ils attaquent de nuit, en surface. Les zones hachurées viennent de la
    radiogoniométrie ; un repère U-Boot (vu par une vigie, un avion, l'ASDIC ou le radar)
-   porte deux cercles : où il peut être en surface, et en plongée. Un groupe d'escorte
+   porte deux cercles : où il peut être en surface, et en plongée. La table garde un seul
+   repère par U-Boot : un nouveau relèvement le déplace (au lieu d'empiler des cercles toutes
+   les dix minutes d'une chasse), et un U-Boot coulé la quitte. Un groupe d'escorte
    « Rejoint » un convoi et, « Face aux U-Boote », « Reste » avec lui (il n'attaque que ce
    qui s'approche, 30 min et 15 km au plus) ou « Chasse » un contact frais pendant la durée
    choisie (3 h par défaut, de 1 à 12 h) ; « Stop » ou tout autre ordre l'arrête, et un
@@ -335,7 +337,7 @@ facilite les tests et l'équilibrage.
 npm test
 ```
 
-Les 140 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
+Les 143 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
 terre et la mer, les routes, les étapes et leur édition, le pilote à l'entrée des chenaux,
 les interceptions, le guidage du contrôleur et les ratés, les rapports, les installations,
 les trains mélangés, les munitions, la fatigue et les pilotes, les patrouilles, les U-Boote
@@ -356,7 +358,8 @@ chasse jamais à terre, veille d'un groupe qui attend, retour au port après une
 zones de vue, la vitesse de chaque alerte, des rapports qui ne disent que ce que la RAF sait,
 au M2.5 la sortie en rade ou par un chenal, l'alerte « U-Boot en vue », la vitesse en % et le
 boost des avions et des navires, l'état choisi à la main et « Retour au planning », la copie
-d'un plan, l'aide et le tutoriel, et une quinzaine complète sans ordres.
+d'un plan, l'aide et le tutoriel, au M2.5.1 un seul repère par U-Boot (aucun pour un U-Boot
+coulé, et les sauvegardes plus anciennes nettoyées), et une quinzaine complète sans ordres.
 
 ## Outils
 

@@ -564,11 +564,54 @@ function drawPendingMru(ctx, cam, app) {
   }
 }
 
+/**
+ * How a circle meets the screen: 'out' (none of it shows), 'around' (it covers the whole
+ * screen: its outline is off-screen) or 'in'. Zoomed in on a fight, the circles of an old
+ * plot are thousands of pixels wide: drawing their dashed outline in full is what costs.
+ */
+function circleOnScreen(cam, sx, sy, r) {
+  const nx = Math.max(0, Math.min(cam.width, sx));
+  const ny = Math.max(0, Math.min(cam.height, sy));
+  if (Math.hypot(nx - sx, ny - sy) > r) return 'out';
+  const fx = Math.max(Math.abs(sx), Math.abs(sx - cam.width));
+  const fy = Math.max(Math.abs(sy), Math.abs(sy - cam.height));
+  return Math.hypot(fx, fy) < r ? 'around' : 'in';
+}
+
+/**
+ * A dashed circle, drawn only over the angles where it can show when its centre is off the
+ * screen (dashes cost per pixel of outline); the dashes keep their place on the circle.
+ */
+function ringOutline(ctx, cam, sx, sy, r, dash) {
+  let a0 = 0;
+  let a1 = Math.PI * 2;
+  if (sx < 0 || sx > cam.width || sy < 0 || sy > cam.height) {
+    const ac = Math.atan2(cam.height / 2 - sy, cam.width / 2 - sx);
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const [x, y] of [[0, 0], [cam.width, 0], [0, cam.height], [cam.width, cam.height]]) {
+      const d = Math.atan2(y - sy, x - sx) - ac;
+      const n = Math.atan2(Math.sin(d), Math.cos(d));
+      lo = Math.min(lo, n);
+      hi = Math.max(hi, n);
+    }
+    a0 = ac + lo - 0.02;
+    a1 = ac + hi + 0.02;
+  }
+  const period = dash.reduce((a, b) => a + b, 0);
+  ctx.setLineDash(dash);
+  ctx.lineDashOffset = period ? (((r * a0) % period) + period) % period : 0;
+  ctx.beginPath();
+  ctx.arc(sx, sy, r, a0, a1);
+  ctx.stroke();
+  ctx.lineDashOffset = 0;
+}
+
 function drawUboatPlots(ctx, cam, app) {
   const world = app.world;
   const A = world.rules.asw;
   const life = A.plotLifetimeH * 3600;
-  ctx.save();
+  const shown = [];
   for (const p of world.uboatPlots) {
     const age = world.t - p.t;
     const [sx, sy] = toScreen(cam, p.x, p.y);
@@ -577,24 +620,38 @@ function drawUboatPlots(ctx, cam, app) {
     const rd = reach.submerged * cam.scale;
     if (sx + rs < 0 || sy + rs < 0 || sx - rs > cam.width || sy - rs > cam.height) continue;
     const selected = isSelected(app, 'uplot', p.id);
-    ctx.globalAlpha = selected ? 1 : Math.max(0.35, 1 - age / life);
-    if (rs > 4) {
-      ctx.setLineDash([7, 5]);
-      ctx.strokeStyle = 'rgba(120, 30, 25, 0.55)';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.arc(sx, sy, rs, 0, Math.PI * 2);
-      ctx.stroke();
+    shown.push({
+      p, sx, sy, rs, rd, selected, alpha: selected ? 1 : Math.max(0.35, 1 - age / life),
+      surface: rs > 4 ? circleOnScreen(cam, sx, sy, rs) : 'out', under: rd > 3 ? circleOnScreen(cam, sx, sy, rd) : 'out',
+    });
+  }
+  if (!shown.length) return;
+  ctx.save();
+  // Where they may be under water: one light fill for all the plots (not one per plot).
+  const fills = shown.filter((x) => x.under !== 'out');
+  if (fills.length) {
+    ctx.globalAlpha = Math.max(...fills.map((x) => x.alpha));
+    ctx.fillStyle = 'rgba(120, 30, 25, 0.07)';
+    ctx.beginPath();
+    if (fills.some((x) => x.under === 'around')) ctx.rect(0, 0, cam.width, cam.height);
+    else {
+      for (const { sx, sy, rd } of fills) {
+        ctx.moveTo(sx + rd, sy);
+        ctx.arc(sx, sy, rd, 0, Math.PI * 2);
+      }
     }
-    if (rd > 3) {
-      ctx.setLineDash([2, 3]);
-      ctx.fillStyle = 'rgba(120, 30, 25, 0.07)';
+    ctx.fill('nonzero');
+  }
+  for (const { p, sx, sy, rs, rd, selected, alpha, surface, under } of shown) {
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = 1.2;
+    if (surface === 'in') {
+      ctx.strokeStyle = 'rgba(120, 30, 25, 0.55)';
+      ringOutline(ctx, cam, sx, sy, rs, [7, 5]);
+    }
+    if (under === 'in') {
       ctx.strokeStyle = 'rgba(120, 30, 25, 0.8)';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.arc(sx, sy, rd, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
+      ringOutline(ctx, cam, sx, sy, rd, [2, 3]);
     }
     ctx.setLineDash([]);
     const color = COLORS.clock[clockColorIndex(world.startMs + p.t * 1000)];
@@ -631,42 +688,77 @@ function drawUboatContacts(ctx, cam, app) {
   }
 }
 
+let hatchTile = null;
+let hatchDpr = 0;
+
+/** The direction-finding hatching (thin diagonals every 7 px), as a repeating pattern. */
+function hatchPattern(ctx, dpr) {
+  if (typeof document === 'undefined') return null;
+  if (!hatchTile || hatchDpr !== dpr) {
+    const n = Math.max(1, Math.round(7 * dpr));
+    hatchTile = document.createElement('canvas');
+    hatchTile.width = n;
+    hatchTile.height = n;
+    const g = hatchTile.getContext('2d');
+    g.strokeStyle = 'rgba(120, 30, 25, 0.35)';
+    g.lineWidth = dpr;
+    g.beginPath();
+    g.moveTo(-1, -1);
+    g.lineTo(n + 1, n + 1);
+    g.moveTo(n - 1, -1);
+    g.lineTo(n + 1, 1);
+    g.moveTo(-1, n - 1);
+    g.lineTo(1, n + 1);
+    g.stroke();
+    hatchDpr = dpr;
+  }
+  return ctx.createPattern(hatchTile, 'repeat');
+}
+
 function drawDfZones(ctx, cam, app) {
   const world = app.world;
   if (!world.dfZones.length) return;
   const life = world.rules.uboats.dfLifetimeH * 3600;
-  ctx.save();
+  const shown = [];
   for (const z of world.dfZones) {
     const [sx, sy] = toScreen(cam, z.x, z.y);
-    const r = z.r * cam.scale;
-    if (sx + r < 0 || sy + r < 0 || sx - r > cam.width || sy - r > cam.height) continue;
-    const fade = Math.max(0.25, 1 - (world.t - z.t) / life);
-    ctx.globalAlpha = fade;
-    ctx.save();
+    const rr = Math.max(z.r * cam.scale, 6);
+    const where = circleOnScreen(cam, sx, sy, rr);
+    if (where !== 'out') shown.push({ z, sx, sy, rr, where, fade: Math.max(0.25, 1 - (world.t - z.t) / life) });
+  }
+  if (!shown.length) return;
+  ctx.save();
+  // The hatching of all the zones in one pattern fill, anchored on the map so that it moves
+  // with it. (A clip and hundreds of lines per zone cost a quarter of a second a frame when
+  // zoomed in on a convoy with ten fixes around it.)
+  const pattern = hatchPattern(ctx, app.dpr || 1);
+  if (pattern) {
+    const [ox, oy] = toScreen(cam, 0, 0);
+    if (pattern.setTransform) pattern.setTransform(new DOMMatrix().translateSelf(ox, oy).scaleSelf(1 / (app.dpr || 1)));
+    ctx.globalAlpha = Math.max(...shown.map((x) => x.fade));
+    ctx.fillStyle = pattern;
     ctx.beginPath();
-    ctx.arc(sx, sy, Math.max(r, 6), 0, Math.PI * 2);
-    ctx.clip();
-    ctx.strokeStyle = 'rgba(120, 30, 25, 0.35)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let d = -r * 2; d < r * 2; d += 7) {
-      ctx.moveTo(sx + d - r, sy - r);
-      ctx.lineTo(sx + d + r, sy + r);
+    if (shown.some((x) => x.where === 'around')) ctx.rect(0, 0, cam.width, cam.height);
+    else {
+      for (const { sx, sy, rr } of shown) {
+        ctx.moveTo(sx + rr, sy);
+        ctx.arc(sx, sy, rr, 0, Math.PI * 2);
+      }
     }
-    ctx.stroke();
-    ctx.restore();
-    ctx.setLineDash([6, 4]);
+    ctx.fill('nonzero');
+  }
+  ctx.font = `italic 11px ${FONTS.serif}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  for (const { z, sx, sy, rr, where, fade } of shown) {
+    ctx.globalAlpha = fade;
+    if (where !== 'in') continue;
     ctx.strokeStyle = 'rgba(120, 30, 25, 0.8)';
     ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.arc(sx, sy, Math.max(r, 6), 0, Math.PI * 2);
-    ctx.stroke();
+    ringOutline(ctx, cam, sx, sy, rr, [6, 4]);
     ctx.setLineDash([]);
     ctx.fillStyle = 'rgba(120, 30, 25, 0.95)';
-    ctx.font = `italic 11px ${FONTS.serif}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(t('map.df', { time: dateTimeText(world.startMs + z.t * 1000) }), sx, sy - Math.max(r, 6) - 2);
+    ctx.fillText(t('map.df', { time: dateTimeText(world.startMs + z.t * 1000) }), sx, sy - rr - 2);
   }
   ctx.restore();
 }

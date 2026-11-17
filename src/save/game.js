@@ -93,6 +93,12 @@ export function restore(world, snap, addMobileRadar = null) {
   }
   for (const k of LISTS) world[k] = decode(snap[k] || []);
   for (const k of VALUES) if (k in snap) world[k] = decode(snap[k]);
+  // Saves of M2.5 and before piled up a plot every ten minutes of a hunt, and kept the plots of a
+  // sunk U-boat: the table now keeps the newest plot of each U-boat still afloat.
+  const newest = new Map();
+  for (const p of world.uboatPlots) if (!newest.has(p.uboatId) || p.t > newest.get(p.uboatId).t) newest.set(p.uboatId, p);
+  world.uboatPlots = world.uboatPlots.filter((p) => newest.get(p.uboatId) === p
+    && !world.uboats.some((u) => u.id === p.uboatId && u.state === 'sunk'));
   world.contacts = decode(snap.contacts);
   world.reports = decode(snap.reports);
   // Saves made before reports kept what the RAF knows: a raid fought was seen.

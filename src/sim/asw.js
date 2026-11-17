@@ -10,7 +10,7 @@ import { bearing, distance, headingVector, unproject } from './geo.js';
 import { emit } from './events.js';
 import { isPatrol, isDaylight } from './patrols.js';
 import { currentSpeed } from './convoy.js';
-import { seeUboat } from './contact.js';
+import { forgetUboat, putPlot, seeUboat } from './contact.js';
 import { clearAtSea, seaPath } from './searoute.js';
 import { WATCHING } from './sight.js';
 import { sendEscortHome } from './naval.js';
@@ -43,8 +43,7 @@ function addPlot(world, u, source, by, errorKm) {
   if (last) return null;
   const x = u.x + world.rng.gauss() * errorKm;
   const y = u.y + world.rng.gauss() * errorKm;
-  const plot = { id: `P${world.nextPlotId++}`, uboatId: u.id, x, y, t: world.t, source, by, submerged: isSubmerged(world, u) };
-  world.uboatPlots.push(plot);
+  const plot = putPlot(world, u, { x, y, t: world.t, source, by, submerged: isSubmerged(world, u) });
   const [lon, lat] = unproject(x, y);
   emit(world, 'uboatPlot', { plotId: plot.id, source, by, lat, lon, x, y });
   return plot;
@@ -95,6 +94,7 @@ function attackUboat(world, u, p, by, x, y) {
   if (world.rng.next() >= p) return false;
   u.state = 'sunk';
   world.stats.uboatsSunk++;
+  forgetUboat(world, u);
   emit(world, 'uboatSunk', { by, x, y });
   return true;
 }
@@ -254,6 +254,7 @@ function depthChargePass(world, e, u) {
   if (result === 'sunk') {
     u.state = 'sunk';
     world.stats.uboatsSunk++;
+    forgetUboat(world, u);
     emit(world, 'uboatSunk', { by: e.name, x: u.x, y: u.y });
     if (rep) rep.result = 'sunk';
     endHunt(world, e, true, 'sunk');

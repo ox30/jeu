@@ -117,13 +117,34 @@ export function seeUboat(world, u, obs) {
   else u.seen = { ...obs, since: world.t };
 }
 
+/**
+ * The table keeps one plot per U-boat: a new fix moves it (same marker, fresh circles from the
+ * new time) instead of piling up a pair of growing circles every ten minutes of a hunt.
+ */
+export function putPlot(world, u, fields) {
+  let plot = world.uboatPlots.find((p) => p.uboatId === u.id);
+  if (plot) {
+    for (const k of Object.keys(plot)) if (k !== 'id' && k !== 'uboatId') delete plot[k];
+    Object.assign(plot, fields);
+  } else {
+    plot = { id: `P${world.nextPlotId++}`, uboatId: u.id, ...fields };
+    world.uboatPlots.push(plot);
+  }
+  return plot;
+}
+
+/** A U-boat sunk: its plot leaves the table, and nobody tracks it any more. */
+export function forgetUboat(world, u) {
+  world.uboatPlots = world.uboatPlots.filter((p) => p.uboatId !== u.id);
+  u.seen = null;
+}
+
 function loseUboat(world, u) {
   const obs = u.seen;
   u.seen = null;
   if (u.state === 'sunk' || u.state === 'gone') return;
   // The last position seen goes on the table as an exact plot: its circles grow from now.
-  const plot = { id: `P${world.nextPlotId++}`, uboatId: u.id, x: u.x, y: u.y, t: world.t, source: obs.how || 'seen', by: obs.by, byId: obs.byId, submerged: isSubmerged(world, u), lastSeen: true };
-  world.uboatPlots.push(plot);
+  const plot = putPlot(world, u, { x: u.x, y: u.y, t: world.t, source: obs.how || 'seen', by: obs.by, byId: obs.byId, submerged: isSubmerged(world, u), lastSeen: true });
   const [lon, lat] = unproject(u.x, u.y);
   emit(world, 'uboatContactLost', { by: obs.by, byId: obs.byId, plotId: plot.id, x: u.x, y: u.y, lat, lon });
 }
