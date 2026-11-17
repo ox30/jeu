@@ -41,6 +41,7 @@ export function openSettings(app) {
         ${checkbox('grid', s.grid, t('settings.grid'))}
         ${checkbox('autoZoom', s.autoZoom, t('settings.autoZoom'))}
         ${checkbox('slowOnAlert', s.slowOnAlert, t('settings.slowOnAlert'))}
+        ${checkbox('confirmSpeed', s.confirmSpeed !== false, t('settings.confirmSpeed'))}
         ${checkbox('sound', s.sound, t('settings.sound'))}
       </fieldset>
       <p class="hint">${escapeHtml(t('settings.note'))}</p>
@@ -86,8 +87,8 @@ openSettings.refresh = (form, s, presets) => {
 /** The steps of the help, for the scenario being played. */
 function helpSteps(app) {
   const own = t(`help.scenario.${app.world.scenario.id}`);
-  if (Array.isArray(own)) return [...own, ...t('help.common')];
-  return t(app.world.rail.enabled ? 'help.steps' : 'help.stepsTraining');
+  if (Array.isArray(own)) return [...own, t('help.alerts'), ...t('help.common')];
+  return [...t(app.world.rail.enabled ? 'help.steps' : 'help.stepsTraining'), t('help.alerts')];
 }
 
 export function openHelp(app) {

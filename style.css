@@ -60,6 +60,17 @@ html, body {
 
 .hud-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .speeds { display: flex; gap: 2px; }
+.speed-group { position: relative; }
+.speed-confirm {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: max-content; max-width: 420px;
+  background: #6b4a12; color: #fff3e0; border: 2px solid #e8c27a; border-radius: 4px;
+  padding: 6px 10px; font-size: 13px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.speed-confirm[hidden] { display: none; }
+.speed-confirm span { flex: 1 1 100%; }
+#hud .speed-confirm button { background: #fff3e0; color: #6b4a12; border: none; font-weight: bold; }
+#hud .speed-confirm button[data-confirm='no'] { background: transparent; color: #fff3e0; border: 1px solid #e8c27a; }
 
 button {
   font: 13px Georgia, "Times New Roman", serif;
@@ -120,7 +131,7 @@ button {
   z-index: 5;
 }
 .alert[hidden] { display: none; }
-.alert strong { letter-spacing: 0.12em; }
+.alert strong { letter-spacing: 0.12em; white-space: nowrap; }
 #alert-text { flex: 1 1 auto; min-width: 0; }
 .alert-buttons { display: flex; gap: 6px; white-space: nowrap; }
 .alert button {
@@ -129,6 +140,28 @@ button {
 .alert button.close { background: transparent; color: #fff3e0; font-size: 18px; padding: 0 4px; }
 .alert.flash { animation: flash 0.5s ease-in-out 4; }
 @keyframes flash { 50% { background: #b5291e; } }
+.alert-more { font-size: 12px; opacity: 0.85; white-space: nowrap; }
+.alert button[hidden] { display: none; }
+/* A decision to take (escort, fuel, a convoy waiting): amber, no flashing red. */
+.alert[data-level='warning'] { background: #6b4a12; border-color: #e8c27a; }
+.alert[data-level='warning'] button:not(.close) { color: #6b4a12; }
+.alert[data-level='warning'].flash { animation: flash-warning 0.5s ease-in-out 3; }
+@keyframes flash-warning { 50% { background: #94661a; } }
+
+/* ---------- developer mode ---------- */
+
+.dev-badge {
+  align-self: flex-start; display: inline-block; margin-top: 2px; padding: 0 6px; border-radius: 3px;
+  background: #c0178f; color: #fff; font: bold 11px "Courier New", Courier, monospace; letter-spacing: 0.1em;
+}
+.dev-badge[hidden] { display: none; }
+.tabs .dev-tab { color: #c0178f; }
+.tabs .dev-tab[hidden] { display: none; }
+.tote-row.dev-row { display: flex; align-items: center; gap: 6px; cursor: default; }
+.dev-row .name { flex: 1 1 auto; min-width: 0; white-space: normal; font-weight: normal; font-size: 11.5px; color: #8a1468; }
+.dev-row.active .name { font-weight: bold; }
+.dev-row:not(.active) .name { opacity: 0.75; }
+.dev-row button { flex: none; font-size: 11px; padding: 1px 6px; }
 
 /* ---------- tutorial ---------- */
 

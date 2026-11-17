@@ -2,7 +2,7 @@
 // machine-gun bursts and distant bombs. Browsers only allow sound after a user gesture, so
 // the audio context is created on the first click or key press.
 
-const MIN_GAP_MS = { alarm: 1500, radio: 350, guns: 500, bombs: 900 };
+const MIN_GAP_MS = { alarm: 1500, notice: 1500, radio: 350, guns: 500, bombs: 900 };
 
 export function unlockAudio(app) {
   if (app.audio || typeof AudioContext === 'undefined') return;
@@ -76,6 +76,15 @@ export function playAlarm(app) {
   if (!ctx) return;
   const now = ctx.currentTime;
   [[880, 0], [660, 0.22], [880, 0.44], [660, 0.66]].forEach(([freq, at]) => tone(app, now + at, 0.18, freq, 0.05, 'square'));
+}
+
+/** A softer signal for an alert that needs a decision, not an immediate reaction. */
+export function playNotice(app) {
+  const ctx = ready(app, 'notice');
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  tone(app, now, 0.22, 740, 0.04);
+  tone(app, now + 0.2, 0.3, 988, 0.035);
 }
 
 /** Radio-telephone squelch before a message from a squadron. */

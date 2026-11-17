@@ -16,7 +16,7 @@ import { initSite, repairSites } from './sites.js';
 import { checkDefeat, checkObjectives, createObjectives, finalize } from './objectives.js';
 import { createLogistics, updateLogistics, updateTrains } from './logistics.js';
 import {
-  ageDfZones, createEscortGroup, createUboat, initialIntelligence, updateEscort, updateUboat,
+  ageDfZones, checkEscortRange, createEscortGroup, createUboat, initialIntelligence, updateEscort, updateUboat,
 } from './naval.js';
 import { updateConvoyRaids } from './scheduler.js';
 import { recordReports } from './reports.js';
@@ -185,6 +185,7 @@ export function step(world, dt = 1) {
     updateShipping(world);
     updateConvoyRaids(world);
     ageDfZones(world);
+    checkEscortRange(world);
   }
   checkAlerts(world);
   checkObjectives(world);

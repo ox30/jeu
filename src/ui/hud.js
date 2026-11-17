@@ -1,9 +1,9 @@
 // Top bar: date and time, sector clock, time controls, views and tools.
 
-import { formatNumber, t } from '../core/i18n.js';
+import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatDate, formatTime } from '../core/time.js';
 import { drawClock } from '../render/clock.js';
-import { SPEEDS, goView, setSpeedIndex, togglePause } from './actions.js';
+import { SPEEDS, cancelSpeed, confirmSpeed, goView, requestSpeed, togglePause } from './actions.js';
 
 export function initHud(app) {
   const el = app.el;
@@ -11,7 +11,13 @@ export function initHud(app) {
     `<button type="button" data-speed="${i}" title="${i + 1}">×${formatNumber(s)}</button>`).join('');
   el.speeds.addEventListener('click', (e) => {
     const b = e.target.closest('[data-speed]');
-    if (b) setSpeedIndex(app, Number(b.dataset.speed));
+    if (b) requestSpeed(app, Number(b.dataset.speed));
+  });
+  el.speedConfirm.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-confirm]');
+    if (!b) return;
+    if (b.dataset.confirm === 'yes') confirmSpeed(app);
+    else cancelSpeed(app);
   });
   el.pause.addEventListener('click', () => togglePause(app));
   el.btnAtlantic.addEventListener('click', () => goView(app, 'atlantic'));
@@ -36,11 +42,26 @@ export function updateHud(app, ms) {
     el.subtitle.textContent = subtitle;
     document.title = `${t('app.title')} · ${subtitle}`;
   }
+  el.devBadge.hidden = !app.dev;
   el.pause.textContent = app.paused ? t('hud.play') : t('hud.pause');
   el.pause.classList.toggle('active', app.paused);
   for (const b of el.speeds.querySelectorAll('[data-speed]')) {
     b.classList.toggle('active', !app.paused && SPEEDS[Number(b.dataset.speed)] === app.speed);
   }
+  renderSpeedConfirm(app);
   el.btnRuler.classList.toggle('active', app.tool === 'ruler');
   el.btnRadar.classList.toggle('active', Boolean(app.settings.radarCover));
+}
+
+/** The question asked before a high speed during an enemy action. */
+function renderSpeedConfirm(app) {
+  const el = app.el.speedConfirm;
+  const q = app.speedConfirm;
+  el.hidden = !q;
+  if (!q) return;
+  const speed = `×${formatNumber(SPEEDS[q.index])}`;
+  const stay = app.paused ? t('speedConfirm.stayPaused') : t('speedConfirm.stay', { speed: `×${formatNumber(app.speed)}` });
+  el.innerHTML = `<span>${escapeHtml(t(`speedConfirm.${q.action}`, { speed }))}</span>
+    <button type="button" data-confirm="yes">${escapeHtml(t('speedConfirm.yes', { speed }))}</button>
+    <button type="button" data-confirm="no">${escapeHtml(stay)}</button>`;
 }

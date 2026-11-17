@@ -19,7 +19,9 @@ import {
 import { carryFor, loadCampaign, recordResult } from './ui/campaign.js';
 import { attachTutorial, startTutorial, stopTutorial, tutorialEvent, updateTutorial } from './ui/tutorial.js';
 import { fighterShare } from './sim/objectives.js';
-import { initAlert, showAlert } from './ui/alerts.js';
+import { alertForEvent, initAlert, resetAlerts, updateAlerts } from './ui/alerts.js';
+import { ALERT_TYPES } from './ui/alertRules.js';
+import { loadDev, saveDev } from './ui/dev.js';
 import { openDesktopNotice, openEnd, openHelp, openScenarios, openSettings, openSuccess } from './ui/dialogs.js';
 import { playBombs, playGuns, playRadio, unlockAudio } from './ui/sound.js';
 import { addEffectsForEvent } from './render/fx.js';
@@ -34,9 +36,9 @@ import { openEvent } from './ui/dialogs.js';
 import { setSpeed } from './sim/orders.js';
 
 const MAX_STEPS_PER_FRAME = 6000;
+// Events handled at once, without the rest of the frame's steps: every alert, and a few more.
 const INTERRUPTING = new Set([
-  'raidDetected', 'scenarioEnd', 'allObjectivesDone', 'convoyArrived', 'convoyStopped', 'siteOut', 'uboatAttack',
-  'convoySighted', 'noFuel', 'pilotAboard', 'uboatSighted', 'straggler', 'scenarioEvent', 'mruReady',
+  ...ALERT_TYPES, 'scenarioEnd', 'allObjectivesDone', 'convoyArrived', 'pilotAboard', 'uboatSighted', 'scenarioEvent', 'mruReady',
 ]);
 const RADIO = new Set(['tallyHo', 'missed', 'nothingSeen', 'bingo', 'outOfAmmo', 'divert', 'divertOut', 'legMissed', 'convoySighted', 'interceptOrdered', 'uboatSighted']);
 const SCENARIOS = ['kanalkampf', 'adlertag', 'quinze-septembre', 'hiver-atlantique', 'm0-july-1940'];
@@ -57,6 +59,8 @@ function collectElements() {
     btnBritain: $('btn-britain'),
     btnScenario: $('btn-scenario'),
     coach: $('coach'),
+    devBadge: $('dev-badge'),
+    tabEnemies: $('tab-enemies'),
     subtitle: $('hud-subtitle'),
     btnReports: $('btn-reports'),
     btnCards: $('btn-cards'),
@@ -77,7 +81,10 @@ function collectElements() {
     sheetOrders: $('sheet-orders'),
     log: $('log'),
     logSection: $('log-section'),
+    speedConfirm: $('speed-confirm'),
     alert: $('alert'),
+    alertTitle: $('alert-title'),
+    alertMore: $('alert-more'),
     alertText: $('alert-text'),
     alertShow: $('alert-show'),
     alertClose: $('alert-close'),
@@ -121,13 +128,11 @@ function handleEvents(app, events) {
     if (RADIO.has(e.type)) playRadio(app);
     else if (e.type === 'combatRound') playGuns(app);
     else if (e.type === 'siteHit' || e.type === 'shipsSunk') playBombs(app);
+    // Every event that needs the player raises an alert and slows the game (alertRules.js).
+    const alert = alertForEvent(app, e);
+    if (e.type === 'uboatAttack' || e.type === 'convoyBombed') app.lastNavalAttack = e.t;
     if (e.type === 'raidDetected') {
-      showAlert(app, e);
-      if (app.settings.slowOnAlert && app.speed > 10) {
-        app.speed = 10;
-        app.dirtyHud = true;
-      }
-      if (app.settings.autoZoom && app.camera.scale < 0.6) goView(app, 'england');
+      if (alert && app.settings.autoZoom && app.camera.scale < 0.6) goView(app, 'england');
     } else if (e.type === 'scenarioEvent' && e.important) {
       setTimeout(() => openEvent(app, e), 200);
     } else if (e.type === 'allObjectivesDone') {
@@ -292,6 +297,9 @@ function onPanelClick(app, e) {
     case 'offer':
       orderOffer(app, b.dataset.offer);
       break;
+    case 'dev-show':
+      centreOn(app, Number(b.dataset.x), Number(b.dataset.y), 0.6);
+      break;
     case 'send-train': {
       const to = document.getElementById('train-to');
       const loads = {};
@@ -369,6 +377,7 @@ async function start() {
     data,
     settings,
     campaign,
+    dev: loadDev(),
     world,
     canvas: el.canvas,
     ctx: el.canvas.getContext('2d'),
@@ -436,7 +445,8 @@ async function start() {
     for (const entry of saved.journal || []) addLogEntry(app, entry.text, entry.level, entry.t, { report: entry.report, replay: true });
     app.logEntries = [...(saved.journal || [])];
     addLogEntry(app, t('log.gameResumed'), 'info', w.t);
-    el.alert.hidden = true;
+    resetAlerts(app);
+    app.lastNavalAttack = null;
     app.lastSaveT = w.t;
     app.dirtyPanels = true;
     app.dirtyHud = true;
@@ -483,6 +493,16 @@ async function start() {
     app.save();
   };
 
+  // Developer mode: the real enemy positions on the map, and an "Enemies" tab.
+  app.toggleDev = () => {
+    app.dev = !app.dev;
+    saveDev(app.dev);
+    if (!app.dev && app.toteTab === 'enemies') app.toteTab = 'units';
+    addLogEntry(app, t(app.dev ? 'dev.on' : 'dev.off'), 'info', app.world.t);
+    app.dirtyPanels = true;
+    app.dirtyHud = true;
+  };
+
   app.restart = (scenarioId = null, { tutorial = false } = {}) => {
     if (scenarioId) {
       data.scenario = scenarioById(data, scenarioId);
@@ -490,11 +510,12 @@ async function start() {
       saveSettings(settings);
     }
     stopTutorial(app);
+    resetAlerts(app);
+    app.lastNavalAttack = null;
     app.world = newWorld(data.scenario);
     // A page closed after this must not set the new game going.
     Object.assign(app, { selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0, unlocked: null });
     clearLog(app);
-    el.alert.hidden = true;
     setFrame(app.camera, viewFrame(app.camera, VIEWS.atlantic));
     handleEvents(app, drainEvents(app.world));
     if (tutorial) startTutorial(app);
@@ -602,6 +623,7 @@ async function start() {
     }
 
     handleEvents(app, drainEvents(world));
+    updateAlerts(app);
     updateTutorial(app);
     if (!world.ended && world.t - (app.lastSaveT ?? 0) >= 900 && now - (app.lastSaveReal ?? 0) > 4000) app.save();
     drawScene(app.ctx, app, app.paused ? 1 : Math.max(0, Math.min(1, app.accumulator)));

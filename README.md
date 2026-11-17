@@ -93,10 +93,31 @@ donne les étapes propres au scénario en cours.
 Chaque raid se termine par un rapport, rangé dans « Rapports » ; les « Fiches » donnent les
 performances des avions et des navires. Les pages mettent le jeu en pause (réglable).
 
+**Alertes.** Tout événement qui demande le joueur lève une alerte au-dessus de la carte et
+ralentit le temps (réglable) : un raid ramène à ×10 ; un convoi attaqué ou bombardé à ×60 ;
+une décision à prendre (convoi pisté, contact U-Boot près d'un convoi, convoi à portée des
+escortes, escorte qui doit rentrer, traînards, convoi qui attend, base sans carburant ou sans
+munitions, installation hors service, patrouille surprise) à ×600, en ambre. « Voir » montre
+le lieu. Une même alerte ne se répète pas pendant quelques heures, et les alertes moins
+urgentes attendent derrière la plus urgente. Pendant un raid ou une attaque de convoi, une
+vitesse élevée (au-delà de ×60 pendant un raid, de ×600 pendant une attaque) demande
+confirmation : Entrée pour accepter, Échap pour rester. Il n'y a pas d'avance jusqu'au
+prochain événement : le joueur doit pouvoir être surpris.
+
 Raccourcis : Espace pause · 1 à 6 vitesse · A Atlantique · L Grande-Bretagne · G Angleterre ·
-R ou Maj + glisser règle · Entrée ajouter l'étape mesurée · C couverture radar · Échap
-annuler · ↑ ↓ altitude · Suppr retirer le point choisi · S décoller · B pleine vitesse ·
-O orbite · P rentrer.
+R ou Maj + glisser règle (la croix de son encart l'efface) · Entrée ajouter l'étape mesurée ·
+C couverture radar · Échap annuler · ↑ ↓ altitude · Suppr retirer le point choisi ·
+S décoller · B pleine vitesse · O orbite · P rentrer · Ctrl+Maj+D mode développeur.
+
+## Mode développeur
+
+Ctrl+Maj+D (ou `?dev` dans l'adresse) affiche en magenta ce que l'ennemi fait vraiment, pour
+contrôler les scénarios : chaque raid dès son rassemblement, avec sa composition, son
+altitude, sa phase et un trait vers sa cible ; chaque U-Boot à sa vraie position, avec son
+état (patrouille, piste ou rejoint un convoi, rentre au port), ses torpilles et sa plongée.
+Un badge « DEV » s'affiche dans le bandeau et un onglet « Ennemis » liste les raids à venir
+et l'état des U-Boote. Le mode ne fait que lire la simulation : la partie, les sauvegardes et
+les reprises restent identiques.
 
 ## Ordres au cap et étapes
 
@@ -121,8 +142,8 @@ Trois préréglages, modifiables un par un dans « Réglages » :
 | Fatigue des pilotes | non | oui | oui, avec pilotes tués |
 | Campagne : pertes reportées | aucune | la moitié | toutes |
 
-Options : tiges d'altitude, grille de carrés, zoom automatique et ralenti à l'alerte, sons,
-pause pendant les pages.
+Options : tiges d'altitude, grille de carrés, zoom automatique et ralenti à l'alerte,
+confirmation des vitesses élevées pendant une action ennemie, sons, pause pendant les pages.
 
 ## Organisation du code
 
@@ -139,7 +160,8 @@ pause pendant les pages.
 │   │                          radars mobiles, événements datés, convois réguliers et dollars,
 │   │                          rapports, objectifs
 │   ├── render/                caméra, carte, symboles, animations, vue de profil
-│   ├── ui/                    souris, clavier, panneaux, pages, campagne, tutoriel, sons
+│   ├── ui/                    souris, clavier, panneaux, pages, alertes, campagne, tutoriel,
+│   │                          mode développeur, sons
 │   └── save/                  réglages et parties gardés dans le navigateur
 ├── data/
 │   ├── maps/                  côtes Natural Earth projetées, noms de lieux
@@ -167,13 +189,13 @@ facilite les tests et l'équilibrage.
 npm test
 ```
 
-Les 69 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
+Les 75 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
 terre et la mer, les routes, les étapes et leur édition, le pilote à l'entrée des chenaux,
 les interceptions, le guidage du contrôleur et les ratés, les rapports, les installations,
 les trains mélangés, les munitions, la fatigue et les pilotes, les patrouilles, les U-Boote
 (repères, plongée, chasse, traînards, retour de patrouille), la sauvegarde et la reprise à
-l'identique, les nouveaux scénarios, les achats en dollars, la campagne et une quinzaine
-complète sans ordres.
+l'identique, les nouveaux scénarios, les achats en dollars, la campagne, les alertes, la
+confirmation des vitesses, le mode développeur et une quinzaine complète sans ordres.
 
 ## Outils
 

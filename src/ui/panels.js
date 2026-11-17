@@ -23,6 +23,7 @@ const isDaylightSafe = (w) => isDaylight(w);
 import { radarRangeFactor, siteStatus } from '../sim/sites.js';
 import { drawProfile } from '../render/profile.js';
 import { button, options, row, setHtml } from './html.js';
+import { devRaids, isRaidActive, raidLine, uboatLine, uboatReturnText } from './dev.js';
 import {
   convoyCargoRows, coverButtons, escortSheet, renderLogistics, stockBlock, stockOrders, trainSheet,
 } from './logisticsPanels.js';
@@ -228,17 +229,47 @@ function renderSites(app) {
   return parts.join('');
 }
 
+/** Developer mode: the raids of the scenario and the U-boats, as they really are. */
+function renderEnemies(app) {
+  const w = app.world;
+  const parts = [`<div class="tote-group">${escapeHtml(t('dev.raidsTitle'))}</div>`];
+  const raids = devRaids(w).filter((r) => r.phase !== 'done').sort((a, b) => a.departure - b.departure);
+  if (!devRaids(w).length) parts.push(`<div class="tote-empty">${escapeHtml(t('dev.noRaids'))}</div>`);
+  for (const r of raids) {
+    const active = isRaidActive(r);
+    const when = r.phase === 'pending' ? ` · ${t('dev.at', { time: dateTimeText(w.startMs + r.departure * 1000) })}` : '';
+    parts.push(`<div class="tote-row dev-row${active ? ' active' : ''}">
+      <span class="name">${escapeHtml(raidLine(w, r) + when)}</span>
+      ${active ? button('dev-show', t('dev.show'), { extra: ` data-x="${r.x}" data-y="${r.y}"` }) : ''}</div>`);
+  }
+  parts.push(`<div class="tote-group">${escapeHtml(t('dev.uboatsTitle'))}</div>`);
+  if (!w.uboats.length) parts.push(`<div class="tote-empty">${escapeHtml(t('dev.noUboats'))}</div>`);
+  for (const u of w.uboats) {
+    const back = uboatReturnText(w, u);
+    const atSea = u.state !== 'gone' && u.state !== 'sunk';
+    parts.push(`<div class="tote-row dev-row${atSea ? ' active' : ''}">
+      <span class="name">${escapeHtml(uboatLine(w, u) + (back ? ` · ${t('dev.back', { date: back })}` : ''))}</span>
+      ${atSea ? button('dev-show', t('dev.show'), { extra: ` data-x="${u.x}" data-y="${u.y}"` }) : ''}</div>`);
+  }
+  return parts.join('');
+}
+
 function renderTote(app) {
   let tab = app.toteTab || 'units';
   if (tab === 'logistics' && !app.world.rail.enabled) tab = 'units';
+  if (tab === 'enemies' && !app.dev) tab = 'units';
   app.el.tabUnits.classList.toggle('active', tab === 'units');
   app.el.tabSites.classList.toggle('active', tab === 'sites');
   app.el.tabLogistics.classList.toggle('active', tab === 'logistics');
+  app.el.tabEnemies.classList.toggle('active', tab === 'enemies');
+  app.el.tabEnemies.hidden = !app.dev;
   app.el.tabLogistics.hidden = !app.world.rail.enabled;
   const damaged = [...app.world.sites.values()].filter((s) => s.damage >= 1 && !s.foreign).length;
   const label = damaged ? `${t('panel.sites')} (${damaged})` : t('panel.sites');
   if (app.el.tabSites.textContent !== label) app.el.tabSites.textContent = label;
-  const html = tab === 'sites' ? renderSites(app) : tab === 'logistics' ? renderLogistics(app) : renderUnits(app);
+  const html = tab === 'sites' ? renderSites(app)
+    : tab === 'logistics' ? renderLogistics(app)
+      : tab === 'enemies' ? renderEnemies(app) : renderUnits(app);
   setHtml(app.el.tote, html);
 }
 

@@ -299,7 +299,8 @@
   "escortGroups": {
     "joinKm": 15,
     "refitHours": 24,
-    "lowEnduranceDays": 1
+    "lowEnduranceDays": 1,
+    "alertKm": 2200
   },
   "convoyAir": {
     "pSinkPerBomber": 0.09

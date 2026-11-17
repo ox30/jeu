@@ -355,7 +355,7 @@
       "realistic": "Seuil de retour et déroutement"
     },
     "autoZoom": "Zoom automatique sur l'Angleterre à l'alerte",
-    "slowOnAlert": "Ralentir le temps à l'alerte",
+    "slowOnAlert": "Ralentir le temps à chaque alerte (raid, convoi attaqué, base à sec…)",
     "sound": "Sons (alerte, radio, combats)",
     "note": "Les réglages s'appliquent tout de suite et restent enregistrés dans ce navigateur.",
     "close": "Fermer",
@@ -385,7 +385,8 @@
       "none": "Aucune",
       "light": "La moitié",
       "full": "Toutes"
-    }
+    },
+    "confirmSpeed": "Demander avant d'accélérer pendant un raid ou une attaque de convoi"
   },
   "objectives": {
     "convoyArrived": "Amener le convoi {convoy} dans un port britannique",
@@ -595,7 +596,8 @@
     "title": "ALERTE",
     "text": "Raid {raid} · {count} appareils · {alt} · {where}",
     "show": "Voir",
-    "close": "Fermer l'alerte"
+    "close": "Fermer l'alerte",
+    "more": "+{n} en attente"
   },
   "map": {
     "admiraltyRoute": "Route recommandée par l'Amirauté",
@@ -649,7 +651,7 @@
       "Tracés : cliquez une unité pour voir les carrés de sa route. Glissez un carré pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. En fin de tracé, l'escadrille orbite, sauf si vous choisissez autre chose dans sa fiche (se poser si le tracé finit dans la bulle d'un aérodrome).",
       "Victoire si les convois livrent l'essentiel de leur cargaison, si 4 bases sur 5 sont en service et si la chasse garde 60 % de ses avions le 24 juillet. Défaite immédiate si toutes les bases restent sans carburant 24 heures."
     ],
-    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler · ↑ ↓ : altitude (de l'escadrille, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : pleine vitesse · O : orbiter · P : rentrer",
+    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle (la croix de son encart l'efface) · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler · ↑ ↓ : altitude (de l'escadrille, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : pleine vitesse · O : orbiter · P : rentrer · Ctrl+Maj+D : mode développeur",
     "close": "Compris",
     "stepsTraining": [
       "Carte de l'Atlantique : glissez depuis le convoi HX (à Halifax) pour tracer sa route jusqu'à Liverpool ou la Clyde, ou cliquez sur « Route de l'Amirauté ». En réglage Réaliste, on navigue au cap : mesurez avec la règle, ajoutez des étapes, puis appareillez. Près de l'entrée d'un chenal, un pilote prend le relais.",
@@ -660,7 +662,7 @@
       "Les installations bombardées (aérodromes, radars, ports) apparaissent dans l'onglet Installations : un radar hors service ouvre un trou dans la couverture, un aérodrome endommagé fait décoller plus lentement."
     ],
     "common": [
-      "Tracés : cliquez une unité pour voir les carrés de sa route ; glissez-les, ajoutez-en avec « + », prolongez par l'anneau du bout, double-cliquez pour retirer. Maj + glisser mesure (règle). Les fiches techniques (menu du haut) donnent vitesses, plafonds et autonomies.",
+      "Tracés : cliquez une unité pour voir les carrés de sa route ; glissez-les, ajoutez-en avec « + », prolongez par l'anneau du bout, double-cliquez pour retirer. Maj + glisser mesure (règle) ; la croix de son encart l'efface. Les fiches techniques (menu du haut) donnent vitesses, plafonds et autonomies.",
       "Chaque raid se termine par un rapport, rangé dans « Rapports ». La partie est gardée dans le navigateur ; le menu « Scénario » permet de l'exporter dans un fichier."
     ],
     "scenario": {
@@ -681,7 +683,8 @@
         "Le Coastal Command patrouille de jour au-dessus des convois et oblige les U-Boote à plonger ; le radar ASV des Hudson et des Sunderland voit aussi un sous-marin en surface. Les deux cercles d'un repère U-Boot montrent où il peut être, en surface et en plongée.",
         "Onglet Logistique : la réserve de dollars paie la cargaison des convois. Réglez la part achetée, ou commandez des Hudson ou des Catalina en Amérique. Après le prêt-bail, tout est gratuit. Victoire si 6 800 t de carburant et 4 400 t de matériel sont déchargées et si moins de 8 % des navires sont perdus ; défaite si les pertes dépassent 20 %."
       ]
-    }
+    },
+    "alerts": "Les alertes ralentissent le temps : en rouge un raid ou un convoi attaqué, en ambre une décision à prendre (escorte, carburant, convoi qui attend). Pendant une action ennemie, une vitesse élevée demande confirmation (réglable)."
   },
   "end": {
     "title": "Fin de service",
@@ -1204,5 +1207,112 @@
       "title": "À vous de jouer",
       "text": "Vous connaissez l'essentiel. L'aide (?) résume le reste : stocks et trains, escortes, U-Boote, fiches techniques. La campagne commence avec Kanalkampf, dans le menu « Scénario »."
     }
+  },
+  "alerts": {
+    "uboatAttack": {
+      "title": "Convoi attaqué",
+      "text": "{convoy} est attaqué par des U-Boote (navires coulés : {n}).",
+      "missed": "Un U-Boot a tiré sur {convoy}, sans le toucher. D'autres peuvent suivre."
+    },
+    "convoyBombed": {
+      "title": "Convoi bombardé",
+      "text": "Le raid {raid} bombarde {convoy} (navires coulés : {n})."
+    },
+    "convoySighted": {
+      "title": "Convoi pisté",
+      "text": "Un U-Boot piste {convoy} : la meute peut attaquer dès la nuit."
+    },
+    "uboatPlot": {
+      "title": "Contact U-Boot",
+      "text": "U-Boot repéré par {by}, à {km} km de {convoy}."
+    },
+    "straggler": {
+      "title": "Traînards",
+      "text": "Des navires de {convoy} décrochent (traînards : {n}). Réduisez la vitesse ou envoyez une escorte."
+    },
+    "convoyInEscortRange": {
+      "title": "Escorte",
+      "text": "{convoy} arrive à portée de vos escortes (groupes libres au port : {n}).",
+      "none": "{convoy} arrive à portée de vos escortes, mais aucun groupe n'est libre."
+    },
+    "escortLowFuel": {
+      "title": "Escorte à court",
+      "text": "{escort} doit rentrer se ravitailler : {convoy} n'a plus d'escorte.",
+      "alone": "{escort} doit rentrer se ravitailler."
+    },
+    "convoyStopped": {
+      "title": "Navires arrêtés",
+      "text": "{convoy} s'est arrêté avant la côte : donnez-lui une route."
+    },
+    "convoyWaiting": {
+      "title": "En attente d'ordres",
+      "text": "{convoy} est au bout de sa route et attend vos ordres."
+    },
+    "siteOut": {
+      "title": "Installation hors service",
+      "text": "{site} est hors service."
+    },
+    "noFuel": {
+      "title": "Plus de carburant",
+      "text": "{airfield} n'a plus de carburant : {squadron} ne peut pas refaire le plein."
+    },
+    "noAmmo": {
+      "title": "Munitions",
+      "text": "{airfield} manque de munitions : {squadron} n'est armée qu'à {n} %."
+    },
+    "lowFuel": {
+      "title": "Carburant bas",
+      "text": "Carburant bas à {airfield} : moins d'un jour de vols. Envoyez un train."
+    },
+    "patrolBounced": {
+      "title": "Patrouille surprise",
+      "text": "{squadron} est surprise par l'escorte du raid {raid} (avions restants : {n})."
+    }
+  },
+  "speedConfirm": {
+    "air": "Un raid est en cours. Passer vraiment à {speed} ?",
+    "naval": "Un convoi est attaqué. Passer vraiment à {speed} ?",
+    "yes": "Passer à {speed}",
+    "stay": "Rester à {speed}",
+    "stayPaused": "Rester en pause"
+  },
+  "dev": {
+    "badge": "DEV",
+    "badgeTitle": "Mode développeur (Ctrl+Maj+D) : les vraies positions ennemies sont affichées.",
+    "tab": "Ennemis",
+    "on": "Mode développeur activé : les vraies positions ennemies s'affichent (Ctrl+Maj+D pour l'arrêter).",
+    "off": "Mode développeur arrêté.",
+    "phantom": "fausse alerte",
+    "nowhere": "nulle part",
+    "aircraft": "{n} avions",
+    "phase": {
+      "pending": "en attente",
+      "assembling": "rassemblement",
+      "inbound": "en route",
+      "bombing": "sur l'objectif",
+      "outbound": "retour",
+      "done": "terminé",
+      "repelled": "repoussé, retour",
+      "destroyed": "détruit"
+    },
+    "uboat": {
+      "patrol": "patrouille",
+      "shadow": "piste {convoy}",
+      "closing": "rejoint {convoy}",
+      "leaving": "rentre au port",
+      "gone": "au port",
+      "sunk": "coulé"
+    },
+    "torpedoes": "{n} torpilles",
+    "submerged": "en plongée",
+    "surfaced": "en surface",
+    "raidsTitle": "Raids",
+    "uboatsTitle": "U-Boote",
+    "noRaids": "Aucun raid dans ce scénario.",
+    "noUboats": "Aucun U-Boot dans ce scénario.",
+    "at": "départ {time}",
+    "back": "reprend la mer vers le {date}",
+    "show": "Voir",
+    "torpedoesShort": "{n} t"
   }
 }

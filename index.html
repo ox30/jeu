@@ -13,12 +13,14 @@
       <div class="hud-title">
         <strong data-i18n="app.title"></strong>
         <span id="hud-subtitle" data-i18n="app.subtitle"></span>
+        <span id="dev-badge" class="dev-badge" data-i18n="dev.badge" data-i18n-title="dev.badgeTitle" hidden></span>
       </div>
       <canvas id="clock" aria-hidden="true"></canvas>
       <div class="hud-date"><div id="date"></div><div id="time"></div></div>
-      <div class="hud-group">
+      <div class="hud-group speed-group">
         <button type="button" id="btn-pause"></button>
         <div id="speeds" class="speeds" data-i18n-title="hud.speedTitle"></div>
+        <div id="speed-confirm" class="speed-confirm" hidden role="alertdialog"></div>
       </div>
       <div class="hud-group">
         <button type="button" id="btn-atlantic" data-i18n="hud.atlantic"></button>
@@ -40,8 +42,9 @@
     <main id="table">
       <canvas id="map"></canvas>
       <div id="alert" class="alert" hidden role="alert">
-        <strong data-i18n="alert.title"></strong>
+        <strong id="alert-title" data-i18n="alert.title"></strong>
         <span id="alert-text"></span>
+        <span id="alert-more" class="alert-more" hidden></span>
         <span class="alert-buttons">
           <button type="button" id="alert-show" data-i18n="alert.show"></button>
           <button type="button" id="alert-close" class="close" data-i18n-label="alert.close">×</button>
@@ -62,6 +65,7 @@
             <button type="button" id="tab-units" role="tab" data-tab="units" data-i18n="panel.units"></button>
             <button type="button" id="tab-sites" role="tab" data-tab="sites" data-i18n="panel.sites"></button>
             <button type="button" id="tab-logistics" role="tab" data-tab="logistics" data-i18n="panel.logistics"></button>
+            <button type="button" id="tab-enemies" role="tab" data-tab="enemies" data-i18n="dev.tab" class="dev-tab" hidden></button>
           </span>
         </h2>
         <div id="tote" class="tote"></div>

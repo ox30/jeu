@@ -5,14 +5,15 @@
 //    drag the ring at the end to draw the route longer, double-click a point to remove it,
 //    click a point then ↑ ↓ to give it an altitude;
 //  - Shift + drag, anywhere and in every mode: the ruler (from the unit when it starts on one);
+//    it stays on the map until the cross on its box, Escape or a new ruler;
 //  - drag elsewhere: moves the map; wheel or pinch: zooms;
 //  - click: selects; ruler tool: measures a heading and a distance.
 
 import { panBy, toWorld, zoomAt } from '../render/camera.js';
 import {
-  SPEEDS, activePoint, addRulerLeg, changeAltitude, changePointAltitude, deletePoint, extendRoute, findUnit, finishDrawing, orderMru,
-  goView, headingsMode, insertPoint, movePoint, orderHome, orderOrbit, scrambleSquadron, select, selectedSquadron,
-  selectedUnit, setActivePoint, setSpeedIndex, toggleBuster, togglePause,
+  SPEEDS, activePoint, addRulerLeg, cancelSpeed, changeAltitude, changePointAltitude, confirmSpeed, deletePoint, extendRoute, findUnit,
+  finishDrawing, orderMru, goView, headingsMode, insertPoint, movePoint, orderHome, orderOrbit, requestSpeed, scrambleSquadron, select,
+  selectedSquadron, selectedUnit, setActivePoint, toggleBuster, togglePause,
 } from './actions.js';
 
 const UNIT_KINDS = new Set(['squadron', 'convoy', 'airfield', 'escort']);
@@ -74,6 +75,12 @@ export function attachInput(app) {
     if (pointers.size > 2) return;
     const pad = e.pointerType === 'touch' ? 14 : 6;
     const hit = hitTest(app, p[0], p[1], pad);
+    if (hit && hit.kind === 'rulerClose') {
+      // The cross on the ruler's box: the ruler goes, the ruler tool (if on) stays.
+      app.ruler = null;
+      gesture = null;
+      return;
+    }
     if (app.tool === 'mru') {
       // Deploying a mobile radar: drag from its place toward the sea it must watch.
       const w = toWorld(app.camera, p[0], p[1]);
@@ -116,7 +123,12 @@ export function attachInput(app) {
   canvas.addEventListener('pointermove', (e) => {
     const p = pos(e);
     if (!pointers.has(e.pointerId)) {
-      const hit = app.tool ? null : hitTest(app, p[0], p[1], 6);
+      const any = hitTest(app, p[0], p[1], 6);
+      if (any && any.kind === 'rulerClose') {
+        canvas.style.cursor = 'pointer';
+        return;
+      }
+      const hit = app.tool ? null : any;
       canvas.style.cursor = app.tool === 'ruler' || app.tool === 'mru' || e.shiftKey ? 'crosshair'
         : hit && HANDLE_KINDS.has(hit.kind) ? (hit.kind === 'routePoint' ? 'move' : 'copy')
           : hit ? 'pointer' : 'grab';
@@ -240,10 +252,22 @@ export function attachInput(app) {
     const unit = selectedUnit(app);
     const point = activePoint(app);
     const key = e.key;
+    if (e.ctrlKey && e.shiftKey && (key === 'D' || key === 'd')) {
+      e.preventDefault();
+      app.toggleDev();
+      return;
+    }
+    // A high speed asked during an enemy action waits for Enter (yes) or Escape (no).
+    if (app.speedConfirm && (key === 'Enter' || key === 'Escape')) {
+      e.preventDefault();
+      if (key === 'Enter') confirmSpeed(app);
+      else cancelSpeed(app);
+      return;
+    }
     if (key === ' ') {
       togglePause(app);
     } else if (key >= '1' && key <= String(SPEEDS.length)) {
-      setSpeedIndex(app, Number(key) - 1);
+      requestSpeed(app, Number(key) - 1);
     } else if (key === 'a' || key === 'A') {
       goView(app, 'atlantic');
     } else if (key === 'g' || key === 'G') {

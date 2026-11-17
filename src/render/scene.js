@@ -21,6 +21,7 @@ import {
 import { reachKm } from '../sim/asw.js';
 import { isPatrol, sightKm } from '../sim/patrols.js';
 import { fuelDays } from '../sim/logistics.js';
+import { drawDevLayer } from './devLayer.js';
 
 const DEG = Math.PI / 180;
 
@@ -1180,6 +1181,25 @@ function rulerTimeLine(app, km) {
   });
 }
 
+/** A small cross on the corner of the ruler's box: a click on it takes the ruler away. */
+function rulerClose(ctx, app, box) {
+  const size = 15;
+  const x = box.x + box.w + 3;
+  const y = box.y;
+  ctx.fillStyle = COLORS.plaque;
+  ctx.strokeStyle = '#6b2d1f';
+  ctx.lineWidth = 1.5;
+  ctx.fillRect(x, y, size, size);
+  ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
+  ctx.beginPath();
+  ctx.moveTo(x + 4, y + 4);
+  ctx.lineTo(x + size - 4, y + size - 4);
+  ctx.moveTo(x + size - 4, y + 4);
+  ctx.lineTo(x + 4, y + size - 4);
+  ctx.stroke();
+  app.hits.push({ kind: 'rulerClose', x: x + size / 2, y: y + size / 2, r: size / 2, priority: -3, box: { x, y, w: size, h: size } });
+}
+
 function drawOverlays(ctx, cam, app) {
   if (app.drawing && app.drawing.points.length > 1) {
     pencilLine(ctx, app.drawing.points, { color: 'rgba(30, 26, 20, 0.9)', width: 2.4 });
@@ -1217,7 +1237,8 @@ function drawOverlays(ctx, cam, app) {
     })];
     const timeLine = km > 0.2 ? rulerTimeLine(app, km) : null;
     if (timeLine) lines.push(timeLine);
-    plaque(ctx, bx + 12, by, lines, { accent: '#6b2d1f' });
+    const box = plaque(ctx, bx + 12, by, lines, { accent: '#6b2d1f' });
+    rulerClose(ctx, app, box);
   }
   if (app.flash && performance.now() < app.flash.until) {
     const [fx, fy] = toScreen(cam, app.flash.x, app.flash.y);
@@ -1344,6 +1365,7 @@ export function drawScene(ctx, app, alpha) {
   drawContacts(ctx, cam, app, alpha);
   drawInterceptPoint(ctx, cam, app, alpha);
   drawSquadrons(ctx, cam, app, alpha);
+  drawDevLayer(ctx, cam, app, alpha);
   drawRouteEditor(ctx, cam, app, alpha);
   drawEffects(ctx, app, FX_LABELS);
   drawOverlays(ctx, cam, app);

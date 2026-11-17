@@ -179,7 +179,10 @@ export function updateEscort(world, e, dt) {
   }
   if (!e.lowWarned && e.endurance < R.lowEnduranceDays * 86400) {
     e.lowWarned = true;
-    emit(world, 'escortLowFuel', { escort: e.name, escortId: e.id });
+    const left = e.state === 'escorting' ? world.convoys.find((c) => c.id === e.escorting) : null;
+    emit(world, 'escortLowFuel', {
+      escort: e.name, escortId: e.id, convoy: left ? left.name : null, convoyId: left ? left.id : null, x: e.x, y: e.y,
+    });
     sendEscortHome(world, e);
     return;
   }
@@ -428,6 +431,26 @@ function returnFromBase(world, u) {
   u.torpedoes = u.torpedoesFull;
   u.goneAt = null;
   u.submergedUntil = 0;
+}
+
+/**
+ * Once a minute: an ocean convoy with no escort that comes within reach of the escort
+ * bases calls the player (once per convoy). `free` says how many groups wait in port.
+ */
+export function checkEscortRange(world) {
+  if (!world.escorts.length) return;
+  const reach = world.rules.escortGroups.alertKm;
+  const bases = [...new Set(world.escorts.map((e) => e.portId))].map((id) => world.byId.port.get(id)).filter(Boolean);
+  for (const c of world.convoys) {
+    if (c.rangeAlerted || c.state !== 'atSea' || c.type === 'coastal' || c.straggler) continue;
+    if (world.escorts.some((e) => e.escorting === c.id || e.joinTarget === c.id)) continue;
+    let near = Infinity;
+    for (const p of bases) near = Math.min(near, distance(c.x, c.y, p.x, p.y));
+    if (near > reach) continue;
+    c.rangeAlerted = true;
+    const free = world.escorts.filter((e) => e.state === 'inPort').length;
+    emit(world, 'convoyInEscortRange', { convoy: c.name, convoyId: c.id, free, km: Math.round(near), x: c.x, y: c.y });
+  }
 }
 
 /** Old direction-finding fixes fade away; new orders acknowledged by radio give fresh ones. */

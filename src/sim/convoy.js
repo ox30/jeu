@@ -59,6 +59,7 @@ export function createConvoy(world, def) {
     orderedKn: def.orderedKn !== undefined ? def.orderedKn : (def.type || 'ocean') === 'ocean' && !def.straggler ? safeKnots(def.speedKn, world.rules.asw?.stragglerFrom) : null,
     zigzag: false, // zigzagging: harder to torpedo, slower to advance
     straggler: false,
+    rangeAlerted: false, // the player was told it came within reach of the escorts
     parentId: null,
     children: [], // stragglers that fell behind
   };

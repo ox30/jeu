@@ -66,6 +66,50 @@ export function sheetMessage(app, text, level = 'warning') {
 export function setSpeedIndex(app, index) {
   app.speed = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, index))];
   app.paused = false;
+  app.speedConfirm = null;
+  app.dirtyHud = true;
+}
+
+/** Above these speeds, the player is asked first while the enemy is acting. */
+export const SPEED_CHECK = { air: 60, naval: 600 };
+const NAVAL_ACTION_S = 3 * 3600; // a convoy attacked within these 3 hours: the battle goes on
+
+/**
+ * What the enemy is doing that the player can see: 'air' (a raid on the plot, a combat),
+ * 'naval' (a convoy attacked within the last hours) or null.
+ */
+export function enemyAction(app) {
+  const w = app.world;
+  for (const c of w.contacts.values()) if (!c.lost) return 'air';
+  if (w.squadrons.some((s) => s.state === 'combat')) return 'air';
+  if (app.lastNavalAttack !== null && app.lastNavalAttack !== undefined && w.t - app.lastNavalAttack < NAVAL_ACTION_S) return 'naval';
+  return null;
+}
+
+/**
+ * A speed asked for by the player (button or key). During an enemy action a high speed is
+ * asked first, against a slip of the finger (×14 400 instead of ×10 during a raid).
+ */
+export function requestSpeed(app, index) {
+  const i = Math.max(0, Math.min(SPEEDS.length - 1, index));
+  const speed = SPEEDS[i];
+  const action = app.settings.confirmSpeed === false ? null : enemyAction(app);
+  const faster = app.paused || speed > app.speed;
+  if (action && faster && speed > SPEED_CHECK[action]) {
+    app.speedConfirm = { index: i, action };
+    app.dirtyHud = true;
+    return false;
+  }
+  setSpeedIndex(app, i);
+  return true;
+}
+
+export function confirmSpeed(app) {
+  if (app.speedConfirm) setSpeedIndex(app, app.speedConfirm.index);
+}
+
+export function cancelSpeed(app) {
+  app.speedConfirm = null;
   app.dirtyHud = true;
 }
 
