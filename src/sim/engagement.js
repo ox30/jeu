@@ -17,6 +17,7 @@ import { solveIntercept } from './intercept.js';
 import { rallyAnswer } from './rally.js';
 
 export const ROES = ['defend', 'attack', 'pursue'];
+const ROE_RANK = { defend: 0, attack: 1, pursue: 2 };
 
 export function createQuestions(world) {
   world.questions = [];
@@ -28,10 +29,32 @@ export function questionsOn(world) {
   return !world.settings || world.settings.questions !== false;
 }
 
+/**
+ * A new standing order. A more cautious one replaces the leave given before (to engage, to
+ * pursue, to go beyond mid-Channel): a squadron told to defend no longer goes after a raid it
+ * had leave to chase. A raid it is following home now is not asked about again: it breaks
+ * off at its next round of combat.
+ */
 export function setRoe(world, s, roe) {
   if (!ROES.includes(roe)) return false;
+  const before = s.roe || 'attack';
   s.roe = roe;
+  if (ROE_RANK[roe] < ROE_RANK[before]) {
+    for (const id of [s.engagedRaid, s.attackRaid]) {
+      const r = id ? world.raids.find((x) => x.id === id) : null;
+      if (r && r.phase === 'outbound') world.asked.add(`pursue:${r.id}:${unitKey(s)}`);
+    }
+    s.cleared.clear();
+    s.clearedBeyond.clear();
+    s.attackRaid = null;
+  }
   return true;
+}
+
+/** Leave to attack raid `raidId` (an answer yes, a line drawn onto it, « Intercepter »). */
+export function authorize(s, raidId) {
+  s.cleared.add(raidId);
+  s.letGo.delete(raidId);
 }
 
 /** Does squadron `s` see raid `r` (visual range by day or night, halved for a big height gap)? */
@@ -81,6 +104,8 @@ export function isCleared(s, r) {
  * the question its order calls for ('engage', 'pursue', 'beyond').
  */
 export function engagementCall(world, s, r) {
+  // Called off this raid by the player: it leaves it alone, without asking, until sent back.
+  if (s.letGo.has(r.id) && !(s.intercept && s.intercept.raidId === r.id)) return { engage: false, ask: null };
   const roe = s.roe || 'attack';
   const cleared = isCleared(s, r);
   if (r.phase !== 'outbound') {
@@ -192,7 +217,7 @@ function resolve(world, q, yes, how) {
   const squadrons = questionSquadrons(world, q);
   if (yes && r && isActive(r)) {
     for (const s of squadrons) {
-      s.cleared.add(r.id);
+      authorize(s, r.id);
       if (q.kind === 'beyond') s.clearedBeyond.add(r.id);
       if (q.kind !== 'engage') s.speedMode = 'max';
       // The leader of a formation goes after the raid; its squadrons follow it.

@@ -168,6 +168,8 @@ function followRoute(world, u, dt, onArrive) {
     onArrive(world.byId.port.get(u.destination));
   } else if (u.kind === 'escort' && (u.joinTarget || u.plan.length)) {
     // An escort group leaving port by its channel goes on to its meeting or its legs.
+  } else if (u.kind === 'escort' && u.endAction && u.endAction.kind !== 'stop') {
+    u.routeEnded = true; // naval.js does what it was told to do there
   } else {
     u.state = 'waiting';
     emit(world, 'convoyWaiting', { convoy: u.name, convoyId: u.id, unitKind: u.kind });
@@ -343,6 +345,8 @@ function closestOnSegment(ax, ay, bx, by, px, py) {
 function applyApproach(world, c, full) {
   const rules = world.rules.convoy;
   const end = full[full.length - 1];
+  // An escort group goes where it is drawn: into port only by ending in its bubble.
+  if (c.kind === 'escort') return null;
   let best = null;
   for (const port of acceptingPorts(world, c)) {
     if (!port.approaches) continue;
@@ -372,7 +376,8 @@ function applyApproach(world, c, full) {
  * Returns { ok, reason, at, destination }.
  */
 export function routeConvoy(world, c, points) {
-  if (c.state === 'arrived' || c.state === 'lost' || c.state === 'escorting' || c.state === 'refit') return { ok: false, reason: 'arrived' };
+  if (c.state === 'arrived' || c.state === 'lost' || c.state === 'refit') return { ok: false, reason: 'arrived' };
+  if (c.state === 'escorting' && c.kind !== 'escort') return { ok: false, reason: 'arrived' };
   let pts = points.map(([x, y]) => [x, y]);
   if (!pts.length) return { ok: false, reason: 'empty' };
 
@@ -386,7 +391,8 @@ export function routeConvoy(world, c, points) {
     locked = approach.locked;
   } else {
     const last = pts[pts.length - 1];
-    let best = rules.portSnapKm;
+    // Into port when the route ends in its bubble (like an aerodrome's for the aircraft).
+    let best = world.rules.navigation.portBubbleKm;
     for (const p of acceptingPorts(world, c)) {
       const d = distance(last[0], last[1], p.x, p.y);
       if (d <= best) {
@@ -412,7 +418,18 @@ export function routeConvoy(world, c, points) {
 
   c.route = pts;
   c.routeLocked = locked;
-  if (c.kind === 'escort') c.homeward = Boolean(destination);
+  if (c.kind === 'escort') {
+    c.homeward = Boolean(destination);
+    // A route drawn for a group with a convoy, or hunting, takes it away: it does not take
+    // station again with that convoy by itself; and the hunt is over.
+    if (c.state === 'escorting' || c.state === 'hunting') c.leftConvoy = c.escorting || c.huntFor;
+    c.huntFor = null;
+    c.huntUntil = null;
+    c.huntPath = null;
+    c.huntStay = false;
+    c.engage = null;
+    c.escorting = null;
+  }
   c.plan = [];
   c.legState = null;
   // A sailing ordered for later: the route waits in port until then (timetable.js).

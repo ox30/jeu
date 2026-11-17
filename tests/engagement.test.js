@@ -119,3 +119,61 @@ test('a big wing is asked once, for all its squadrons; the question is saved wit
   answerQuestion(b, b.questions[0].id, true);
   assert.ok(b.squadrons.find((s) => s.id === '242').cleared.has(r.id), 'every squadron of the wing has leave');
 });
+
+test('leave to pursue, then "defend": the squadron breaks off at its next round and does not attack again', () => {
+  const w = makeWorld('standard', {}, 'quinze-septembre');
+  const r = placeRaid(w, kanalLondon, 'outbound', france);
+  const s = placeSquadron(w, '19', r);
+  run(w, 5);
+  answerQuestion(w, w.questions[0].id, true);
+  run(w, 240, (e) => e.type === 'tallyHo');
+  assert.equal(s.state, 'combat');
+  setRoe(w, s, 'defend');
+  assert.equal(s.cleared.size, 0, 'the leave given before is gone');
+  const ev = run(w, 300);
+  assert.notEqual(s.state, 'combat', 'it broke off');
+  assert.ok(!ev.some((e) => e.type === 'tallyHo'), 'and did not attack again');
+  assert.ok(!ev.some((e) => e.type === 'question'), 'nor asked again');
+});
+
+test('« Désengager H05 »: out of the fight at once, it circles and leaves that raid alone, until sent back', async () => {
+  const { breakOffRaid } = await import('../src/sim/combat.js');
+  const { authorize } = await import('../src/sim/engagement.js');
+  const w = makeWorld('standard', {}, 'quinze-septembre');
+  const r = placeRaid(w, kanalLondon, 'inbound', [-0.1, 51.5]);
+  const s = placeSquadron(w, '19', r, 3);
+  run(w, 120, (e) => e.type === 'tallyHo');
+  assert.equal(s.state, 'combat', 'attack: it engages the raid coming in');
+  const names = breakOffRaid(w, [s], r.id);
+  assert.deepEqual(names, [s.name]);
+  assert.equal(s.state, 'airborne');
+  assert.ok(s.orbit, 'it circles where it is');
+  assert.ok(s.letGo.has(r.id));
+  const ev = run(w, 120);
+  assert.ok(!ev.some((e) => e.type === 'tallyHo' || e.type === 'question'), 'no new attack, no question, raid still close');
+  // A line drawn onto the raid sends it back.
+  authorize(s, r.id);
+  assert.ok(!s.letGo.has(r.id));
+  const saved = makeWorld('standard', {}, 'quinze-septembre');
+  breakOffRaid(w, [s], r.id);
+  restore(saved, JSON.parse(JSON.stringify(snapshot(w))));
+  assert.ok(saved.squadrons.find((x) => x.id === '19').letGo.has(r.id), 'saved with the game');
+});
+
+test('a big wing called off a raid: every squadron leaves the fight and the wing gathers on its leader', async () => {
+  const { breakOffRaid } = await import('../src/sim/combat.js');
+  const w = makeWorld('standard', {}, 'quinze-septembre');
+  const f = newFormation(w, 'air', '19', 'Duxford Wing');
+  addMember(w, f, '242');
+  const r = placeRaid(w, kanalLondon, 'inbound', [-0.1, 51.5]);
+  const a = placeSquadron(w, '19', r, 3);
+  const b = placeSquadron(w, '242', r, 4);
+  run(w, 120, (e) => e.type === 'tallyHo');
+  assert.ok([a, b].some((s) => s.state === 'combat'));
+  const ev = [];
+  const names = breakOffRaid(w, [a, b], r.id);
+  assert.ok(names.length >= 1);
+  ev.push(...run(w, 90));
+  assert.ok([a, b].every((s) => s.state !== 'combat'), 'none fights on');
+  assert.ok(!ev.some((e) => e.type === 'tallyHo'));
+});

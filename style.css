@@ -598,7 +598,7 @@ button.link { background: none; border: none; padding: 0; font: inherit; color: 
 .unit-body .check { display: inline-flex; align-items: center; gap: 3px; color: var(--ink-soft); font-size: 12px; }
 .unit-body .small { display: inline-flex; align-items: center; gap: 3px; color: var(--ink-soft); font-size: 12px; }
 .unit-body .small input { width: 52px; }
-.time-input { font: 14px "Courier New", Courier, monospace; padding: 2px 3px; width: 92px; }
+.time-input { font: 14px "Courier New", Courier, monospace; padding: 2px 3px; width: 58px; }
 .day-select { font: 12.5px Georgia, serif; min-width: 96px; max-width: 130px; }
 .order-line.scheduled { background: #e6ecf5; border: 1px solid #b8c6dc; border-radius: 4px; padding: 3px 6px; }
 .order-line.scheduled .grow { flex: 1 1 auto; min-width: 0; }
@@ -612,7 +612,7 @@ button.link { background: none; border: none; padding: 0; font: inherit; color: 
 .rally-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .rally-table td { padding: 3px 2px; border-bottom: 1px dotted var(--paper-dark); vertical-align: middle; }
 .rally-table td small { color: var(--ink-soft); }
-.rally-table .time-input { width: 84px; }
+.rally-table .time-input { width: 58px; }
 .roster-tab .roster-squadron { border: 1px solid var(--paper-dark); border-radius: 4px; padding: 4px 6px; margin: 4px 0; background: rgba(255, 252, 240, 0.55); }
 .roster-head { display: flex; justify-content: space-between; font-size: 12.5px; }
 .roster-head span { color: var(--ink-soft); }
@@ -637,3 +637,30 @@ button.link { background: none; border: none; padding: 0; font: inherit; color: 
 .dev-settings .dev-password[hidden] { display: none; }
 .dev-settings .dev-password input { font: 14px Georgia, serif; padding: 3px 5px; width: 170px; }
 .dev-settings .dev-error { flex-basis: 100%; color: #8b1a1a; font-size: 12.5px; }
+
+.timeline-override { height: 3px; margin-top: 1px; background: repeating-linear-gradient(90deg, #8b1a1a 0 6px, transparent 6px 9px); }
+.roster-mode { margin: 2px 0; }
+.roster-list.override li span { color: #8b1a1a; }
+.offset-input { width: 48px; font: 14px "Courier New", Courier, monospace; padding: 2px 3px; }
+.roster-list li.past { opacity: 0.5; }
+.roster-list small { color: var(--ink-soft); font-size: 11px; }
+
+/* Depth-charge attacks in the reports */
+.report.naval { border-left: 4px solid #4f6070; }
+.report.naval.outcome-sunk { border-left-color: #2e7d32; }
+.report.naval.outcome-damaged { border-left-color: #c9a24a; }
+.report.naval .passes { margin: 4px 0 2px 18px; padding: 0; font-size: 12.5px; }
+.report.naval .passes .when { font-family: "Courier New", Courier, monospace; color: var(--ink-soft); }
+.orders .order-line.hunting { background: #f6e3b8; border: 1px solid #c9a24a; border-radius: 4px; padding: 3px 6px; }
+
+/* Settings in tabs */
+.settings-tabs { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1px solid var(--paper-dark); margin: 4px 0 8px; }
+.settings-tabs button { border: 1px solid var(--paper-dark); border-bottom: none; border-radius: 4px 4px 0 0; background: rgba(255, 252, 240, 0.4); padding: 4px 10px; font: 13px Georgia, serif; cursor: pointer; }
+.settings-tabs button.active { background: #fffaf0; font-weight: bold; }
+.settings-pane[hidden] { display: none; }
+.alert-speeds { border-collapse: collapse; width: 100%; font-size: 13px; }
+.alert-speeds td { padding: 2px 4px; border-bottom: 1px dotted var(--paper-dark); }
+.alert-speeds tr.group th { text-align: left; padding: 8px 4px 2px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); }
+.alert-speeds select { font: 12.5px Georgia, serif; }
+.settings input[type="range"] { vertical-align: middle; width: 180px; }
+.report .dev-truth { margin: 4px 0 0; font-size: 11.5px; color: #8a1468; border-left: 2px solid #c0178f; padding-left: 6px; }

@@ -10,14 +10,15 @@ import { createMapRenderer } from './render/map.js';
 import { drawScene } from './render/scene.js';
 import { helpSeen, loadSettings, saveSettings } from './save/settings.js';
 import {
-  activePoint, addRulerLeg, addTypedLeg, cancelEditLeg, centreOn, changeAltitude, changePointAltitude, clearPointAltitude,
-  deletePoint, findUnit, goView, orderAdmiraltyRoute, orderClearPlan, orderCover, orderEndAction, orderEscortHome,
-  orderHome, orderJoin, orderLeave, orderMinStock, orderOrbit, orderRemoveLeg, orderSail, orderTrain, orderVector,
-  orderConvoySpeed, orderEscortBehaviour, orderIntercept, orderOffer, orderPurchase,
-  orderZigzag, scrambleSquadron, select, selectedUnit, startEditLeg, toggleBuster,
-  orderDissolve, orderFormationAlert, orderLaunchWaiting, orderLeaveFormationOf, orderMerge, orderNewFormation,
-  cancelConfirm, orderAlertChecked, orderCancelSchedule, orderRally, orderRoe, orderRosterAdd, orderRosterRemove, orderScheduleJoin,
-  orderScheduleSail, orderScheduleTakeoff, orderScheduleWing,
+  activePoint, addRulerLeg, addTypedLeg, cancelConfirm, cancelEditLeg, centreOn, changeAltitude,
+  changePointAltitude, clearPointAltitude, deletePoint, findUnit, goView, orderAdmiraltyRoute,
+  orderAlertChecked, orderBreakOff, orderCancelSchedule, orderClearPlan, orderConvoySpeed, orderCover,
+  orderDissolve, orderEndAction, orderEscortBehaviour, orderEscortHome, orderFormationAlert, orderHome,
+  orderHuntHours, orderHuntPlot, orderHuntStop, orderIntercept, orderJoin, orderLaunchWaiting, orderLeave,
+  orderLeaveFormationOf, orderMerge, orderMinStock, orderNewFormation, orderOffer, orderOrbit, orderPurchase,
+  orderRally, orderRemoveLeg, orderRoe, orderRosterAdd, orderRosterOverride, orderRosterRemove, orderSail,
+  orderScheduleJoin, orderScheduleSail, orderScheduleTakeoff, orderScheduleWing, orderShipEnd, orderTrain,
+  orderVector, orderZigzag, scrambleSquadron, select, selectedUnit, startEditLeg, toggleBuster
 } from './ui/actions.js';
 import { formationById, leaderOf } from './sim/formations.js';
 import { contactEstimate } from './sim/query.js';
@@ -148,7 +149,9 @@ function handleEvents(app, events) {
   for (const e of events) {
     tutorialEvent(app, e);
     const msg = eventMessage(app.world, e);
-    const report = (e.type === 'raidReport' || e.type === 'combatReport') && app.world.reports.has(e.raidId) ? e.raidId : null;
+    let report = (e.type === 'raidReport' || e.type === 'combatReport') && app.world.reports.has(e.raidId) ? e.raidId : null;
+    // A depth-charge attack: its journal lines open its report.
+    if ((e.type === 'escortEngaged' || e.type === 'depthChargePass') && e.report) report = e.report;
     if (msg) addLogEntry(app, msg.text, msg.level, e.t, { report });
     addEffectsForEvent(app, e);
     if (RADIO.has(e.type) || (e.type === 'raidSighted' && e.kind === 'squadron')) playRadio(app);
@@ -156,7 +159,7 @@ function handleEvents(app, events) {
     else if (e.type === 'siteHit' || e.type === 'shipsSunk') playBombs(app);
     // Every event that needs the player raises an alert and slows the game (alertRules.js).
     const alert = alertForEvent(app, e);
-    if (e.type === 'uboatAttack' || e.type === 'convoyBombed') app.lastNavalAttack = e.t;
+    if (e.type === 'uboatAttack' || e.type === 'convoyBombed' || e.type === 'escortEngaged') app.lastNavalAttack = e.t;
     if (e.type === 'raidDetected') {
       if (alert && app.settings.autoZoom && app.camera.scale < 0.6) goView(app, 'england');
     } else if (e.type === 'question') {
@@ -313,10 +316,19 @@ function onPanelClick(app, e) {
       if (unit) orderLeave(app, unit);
       break;
     case 'escort-home':
-      if (unit) orderEscortHome(app, unit);
+      if (unit) orderEscortHome(app, unit, inputValue(`home-port-${id}`));
+      break;
+    case 'hunt-stop':
+      if (unit) orderHuntStop(app, unit);
+      break;
+    case 'hunt-plot':
+      if (unit) orderHuntPlot(app, unit, b.dataset.plot);
       break;
     case 'cover':
       if (sq) orderCover(app, sq, b.dataset.convoy);
+      break;
+    case 'break-off':
+      if (sq) orderBreakOff(app, sq, b.dataset.raid);
       break;
     case 'intercept':
       if (sq) orderIntercept(app, sq, b.dataset.raid);
@@ -335,7 +347,11 @@ function onPanelClick(app, e) {
       break;
     case 'roster-add':
       firstSchedule(app);
-      if (unit) orderRosterAdd(app, unit, inputValue(`roster-alert-${id}`), inputValue(`roster-time-${id}`), inputChecked(`roster-daily-${id}`));
+      if (unit) {
+        // An hour of the day in the daily plan, hours after H0 in the plan for the coming hours.
+        const field = document.getElementById(`roster-offset-${id}`) || document.getElementById(`roster-time-${id}`);
+        if (field && orderRosterAdd(app, unit, inputValue(`roster-alert-${id}`), field.value)) field.value = ''; // ready for the next change
+      }
       break;
     case 'roster-remove':
       if (unit) orderRosterRemove(app, unit, b.dataset.entry);
@@ -516,6 +532,15 @@ function onPanelChange(app, e) {
     const f = formationById(app.world, target.dataset.id);
     const day = inputValue(`rally-dep-day-${target.dataset.unit}`);
     if (f) orderRally(app, f, { kind: 'departure', unitId: target.dataset.unit, text: target.value, dayOffset: day === '' ? null : Number(day) });
+  } else if (target.dataset.change === 'hunt-hours') {
+    const e = app.world.escorts.find((x) => x.id === target.dataset.id);
+    if (e) orderHuntHours(app, e, target.value);
+  } else if (target.dataset.change === 'ship-end') {
+    const e = app.world.escorts.find((x) => x.id === target.dataset.id);
+    if (e) orderShipEnd(app, e, target.value);
+  } else if (target.dataset.change === 'roster-override') {
+    const sq = app.world.squadrons.find((s) => s.id === target.dataset.id);
+    if (sq) orderRosterOverride(app, sq, target.checked);
   } else if (target.dataset.change === 'rally-wait') {
     const f = formationById(app.world, target.dataset.id);
     if (f && f.rally) orderRally(app, f, { kind: 'missing', missing: f.rally.missing, waitMin: Number(target.value) });

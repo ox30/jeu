@@ -182,6 +182,7 @@
     },
     "passedMarginKm": 0.5,
     "pilotKm": 40,
+    "portBubbleKm": 15,
     "checkEveryS": 60,
     "coastLookaheadKm": 3,
     "harbourKm": 20,
@@ -490,7 +491,19 @@
     "stragglerFrom": 0.9,
     "stragglerPerHour": 0.012,
     "stragglerMax": 3,
-    "stragglerKn": 6
+    "stragglerKn": 6,
+    "engagement": {
+      "note": "Attaque d'un U-Boot tenu (ASDIC, ou vu tout près) : une passe de grenades toutes les 10 minutes ; chaque passe peut le couler, l'endommager (il rentre) ou le perdre. Un groupe qui reste avec son convoi n'attaque que ce qui s'approche, 30 minutes et 15 km au plus.",
+      "passEveryS": 600,
+      "pKillPerShip": 0.03,
+      "pDamagePerShip": 0.04,
+      "damagedKillFactor": 2,
+      "pLoseBase": 0.4,
+      "pLosePerShip": 0.05,
+      "pLoseMin": 0.12,
+      "stayMaxS": 1800,
+      "stayMaxKm": 15
+    }
   },
   "ships": {
     "convoy": {
@@ -537,22 +550,6 @@
   "pursuit": {
     "note": "Consignes face à l'ennemi : délai de réponse aux questions (secondes de jeu) et ligne de mi-Manche (longitude, latitude), du nord au sud. Au-delà de la ligne, côté continent, une poursuite demande une autorisation.",
     "answerS": 60,
-    "midChannel": [
-      [1.5, 58.0],
-      [2.6, 55.5],
-      [3.6, 53.5],
-      [3.4, 52.6],
-      [2.8, 51.9],
-      [2.1, 51.35],
-      [1.45, 51.0],
-      [1.15, 50.72],
-      [0.6, 50.35],
-      [-0.3, 50.15],
-      [-1.3, 50.1],
-      [-2.2, 50.05],
-      [-3.6, 49.55],
-      [-5.15, 49.2],
-      [-6.5, 49.0]
-    ]
+    "midChannel": [[1.5, 58.0], [2.6, 55.5], [3.6, 53.5], [3.4, 52.6], [2.8, 51.9], [2.1, 51.35], [1.45, 51.0], [1.15, 50.72], [0.6, 50.35], [-0.3, 50.15], [-1.3, 50.1], [-2.2, 50.05], [-3.6, 49.55], [-5.15, 49.2], [-6.5, 49.0]]
   }
 }

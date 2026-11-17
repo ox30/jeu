@@ -130,6 +130,8 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
   createFormations(world);
   createQuestions(world);
   createTimetable(world);
+  world.navalReports = []; // depth-charge attacks, one report each (asw.js)
+  world.nextNavalReportId = 1;
   world.raids = [
     ...scenario.raids.map((r) => createRaid(world, r)),
     ...(scenario.phantoms || []).map((p) => createPhantom(world, p)),

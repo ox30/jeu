@@ -12,6 +12,7 @@ import { projectPlan, resolveClock } from './navigation.js';
 import { airfieldDelayFactor, isOperational } from './sites.js';
 import { bearing, distance, headingDiff, polylineLength } from './geo.js';
 import { sendEscortHome } from './naval.js';
+import { endHunt, startHunt } from './asw.js';
 import { interceptChance } from './control.js';
 import { ALERT_STATES, changeAlert, scrambleSeconds, strength, tire } from './crews.js';
 import { dispatchTrain } from './logistics.js';
@@ -138,6 +139,7 @@ export function interceptRaid(world, s, raidId) {
   s.orbit = false;
   s.cover = null;
   s.intercept = { raidId, p: chance.p, ok: null };
+  s.letGo.delete(raidId);
   const contact = world.contacts.get(raidId);
   emit(world, 'interceptOrdered', { squadron: s.name, squadronId: s.id, raid: contact ? contact.label : raidId, raidId, p: chance.p });
   return chance.p;
@@ -510,19 +512,24 @@ export function setZigzag(world, c, on) {
 
 // ---- escort groups --------------------------------------------------------------------
 
-/** An escort group leaves port through the approach channel nearest to (x, y). */
+/**
+ * An escort group leaves port down the channel that brings it nearest to (x, y), and only as
+ * far down it as that: a convoy in the North Channel is not met by way of the open sea.
+ */
 export function leavePort(world, e, x, y) {
   const port = world.byId.port.get(e.portId);
   let best = null;
   for (const a of port.approaches || []) {
-    const [gx, gy] = a.points[0];
-    const d = distance(gx, gy, x, y);
-    if (!best || d < best.d) best = { a, d };
+    const out = a.points.slice(0, -1).reverse();
+    for (let i = 0; i < out.length; i++) {
+      const d = distance(out[i][0], out[i][1], x, y);
+      if (!best || d < best.d) best = { out, i, d };
+    }
   }
   e.state = 'atSea';
   e.destination = null;
   e.legState = null;
-  e.route = best ? best.a.points.slice(0, -1).reverse().map(([px, py]) => [px, py]) : [];
+  e.route = best ? best.out.slice(0, best.i + 1).map(([px, py]) => [px, py]) : [];
   e.routeLocked = e.route.length;
 }
 
@@ -530,6 +537,12 @@ export function leavePort(world, e, x, y) {
 export function joinConvoy(world, e, convoyId) {
   const c = world.convoys.find((x) => x.id === convoyId);
   if (!c || c.state !== 'atSea') return false;
+  // Hunting, or with another convoy: the order ends that.
+  if (e.state === 'hunting') endHunt(world, e, false, 'order');
+  else if (e.state === 'escorting' && e.escorting !== convoyId) {
+    e.state = 'atSea';
+    e.escorting = null;
+  }
   if (e.state !== 'inPort' && e.state !== 'atSea' && e.state !== 'waiting') return false;
   e.plan = [];
   if (e.state === 'inPort') leavePort(world, e, c.x, c.y);
@@ -552,16 +565,43 @@ export function leaveConvoy(world, e) {
   return true;
 }
 
-/** Stay with the convoy, or leave it to hunt a fresh U-boat contact. */
+/**
+ * Stay with the convoy, or leave it to hunt a fresh U-boat contact. Told to stay while
+ * hunting, the group breaks off and goes back to its convoy.
+ */
 export function setEscortBehaviour(world, e, behaviour) {
   if (behaviour !== 'stay' && behaviour !== 'hunt') return false;
   e.behaviour = behaviour;
+  if (behaviour === 'stay' && e.state === 'hunting' && !e.huntStay) endHunt(world, e, false, 'order');
   return true;
 }
 
-export function escortHome(world, e) {
-  if (e.state !== 'atSea' && e.state !== 'escorting' && e.state !== 'waiting') return false;
-  sendEscortHome(world, e);
+/** How long its hunts last (hours), set when the player sends it hunting. */
+export function setHuntHours(world, e, hours) {
+  const h = Number(hours);
+  if (!Number.isFinite(h) || h <= 0 || h > 48) return false;
+  e.huntHours = h;
+  if (e.state === 'hunting' && !e.huntStay && e.huntUntil !== null) e.huntUntil = world.t + h * 3600;
+  return true;
+}
+
+/** Sends the group to hunt a U-boat plot, for the hours set. */
+export function huntPlot(world, e, plotId) {
+  const p = world.uboatPlots.find((x) => x.id === plotId);
+  if (!p) return false;
+  if (e.state !== 'atSea' && e.state !== 'escorting' && e.state !== 'waiting' && e.state !== 'hunting') return false;
+  // A new hunt: the one going on stops (its report is closed), the way into port too.
+  if (e.state === 'hunting') endHunt(world, e, false, 'order');
+  e.homeward = false;
+  startHunt(world, e, p.x, p.y);
+  return true;
+}
+
+/** Back to a port (the one chosen, or the nearest by sea). */
+export function escortHome(world, e, portId = null) {
+  if (!['atSea', 'escorting', 'waiting', 'hunting'].includes(e.state)) return false;
+  if (e.state === 'hunting') endHunt(world, e, false, 'order');
+  sendEscortHome(world, e, portId);
   return true;
 }
 

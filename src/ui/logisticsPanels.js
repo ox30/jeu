@@ -4,10 +4,11 @@
 
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatTime } from '../core/time.js';
-import { unproject } from '../sim/geo.js';
+import { distance, unproject } from '../sim/geo.js';
 import { cargoShare } from '../sim/convoy.js';
 import { RESOURCES, fuelDays, fullTrain, inbound, trainHours } from '../sim/logistics.js';
-import { escortStrength } from '../sim/naval.js';
+import { escortStrength, portChoices } from '../sim/naval.js';
+import { huntHours } from '../sim/asw.js';
 import { capacityFactor, isOperational } from '../sim/sites.js';
 import { lineCost, offerCost, offers } from '../sim/shipping.js';
 import { button, options, row } from './html.js';
@@ -274,6 +275,38 @@ export function convoyCargoRows(app, c) {
   return rows.join('');
 }
 
+/**
+ * « Face aux U-Boote » (stay or hunt, and for how long), the hunt under way with « Interrompre
+ * la chasse », fresh plots to hunt, « Rentrer au port » with the port: for a group, or for a
+ * support group through its leader (the orders go to every group).
+ */
+export function huntAndPortLines(app, e) {
+  const w = app.world;
+  const atSea = ['atSea', 'waiting', 'escorting', 'hunting'].includes(e.state);
+  const hours = huntHours(w, e);
+  const hourList = [1, 2, 3, 4, 6, 8, 12].map((h) => ({ value: String(h), label: t('orders.hours', { n: h }) }));
+  // Fresh U-boat plots within reach: hunt one now.
+  const fresh = atSea ? w.uboatPlots
+    .filter((p) => w.t - p.t < 2 * 3600 && distance(p.x, p.y, e.x, e.y) < 80)
+    .sort((a, b) => b.t - a.t)
+    .slice(0, 3) : [];
+  const ports = atSea ? portChoices(w, e) : [];
+  const hunting = e.state === 'hunting';
+  return [
+    `<div class="sub">${escapeHtml(t('orders.behaviour'))}</div>`,
+    `<div class="order-line">${button('escort-behaviour', t('orders.behaviours.stay'), { id: e.id, kind: 'escort', active: e.behaviour !== 'hunt', extra: ' data-behaviour="stay"' })}${button('escort-behaviour', t('orders.behaviours.hunt'), { id: e.id, kind: 'escort', active: e.behaviour === 'hunt', extra: ' data-behaviour="hunt"' })}`,
+    `<label class="small">${escapeHtml(t('orders.huntFor'))} <select id="hunt-hours-${escapeHtml(e.id)}" data-change="hunt-hours" data-id="${escapeHtml(e.id)}">${options(hourList, String(hours))}</select></label></div>`,
+    `<p class="hint">${escapeHtml(t('orders.behaviourHint'))}</p>`,
+    hunting ? `<div class="order-line hunting"><span class="grow">${escapeHtml(huntText(w, e))}</span>${button('hunt-stop', t('orders.huntStop'), { id: e.id, kind: 'escort' })}</div>` : '',
+    fresh.length ? `<div class="order-line">${fresh.map((p) => button('hunt-plot', t('orders.huntPlot', {
+      time: formatTime(w.startMs + p.t * 1000), km: Math.round(distance(p.x, p.y, e.x, e.y)),
+    }), { id: e.id, kind: 'escort', extra: ` data-plot="${escapeHtml(p.id)}"` })).join('')}</div>` : '',
+    ports.length ? `<div class="order-line"><span>${escapeHtml(t('orders.homePort'))}</span><select id="home-port-${escapeHtml(e.id)}">${options(ports.map((x) => ({
+      value: x.port.id, label: t('orders.portChoice', { port: x.port.name, km: Math.round(x.km), h: formatNumber(x.hours, x.hours < 10 ? 1 : 0) }),
+    })), ports[0].port.id)}</select>${button('escort-home', t('orders.go'), { id: e.id, kind: 'escort' })}</div>` : '',
+  ].join('');
+}
+
 export function escortSheet(app, e) {
   const w = app.world;
   const [lon, lat] = unproject(e.x, e.y);
@@ -298,17 +331,17 @@ export function escortSheet(app, e) {
       ? row(t('sheet.airfield'), escapeHtml(w.byId.port.get(e.portId).name))
       : row(t('sheet.position'), escapeHtml(positionText(lat, lon))),
   ].join('');
-  const canMove = e.state === 'inPort' || e.state === 'atSea' || e.state === 'waiting';
+  const canMove = e.state === 'inPort' || e.state === 'atSea' || e.state === 'waiting' || e.state === 'hunting';
   const aid = w.settings.interceptAid !== 'none';
-  const joinable = w.convoys.filter((c) => c.state === 'atSea' && c.type !== 'coastal');
+  const joinable = w.convoys.filter((c) => c.state === 'atSea' && c.type !== 'coastal' && c.id !== e.escorting);
+  const convoyName = (c) => (c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name);
   const orders = [
     `<div class="orders">`,
     e.state === 'inPort' ? button('sail', t('orders.escortSail'), { id: e.id, kind: 'escort', disabled: !e.plan.length && !e.route.length }) : '',
-    aid && canMove ? `<div class="order-line">${joinable.map((c) => button('join', t('orders.join', { convoy: c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name }), { id: e.id, kind: 'escort', extra: ` data-convoy="${escapeHtml(c.id)}"` })).join('')}</div>` : '',
+    aid && (canMove || e.state === 'escorting') && joinable.length
+      ? `<div class="order-line">${joinable.map((c) => button('join', t('orders.join', { convoy: convoyName(c) }), { id: e.id, kind: 'escort', extra: ` data-convoy="${escapeHtml(c.id)}"` })).join('')}</div>` : '',
     e.state === 'escorting' ? button('leave', t('orders.leave'), { id: e.id, kind: 'escort' }) : '',
-    `<div class="order-line"><span>${escapeHtml(t('orders.behaviour'))}</span>${button('escort-behaviour', t('orders.behaviours.stay'), { id: e.id, kind: 'escort', active: e.behaviour !== 'hunt', extra: ' data-behaviour="stay"' })}${button('escort-behaviour', t('orders.behaviours.hunt'), { id: e.id, kind: 'escort', active: e.behaviour === 'hunt', extra: ' data-behaviour="hunt"' })}</div>`,
-    `<p class="hint">${escapeHtml(t('orders.behaviourHint'))}</p>`,
-    e.state === 'atSea' || e.state === 'escorting' || e.state === 'waiting' ? button('escort-home', t('orders.homePort'), { id: e.id, kind: 'escort' }) : '',
+    huntAndPortLines(app, e),
     `<p class="hint">${escapeHtml(t('orders.joinHint'))}</p>`,
     `</div>`,
   ].join('');
@@ -319,6 +352,16 @@ export function escortSheet(app, e) {
     legForm: canMove,
     key: `eg:${e.id}:${e.state}:${e.plan.length > 0}:${e.route.length > 0}:${joinable.map((c) => c.id).join(',')}:${app.settings.orders}:${aid}:${app.editingLeg ? app.editingLeg.index : ''}:${e.behaviour}`,
   };
+}
+
+/** "En chasse jusqu'à 18:40 · attaque un U-Boot (passe 2)" */
+function huntText(w, e) {
+  const until = formatTime(w.startMs + e.huntUntil * 1000);
+  if (e.engage) {
+    const rep = w.navalReports.find((r) => r.id === e.engage.reportId);
+    return t('orders.huntEngaged', { time: until, n: (rep ? rep.passes.length : 0) + 1 });
+  }
+  return t(e.huntStay ? 'orders.huntCounter' : 'orders.huntSearching', { time: until });
 }
 
 export function trainSheet(app, id) {

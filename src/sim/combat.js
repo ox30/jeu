@@ -48,7 +48,7 @@ export function checkEngagements(world) {
       }
       const call = engagementCall(world, s, r);
       if (!call.engage) {
-        if (seesRaid(world, s, r)) askClearance(world, call.ask, s, r);
+        if (call.ask && seesRaid(world, s, r)) askClearance(world, call.ask, s, r);
         continue;
       }
       if (d > R.engageRangeKm) continue;
@@ -72,7 +72,11 @@ export function checkMisses(world) {
       continue;
     }
     for (const r of world.raids) {
-      if (r.phantom) continue;
+      // A raid the player called it off is not a miss: it left it on purpose.
+      if (r.phantom || s.letGo.has(r.id)) {
+        s.watch.delete(r.id);
+        continue;
+      }
       const d = distance(s.x, s.y, r.x, r.y);
       let w = s.watch.get(r.id);
       if (!isActive(r) || r.phase === 'outbound') {
@@ -342,6 +346,47 @@ export function combatRound(world, s, r) {
       return;
     }
     disengage(world, s, true, 'homeward');
-    if (questionsOn(world)) askClearance(world, 'pursue', s, r);
+    if (questionsOn(world) && call.ask) askClearance(world, 'pursue', s, r);
   }
+}
+
+/**
+ * The player calls squadrons off a raid (« Désengager H05 »): each one leaves the fight, the
+ * chase or the controller's guidance onto it, loses its leave to attack it, and leaves it
+ * alone whatever its standing order until an order sends it back (a line drawn onto the raid,
+ * « Intercepter »). A squadron alone, or a wing's leader, circles where it is and waits for
+ * orders; the wing gathers on its leader. Returns the names of the squadrons called off.
+ */
+export function breakOffRaid(world, squadrons, raidId) {
+  const r = world.raids.find((x) => x.id === raidId);
+  const names = [];
+  for (const s of squadrons) {
+    if (!s || s.kind !== 'squadron') continue;
+    const involved = s.engagedRaid === raidId || s.attackRaid === raidId || Boolean(s.intercept && s.intercept.raidId === raidId);
+    s.letGo.add(raidId);
+    s.cleared.delete(raidId);
+    s.clearedBeyond.delete(raidId);
+    if (s.attackRaid === raidId) s.attackRaid = null;
+    if (s.intercept && s.intercept.raidId === raidId) endGuidance(world, s);
+    if (s.state === 'combat' && s.engagedRaid === raidId) disengage(world, s, false, 'order');
+    if (involved && s.state === 'airborne' && !s.follow) {
+      s.route = [];
+      s.plan = [];
+      s.legState = null;
+      s.vector = null;
+      s.orbit = true;
+    }
+    if (involved) names.push(s.name);
+  }
+  // A question still open about this raid for these squadrons no longer applies.
+  const ids = new Set(squadrons.filter(Boolean).flatMap((s) => [s.id, s.formation]).filter(Boolean));
+  for (const q of [...world.questions]) {
+    if (q.raidId !== raidId || !q.units.some((u) => ids.has(u))) continue;
+    world.questions = world.questions.filter((x) => x !== q);
+    emit(world, 'questionGone', { questionId: q.id, raid: q.raid, raidId });
+  }
+  if (names.length) {
+    emit(world, 'brokeOffOrdered', { units: names.join(', '), raid: r ? r.label : raidId, raidId, x: r ? r.x : null, y: r ? r.y : null });
+  }
+  return names;
 }

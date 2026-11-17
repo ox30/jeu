@@ -36,40 +36,15 @@
     }
   },
   "choices": {
-    "detection": [
-      "exact",
-      "approximate",
-      "delayed"
-    ],
-    "interceptAid": [
-      "auto",
-      "point",
-      "track",
-      "none"
-    ],
-    "fuel": [
-      "unlimited",
-      "simple",
-      "realistic"
-    ],
-    "orders": [
-      "draw",
-      "headings"
-    ],
-    "logistics": [
-      "auto",
-      "manual"
-    ],
-    "fatigue": [
-      "off",
-      "on",
-      "losses"
-    ],
-    "carry": [
-      "none",
-      "light",
-      "full"
-    ]
+    "detection": ["exact", "approximate", "delayed"],
+    "interceptAid": ["auto", "point", "track", "none"],
+    "fuel": ["unlimited", "simple", "realistic"],
+    "orders": ["draw", "headings"],
+    "logistics": ["auto", "manual"],
+    "fatigue": ["off", "on", "losses"],
+    "carry": ["none", "light", "full"],
+    "rosterHours": ["6", "12", "24", "48"],
+    "viewZones": ["none", "selected", "all"]
   },
   "options": {
     "autoZoom": true,
@@ -79,6 +54,9 @@
     "altitudeStalks": true,
     "grid": true,
     "confirmSpeed": true,
-    "questions": true
+    "questions": true,
+    "rosterHours": "24",
+    "viewZones": "selected",
+    "volume": 80
   }
 }

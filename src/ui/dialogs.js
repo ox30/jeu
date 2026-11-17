@@ -6,6 +6,8 @@ import { checkDevPassword } from './dev.js';
 import { markHelpSeen, matchingPreset, saveSettings } from '../save/settings.js';
 import { showPage } from './pages.js';
 import { CHAIN, TRAINING, saveCampaign, scenarioStatus } from './campaign.js';
+import { ALERT_GROUPS, defaultAlertSpeed } from './alertRules.js';
+import { setVolume } from './sound.js';
 
 function select(name, value, choices, labelKey) {
   const options = choices.map((c) =>
@@ -17,14 +19,42 @@ function checkbox(name, checked, label) {
   return `<label class="check"><input type="checkbox" name="${name}"${checked ? ' checked' : ''}> ${escapeHtml(label)}</label>`;
 }
 
+/** Speeds an alert can bring the game down to: the default, none, or one of the speeds. */
+const ALERT_SPEED_CHOICES = ['', '0', '1', '10', '60', '600'];
+
+function alertSpeedTable(app) {
+  const s = app.settings;
+  const row = (type) => {
+    const names = t('settings.alertNames');
+    const label = (names && typeof names === 'object' && names[type]) || t(`alerts.${type}.title`);
+    const own = s.alertSpeeds && s.alertSpeeds[type] !== undefined && s.alertSpeeds[type] !== null ? String(s.alertSpeeds[type]) : '';
+    const options = ALERT_SPEED_CHOICES.map((c) => {
+      const text = c === '' ? t('settings.speedDefault', { speed: speedWord(defaultAlertSpeed(type)) }) : speedWord(Number(c));
+      return `<option value="${c}"${c === own ? ' selected' : ''}>${escapeHtml(text)}</option>`;
+    }).join('');
+    return `<tr><td>${escapeHtml(label)}</td><td><select name="alertSpeed:${type}">${options}</select></td></tr>`;
+  };
+  return ALERT_GROUPS.map((g) => `<tr class="group"><th colspan="2">${escapeHtml(t(`settings.alertGroups.${g.id}`))}</th></tr>${Object.keys(g.speeds).map(row).join('')}`).join('');
+}
+
+function speedWord(v) {
+  return v ? `×${formatNumber(v)}` : t('settings.speedNone');
+}
+
+const SETTINGS_TABS = ['game', 'time', 'map', 'sound', 'dev'];
+
 export function openSettings(app) {
   const dlg = app.el.dlgSettings;
   const s = app.settings;
   const presets = app.data.presets;
   const presetChoices = [...Object.keys(presets.presets), 'custom'];
+  const tab = SETTINGS_TABS.includes(app.settingsTab) ? app.settingsTab : 'game';
+  const pane = (id, html) => `<section class="settings-pane" data-spane="${id}"${id === tab ? '' : ' hidden'}>${html}</section>`;
   dlg.innerHTML = `
     <form method="dialog" class="settings">
       <h2>${escapeHtml(t('settings.title'))}</h2>
+      <nav class="settings-tabs" role="tablist">${SETTINGS_TABS.map((id) => `<button type="button" role="tab" data-stab="${id}" class="${id === tab ? 'active' : ''}">${escapeHtml(t(`settings.tabs.${id}`))}</button>`).join('')}</nav>
+      ${pane('game', `
       <label>${escapeHtml(t('settings.preset'))} ${select('preset', matchingPreset(s, presets), presetChoices, 'settings.presets')}</label>
       <fieldset>
         <label>${escapeHtml(t('settings.detection'))} ${select('detection', s.detection, presets.choices.detection, 'settings.detectionChoices')}</label>
@@ -35,17 +65,31 @@ export function openSettings(app) {
         <label>${escapeHtml(t('settings.orders'))} ${select('orders', s.orders, presets.choices.orders, 'settings.ordersChoices')}</label>
         <label>${escapeHtml(t('settings.logistics'))} ${select('logistics', s.logistics, presets.choices.logistics, 'settings.logisticsChoices')}</label>
         <label>${escapeHtml(t('settings.fatigue'))} ${select('fatigue', s.fatigue, presets.choices.fatigue, 'settings.fatigueChoices')}</label>
+        <label>${escapeHtml(t('settings.rosterHours'))} ${select('rosterHours', String(s.rosterHours || '24'), presets.choices.rosterHours, 'settings.rosterHoursChoices')}</label>
         <label>${escapeHtml(t('settings.carry'))} ${select('carry', s.carry || 'none', presets.choices.carry, 'settings.carryChoices')}</label>
+      </fieldset>`)}
+      ${pane('time', `
+      <fieldset>
+        ${checkbox('slowOnAlert', s.slowOnAlert, t('settings.slowOnAlert'))}
+        ${checkbox('confirmSpeed', s.confirmSpeed !== false, t('settings.confirmSpeed'))}
+        ${checkbox('questions', s.questions !== false, t('settings.questions'))}
       </fieldset>
+      <p class="hint">${escapeHtml(t('settings.alertSpeedsHint'))}</p>
+      <table class="alert-speeds">${alertSpeedTable(app)}</table>`)}
+      ${pane('map', `
       <fieldset>
         ${checkbox('altitudeStalks', s.altitudeStalks, t('settings.altitudeStalks'))}
         ${checkbox('grid', s.grid, t('settings.grid'))}
         ${checkbox('autoZoom', s.autoZoom, t('settings.autoZoom'))}
-        ${checkbox('slowOnAlert', s.slowOnAlert, t('settings.slowOnAlert'))}
-        ${checkbox('confirmSpeed', s.confirmSpeed !== false, t('settings.confirmSpeed'))}
-        ${checkbox('questions', s.questions !== false, t('settings.questions'))}
+        <label>${escapeHtml(t('settings.viewZones'))} ${select('viewZones', s.viewZones || 'selected', presets.choices.viewZones, 'settings.viewZonesChoices')}</label>
+        <p class="hint">${escapeHtml(t('settings.viewZonesHint'))}</p>
+      </fieldset>`)}
+      ${pane('sound', `
+      <fieldset>
         ${checkbox('sound', s.sound, t('settings.sound'))}
-      </fieldset>
+        <label>${escapeHtml(t('settings.volume'))} <input type="range" name="volume" min="0" max="100" step="5" value="${Number(s.volume ?? 80)}"></label>
+      </fieldset>`)}
+      ${pane('dev', `
       <fieldset class="dev-settings">
         <label class="check"><input type="checkbox" data-dev="toggle"${app.dev ? ' checked' : ''}> ${escapeHtml(t('settings.devMode'))}</label>
         <div class="dev-password" hidden>
@@ -55,24 +99,40 @@ export function openSettings(app) {
           <span class="dev-error" role="alert" hidden></span>
         </div>
         <p class="hint">${escapeHtml(t('settings.devHint'))}</p>
-      </fieldset>
+      </fieldset>`)}
       <p class="hint">${escapeHtml(t('settings.note'))}</p>
       <div class="dialog-buttons"><button value="close">${escapeHtml(t('settings.close'))}</button></div>
     </form>`;
   const form = dlg.querySelector('form');
   devSettings(app, form);
+  // The tabs: one pane at a time; the one last opened comes back next time.
+  form.querySelector('.settings-tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-stab]');
+    if (!b) return;
+    app.settingsTab = b.dataset.stab;
+    for (const x of form.querySelectorAll('[data-stab]')) x.classList.toggle('active', x === b);
+    for (const p of form.querySelectorAll('[data-spane]')) p.hidden = p.dataset.spane !== b.dataset.stab;
+  });
   form.addEventListener('change', (e) => {
     const field = e.target;
     if (field.dataset.dev) return; // developer mode: devSettings()
-    if (field.name === 'preset') {
+    if (field.name.startsWith('alertSpeed:')) {
+      const type = field.name.slice('alertSpeed:'.length);
+      s.alertSpeeds = { ...(s.alertSpeeds || {}) };
+      if (field.value === '') delete s.alertSpeeds[type];
+      else s.alertSpeeds[type] = Number(field.value);
+    } else if (field.name === 'preset') {
       if (field.value !== 'custom') Object.assign(s, presets.presets[field.value]);
     } else if (field.type === 'checkbox') {
       s[field.name] = field.checked;
+    } else if (field.type === 'range') {
+      s[field.name] = Number(field.value);
     } else {
       s[field.name] = field.value;
     }
     s.preset = matchingPreset(s, presets);
     saveSettings(s);
+    if (field.name === 'volume') setVolume(app);
     if (field.name === 'orders' || field.name === 'preset') {
       app.drawing = null;
       app.el.unitKeyed.__key = '';
@@ -80,6 +140,11 @@ export function openSettings(app) {
     app.dirtyPanels = true;
     app.dirtyHud = true;
     openSettings.refresh(form, s, presets);
+  });
+  // The volume follows the slider while it moves.
+  form.elements.volume.addEventListener('input', (e) => {
+    s.volume = Number(e.target.value);
+    setVolume(app);
   });
   showPage(app, dlg);
 }

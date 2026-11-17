@@ -1,5 +1,5 @@
 // Orders given in advance, carried out at their time (checked once a minute):
-//  - the duty roster: a squadron's alert state changed at a given hour, once or every day;
+//  - the duty roster: a squadron's alert states, every day or for the coming hours (roster.js);
 //  - a scheduled take-off: the order to scramble is given at its hour, with the route or legs
 //    prepared on the ground; the squadron is in the air once its alert delay is over (from
 //    rest, two hours later). Once or every day (a dawn patrol along the coast);
@@ -9,10 +9,10 @@
 // action, ships refitting) waits until it can and tells the player once.
 
 import { emit } from './events.js';
-import { changeAlert, ALERT_STATES, fatigueOn } from './crews.js';
 import { departConvoy, scramble } from './orders.js';
 import { formationById, formationOf, leaderOf, membersOf, scrambleFormation } from './formations.js';
 import { launchMember } from './rally.js';
+import { applyRoster } from './roster.js';
 
 const DAY = 86400;
 
@@ -29,36 +29,7 @@ function nextId(world) {
 const copyRoute = (r) => (r || []).map((p) => [...p]);
 const copyLegs = (l) => (l || []).map((x) => ({ ...x, end: x.end ? { ...x.end } : x.end }));
 
-// ---- duty roster ----
-
-/** A change of alert state at `at` (game seconds), once or every day. */
-export function addRoster(world, s, at, alert, daily = false) {
-  if (!ALERT_STATES.includes(alert) || !Number.isFinite(at)) return null;
-  const entry = { id: nextId(world), at: Math.round(at), alert, daily: Boolean(daily) };
-  s.roster = [...(s.roster || []), entry].sort((a, b) => a.at - b.at);
-  return entry;
-}
-
-export function removeRoster(world, s, id) {
-  const before = (s.roster || []).length;
-  s.roster = (s.roster || []).filter((e) => e.id !== id);
-  return s.roster.length < before;
-}
-
-function applyRoster(world, s) {
-  if (!s.roster || !s.roster.length || !fatigueOn(world)) return;
-  let changed = false;
-  for (const entry of s.roster) {
-    if (entry.at > world.t) continue;
-    changeAlert(world, s, entry.alert);
-    emit(world, 'rosterApplied', { squadron: s.name, squadronId: s.id, alert: entry.alert });
-    if (entry.daily) {
-      while (entry.at <= world.t) entry.at += DAY;
-    } else entry.done = true;
-    changed = true;
-  }
-  if (changed) s.roster = s.roster.filter((e) => !e.done).sort((a, b) => a.at - b.at);
-}
+// ---- duty roster: roster.js (applied once a minute below) ----
 
 // ---- scheduled take-offs ----
 
@@ -235,7 +206,7 @@ function runSail(world, c) {
 /** Once a minute: every order whose time has come. */
 export function updateTimetable(world) {
   for (const s of world.squadrons) {
-    if (s.roster && s.roster.length) applyRoster(world, s);
+    if (s.roster) applyRoster(world, s);
     if (s.schedule) runTakeoff(world, s);
   }
   for (const f of world.formations || []) if (f.schedule) runWing(world, f);

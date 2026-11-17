@@ -270,6 +270,8 @@ const LEVELS = {
   convoyBombed: 'alert',
   uboatAttack: 'alert',
   uboatSunk: 'success',
+  escortEngaged: 'alert',
+  depthChargePass: 'warning',
   uboatSighted: 'warning',
   scenarioEvent: 'alert',
   mruReady: 'success',
@@ -397,8 +399,23 @@ export function eventMessage(world, e) {
     case 'uboatContactLost':
       p.time = formatTime(world.startMs + e.t * 1000);
       break;
-    case 'escortHuntOver':
-      if (e.sank) key = 'log.escortHuntOverSank';
+    case 'escortHuntOver': {
+      if (e.why === 'order') return null; // the order given says it
+      const base = e.sank ? 'log.escortHuntOverSank' : e.why === 'stopped' ? 'log.escortHuntStopped' : e.why === 'tooFar' ? 'log.escortHuntTooFar' : 'log.escortHuntOver';
+      key = e.convoy || e.why === 'tooFar' ? base : `${base}Alone`;
+      break;
+    }
+    case 'escortHunting':
+      if (!e.hours) return null; // a counter-attack near the convoy: the attack says it
+      if (!e.convoy) key = 'log.escortHuntingAlone';
+      break;
+    case 'escortEngaged':
+      p.how = t(`log.engageHow.${e.how}`);
+      if (!e.convoy) key = 'log.escortEngagedAlone';
+      break;
+    case 'depthChargePass':
+      if (e.result === 'sunk') return null; // the sinking says it
+      key = `log.depthChargePass.${e.result}`;
       break;
     case 'straggler':
       p.kind = e.tanker ? t('log.stragglerTanker') : t('log.stragglerFreighter');
@@ -470,6 +487,7 @@ export function eventMessage(world, e) {
       key = e.kind === 'air' ? 'log.formationCreatedAir' : 'log.formationCreatedNaval';
       break;
     case 'rosterApplied':
+    case 'rosterResumed':
     case 'alertReached':
       p.state = t(`orders.alertNames.${e.alert}`);
       break;

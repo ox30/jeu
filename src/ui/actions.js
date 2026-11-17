@@ -4,8 +4,10 @@ import { t } from '../core/i18n.js';
 import { bearing, distance, simplifyPolyline } from '../sim/geo.js';
 import { contactEstimate } from '../sim/query.js';
 import {
-  addLeg, clearPlan, departConvoy, editShipRoute, editableRoute, escortHome, joinConvoy, leaveConvoy, removeLeg, removeRoutePoint, returnToBase, routeCanExtend, routeConvoy, scramble, sendTrain, setAltitude, setCover, setEndAction, setMinStock, setOrbit, setPointAltitude, setRoute, setSpeed, setVector, updateLeg, interceptRaid, setAlert, setConvoySpeed, setEscortBehaviour, setZigzag, followSquadron, leaveFormation, planGroundRoute,
+  addLeg, clearPlan, departConvoy, editShipRoute, editableRoute, escortHome, joinConvoy, leaveConvoy, removeLeg, removeRoutePoint, returnToBase, routeCanExtend, routeConvoy, scramble, sendTrain, setAltitude, setCover, setEndAction, setMinStock, setOrbit, setPointAltitude, setRoute, setSpeed, setVector, updateLeg, interceptRaid, setAlert, setConvoySpeed, setEscortBehaviour, setZigzag, followSquadron, leaveFormation, planGroundRoute, huntPlot, setHuntHours,
 } from '../sim/orders.js';
+import { stopHunt } from '../sim/asw.js';
+import { setShipEndAction } from '../sim/naval.js';
 import { buyOffer, setPurchase } from '../sim/shipping.js';
 import { feetOf, squadronSpeed } from '../sim/squadron.js';
 import { currentSpeed, legSpeed } from '../sim/convoy.js';
@@ -16,9 +18,14 @@ import {
   addMember, dissolveFormation, formationById, formationOf, interceptFormation, launchWaiting, leaderOf, membersOf, mergeFormations, newFormation,
   removeMember, scrambleFormation,
 } from '../sim/formations.js';
-import { setRoe } from '../sim/engagement.js';
+import { authorize, setRoe } from '../sim/engagement.js';
+import { breakOffRaid } from '../sim/combat.js';
+import { isActive } from '../sim/raid.js';
 import {
-  addRoster, cancelSail, cancelTakeoff, cancelWing, removeRoster, scheduleSail, scheduleTakeoff, scheduleWing,
+  addDaily, addOverride, endOverride, overrideOf, removeRosterEntry, startOverride,
+} from '../sim/roster.js';
+import {
+  cancelSail, cancelTakeoff, cancelWing, scheduleSail, scheduleTakeoff, scheduleWing,
 } from '../sim/timetable.js';
 import {
   armRally, cancelRally, computeDepartures, newRally, setDeparture, setRallyAlt, setRallyMissing, setRallyPoint, setRallyRoute, setRallyTime,
@@ -355,8 +362,34 @@ export function orderLeave(app, escort) {
   app.dirtyPanels = true;
 }
 
-export function orderEscortHome(app, escort) {
-  for (const e of groupsOf(app, escort)) escortHome(app.world, e);
+/** Back to the port chosen (or the nearest by sea), a hunt ended on the way. */
+export function orderEscortHome(app, escort, portId = null) {
+  for (const e of groupsOf(app, escort)) escortHome(app.world, e, portId || null);
+  app.dirtyPanels = true;
+}
+
+/** The hunt stops: back to the convoy, or waiting for orders. */
+export function orderHuntStop(app, escort) {
+  for (const e of groupsOf(app, escort)) stopHunt(app.world, e);
+  app.dirtyPanels = true;
+}
+
+/** Off to hunt a fresh U-boat plot, for the hours set. */
+export function orderHuntPlot(app, escort, plotId) {
+  for (const e of groupsOf(app, escort)) huntPlot(app.world, e, plotId);
+  app.dirtyPanels = true;
+}
+
+/** How long the group's hunts last; a hunt under way is timed again from now. */
+export function orderHuntHours(app, escort, hours) {
+  for (const e of groupsOf(app, escort)) setHuntHours(app.world, e, Number(hours));
+  app.dirtyPanels = true;
+}
+
+/** What a group does at the end of its route ("escort:hx55", "port:clyde", "hunt"...). */
+export function orderShipEnd(app, escort, value) {
+  const [kind, id] = String(value).split(':');
+  for (const e of groupsOf(app, escort)) setShipEndAction(app.world, e, { kind, id: id || null });
   app.dirtyPanels = true;
 }
 
@@ -536,7 +569,7 @@ export function finishDrawing(app, hit, screenPoints, endHit = null) {
       } else {
         scrambleFormation(world, f, { route: points });
       }
-      if (onRaid) for (const m of membersOf(world, f)) m.cleared.add(onRaid.id);
+      if (onRaid) for (const m of membersOf(world, f)) authorize(m, onRaid.id);
       select(app, 'formation', f.id);
     } else {
       if (sq.state === 'ready') scramble(world, sq, { route: points });
@@ -697,12 +730,25 @@ export function orderMru(app, a, b) {
 // ---- standing orders, timetable, rendezvous -----------------------------------------------
 
 /** "HH:MM" typed by the player → game seconds: that time today, or tomorrow once past. */
-export function clockToT(app, text, dayOffset = null) {
-  const m = /^\s*(\d{1,2})[:h.](\d{2})\s*$/.exec(String(text || ''));
-  if (!m) return null;
+/** Hours and minutes of a typed hour: "05:30", "5h30", "5.30", "0530", "530", "5". */
+export function parseClock(text) {
+  const str = String(text || '').trim();
+  let m = /^(\d{1,2})(?:[:h.](\d{2}))?h?$/i.exec(str);
+  if (!m) {
+    const d = /^(\d{1,2})(\d{2})$/.exec(str);
+    if (!d) return null;
+    m = d;
+  }
   const hh = Number(m[1]);
-  const mm = Number(m[2]);
+  const mm = m[2] === undefined ? 0 : Number(m[2]);
   if (hh > 23 || mm > 59) return null;
+  return { hh, mm };
+}
+
+export function clockToT(app, text, dayOffset = null) {
+  const clock = parseClock(text);
+  if (!clock) return null;
+  const { hh, mm } = clock;
   const w = app.world;
   const dayMs = 86400000;
   const nowMs = w.startMs + w.t * 1000;
@@ -717,7 +763,7 @@ export function clockToT(app, text, dayOffset = null) {
 function clearFor(app, sq, r) {
   for (const s of wingOf(app, sq)) {
     if (!s) continue;
-    s.cleared.add(r.id);
+    authorize(s, r.id);
   }
   if (!sq.follow) sq.attackRaid = r.id;
 }
@@ -727,6 +773,24 @@ function wingOf(app, u) {
   if (u && u.members) return membersOf(app.world, u);
   const f = u ? formationOf(app.world, u) : null;
   return f ? membersOf(app.world, f) : [u];
+}
+
+/** « Désengager H05 »: the unit (its whole wing) breaks off and leaves that raid alone. */
+export function orderBreakOff(app, u, raidId) {
+  const list = wingOf(app, u).filter((s) => s && s.kind === 'squadron');
+  if (!breakOffRaid(app.world, list, raidId).length) sheetMessage(app, t('orders.breakOffNone'));
+  app.dirtyPanels = true;
+}
+
+/** The raids a unit (or its wing) fights, chases or is guided onto, latest order first. */
+export function raidsInHand(app, u) {
+  const w = app.world;
+  const ids = [];
+  for (const s of wingOf(app, u)) {
+    if (!s || s.kind !== 'squadron') continue;
+    for (const id of [s.engagedRaid, s.attackRaid, s.intercept && s.intercept.raidId]) if (id && !ids.includes(id)) ids.push(id);
+  }
+  return ids.map((id) => w.raids.find((r) => r.id === id)).filter((r) => r && isActive(r));
 }
 
 /** Standing order on meeting the enemy, for a squadron or every squadron of its formation. */
@@ -757,19 +821,55 @@ export function cancelConfirm(app) {
   app.dirtyPanels = true;
 }
 
-export function orderRosterAdd(app, s, alert, text, daily) {
-  const at = clockToT(app, text);
-  if (at === null) {
-    sheetMessage(app, t('orders.errors.clock'));
+/** Seconds after midnight for a typed hour ("05:30", "5h30"), or null. */
+export function clockToTod(text) {
+  const clock = parseClock(text);
+  return clock ? (clock.hh * 60 + clock.mm) * 60 : null;
+}
+
+/** Seconds for a typed number of hours after H0 ("6", "6.5", "6:30", "H+6"), or null. */
+export function offsetToS(text) {
+  const m = /^\s*(?:h\s*)?\+?\s*(\d{1,3})(?:[.,](\d+)|[:h](\d{2}))?\s*h?\s*$/i.exec(String(text || ''));
+  if (!m) return null;
+  let hours = Number(m[1]);
+  if (m[2] !== undefined) hours += Number(`0.${m[2]}`);
+  if (m[3] !== undefined) {
+    if (Number(m[3]) > 59) return null;
+    hours += Number(m[3]) / 60;
+  }
+  return Math.round(hours * 60) * 60;
+}
+
+/**
+ * A change in the duty roster: in the daily plan at an hour of the day ("05:30"), or, while a
+ * plan for the coming hours runs, so many hours after its start ("6" for H+6).
+ */
+export function orderRosterAdd(app, s, alert, text) {
+  const w = app.world;
+  const override = Boolean(overrideOf(w, s));
+  const when = override ? offsetToS(text) : clockToTod(text);
+  if (when === null) {
+    sheetMessage(app, t(override ? 'orders.errors.offset' : 'orders.errors.clock'));
     return false;
   }
-  addRoster(app.world, s, at, alert, daily);
+  const entry = override ? addOverride(w, s, when, alert) : addDaily(w, s, when, alert);
+  if (!entry) {
+    sheetMessage(app, t('orders.errors.rosterAfter'));
+    return false;
+  }
   app.dirtyPanels = true;
   return true;
 }
 
 export function orderRosterRemove(app, s, entryId) {
-  removeRoster(app.world, s, entryId);
+  removeRosterEntry(app.world, s, entryId);
+  app.dirtyPanels = true;
+}
+
+/** Ticked: a plan for the coming hours only, empty, instead of the daily one; unticked: back to it. */
+export function orderRosterOverride(app, s, on) {
+  if (on) startOverride(app.world, s, Number(app.settings.rosterHours) || 24);
+  else endOverride(app.world, s);
   app.dirtyPanels = true;
 }
 

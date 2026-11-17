@@ -9,6 +9,35 @@ import { countText, ftText, placeText } from './format.js';
 
 /** Highest speed left after an alert of each level ("slow down on alert" setting). */
 export const ALERT_SPEED = { raid: 10, danger: 60, warning: 600 };
+
+/**
+ * The speed each alert brings the game down to, unless the player set another one in the
+ * settings (0: it does not slow the game down). At sea, the player decides at ×1.
+ */
+export const ALERT_GROUPS = [
+  { id: 'air', speeds: { raidDetected: 10, patrolBounced: 600 } },
+  {
+    id: 'sea',
+    speeds: {
+      uboatAttack: 1, convoyBombed: 1, escortEngaged: 1, uboatPlot: 1, convoySighted: 1, straggler: 1,
+      convoyInEscortRange: 1, escortLowFuel: 1, convoyStopped: 1, convoyWaiting: 1,
+    },
+  },
+  { id: 'bases', speeds: { siteOut: 600, noFuel: 600, noAmmo: 600, lowFuel: 600, scheduleDelayed: 600 } },
+];
+const DEFAULT_SPEED = Object.assign({}, ...ALERT_GROUPS.map((g) => g.speeds));
+
+/** Speed an alert slows the game down to (0: none), from the settings or by default. */
+export function alertSpeed(settings, type, level) {
+  const own = settings && settings.alertSpeeds ? settings.alertSpeeds[type] : undefined;
+  if (own !== undefined && own !== null && own !== '') return Number(own);
+  return DEFAULT_SPEED[type] ?? ALERT_SPEED[level] ?? 600;
+}
+
+/** The default speed of an alert type. */
+export function defaultAlertSpeed(type) {
+  return DEFAULT_SPEED[type];
+}
 const RANK = { warning: 1, danger: 2, raid: 3 };
 
 export function alertRank(level) {
@@ -145,6 +174,14 @@ const RULES = {
     quiet: 12 * H,
     params: { airfield: e.airfield },
     focus: airfieldAt(w, e.airfield),
+  }),
+  escortEngaged: (w, e) => ({
+    level: 'danger',
+    key: `engaged:${e.escortId}`,
+    quiet: H / 2,
+    params: { escort: e.escort, convoy: e.convoy },
+    variant: e.convoy ? 'text' : 'alone',
+    focus: { x: e.x, y: e.y, kind: 'escort', id: e.escortId },
   }),
   scheduleDelayed: (w, e) => {
     const reason = e.reason;

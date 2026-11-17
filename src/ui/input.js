@@ -14,7 +14,8 @@
 import { panBy, toWorld, zoomAt } from '../render/camera.js';
 import {
   SPEEDS, activePoint, addRulerLeg, cancelSpeed, changeAltitude, changePointAltitude, confirmSpeed, deletePoint, extendRoute, findUnit,
-  finishDrawing, orderMru, goView, headingsMode, insertPoint, movePoint, orderHome, orderOrbit, placeRallyPoint, requestSpeed, scrambleSquadron, select,
+  finishDrawing, orderMru, goView, headingsMode, insertPoint, movePoint, orderBreakOff, orderHome, orderOrbit, placeRallyPoint, raidsInHand, requestSpeed,
+  scrambleSquadron, select,
   selectedFormation, selectedSquadron, selectedUnit, setActivePoint, toggleBuster, togglePause,
 } from './actions.js';
 import { membersOf } from '../sim/formations.js';
@@ -323,6 +324,8 @@ export function attachInput(app) {
       orderOrbit(app, sq);
     } else if ((key === 'p' || key === 'P') && sq) {
       orderHome(app, sq);
+    } else if ((key === 'd' || key === 'D') && sq && raidsInHand(app, sq).length) {
+      orderBreakOff(app, sq, raidsInHand(app, sq)[0].id);
     } else if (key === '+' || key === '=') {
       zoomAt(app.camera, app.camera.width / 2, app.camera.height / 2, 1.5);
     } else if (key === '-') {

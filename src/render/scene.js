@@ -24,6 +24,7 @@ import { fuelDays } from '../sim/logistics.js';
 import { drawDevLayer } from './devLayer.js';
 import { formationById } from '../sim/formations.js';
 import { rallyPoint } from '../sim/rally.js';
+import { allViewZones } from '../sim/sight.js';
 
 const DEG = Math.PI / 180;
 
@@ -679,9 +680,35 @@ function drawEscorts(ctx, cam, app, alpha) {
       app.hits.push({ kind: 'escort', id: e.id, formation: f.id, x: tx, y: ty, r: 8, priority: 1, box: null });
       continue;
     }
+    if (e.state === 'hunting') {
+      // The search area (or the U-boat held), and a line back to the convoy it left.
+      const held = e.engage ? world.uboats.find((u) => u.id === e.engage.uboatId) : null;
+      if (!held) {
+        const [hx, hy] = toScreen(cam, e.huntX, e.huntY);
+        ctx.save();
+        ctx.setLineDash([3, 4]);
+        ctx.strokeStyle = 'rgba(139, 26, 26, 0.55)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(hx, hy, Math.max(6, world.rules.asw.asdicKm * 2 * cam.scale), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        pencilLine(ctx, [[sx, sy], [hx, hy]], { color: 'rgba(139, 26, 26, 0.55)', width: 1.2, dash: [4, 4] });
+      }
+      const c = world.convoys.find((x) => x.id === e.huntFor);
+      if (c && selected) pencilLine(ctx, [[sx, sy], toScreen(cam, c.x, c.y)], { color: 'rgba(79, 96, 112, 0.5)', width: 1, dash: [2, 5], arrow: false });
+    }
     if (e.state === 'atSea' || e.state === 'waiting') {
       if (e.route.length) {
         pencilLine(ctx, [[sx, sy], ...e.route.map(([x, y]) => toScreen(cam, x, y))], { color: 'rgba(79, 96, 112, 0.8)', width: 1.4, dash: [6, 5] });
+        if (selected && e.endAction && e.endAction.kind !== 'stop' && !e.homeward) {
+          const [lx, ly] = toScreen(cam, e.route[e.route.length - 1][0], e.route[e.route.length - 1][1]);
+          ctx.font = `italic 11px ${FONTS.serif}`;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = 'rgba(47, 79, 111, 0.95)';
+          ctx.fillText(shipEndLabel(world, e), lx + 10, ly + 12);
+        }
       } else {
         drawPlanTrack(ctx, cam, app, e, selected);
       }
@@ -702,19 +729,137 @@ function drawEscorts(ctx, cam, app, alpha) {
       ctx.arc(sx + ox, sy + oy, 12, 0, Math.PI * 2);
       ctx.stroke();
     }
+    if (e.engage) {
+      // At grips with a U-boat: a red ring that beats with the depth-charge passes.
+      const pulse = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() / 300));
+      ctx.strokeStyle = `rgba(178, 34, 34, ${pulse.toFixed(2)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sx + ox, sy + oy, 15, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     let box = null;
     if (e.state !== 'escorting' || selected) {
       let label = `${e.short} · ${e.ships}`;
+      if (e.engage) label = t('map.escortCombat', { name: e.short, n: e.ships });
+      else if (e.state === 'hunting') label = t('map.escortHunting', { name: e.short, n: e.ships });
       if (f && m.index === 0) {
         const ships = f.members.reduce((n, id) => n + (world.escorts.find((x) => x.id === id)?.ships || 0), 0);
         label = t('map.groupPlaque', { name: f.name, n: f.members.length, ships });
       } else if (f) {
         label = `${e.short} · ${e.ships} → ${f.name}`;
       }
-      box = placePlaque(ctx, app, sx + ox, sy + oy, [label], { accent: selected ? COLORS.select : '#4f6070', size: 10 }, 10);
+      box = placePlaque(ctx, app, sx + ox, sy + oy, [label], { accent: e.engage ? COLORS.rafRed : selected ? COLORS.select : '#4f6070', size: 10 }, 10);
     }
     app.hits.push({ kind: 'escort', id: e.id, formation: f ? f.id : undefined, x: sx + ox, y: sy + oy, r: 12, priority: 1, box });
   }
+}
+
+/** What an escort group does at the end of its route, written by its last point. */
+function shipEndLabel(world, e) {
+  const a = e.endAction;
+  if (a.kind === 'escort') return t('map.shipEnd.escort', { convoy: world.convoys.find((c) => c.id === a.id)?.name || '' });
+  if (a.kind === 'port') return t('map.shipEnd.port', { port: world.byId.port.get(a.id)?.name || '' });
+  return t(`map.shipEnd.${a.kind}`);
+}
+
+/** Dashed bubbles around the ports a ship can enter: a route that ends in one goes in. */
+// ---- what the units see (Réglages, Carte) ------------------------------------------------
+
+const ZONE_STYLE = {
+  air: { fill: 'rgba(60, 100, 150, 0.05)', stroke: 'rgba(60, 100, 150, 0.65)', dash: [6, 4], text: '#2f5786' },
+  surface: { fill: 'rgba(36, 104, 84, 0.07)', stroke: 'rgba(36, 104, 84, 0.75)', dash: [4, 3], text: '#1f5a48' },
+  submerged: { fill: 'rgba(24, 54, 110, 0.14)', stroke: 'rgba(24, 54, 110, 0.85)', dash: [], text: '#18366e' },
+};
+const ZONE_TEXT = { air: 'map.viewAir', surface: 'map.viewSurface', submerged: 'map.viewSubmerged' };
+
+/** The selected units whose zones are drawn: [{ unit, kind }] (a formation: all its members). */
+function chosenUnits(app) {
+  const sel = app.selection;
+  const w = app.world;
+  if (!sel) return [];
+  if (sel.kind === 'formation') {
+    const f = formationById(w, sel.id);
+    if (!f) return [];
+    const kind = f.kind === 'air' ? 'squadron' : 'escort';
+    const list = f.kind === 'air' ? w.squadrons : w.escorts;
+    return f.members.map((id) => list.find((u) => u.id === id)).filter(Boolean).map((unit) => ({ unit, kind }));
+  }
+  if (sel.kind === 'squadron' || sel.kind === 'escort') {
+    const list = sel.kind === 'squadron' ? w.squadrons : w.escorts;
+    const unit = list.find((u) => u.id === sel.id);
+    return unit ? [{ unit, kind: sel.kind }] : [];
+  }
+  return [];
+}
+
+function drawViewZones(ctx, cam, app, alpha) {
+  const mode = app.settings.viewZones || 'selected';
+  if (mode === 'none') return;
+  const chosen = mode === 'selected' ? chosenUnits(app) : [];
+  const zones = allViewZones(app.world, mode, chosen);
+  if (!zones.length) return;
+  // Labels for the unit chosen (its leader for a formation), not for every unit on the map.
+  const named = mode === 'selected' && chosen.length ? chosen[0].unit : null;
+  const labels = [];
+  ctx.save();
+  for (const z of [...zones].sort((a, b) => b.km - a.km)) {
+    const [sx, sy] = unitScreen(cam, z.unit, alpha);
+    const r = z.km * cam.scale;
+    if (r < 3 || !onScreen(cam, sx, sy, r + 20)) continue;
+    const st = ZONE_STYLE[z.kind];
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.fillStyle = st.fill;
+    ctx.fill();
+    ctx.setLineDash(st.dash);
+    ctx.strokeStyle = st.stroke;
+    ctx.lineWidth = 1.1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (z.unit === named && r >= 22) labels.push({ z, sx, sy, r, st });
+  }
+  // Same size circles (a patrol: aircraft and U-boats): one label above, the other below.
+  ctx.font = `10px ${FONTS.mono}`;
+  ctx.textAlign = 'center';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(250, 244, 228, 0.9)';
+  let lastTop = -Infinity;
+  for (const l of labels) {
+    const below = Math.abs(l.r - lastTop) < 14;
+    if (!below) lastTop = l.r;
+    const y = below ? l.sy + l.r + 3 : l.sy - l.r - 3;
+    ctx.textBaseline = below ? 'top' : 'bottom';
+    const text = t(ZONE_TEXT[l.z.kind], { km: formatNumber(Math.round(l.z.km * 10) / 10) });
+    ctx.strokeText(text, l.sx, y);
+    ctx.fillStyle = l.st.text;
+    ctx.fillText(text, l.sx, y);
+  }
+  ctx.restore();
+}
+
+function drawPortBubbles(ctx, cam, app, u) {
+  const world = app.world;
+  const r = world.rules.navigation.portBubbleKm * cam.scale;
+  if (r < 6) return;
+  const ports = world.ports.filter((p) => !p.foreign && (u.type === 'coastal' ? p.coastal : p.convoys));
+  ctx.save();
+  ctx.setLineDash([3, 5]);
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = 'rgba(47, 79, 111, 0.6)';
+  ctx.fillStyle = 'rgba(47, 79, 111, 0.85)';
+  ctx.font = `italic 10px ${FONTS.serif}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (const p of ports) {
+    const [sx, sy] = toScreen(cam, p.x, p.y);
+    if (!onScreen(cam, sx, sy, r)) continue;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    if (r > 14) ctx.fillText(t('map.portBubble'), sx, sy + r + 2);
+  }
+  ctx.restore();
 }
 
 // ---- navigation: entrances of the charted channels, planned tracks -------------------
@@ -722,6 +867,7 @@ function drawEscorts(ctx, cam, app, alpha) {
 function drawGates(ctx, cam, app) {
   const world = app.world;
   const sel = selectedUnit(app);
+  if (sel && (sel.kind === 'convoy' || sel.kind === 'escort') && app.settings.orders !== 'headings') drawPortBubbles(ctx, cam, app, sel);
   if (app.settings.orders !== 'headings' && !(sel && (sel.kind === 'convoy' || sel.kind === 'escort'))) return;
   const r = Math.max(5, world.rules.navigation.pilotKm * cam.scale);
   ctx.save();
@@ -1542,6 +1688,7 @@ export function drawScene(ctx, app, alpha) {
   if (app.settings.grid) drawGrid(ctx, cam, app.world.grid);
   if (app.settings.radarCover && cam.scale > 0.35) drawCoverage(ctx, cam, app.world);
   drawRail(ctx, cam, app);
+  drawViewZones(ctx, cam, app, alpha);
   drawDfZones(ctx, cam, app);
   drawUboatPlots(ctx, cam, app);
   drawUboatContacts(ctx, cam, app);

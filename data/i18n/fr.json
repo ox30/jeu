@@ -144,12 +144,14 @@
       "noRuler": "Mesurez d'abord un cap avec la règle (touche R, ou glissez depuis l'unité).",
       "lastPoint": "Le tracé doit garder au moins un point : tracez-en un nouveau depuis l'unité.",
       "intercept": "Interception impossible : pas de contact sûr avec ce raid, ou l'escadrille ne peut pas recevoir d'ordre.",
-      "clock": "Heure non comprise : tapez par exemple 09:30."
+      "clock": "Heure non comprise : tapez par exemple 09:30, 0930 ou 9h30.",
+      "rosterAfter": "Ce moment tombe après la fin du planning des prochaines heures.",
+      "offset": "Nombre d'heures après H0 non compris : tapez par exemple 6, 6.5 ou 6:30."
     },
     "join": "Rejoindre {convoy}",
     "leave": "Quitter le convoi",
     "homePort": "Rentrer au port",
-    "joinHint": "Le groupe prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » calcule lui-même la route d'interception (sauf en Réaliste).",
+    "joinHint": "Le groupe prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » calcule lui-même la route d'interception (sauf en Réaliste), et contourne la terre ; « Rentrer au port » aussi. Une route tracée qui finit dans la bulle d'un port y entre.",
     "cover": "Couvrir {convoy}",
     "coverHint": "L'escadrille tourne au-dessus du convoi et le suit.",
     "escortSail": "Appareiller",
@@ -161,7 +163,7 @@
     "pointDelete": "Supprimer ce point",
     "pointHintAir": "↑ ↓ règlent l'altitude que l'escadrille vise en allant vers ce point. Glissez le carré pour le déplacer, double-cliquez-le (ou Suppr) pour le retirer.",
     "pointHintSea": "Glissez le carré pour déplacer le point, double-cliquez-le (ou Suppr) pour le retirer. Le chenal d'entrée au port ne se modifie pas.",
-    "followingRoute": "Suit son tracé ({n} points). Glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger.",
+    "followingRoute": "Suit son tracé ({n} point{s}). Glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger.",
     "editLeg": "Modifier cette étape",
     "editingLeg": "Modifier l'étape {n}",
     "applyLeg": "Enregistrer",
@@ -191,12 +193,12 @@
     "speedHint": "Au maximum, des navires lents décrochent et deviennent des traînards. À {n} nœuds ou moins, le convoi reste groupé. Le zigzag gêne les U-Boote mais ralentit d'environ 15 %.",
     "zigzagOn": "Zigzag : oui",
     "zigzagOff": "Zigzag : non",
-    "behaviour": "Escorte",
+    "behaviour": "Face aux U-Boote",
     "behaviours": {
       "stay": "Rester avec le convoi",
       "hunt": "Chasser les contacts"
     },
-    "behaviourHint": "En chasse, le groupe quitte le convoi pour un contact frais pendant 3 h (le convoi est moins protégé), puis le rejoint. Les escorteurs ne contre-attaquent bien qu'un U-Boot qu'ils ont vu.",
+    "behaviourHint": "Rester : le groupe garde son poste et n'attaque qu'un U-Boot tout près du convoi (30 min au plus). Chasser : il quitte le convoi pour un contact frais, le temps choisi, puis revient seul ; le convoi est moins protégé pendant ce temps. Tout ordre interrompt une chasse.",
     "formation": "Big Wing",
     "followLeader": "Voler avec {name}",
     "leaveFormation": "Quitter la formation",
@@ -221,8 +223,8 @@
     "speed": "Vitesse",
     "today": "aujourd'hui",
     "tomorrow": "demain",
-    "roster": "Programmation des effectifs",
-    "rosterIntro": "Programmez l'état d'alerte de chaque escadrille de la base. La frise montre les 24 prochaines heures (sans les vols) ; les hachures, un rappel en cours.",
+    "roster": "Planning des effectifs",
+    "rosterIntro": "Le planning de chaque escadrille se répète chaque jour, de 00:00 à 24:00 (des heures, pas de dates). Pour une journée particulière (une mission prévue), cochez « Seulement les prochaines 24 h » : un planning vide part de maintenant (H0), on le remplit en heures (de H0 à H+6 au repos, de H+6 à H+9 en alerte…) ; il remplace celui de chaque jour jusqu'à sa fin, puis on y revient. La frise montre les 24 prochaines heures (sans les vols) ; les hachures, un rappel en cours ; le trait dessous, le planning des prochaines heures.",
     "scheduleHint": "Programmer un départ : l'heure saisie est celle de l'ordre. L'unité part ensuite selon son état : 2 min au cockpit, 5 min en alerte, 30 min disponible, 2 h au repos (le temps de rappeler le personnel). Anticipez l'état d'alerte, ou programmez-le dans les effectifs.",
     "understood": "Compris",
     "scrambleIn": "Décoller (en l'air dans {d})",
@@ -238,7 +240,41 @@
     "sailScheduled": "Appareillage programmé : {time}",
     "sailScheduledHint": "Tracez la route depuis le port, ou préparez des étapes : elles attendent l'heure.",
     "sailJoin": "Appareillage programmé {time} pour rejoindre {formation}.",
-    "joinGroup": "Rejoindre un groupe de soutien"
+    "joinGroup": "Rejoindre un groupe de soutien",
+    "rosterOverride": "Seulement les prochaines {n} h",
+    "rosterOverrideUntil": "H0 = {start} ; à H+{n}, {time}, retour au planning quotidien.",
+    "rosterEmpty": "Vide : l'escadrille garde son état. Ajoutez des changements ci-dessous.",
+    "rosterDailyAfter": "Ensuite, chaque jour : {plan}",
+    "rosterNone": "Aucun changement : ceux que vous ajoutez ici se répètent chaque jour.",
+    "alertShort": {
+      "rest": "repos",
+      "thirty": "disponible",
+      "available": "alerte",
+      "cockpit": "cockpit"
+    },
+    "inDays": "dans {n} jours",
+    "rosterUnchanged": "état inchangé",
+    "fromH": "De H+",
+    "hours": "{n} h",
+    "huntFor": "chasse de",
+    "huntStop": "Interrompre la chasse",
+    "huntPlot": "Chasser le contact de {time} ({km} km)",
+    "go": "Y aller",
+    "portChoice": "{port} · {km} km · {h} h",
+    "huntEngaged": "En chasse jusqu'à {time} : attaque un U-Boot (passe {n}).",
+    "huntCounter": "Riposte près du convoi, jusqu'à {time} au plus.",
+    "huntSearching": "En chasse jusqu'à {time} : recherche du contact.",
+    "shipEnd": {
+      "stop": "S'arrêter et attendre",
+      "hold": "Garder le cap",
+      "hunt": "Chasser sur place ({n} h)",
+      "escort": "Rejoindre {convoy}",
+      "port": "Entrer au port : {port}"
+    },
+    "breakOff": "Désengager {raid}",
+    "breakOffNone": "Plus rien à rompre : l'unité n'est plus sur ce raid.",
+    "letGo": "Désengagée de {raids} : elle laisse ce raid tranquille, quelle que soit son attitude, jusqu'à un nouvel ordre sur lui (tracé qui finit sur le raid, ou « Intercepter »).",
+    "letGoMany": "Désengagée de {raids} : elle laisse ces raids tranquilles, quelle que soit son attitude, jusqu'à un nouvel ordre sur eux (tracé qui finit sur le raid, ou « Intercepter »)."
   },
   "sheet": {
     "type": "Appareil",
@@ -446,7 +482,50 @@
     "devCancel": "Annuler",
     "devWrong": "Mot de passe incorrect.",
     "devUnavailable": "Cette page ne peut pas vérifier le mot de passe.",
-    "devHint": "Pour contrôler les scénarios : les vraies positions ennemies en magenta et un onglet « Ennemis ». Il ne change rien à la partie. Le cocher demande le mot de passe."
+    "devHint": "Pour contrôler les scénarios : les vraies positions ennemies en magenta et un onglet « Ennemis ». Il ne change rien à la partie. Le cocher demande le mot de passe.",
+    "rosterHours": "Effectifs : un planning des prochaines heures dure",
+    "rosterHoursChoices": {
+      "6": "6 h",
+      "12": "12 h",
+      "24": "24 h",
+      "48": "48 h"
+    },
+    "tabs": {
+      "game": "Partie",
+      "time": "Temps et alertes",
+      "map": "Carte",
+      "sound": "Sons",
+      "dev": "Développeur"
+    },
+    "alertGroups": {
+      "air": "Air",
+      "sea": "Mer",
+      "bases": "Bases et ravitaillement"
+    },
+    "speedDefault": "par défaut ({speed})",
+    "speedNone": "pas de ralenti",
+    "alertSpeedsHint": "Avec « Ralentir le temps à chaque alerte », chaque alerte ramène le jeu au plus à la vitesse choisie ici. En mer, tout passe à ×1 par défaut : on décide, puis on accélère soi-même.",
+    "viewZones": "Zones de vue des unités",
+    "viewZonesChoices": {
+      "none": "aucune",
+      "selected": "de l'unité choisie",
+      "all": "de toutes les unités"
+    },
+    "viewZonesHint": "Ce que voient les unités, de jour ou de nuit. Un avion : son rayon de vue sur les autres avions (à même altitude ; de bien plus haut ou plus bas, moitié moins loin) et, pour une patrouille côtière, sur un U-Boot en surface. Un groupe d'escorte : un U-Boot en surface (vigies, radar s'il en a) et en plongée (ASDIC).",
+    "volume": "Volume",
+    "alertNames": {
+      "raidDetected": "Raid détecté",
+      "uboatAttack": "Convoi attaqué par un U-Boot",
+      "convoySighted": "Convoi pisté par un U-Boot",
+      "convoyInEscortRange": "Convoi à portée des escortes",
+      "escortLowFuel": "Escorte à court de carburant",
+      "convoyStopped": "Navires arrêtés avant la côte",
+      "convoyWaiting": "Navires en attente d'ordres",
+      "noAmmo": "Base à court de munitions",
+      "noFuel": "Base sans carburant",
+      "lowFuel": "Carburant bas sur une base",
+      "scheduleDelayed": "Ordre programmé retardé"
+    }
   },
   "objectives": {
     "convoyArrived": "Amener le convoi {convoy} dans un port britannique",
@@ -603,8 +682,8 @@
     "patrolBounced": "{squadron} surprise par l'escorte du raid {raid} : un appareil abattu ({left} restant(s)).",
     "uboatSighted": "{by} : U-Boot repéré ({source}), il plonge.",
     "uboatPlot": "",
-    "escortHunting": "{escort} quitte {convoy} pour chasser un U-Boot.",
-    "escortHuntOver": "{escort} abandonne la chasse et rejoint {convoy}.",
+    "escortHunting": "{escort} quitte {convoy} pour chasser un U-Boot pendant {hours} h.",
+    "escortHuntOver": "{escort} : fin de la chasse, il rejoint {convoy}.",
     "escortHuntOverSank": "{escort} a coulé un U-Boot et rejoint {convoy}.",
     "straggler": "Un {kind} de {convoy} a décroché : il navigue seul derrière le convoi.",
     "uboatSunkBy": "{by} coule un U-Boot !",
@@ -683,7 +762,30 @@
     "rallyWaiting": "{formation} attend ses retardataires, {min} min au plus.",
     "rallyCaughtUp": "{unit} a rattrapé {formation}.",
     "rallyDone": "{formation} : rassemblement terminé.",
-    "atRendezvous": "{squadron} est au rendez-vous de {formation} et tourne en attendant."
+    "atRendezvous": "{squadron} est au rendez-vous de {formation} et tourne en attendant.",
+    "rosterResumed": "Effectifs : {squadron} reprend son planning quotidien, {state}.",
+    "escortHuntingAlone": "{escort} part chasser un U-Boot pendant {hours} h.",
+    "escortHuntOverAlone": "{escort} : fin de la chasse.",
+    "escortHuntStopped": "{escort} interrompt la chasse et rejoint {convoy}.",
+    "escortHuntStoppedAlone": "{escort} interrompt la chasse.",
+    "escortHuntTooFar": "{escort} ne s'éloigne pas plus de {convoy} et reprend son poste.",
+    "escortHuntOverSankAlone": "{escort} a coulé un U-Boot.",
+    "escortEngaged": "{escort} attaque un U-Boot près de {convoy} ({how}).",
+    "escortEngagedAlone": "{escort} attaque un U-Boot ({how}).",
+    "engageHow": {
+      "asdic": "contact ASDIC",
+      "seen": "vu en surface",
+      "periscope": "périscope aperçu",
+      "radar": "écho radar",
+      "flash": "repéré à l'éclair de son tir"
+    },
+    "depthChargePass": {
+      "nothing": "{escort}, passe {pass} : grenades, pas de résultat visible.",
+      "damaged": "{escort}, passe {pass} : gazole et débris à la surface, l'U-Boot est touché ; il rompt et rentre.",
+      "lost": "{escort}, passe {pass} : contact perdu.",
+      "sunk": "{escort}, passe {pass} : U-Boot coulé !"
+    },
+    "brokeOffOrdered": "{units} : désengagé du raid {raid}, en attente d'ordres."
   },
   "reasons": {
     "fuel": "carburant",
@@ -767,7 +869,19 @@
     "groupPlaque": "{name} · {n} gr. · {ships}",
     "rallyAsap": "au plus tôt",
     "rallyAir": "RV {name} · {time} · {alt}",
-    "rallySea": "RV {name} · {time}"
+    "rallySea": "RV {name} · {time}",
+    "escortCombat": "{name} · {n} · au combat",
+    "escortHunting": "{name} · {n} · en chasse",
+    "portBubble": "entrée au port",
+    "shipEnd": {
+      "hold": "→ garde le cap",
+      "hunt": "⌖ chasse",
+      "escort": "⇢ rejoint {convoy}",
+      "port": "⚓ {port}"
+    },
+    "viewAir": "vue {km} km",
+    "viewSurface": "surface {km} km",
+    "viewSubmerged": "plongée {km} km"
   },
   "help": {
     "title": "Comment jouer",
@@ -780,7 +894,7 @@
       "Tracés : cliquez une unité pour ouvrir sa fiche, à droite de la carte, et voir les carrés de sa route. Glissez un carré pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. En fin de tracé, l'escadrille orbite, sauf si vous choisissez autre chose dans l'onglet Route de sa fiche (se poser si le tracé finit dans la bulle d'un aérodrome).",
       "Victoire si les convois livrent l'essentiel de leur cargaison, si 4 bases sur 5 sont en service et si la chasse garde 60 % de ses avions le 24 juillet. Défaite immédiate si toutes les bases restent sans carburant 24 heures."
     ],
-    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle (la croix de son encart l'efface) · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler, puis fermer la fiche · ↑ ↓ : altitude (de l'unité choisie, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : pleine vitesse · O : orbiter · P : rentrer · Question à l'écran : Entrée = oui (au rendez-vous : le choix du plan), Échap = non (au rendez-vous : partir)",
+    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle (la croix de son encart l'efface) · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler, puis fermer la fiche · ↑ ↓ : altitude (de l'unité choisie, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : pleine vitesse · O : orbiter · P : rentrer · D : désengager du raid en cours · Question à l'écran : Entrée = oui (au rendez-vous : le choix du plan), Échap = non (au rendez-vous : partir)",
     "close": "Compris",
     "stepsTraining": [
       "Carte de l'Atlantique : glissez depuis le convoi HX (à Halifax) pour tracer sa route jusqu'à Liverpool ou la Clyde, ou cliquez sur « Route de l'Amirauté ». En réglage Réaliste, on navigue au cap : mesurez avec la règle, ajoutez des étapes, puis appareillez. Près de l'entrée d'un chenal, un pilote prend le relais.",
@@ -793,11 +907,12 @@
     "common": [
       "Tracés : cliquez une unité pour ouvrir sa fiche à droite de la carte. L'onglet Ordres regroupe ce qu'elle doit faire (décoller, missions, état d'alerte, attitude face à l'ennemi, formation) ; l'onglet Navigation, comment elle y va (route, étapes, cap, altitude, vitesse, fin de route, profil). Tant que la fiche est ouverte, la règle, Entrée et ↑ ↓ s'adressent à cette unité. La croix ou Échap la ferme. Glissez les carrés de la route, ajoutez-en avec « + », prolongez par l'anneau du bout, double-cliquez pour retirer. Maj + glisser mesure (règle) ; la croix de son encart l'efface.",
       "Formations (menu du haut) : groupez des escadrilles en big wing, ou des groupes d'escorte en groupe de soutien. La formation devient une seule unité, avec une fiche et les mêmes ordres pour tous ; son chef (★) mène, le suivant prend la relève. Les fiches techniques (menu du haut) donnent vitesses, plafonds et autonomies.",
-      "Face à l'ennemi (onglet Ordres) : en Défense, une escadrille n'attaque pas d'elle-même et demande l'autorisation quand elle voit un raid ; en Attaque (le défaut), elle attaque les raids qui arrivent et demande avant de poursuivre un raid qui rentre ; en Attaque et poursuite, elle poursuit sans demander jusqu'à mi-Manche, puis demande. Une question passe le jeu à ×1 et y reste ; sans réponse en 60 s, c'est non. Une seule question par raid et par escadrille ; on peut couper les questions dans Réglages. Un tracé qui finit sur un raid, ou « Intercepter », vaut autorisation.",
-      "États d'alerte : Repos (2 h : le personnel peut être n'importe où), Disponible (30 min), Alerte (5 min), Cockpit (2 min). Le délai est le temps pour être en l'air après l'ordre de décoller ; monter d'un état prend la différence (du repos à l'alerte : 1 h 55), descendre est immédiat. Avec la fatigue, l'onglet Effectifs d'un aérodrome programme l'état de chaque escadrille sur 24 h (« chaque jour » pour un tour de service).",
+      "Face à l'ennemi (onglet Ordres) : en Défense, une escadrille n'attaque pas d'elle-même et demande l'autorisation quand elle voit un raid ; en Attaque (le défaut), elle attaque les raids qui arrivent et demande avant de poursuivre un raid qui rentre ; en Attaque et poursuite, elle poursuit sans demander jusqu'à mi-Manche, puis demande. Une question passe le jeu à ×1 et y reste ; sans réponse en 60 s, c'est non. Une seule question par raid et par escadrille ; on peut couper les questions dans Réglages. Un tracé qui finit sur un raid, ou « Intercepter », vaut autorisation. « Désengager H05 » (touche D) sort l'unité du combat : elle tourne sur place et laisse ce raid tranquille jusqu'à un nouvel ordre sur lui. Passer à une attitude plus prudente retire les autorisations déjà données : une escadrille qui poursuivait rompt au round suivant.",
+      "États d'alerte : Repos (2 h : le personnel peut être n'importe où), Disponible (30 min), Alerte (5 min), Cockpit (2 min). Le délai est le temps pour être en l'air après l'ordre de décoller ; monter d'un état prend la différence (du repos à l'alerte : 1 h 55), descendre est immédiat. L'onglet Effectifs d'un aérodrome tient le plan de chaque jour (heures de 00:00 à 24:00) ; « Seulement les prochaines 24 h » ouvre un plan d'exception en heures H (H0 – H+6 repos, H+6 – H+9 alerte…), puis on revient au plan du jour. La durée se règle dans Réglages.",
       "Programmer : « Décollage programmé » (ou « Appareillage programmé ») donne l'ordre à l'heure dite, avec la route tracée depuis la base ou les étapes préparées ; l'heure saisie est celle de l'ordre, le délai de l'état d'alerte s'y ajoute. « Rejoindre une formation » fait partir une escadrille à son heure pour rejoindre une big wing (ou un groupe de soutien).",
       "Rassemblement (onglet d'une big wing ou d'un groupe de soutien) : sur le chef, ou sur un point à une heure donnée (ou au plus tôt), avec la route à suivre ensuite. Chaque membre a son heure de départ : en Arcade elles sont calculées, en Standard la fiche montre l'heure d'arrivée de chacun, en Réaliste à vous de compter (délai, montée, trajet). Avec une heure fixée, la formation part à cette heure (les premiers arrivés tournent) ; au plus tôt, dès que tous sont là. À l'heure, s'il manque quelqu'un : attendre (un temps maximum), ralentir vers la cible ou partir ; une big wing vous pose la question. Les retardataires suivent le plan en retard et rejoignent en route.",
-      "Chaque raid se termine par un rapport, rangé dans « Rapports ». La partie est gardée dans le navigateur ; le menu « Scénario » permet de l'exporter dans un fichier."
+      "En mer (onglet Ordres d'un groupe d'escorte) : « Face aux U-Boote », Rester avec le convoi ou Chasser les contacts, pour une durée choisie (3 h par défaut) ; « Interrompre la chasse » ou tout autre ordre l'arrête. Un U-Boot tenu à l'ASDIC reçoit une passe de grenades toutes les 10 minutes. « Rentrer au port » laisse choisir le port ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un port y entre. Onglet Navigation : que faire en fin de tracé (s'arrêter, garder le cap, chasser sur place, rejoindre un convoi, entrer au port).",
+      "Chaque raid se termine par un rapport, rangé dans « Rapports », avec ce que la RAF en sait : le premier plot, la composition une fois le raid vu, les bombes tombées ; chaque attaque à la grenade d'un groupe d'escorte aussi. La partie est gardée dans le navigateur ; le menu « Scénario » permet de l'exporter dans un fichier."
     ],
     "scenario": {
       "adlertag": [
@@ -813,12 +928,12 @@
       ],
       "hiver-atlantique": [
         "Hiver 1941, du 10 janvier au 31 mars. Les convois HX (Halifax, tous les cinq jours) et SC (Sydney, tous les huit jours, plus lents) partent seuls sur la route de l'Amirauté. Changez-la pour contourner les U-Boote repérés.",
-        "Envoyez un groupe d'escorte au-devant de chaque convoi qui approche : vos groupes ont sept ou huit jours d'autonomie et rentrent se ravitailler. « Chasser » laisse l'escorte poursuivre un contact frais ; « Rester » la garde serrée autour du convoi. Les nuits d'hiver sont longues : c'est alors que les meutes attaquent.",
+        "Envoyez un groupe d'escorte au-devant de chaque convoi qui approche : vos groupes ont sept ou huit jours d'autonomie et rentrent se ravitailler. « Chasser » laisse l'escorte poursuivre un contact frais le temps choisi ; « Rester » la garde serrée autour du convoi. Les nuits d'hiver sont longues : c'est alors que les meutes attaquent. Réglages, onglet Carte : les zones de vue montrent ce que voient vos navires et vos avions.",
         "Le Coastal Command patrouille de jour au-dessus des convois et oblige les U-Boote à plonger ; le radar ASV des Hudson et des Sunderland voit aussi un sous-marin en surface. Les deux cercles d'un repère U-Boot montrent où il peut être, en surface et en plongée.",
         "Onglet Logistique : la réserve de dollars paie la cargaison des convois. Réglez la part achetée, ou commandez des Hudson ou des Catalina en Amérique. Après le prêt-bail, tout est gratuit. Victoire si 6 800 t de carburant et 4 400 t de matériel sont déchargées et si moins de 8 % des navires sont perdus ; défaite si les pertes dépassent 20 %."
       ]
     },
-    "alerts": "Les alertes ralentissent le temps : en rouge un raid ou un convoi attaqué, en ambre une décision à prendre (escorte, carburant, convoi qui attend). Pendant une action ennemie, une vitesse élevée demande confirmation (réglable)."
+    "alerts": "Les alertes ralentissent le temps : un raid ramène à ×10 ; en mer, toute alerte ramène à ×1 (on décide, puis on accélère) ; une base à ×600. Chaque vitesse se règle dans Réglages, onglet Temps et alertes. Pendant une action ennemie, une vitesse élevée demande confirmation (réglable)."
   },
   "end": {
     "title": "Fin de service",
@@ -1077,15 +1192,26 @@
       "unopposed": "Sans opposition",
       "gone": "Rentré sans bombarder",
       "phantom": "Fausse alerte",
-      "ongoing": "En cours"
+      "ongoing": "En cours",
+      "unseen": "Jamais vu",
+      "sweep": "Chasse libre"
     },
     "composition": "{bombers} {bomberType}, escorte de {escort} {escortType}.",
-    "target": "Objectif : {target}.",
+    "compositionSweep": "{escort} {escortType}, sans bombardiers.",
+    "compositionAlone": "{bombers} {bomberType}, sans escorte.",
+    "seenBy": "Vu par {by} à {time}.",
+    "firstPlot": "Premier plot : {count} à {alt}.",
+    "notSeenYet": "Composition inconnue : pas encore vu par nos unités.",
+    "neverSeen": "Composition inconnue : jamais vu par nos unités.",
     "targetConvoy": "le convoi {convoy}",
-    "hitSite": "{site} touché : dégâts {severity}, {n} % au total.",
+    "hitSite": "Bombes sur {site} : dégâts {severity}, {n} % au total.",
     "hitConvoy": "Convoi {convoy} : {n} navire(s) coulé(s).",
     "groundLosses": "{n} avion(s) détruit(s) au sol.",
-    "noHit": "L'objectif n'a pas été touché.",
+    "noBombs": "Aucune bombe signalée.",
+    "unseenText": "Aucune de nos unités ne l'a vu et aucune bombe n'est signalée : raid reparti, ou fausse alerte du radar.",
+    "devTruth": "Mode développeur, en réalité : {force} Objectif : {target}.",
+    "devPhantom": "Mode développeur, en réalité : écho fantôme, aucun avion.",
+    "devOutcome": " Fin réelle : {outcome}.",
     "squadron": "Escadrille",
     "result": "Résultat",
     "down": "Abattus",
@@ -1097,7 +1223,6 @@
     "noSquadron": "Aucune escadrille ne l'a approché.",
     "totals": "Bilan : {down} appareil(s) allemand(s) abattu(s) ({b} bombardiers, {f} chasseurs) pour {lost} avion(s) de la RAF perdu(s).",
     "dayTotals": "{n} raid(s) · {down} abattus · {lost} pertes",
-    "phantomText": "Écho radar sans avion : fausse alerte.",
     "miss": {
       "wide": "manqué : passé à {km} km",
       "below": "manqué : {ft} trop bas",
@@ -1106,7 +1231,28 @@
       "wideAbove": "manqué : à {km} km et {ft} trop haut",
       "nothing": "rien vu"
     },
-    "missGuided": " (guidage à {p} %)"
+    "missGuided": " (guidage à {p} %)",
+    "naval": {
+      "title": "{escort} contre un U-Boot",
+      "context": "{ships} escorteurs, partis de {convoy} ; trouvé : {how}.",
+      "contextAlone": "{ships} escorteurs ; trouvé : {how}.",
+      "pass": "passe {n}",
+      "passResult": {
+        "nothing": "grenades, pas de résultat visible",
+        "damaged": "gazole et débris : touché, il rompt et rentre",
+        "lost": "contact perdu",
+        "sunk": "coulé"
+      },
+      "noPass": "Pas encore de passe : le groupe s'approche.",
+      "outcome": {
+        "ongoing": "en cours",
+        "sunk": "coulé",
+        "damaged": "endommagé",
+        "lost": "perdu",
+        "brokenOff": "rompu"
+      },
+      "dayTotals": "{n} attaque(s) d'U-Boot, {sunk} coulé(s)"
+    }
   },
   "reasonsScramble": {},
   "cards": {
@@ -1408,6 +1554,11 @@
     "scheduleDelayed": {
       "title": "Ordre en attente",
       "text": "{unit} : l'ordre programmé ne peut pas être exécuté ({reason}). Il partira dès que possible."
+    },
+    "escortEngaged": {
+      "title": "Escorte au combat",
+      "text": "{escort} attaque un U-Boot près de {convoy}.",
+      "alone": "{escort} attaque un U-Boot."
     }
   },
   "speedConfirm": {

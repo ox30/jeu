@@ -72,7 +72,18 @@ croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte
 2. **U-Boote.** Ils attaquent de nuit, en surface. Les zones hachurées viennent de la
    radiogoniométrie ; un repère U-Boot (vu par une vigie, un avion, l'ASDIC ou le radar)
    porte deux cercles : où il peut être en surface, et en plongée. Un groupe d'escorte
-   « Rejoint » un convoi et, au choix, « Reste » avec lui ou « Chasse » un contact frais.
+   « Rejoint » un convoi et, « Face aux U-Boote », « Reste » avec lui (il n'attaque que ce
+   qui s'approche, 30 min et 15 km au plus) ou « Chasse » un contact frais pendant la durée
+   choisie (3 h par défaut, de 1 à 12 h) ; « Interrompre la chasse » ou tout autre ordre
+   l'arrête, et un repère frais à moins de 80 km peut être chassé d'un clic. Un U-Boot tenu
+   (ASDIC, ou vu tout près) reçoit une passe de grenades toutes les 10 minutes : coulé,
+   touché (il rentre), perdu ou rien de visible ; chaque attaque a son rapport. « Rentrer au
+   port » laisse choisir le port, du plus proche par mer au plus loin, avec distance et
+   durée ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un
+   port (15 km, montrée quand un navire est choisi) y entre. Comme pour les avions, l'onglet
+   Navigation dit que faire en fin de tracé : s'arrêter et attendre, garder le cap, chasser
+   sur place, rejoindre un convoi ou entrer au port. Un groupe qui attend ses ordres garde
+   la veille ; un groupe attaqué en rentrant reprend ensuite sa route vers le port.
 3. **Patrouilles.** La section de guet (Spitfire) et le Coastal Command voient ce que les
    radars voient mal : un raid en vue d'une patrouille est connu exactement. Une patrouille
    peut être surprise par l'escorte allemande.
@@ -96,8 +107,14 @@ croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte
    laisse après la réponse ; sans réponse en 60 s de jeu, c'est non. Il n'y a qu'une question
    par raid et par escadrille (une seule pour une big wing), et on peut couper les questions
    dans « Réglages » (l'unité applique alors son attitude sans demander). Un tracé qui finit
-   sur le raid, ou « Intercepter », vaut autorisation. Les groupes d'escorte gardent leur
-   règle « Rester » ou « Chasser », sans question.
+   sur le raid, ou « Intercepter », vaut autorisation. **« Désengager H05 »** (onglet Ordres,
+   ou touche D) sort l'unité — toute la big wing — du combat, de la poursuite ou du guidage :
+   elle tourne sur place en attendant les ordres et laisse ce raid tranquille, quelle que soit
+   son attitude, jusqu'à un nouvel ordre sur lui (un tracé qui finit dessus, « Intercepter »).
+   Passer à une attitude plus prudente retire les autorisations déjà données : une escadrille
+   qui poursuivait avec votre accord et que vous passez en Défense rompt au round suivant, sans
+   reposer la question. Les groupes d'escorte gardent leur règle « Rester » ou « Chasser »,
+   sans question.
 5. **Tracés.** Cliquez une unité pour voir les carrés de sa route : glissez-les, ajoutez-en
    avec « + », prolongez par l'anneau du bout, double-cliquez pour retirer ; un point choisi
    prend une altitude (↑ ↓). En fin de tracé, l'escadrille orbite, sauf autre choix dans
@@ -134,9 +151,12 @@ croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte
    n'importe où ; on le confirme, récupération rapide), *Disponible* 30 min, *Alerte* 5 min,
    *Cockpit* 2 min (fatigue). Monter d'un état prend la différence (du repos à l'alerte :
    1 h 55, la fiche montre le rappel en cours) ; descendre est immédiat. L'onglet
-   **Effectifs** d'un aérodrome programme l'état de chacune de ses escadrilles, à une heure
-   ou chaque jour, avec une frise des 24 heures à venir. En Réaliste, des pilotes sont tués
-   et remplacés lentement.
+   **Effectifs** d'un aérodrome tient le plan de chaque jour de ses escadrilles (heures de
+   00:00 à 24:00, avec une frise des 24 heures à venir). Pour un jour de mission, la case
+   « Seulement les prochaines 24 h » ouvre un plan vierge en heures H depuis maintenant
+   (H0 – H+6 repos, H+6 – H+9 alerte, H+9 – H+20 cockpit…) ; passé ce délai (24 h, réglable),
+   le plan du jour reprend. Les heures se tapent librement (`5:30`, `5h30`, `0530`). En
+   Réaliste, des pilotes sont tués et remplacés lentement.
 8. **Départs programmés.** « Décollage programmé » (ou « Appareillage programmé » pour un
    convoi ou un groupe d'escorte, à un jour et une heure) donne l'ordre à l'heure dite : la
    route se trace depuis la base (en pointillé, elle attend) ou les étapes se préparent dans
@@ -158,15 +178,22 @@ croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte
    l'onglet Logistique règle la part achetée de chaque convoi, ou commande des Hudson et des
    Catalina en Amérique.
 
-Chaque raid se termine par un rapport, rangé dans « Rapports » ; les « Fiches » donnent les
+Chaque raid se termine par un rapport, rangé dans « Rapports », qui ne dit que ce que la RAF
+sait : le premier plot (« 15+ à 8 500 ft »), la composition une fois le raid vu (« vu par
+610 Sqn à 09:44 »), les bombes tombées — c'est ainsi que l'on connaît sa cible —, les
+escadrilles envoyées et les pertes. Un raid que personne n'a vu et qui n'a rien bombardé
+finit « jamais vu » : reparti, ou fausse alerte du radar, impossible de le dire. Les attaques
+à la grenade des groupes d'escorte ont aussi leur rapport. Les « Fiches » donnent les
 performances des avions et des navires. Les pages mettent le jeu en pause (réglable).
 
 **Alertes.** Tout événement qui demande le joueur lève une alerte au-dessus de la carte et
-ralentit le temps (réglable) : un raid ramène à ×10 ; un convoi attaqué ou bombardé à ×60 ;
-une décision à prendre (convoi pisté, contact U-Boot près d'un convoi, convoi à portée des
-escortes, escorte qui doit rentrer, traînards, convoi qui attend, base sans carburant ou sans
-munitions, installation hors service, patrouille surprise) à ×600, en ambre. « Voir » montre
-le lieu. Une même alerte ne se répète pas pendant quelques heures, et les alertes moins
+ralentit le temps (réglable) : un raid ramène à ×10 ; en mer, toute alerte (convoi attaqué ou
+bombardé, escorte au combat, convoi pisté, contact U-Boot près d'un convoi, convoi à portée
+des escortes, escorte qui doit rentrer, traînards, navires arrêtés ou qui attendent) ramène
+à ×1 : on décide, puis on accélère soi-même ; une base sans carburant ou sans munitions, une
+installation hors service, un ordre retardé ou une patrouille surprise, à ×600, en ambre.
+Chaque vitesse se règle à part (Réglages, onglet Temps et alertes). « Voir » montre le
+lieu. Une même alerte ne se répète pas pendant quelques heures, et les alertes moins
 urgentes attendent derrière la plus urgente. Pendant un raid ou une attaque de convoi, une
 vitesse élevée (au-delà de ×60 pendant un raid, de ×600 pendant une attaque) demande
 confirmation : Entrée pour accepter, Échap pour rester. Il n'y a pas d'avance jusqu'au
@@ -175,7 +202,7 @@ prochain événement : le joueur doit pouvoir être surpris.
 Raccourcis : Espace pause · 1 à 6 vitesse · A Atlantique · L Grande-Bretagne · G Angleterre ·
 R ou Maj + glisser règle (la croix de son encart l'efface) · Entrée ajouter l'étape mesurée ·
 C couverture radar · Échap annuler, puis fermer la fiche · ↑ ↓ altitude · Suppr retirer le point choisi ·
-S décoller · B pleine vitesse · O orbite · P rentrer · question à l'écran : Entrée oui (au
+S décoller · B pleine vitesse · O orbite · P rentrer · D désengager du raid en cours · question à l'écran : Entrée oui (au
 rendez-vous : le choix du plan), Échap non (au rendez-vous : partir).
 
 ## Mode développeur
@@ -185,7 +212,8 @@ ce que l'ennemi fait vraiment, pour contrôler les scénarios : chaque raid dès
 altitude, sa phase et un trait vers sa cible ; chaque U-Boot à sa vraie position, avec son
 état (patrouille, piste ou rejoint un convoi, rentre au port), ses torpilles et sa plongée.
 Un badge « DEV » s'affiche dans le bandeau et un onglet « Ennemis » liste les raids à venir
-et l'état des U-Boote. Le mode ne fait que lire la simulation : la partie, les sauvegardes et
+et l'état des U-Boote. Dans les rapports, une ligne à part donne la vérité (composition,
+cible, fin réelle). Le mode ne fait que lire la simulation : la partie, les sauvegardes et
 les reprises restent identiques. Décocher la case l'arrête.
 
 Le mot de passe n'est écrit nulle part : `data/dev.json` ne garde que son empreinte SHA-256
@@ -203,7 +231,9 @@ mesurée. Une étape déjà posée se corrige avec ✎.
 
 ## Réglages
 
-Trois préréglages, modifiables un par un dans « Réglages » :
+Les « Réglages » tiennent en onglets : **Partie** (préréglage et réglages ci-dessous),
+**Temps et alertes**, **Carte**, **Sons**, **Développeur**. Trois préréglages, modifiables un
+par un :
 
 | Réglage | Arcade | Standard | Réaliste |
 | --- | --- | --- | --- |
@@ -216,9 +246,13 @@ Trois préréglages, modifiables un par un dans « Réglages » :
 | Fatigue des pilotes | non | oui | oui, avec pilotes tués |
 | Campagne : pertes reportées | aucune | la moitié | toutes |
 
-Options : tiges d'altitude, grille de carrés, zoom automatique et ralenti à l'alerte,
-confirmation des vitesses élevées pendant une action ennemie, questions d'engagement et de
-poursuite, sons, pause pendant les pages.
+Options : pause pendant les pages et durée du plan d'exception des Effectifs (Partie) ;
+ralenti à l'alerte avec une vitesse pour chaque alerte, confirmation des vitesses élevées
+pendant une action ennemie, questions d'engagement et de poursuite (Temps et alertes) ; tiges
+d'altitude, grille de carrés, zoom automatique et **zones de vue** (aucune, de l'unité
+choisie, de toutes) : ce qu'un avion voit des autres avions et, pour une patrouille côtière,
+d'un U-Boot en surface ; ce qu'un groupe d'escorte voit d'un U-Boot en surface (vigies,
+radar) et en plongée (ASDIC), de jour et de nuit (Carte) ; sons et volume (Sons).
 
 ## Organisation du code
 
@@ -268,7 +302,7 @@ facilite les tests et l'équilibrage.
 npm test
 ```
 
-Les 107 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
+Les 129 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
 terre et la mer, les routes, les étapes et leur édition, le pilote à l'entrée des chenaux,
 les interceptions, le guidage du contrôleur et les ratés, les rapports, les installations,
 les trains mélangés, les munitions, la fatigue et les pilotes, les patrouilles, les U-Boote
@@ -277,11 +311,17 @@ l'identique, les nouveaux scénarios, les achats en dollars, la campagne, les al
 confirmation des vitesses, le mode développeur, le contact direct (raids et U-Boote), les
 formations (rassemblement, vitesse de la plus lente, relève du chef, fusion, guidage d'une
 big wing, groupe de soutien qui suit son chef et rentre ensemble), l'attitude face à
-l'ennemi (questions d'engagement, de poursuite et de mi-Manche, refus, questions coupées),
+l'ennemi (questions d'engagement, de poursuite et de mi-Manche, refus, questions coupées,
+attitude abaissée pendant une poursuite, « Désengager » d'une escadrille ou d'une big wing),
 les états d'alerte et la programmation des effectifs, les décollages et appareillages
 programmés (chaque jour, rejoindre une formation, ordre qui attend), les plans de
 rassemblement (départs calculés, retardataire, attendre ou ralentir, groupe de soutien sur un
-point ou sur son chef) et une quinzaine complète sans ordres.
+point ou sur son chef), le plan du jour des Effectifs et son exception en heures H, la mer au
+M2.4 (routes autour de la terre, retour au port choisi par le chenal, durée et interruption de
+la chasse, passes de grenades et leurs rapports, fin de tracé des navires, bulle de port,
+chasse jamais à terre, veille d'un groupe qui attend, retour au port après une attaque), les
+zones de vue, la vitesse de chaque alerte, des rapports qui ne disent que ce que la RAF sait,
+et une quinzaine complète sans ordres.
 
 ## Outils
 

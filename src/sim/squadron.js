@@ -38,7 +38,7 @@ export function createSquadron(world, def) {
     alertAt: null, // a recall under way: when the new state holds
     alertFrom: null, // the state it holds until then
     alertLong: false,
-    roster: [], // duty roster: alert changes at given hours (timetable.js)
+    roster: { daily: [], override: null }, // duty roster: alert states by the hour (roster.js)
     schedule: null, // a take-off ordered for later (timetable.js)
     lateFor: null, // a formation it is catching up with, late at the rendezvous (rally.js)
     rallySlow: null, // a wing's leader slowing for its latecomers: speed factor
@@ -65,6 +65,7 @@ export function createSquadron(world, def) {
     wingSlowest: null, // a wing's leader: speeds of its slowest squadron in formation
     roe: 'attack', // on meeting the enemy: defend | attack | pursue (engagement.js); attack, as in M2.2
     cleared: new Set(), // raids it has leave to attack whatever its order
+    letGo: new Set(), // raids the player called it off: left alone until sent back
     clearedBeyond: new Set(), // raids it has leave to follow beyond mid-Channel
     attackRaid: null, // a raid it goes after while it can see it
     breakOff: null, // a raid it must leave (refused leave beyond mid-Channel)

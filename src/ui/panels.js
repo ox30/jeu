@@ -8,17 +8,19 @@ import { formatDate, formatShortDate, formatTime } from '../core/time.js';
 import { distance, unproject } from '../sim/geo.js';
 import { gridRef } from '../sim/grid.js';
 import { convoyRemainingKm, currentSpeed, orderedKnots } from '../sim/convoy.js';
-import { isSubmerged, reachKm } from '../sim/asw.js';
+import { huntHours, isSubmerged, reachKm } from '../sim/asw.js';
+import { shipEndChoices } from '../sim/naval.js';
 import { legTarget } from '../sim/navigation.js';
 import { editableRoute, endChoices, planTrack } from '../sim/orders.js';
 import { interceptChance } from '../sim/control.js';
-import { activePoint, editingLegIndex } from './actions.js';
+import { activePoint, editingLegIndex, raidsInHand } from './actions.js';
 import { formationById, formationOf, membersOf } from '../sim/formations.js';
 import { unitCardHtml } from './pages.js';
 import { altitudeSigmaFt, contactEstimate, visiblePlots } from '../sim/query.js';
 import { aircraftSpec, feetOf, isFlying } from '../sim/squadron.js';
 import { effectiveAlert, fatigueLevel, fatigueOn, pilotLossesOn, scrambleSeconds, strength } from '../sim/crews.js';
 import { arrivalOf, rallyPoint, tripKm } from '../sim/rally.js';
+import { overrideOf, plannedChanges } from '../sim/roster.js';
 import { isDaylight } from '../sim/patrols.js';
 
 const isDaylightSafe = (w) => isDaylight(w);
@@ -27,8 +29,9 @@ import { drawProfile } from '../render/profile.js';
 import { button, options, row, setHtml } from './html.js';
 import { devRaids, isRaidActive, raidLine, uboatLine, uboatReturnText } from './dev.js';
 import {
-  convoyCargoRows, coverButtons, escortSheet, renderLogistics, stockBlock, stockOrders, trainSheet,
+  convoyCargoRows, coverButtons, escortSheet, huntAndPortLines, renderLogistics, stockBlock, stockOrders, trainSheet,
 } from './logisticsPanels.js';
+import { isActive } from '../sim/raid.js';
 import {
   altitudeText, countText, dateTimeText, durationText, endActionText, ftText, headingText, kmText, legEndInput, legText,
   objectiveText, positionText, reportText, siteEffectText, siteRepairText, siteStatusText, siteTitle,
@@ -358,7 +361,7 @@ function planList(app, u) {
   const moving = u.kind === 'squadron' ? isFlying(u) : u.state === 'atSea';
   const parts = [`<div class="sub">${escapeHtml(t('orders.plan'))}</div>`];
   if (u.route && u.route.length && !u.plan.length) {
-    parts.push(`<p class="hint">${escapeHtml(t('orders.followingRoute', { n: u.route.length }))}</p>`);
+    parts.push(`<p class="hint">${escapeHtml(t('orders.followingRoute', { n: u.route.length, s: u.route.length > 1 ? 's' : '' }))}</p>`);
   } else if (!u.plan.length) {
     parts.push(`<p class="hint">${escapeHtml(moving ? t('orders.noLeg') : t('orders.noLegReady'))}</p>`);
   } else {
@@ -423,6 +426,24 @@ function climbArrow(s) {
 }
 
 /** Menu of what the squadron does at the end of its route or legs. */
+/** End of route of an escort group: stop, hold on, meet a convoy, hunt there, into a port. */
+function shipEndLine(app, e) {
+  // Going to meet a convoy, or into a port: the route already says how it ends.
+  if (!(e.route.length || e.plan.length) || e.homeward || e.joinTarget || e.state === 'escorting') return '';
+  const w = app.world;
+  const list = shipEndChoices(w, e).map((a) => ({ value: a.id ? `${a.kind}:${a.id}` : a.kind, label: shipEndText(w, e, a) }));
+  const a = e.endAction || { kind: 'stop' };
+  const current = a.id ? `${a.kind}:${a.id}` : a.kind;
+  return `<div class="order-line"><label class="grow">${escapeHtml(t('orders.endAction'))} <select id="ship-end-${escapeHtml(e.id)}" data-change="ship-end" data-id="${escapeHtml(e.id)}">${options(list, current)}</select></label></div>`;
+}
+
+function shipEndText(w, e, a) {
+  if (a.kind === 'escort') return t('orders.shipEnd.escort', { convoy: w.convoys.find((c) => c.id === a.id)?.name || '' });
+  if (a.kind === 'port') return t('orders.shipEnd.port', { port: w.byId.port.get(a.id)?.name || '' });
+  if (a.kind === 'hunt') return t('orders.shipEnd.hunt', { n: huntHours(w, e) });
+  return t(`orders.shipEnd.${a.kind}`);
+}
+
 function endActionLine(app, s) {
   if (s.state === 'lost' || !(s.route.length || s.plan.length)) return '';
   const w = app.world;
@@ -534,8 +555,12 @@ function hhmm(w, gameT) {
   return formatTime(w.startMs + gameT * 1000);
 }
 
+/**
+ * An hour to type: a plain field ("05:30", "0530", "5h30", "5"), the same in every browser
+ * and language (the browser's own clock field shows AM/PM in English and is awkward to type in).
+ */
 function timeInput(id, value = '') {
-  return `<input type="time" step="60" id="${escapeHtml(id)}" value="${escapeHtml(value)}" class="time-input">`;
+  return `<input type="text" inputmode="numeric" maxlength="5" placeholder="hh:mm" autocomplete="off" id="${escapeHtml(id)}" value="${escapeHtml(value)}" class="time-input">`;
 }
 
 /** Days to choose from for a sailing (ships plan days ahead). */
@@ -582,21 +607,83 @@ function alertStatus(w, s) {
   return t('orders.alertNow', { d: delayText(scrambleSeconds(w, s)) });
 }
 
-/** The duty roster of a squadron: its alert changes to come, and the form to add one. */
+/** "05:30" for a time of day in seconds. */
+function todText(tod) {
+  const m = Math.floor(tod / 60);
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+/** " (demain)" for a game time on the next day of the game clock, nothing for today. */
+function dayWord(w, gameT) {
+  const day = (x) => Math.floor((w.startMs + x * 1000) / DAY_MS);
+  const n = day(gameT) - day(w.t);
+  if (n <= 0) return '';
+  return n === 1 ? ` (${t('orders.tomorrow')})` : ` (${t('orders.inDays', { n })})`;
+}
+
+/**
+ * The duty roster of a squadron: its daily plan (hours only, every day), or, box ticked, the
+ * plan for the coming hours that replaces it meanwhile; and the form to add a change.
+ */
 function rosterBlock(app, s, { title = true } = {}) {
   const w = app.world;
-  const items = (s.roster || []).map((e) => `<li><span>${escapeHtml(clockText(w, e.at))} · ${escapeHtml(t(`orders.alertNames.${e.alert}`))}${e.daily ? ` · ${escapeHtml(t('orders.daily'))}` : ''}</span>
-    ${button('roster-remove', '×', { id: s.id, kind: 'squadron', cls: 'icon', extra: ` data-entry="${escapeHtml(e.id)}" title="${escapeHtml(t('orders.remove'))}"` })}</li>`);
+  const r = s.roster && !Array.isArray(s.roster) ? s.roster : { daily: [], override: null };
+  const o = overrideOf(w, s);
+  const hours = o ? Math.round((o.until - o.from) / 3600) : Number(app.settings.rosterHours) || 24;
+  const item = (id, when, alert) => `<li><span>${escapeHtml(when)} · ${escapeHtml(t(`orders.alertNames.${alert}`))}</span>
+    ${button('roster-remove', '×', { id: s.id, kind: 'squadron', cls: 'icon', extra: ` data-entry="${escapeHtml(id)}" title="${escapeHtml(t('orders.remove'))}"` })}</li>`;
   const list = ALERTS.map((a) => ({ value: a, label: t(`orders.alertNames.${a}`) }));
-  return [
-    title ? `<div class="sub">${escapeHtml(t('orders.roster'))}</div>` : '',
-    items.length ? `<ul class="roster-list">${items.join('')}</ul>` : '',
-    `<div class="order-line roster-form"><select id="roster-alert-${escapeHtml(s.id)}">${options(list, 'available')}</select>`,
-    `<span class="at">${escapeHtml(t('orders.at'))}</span>${timeInput(`roster-time-${s.id}`)}`,
-    `<label class="check"><input type="checkbox" id="roster-daily-${escapeHtml(s.id)}"> ${escapeHtml(t('orders.daily'))}</label>`,
-    button('roster-add', t('orders.add'), { id: s.id, kind: 'squadron' }),
-    `</div>`,
-  ].join('');
+  const parts = [title ? `<div class="sub">${escapeHtml(t('orders.roster'))}</div>` : ''];
+  parts.push(`<label class="check roster-mode"><input type="checkbox" id="roster-override-${escapeHtml(s.id)}" data-change="roster-override" data-id="${escapeHtml(s.id)}"${o ? ' checked' : ''}> ${escapeHtml(t('orders.rosterOverride', { n: hours }))}</label>`);
+  const stateSelect = `<select id="roster-alert-${escapeHtml(s.id)}">${options(list, 'available')}</select>`;
+  if (o) {
+    // From H0, the moment the box was ticked: H0 to H+6 at rest, H+6 to H+9 on alert...
+    const mark = (at) => (at === o.from ? 'H0' : `H+${hoursText((at - o.from) / 3600)}`);
+    const segs = [];
+    let from = o.from;
+    let entry = null;
+    for (const e of o.entries) {
+      if (e.at > from) segs.push({ from, to: e.at, entry });
+      from = e.at;
+      entry = e;
+    }
+    segs.push({ from, to: o.until, entry });
+    const lines = segs.map((g) => {
+      const what = g.entry ? t(`orders.alertNames.${g.entry.alert}`) : t('orders.rosterUnchanged');
+      const clock = `${hhmm(w, g.from)}-${hhmm(w, g.to)}`;
+      const remove = g.entry ? button('roster-remove', '×', { id: s.id, kind: 'squadron', cls: 'icon', extra: ` data-entry="${escapeHtml(g.entry.id)}" title="${escapeHtml(t('orders.remove'))}"` }) : '';
+      return `<li class="${g.to <= w.t ? 'past' : ''}"><span>${escapeHtml(`${mark(g.from)} – ${mark(g.to)} · ${what}`)} <small>${escapeHtml(clock)}</small></span>${remove}</li>`;
+    });
+    parts.push(`<p class="hint">${escapeHtml(t('orders.rosterOverrideUntil', { start: `${hhmm(w, o.from)}${dayWord(w, o.from)}`, n: hours, time: `${hhmm(w, o.until)}${dayWord(w, o.until)}` }))}</p>`);
+    parts.push(`<ul class="roster-list override">${lines.join('')}</ul>`);
+    if (r.daily.length) {
+      const plan = r.daily.map((e) => `${todText(e.tod)} ${t(`orders.alertShort.${e.alert}`)}`).join(' · ');
+      parts.push(`<p class="hint">${escapeHtml(t('orders.rosterDailyAfter', { plan }))}</p>`);
+    }
+    parts.push(
+      `<div class="order-line roster-form"><span class="at">${escapeHtml(t('orders.fromH'))}</span>`,
+      `<input type="text" id="roster-offset-${escapeHtml(s.id)}" class="offset-input" inputmode="decimal" placeholder="6" autocomplete="off">`,
+      `<span class="at">h</span>${stateSelect}`,
+      button('roster-add', t('orders.add'), { id: s.id, kind: 'squadron' }),
+      '</div>',
+    );
+  } else {
+    const daily = r.daily.map((e) => item(e.id, todText(e.tod), e.alert));
+    parts.push(daily.length ? `<ul class="roster-list">${daily.join('')}</ul>` : `<p class="hint">${escapeHtml(t('orders.rosterNone'))}</p>`);
+    parts.push(
+      `<div class="order-line roster-form">${stateSelect}`,
+      `<span class="at">${escapeHtml(t('orders.at'))}</span>${timeInput(`roster-time-${s.id}`)}`,
+      button('roster-add', t('orders.add'), { id: s.id, kind: 'squadron' }),
+      '</div>',
+    );
+  }
+  return parts.join('');
+}
+
+/** "6", "6:30" for a number of hours. */
+function hoursText(h) {
+  const m = Math.round(h * 60);
+  return m % 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}` : String(m / 60);
 }
 
 /** Alert state of one squadron: buttons, what it means now, rest confirmation, roster. */
@@ -677,10 +764,38 @@ function flightControls(app, s) {
   ].join('');
 }
 
+/** « Désengager H05 »: one button per raid the unit (or its wing) fights, chases or is guided onto. */
+function breakOffLine(app, s) {
+  const raids = raidsInHand(app, s);
+  if (!raids.length) return '';
+  const w = app.world;
+  return `<div class="order-line break-off">${raids.map((r) => button('break-off', t('orders.breakOff', { raid: (w.contacts.get(r.id) || r).label }), {
+    id: s.id, extra: ` data-raid="${escapeHtml(r.id)}"`,
+  })).join('')}</div>`;
+}
+
+/** Raids the player called this unit off: it leaves them alone until sent back. */
+function letGoLine(app, s) {
+  const w = app.world;
+  const f = formationOf(w, s);
+  const list = f ? membersOf(w, f) : [s];
+  const labels = new Set();
+  for (const m of list) {
+    for (const id of m.letGo || []) {
+      const r = w.raids.find((x) => x.id === id);
+      if (r && isActive(r)) labels.add((w.contacts.get(id) || r).label);
+    }
+  }
+  if (!labels.size) return '';
+  return `<p class="hint">${escapeHtml(t(labels.size > 1 ? 'orders.letGoMany' : 'orders.letGo', { raids: [...labels].join(', ') }))}</p>`;
+}
+
 /** Orbit, home, cover a convoy: missions in the air. */
 function missionButtons(app, s) {
   if (!(isFlying(s) || s.state === 'scrambling')) return '';
   return [
+    breakOffLine(app, s),
+    letGoLine(app, s),
     `<div class="order-line">`,
     button('orbit', t('orders.orbit'), { id: s.id, disabled: !(s.state === 'airborne' || s.state === 'combat' || s.state === 'returning') }),
     button('home', t('orders.home'), { id: s.id, disabled: !(s.state === 'airborne' || s.state === 'combat') }),
@@ -838,7 +953,7 @@ function escortPanel(app, e) {
     : es.orders.replace(/<\/div>\s*$/, `${extra}</div>`);
   const tabs = [
     tab('orders', { keyed: orders }),
-    es.planUnit && !member ? tab('nav', { pre: pointBlock(app, e) + planList(app, e), keyed: es.legForm ? legForm(app, e) : '', key: editingLegIndex(app, e) }) : null,
+    es.planUnit && !member ? tab('nav', { pre: pointBlock(app, e) + planList(app, e), keyed: `${shipEndLine(app, e)}${es.legForm ? legForm(app, e) : ''}`, key: editingLegIndex(app, e) }) : null,
     tab('state', { pre: body }),
     tab('card', { keyed: unitCardHtml(w, e) }),
   ].filter(Boolean);
@@ -978,7 +1093,7 @@ function rallyTab(app, f) {
     const dep = r && r.departures[u.id] !== undefined ? hhmm(w, r.departures[u.id]) : '';
     const arrival = aid !== 'none' && r ? arrivalOf(w, f, u) : null;
     return `<tr><td>${i === 0 ? '★ ' : ''}${escapeHtml(u.name)}<br><small>${escapeHtml(baseName(w, u))}${km !== null && i + (where === 'point' ? 1 : 0) > 0 ? ` · ${escapeHtml(kmText(km))}` : ''}</small></td>
-      <td>${aid === 'auto' ? escapeHtml(dep || '—') : `${air ? '' : daySelect(w, `rally-dep-day-${u.id}`)}<input type="time" step="60" class="time-input" data-change="rally-dep" data-id="${escapeHtml(id)}" data-unit="${escapeHtml(u.id)}" value="${escapeHtml(dep)}">`}</td>
+      <td>${aid === 'auto' ? escapeHtml(dep || '—') : `${air ? '' : daySelect(w, `rally-dep-day-${u.id}`)}<input type="text" inputmode="numeric" maxlength="5" placeholder="hh:mm" autocomplete="off" class="time-input" id="rally-dep-${escapeHtml(id)}-${escapeHtml(u.id)}" data-change="rally-dep" data-id="${escapeHtml(id)}" data-unit="${escapeHtml(u.id)}" value="${escapeHtml(dep)}">`}</td>
       <td>${arrival !== null ? escapeHtml(t('rally.arrival', { time: clockText(w, arrival) })) : ''}</td></tr>`;
   });
   parts.push(`<div class="sub">${escapeHtml(t(aid === 'auto' ? 'rally.departuresAuto' : 'rally.departures'))}</div>
@@ -1049,14 +1164,12 @@ function formationPanel(app, f) {
       !planned ? sailBlock(app, leader) : '',
       aid && canMove && joinable.length ? `<div class="order-line">${joinable.map((c) => button('join', t('orders.join', { convoy: convoyLabel(c) }), { id: leader.id, kind: 'escort', extra: ` data-convoy="${escapeHtml(c.id)}"` })).join('')}</div>` : '',
       leader.state === 'escorting' ? button('leave', t('orders.leave'), { id: leader.id, kind: 'escort' }) : '',
-      `<div class="order-line"><span>${escapeHtml(t('orders.behaviour'))}</span>${button('escort-behaviour', t('orders.behaviours.stay'), { id: leader.id, kind: 'escort', active: leader.behaviour !== 'hunt', extra: ' data-behaviour="stay"' })}${button('escort-behaviour', t('orders.behaviours.hunt'), { id: leader.id, kind: 'escort', active: leader.behaviour === 'hunt', extra: ' data-behaviour="hunt"' })}</div>`,
-      `<p class="hint">${escapeHtml(t('orders.behaviourHint'))}</p>`,
-      members.some((e) => e.state === 'atSea' || e.state === 'escorting' || e.state === 'waiting') ? button('escort-home', t('orders.homePort'), { id: leader.id, kind: 'escort' }) : '',
+      huntAndPortLines(app, leader),
       `<p class="hint">${escapeHtml(t('unit.groupHint'))}</p>`,
       manage,
       `</div>`,
     ].join('');
-    nav = canMove ? tab('nav', { pre: pointBlock(app, leader) + planList(app, leader), keyed: legForm(app, leader), key: editingLegIndex(app, leader) }) : null;
+    nav = canMove ? tab('nav', { pre: pointBlock(app, leader) + planList(app, leader), keyed: `${shipEndLine(app, leader)}${legForm(app, leader)}`, key: editingLegIndex(app, leader) }) : null;
   }
   return {
     group: 'formation',
@@ -1084,14 +1197,7 @@ function alertSegments(w, s, hours = 24) {
   let eff = effectiveAlert(w, s);
   let target = s.alert || 'available';
   let readyAt = s.alertAt !== null && s.alertAt !== undefined && s.alertAt > w.t ? s.alertAt : null;
-  const changes = [];
-  for (const e of s.roster || []) {
-    for (let at = e.at; at <= end; at += 86400) {
-      if (at >= w.t) changes.push({ at, alert: e.alert });
-      if (!e.daily) break;
-    }
-  }
-  changes.sort((a, b) => a.at - b.at);
+  const changes = plannedChanges(w, s, end);
   const segs = [];
   let from = w.t;
   const push = (to) => {
@@ -1131,7 +1237,10 @@ function timelineHtml(w, s) {
   const total = 24 * 3600;
   const bars = segs.map((g) => `<span class="seg alert-${g.state}${g.recall ? ' recall' : ''}" style="width:${((g.to - g.from) / total * 100).toFixed(2)}%" title="${escapeHtml(`${hhmm(w, g.from)}-${hhmm(w, g.to)} · ${t(`orders.alertNames.${g.state}`)}${g.recall ? ` · ${t('orders.recalling')}` : ''}`)}"></span>`);
   const ticks = [0, 6, 12, 18, 24].map((h) => `<span style="left:${(h / 24 * 100).toFixed(2)}%">${escapeHtml(hhmm(w, w.t + h * 3600))}</span>`);
-  return `<div class="timeline">${bars.join('')}</div><div class="timeline-ticks">${ticks.join('')}</div>`;
+  // Under the bar, how long the plan for the coming hours runs.
+  const o = overrideOf(w, s);
+  const span = o ? `<div class="timeline-override" style="width:${(Math.min(1, (o.until - w.t) / total) * 100).toFixed(2)}%" title="${escapeHtml(t('orders.rosterOverrideUntil', { start: hhmm(w, o.from), n: Math.round((o.until - o.from) / 3600), time: hhmm(w, o.until) }))}"></div>` : '';
+  return `<div class="timeline">${bars.join('')}</div>${span}<div class="timeline-ticks">${ticks.join('')}</div>`;
 }
 
 /** The "Effectifs" tab of an aerodrome: its squadrons' readiness, now and over 24 hours. */
@@ -1326,14 +1435,45 @@ function buildPanel(app, sel) {
  * is survive a rebuild (a button becoming available, a value changing). A new unit, tab or
  * leg being edited (`key`) starts from the values of the page.
  */
+// The keyed part being pressed (mouse or finger down on one of its buttons): it is not
+// redrawn until the press ends, or the click would land on a button that no longer exists.
+let pressedKeyed = null;
+if (typeof document !== 'undefined') {
+  document.addEventListener('pointerdown', (e) => {
+    pressedKeyed = e.target && e.target.closest ? e.target.closest('[data-keyed]') : null;
+  }, true);
+  const release = () => setTimeout(() => {
+    pressedKeyed = null;
+  }, 0);
+  document.addEventListener('pointerup', release, true);
+  document.addEventListener('pointercancel', release, true);
+}
+
+/** Fields whose value cannot be kept across a redraw while they are being used. */
+function busyField(x) {
+  if (!x) return false;
+  if (x.tagName === 'SELECT') return true; // its list would close and its choice be lost
+  return x.tagName === 'INPUT' && ['time', 'date', 'number'].includes(x.type); // half-typed values read as empty
+}
+
 function setKeyed(el, html, key) {
   if (el.__html === html && el.__key === key) return;
   const sameKey = el.__key === key;
+  el.dataset.keyed = '1';
+  if (sameKey && (pressedKeyed === el || (busyField(document.activeElement) && el.contains(document.activeElement)))) {
+    return; // redrawn on a later frame, once the player is done
+  }
   const typed = new Map();
   let focus = null;
   if (sameKey) {
     for (const input of el.querySelectorAll('input[id]')) {
-      if (input.value !== input.defaultValue) typed.set(input.id, input.value);
+      if (input.type === 'checkbox' || input.type === 'radio') {
+        if (input.checked !== input.defaultChecked) typed.set(input.id, input.checked);
+      } else if (input.value !== input.defaultValue) typed.set(input.id, input.value);
+    }
+    for (const select of el.querySelectorAll('select[id]')) {
+      const chosen = [...select.options].find((o) => o.defaultSelected) || select.options[0];
+      if (chosen && select.value !== chosen.value) typed.set(select.id, select.value);
     }
     const active = document.activeElement;
     if (active && el.contains(active) && active.id) {
@@ -1350,8 +1490,10 @@ function setKeyed(el, html, key) {
   el.__html = html;
   el.__key = key;
   for (const [id, value] of typed) {
-    const input = el.querySelector(`#${CSS.escape(id)}`);
-    if (input) input.value = value;
+    const field = el.querySelector(`#${CSS.escape(id)}`);
+    if (!field) continue;
+    if (typeof value === 'boolean') field.checked = value;
+    else if (field.tagName !== 'SELECT' || [...field.options].some((o) => o.value === value)) field.value = value;
   }
   if (focus) {
     const again = el.querySelector(`#${CSS.escape(focus.id)}`);

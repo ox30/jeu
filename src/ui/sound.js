@@ -9,9 +9,20 @@ export function unlockAudio(app) {
   try {
     app.audio = new AudioContext();
     app.soundLast = {};
+    // Every sound goes through one volume knob (Réglages, Sons).
+    app.audioOut = app.audio.createGain();
+    app.audioOut.connect(app.audio.destination);
+    setVolume(app);
   } catch {
     app.audio = null;
   }
+}
+
+/** The volume set in the settings (0 to 100 %, 80 % by default). */
+export function setVolume(app) {
+  if (!app.audioOut) return;
+  const v = Number(app.settings.volume ?? 80);
+  app.audioOut.gain.value = Math.max(0, Math.min(1, v / 100)) * 1.25;
 }
 
 function ready(app, kind) {
@@ -51,7 +62,7 @@ function burst(app, at, duration, { type = 'bandpass', freq = 1000, q = 1, gain 
   g.gain.setValueAtTime(0.0001, at);
   g.gain.exponentialRampToValueAtTime(gain, at + Math.min(0.01, duration / 4));
   g.gain.exponentialRampToValueAtTime(0.0001, at + duration);
-  src.connect(filter).connect(g).connect(ctx.destination);
+  src.connect(filter).connect(g).connect(app.audioOut || ctx.destination);
   src.start(at, Math.random() * 0.5);
   src.stop(at + duration + 0.02);
 }
@@ -65,7 +76,7 @@ function tone(app, at, duration, freq, gain, type = 'sine') {
   g.gain.setValueAtTime(0.0001, at);
   g.gain.exponentialRampToValueAtTime(gain, at + 0.015);
   g.gain.exponentialRampToValueAtTime(0.0001, at + duration);
-  osc.connect(g).connect(ctx.destination);
+  osc.connect(g).connect(app.audioOut || ctx.destination);
   osc.start(at);
   osc.stop(at + duration + 0.02);
 }

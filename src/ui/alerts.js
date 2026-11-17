@@ -6,7 +6,7 @@
 import { t } from '../core/i18n.js';
 import { contactEstimate } from '../sim/query.js';
 import { centreOn, select } from './actions.js';
-import { ALERT_SPEED, alertFor, alertRank } from './alertRules.js';
+import { alertFor, alertRank, alertSpeed } from './alertRules.js';
 import { playAlarm, playNotice } from './sound.js';
 
 const SHOW_MS = 30000;
@@ -21,8 +21,9 @@ export function alertForEvent(app, e) {
 }
 
 export function raiseAlert(app, a) {
-  if (app.settings.slowOnAlert && app.speed > ALERT_SPEED[a.level]) {
-    app.speed = ALERT_SPEED[a.level];
+  const max = alertSpeed(app.settings, a.type, a.level);
+  if (app.settings.slowOnAlert && max > 0 && app.speed > max) {
+    app.speed = max;
     app.dirtyHud = true;
   }
   if (a.level === 'warning') playNotice(app);

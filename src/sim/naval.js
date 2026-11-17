@@ -2,11 +2,12 @@
 // them, bombers against the coastal convoys, and the radio direction-finding fixes that
 // betray a U-boat's position, roughly, when it reports a convoy.
 
-import { KNOT_KMH, bearing, distance, headingVector, project, unproject } from './geo.js';
+import { KNOT_KMH, bearing, distance, headingVector, polylineLength, project, unproject } from './geo.js';
+import { clearAtSea, seaPath } from './searoute.js';
 import { emit } from './events.js';
 import { solveIntercept } from './intercept.js';
 import { acceptingPorts, currentSpeed, stepShip } from './convoy.js';
-import { dive, isSubmerged, spotAttacker, stepHunt } from './asw.js';
+import { dive, engage, isSubmerged, spotAttacker, startHunt, stepHunt } from './asw.js';
 
 // ---- ships lost -------------------------------------------------------------------
 
@@ -83,7 +84,7 @@ export function createEscortGroup(world, def) {
     routeLocked: 0,
     plan: [],
     legState: null,
-    state: 'inPort', // inPort | atSea | waiting | escorting | refit
+    state: 'inPort', // inPort | atSea | waiting | escorting | hunting | refit
     portId: port.id,
     destination: null,
     joinTarget: null, // convoy the group is ordered to meet
@@ -98,6 +99,13 @@ export function createEscortGroup(world, def) {
     homeward: false,
     behaviour: def.behaviour || 'stay', // stay with the convoy, or hunt the contacts
     huntFor: null,
+    huntHours: null, // length of its hunts, set by the player (rules.asw.huntHours by default)
+    huntPath: null, // a hunt's way around the land (searoute.js)
+    huntGoal: null, // the point that way leads to
+    huntStay: false, // a short counter-attack near its convoy, not a hunt
+    engage: null, // the U-boat it is attacking: { uboatId, since, nextPass, reportId }
+    endAction: { kind: 'stop' }, // at the end of its route: stop | hold | escort | hunt | port
+    routeEnded: false,
     formation: null, // id of the support group (formation) it belongs to
     followEscort: null, // a support group's member: the leader it sails with
     followSlot: 0,
@@ -138,30 +146,87 @@ function join(world, e, c) {
   emit(world, 'escortJoined', { escort: e.name, escortId: e.id, convoy: c.name, convoyId: c.id });
 }
 
-/** Sends the group home by the nearest convoy port's channel. */
-export function sendEscortHome(world, e) {
-  let best = null;
-  let bestD = Infinity;
-  for (const port of acceptingPorts(world, e)) {
-    for (const a of port.approaches || []) {
-      const d = distance(e.x, e.y, a.points[0][0], a.points[0][1]);
-      if (d < bestD) {
-        bestD = d;
-        best = { port, a };
-      }
+/**
+ * The way into a port from where the ship is: by sea to the nearest point of one of the
+ * port's channels (not back to its entrance when the ship is already in it), then up the
+ * channel; straight to the port when it has none. { route, locked, km } or null.
+ */
+export function homeRoute(world, u, port) {
+  const from = [u.x, u.y];
+  const options = [];
+  for (const a of port.approaches || []) {
+    const pts = a.points;
+    let rest = polylineLength(pts);
+    for (let i = 1; i < pts.length; i++) {
+      const seg = distance(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]);
+      rest -= seg;
+      const near = closestOnSegment(pts[i - 1], pts[i], from);
+      options.push({ join: [near.x, near.y], tail: pts.slice(i), km: near.d + rest + distance(near.x, near.y, pts[i][0], pts[i][1]) });
     }
+  }
+  if (!options.length) options.push({ join: [port.x, port.y], tail: [], km: distance(u.x, u.y, port.x, port.y) });
+  options.sort((a, b) => a.km - b.km);
+  for (const o of options.slice(0, 4)) {
+    const path = seaPath(world, from, o.join, o.tail.length ? 0 : world.rules.convoy.harbourMarginKm);
+    if (!path) continue;
+    const route = [...path, ...o.tail.map(([x, y]) => [x, y])];
+    // Two points one on the other (joining at a channel's corner): one is enough.
+    const clean = route.filter((p, i) => i === 0 || distance(p[0], p[1], route[i - 1][0], route[i - 1][1]) > 0.2);
+    return { route: clean, locked: o.tail.length, km: polylineLength([from, ...clean]) };
+  }
+  return null;
+}
+
+function closestOnSegment(a, b, p) {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const len2 = dx * dx + dy * dy;
+  const k = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2));
+  const x = a[0] + dx * k;
+  const y = a[1] + dy * k;
+  return { x, y, d: distance(x, y, p[0], p[1]) };
+}
+
+/** Ports the group can go back to, nearest by sea first: [{ port, km, hours }]. */
+export function portChoices(world, e) {
+  const list = [];
+  for (const port of acceptingPorts(world, e)) {
+    if (port.foreign) continue;
+    const r = homeRoute(world, e, port);
+    if (r) list.push({ port, km: r.km, hours: r.km / KNOT_KMH / e.speedKn });
+  }
+  return list.sort((a, b) => a.km - b.km);
+}
+
+/** Sends the group into a port (the one given, or the nearest by sea), around the land. */
+export function sendEscortHome(world, e, portId = null) {
+  let port = portId ? world.byId.port.get(portId) : null;
+  let way = port ? homeRoute(world, e, port) : null;
+  if (!way) {
+    const best = portChoices(world, e)[0];
+    port = best ? best.port : null;
+    way = port ? homeRoute(world, e, port) : null;
   }
   e.escorting = null;
   e.joinTarget = null;
+  clearHunt(e);
   e.state = 'atSea';
   e.plan = [];
   e.legState = null;
   e.homeward = true;
-  if (best) {
-    e.route = [[best.a.points[0][0], best.a.points[0][1]], ...best.a.points.slice(1)];
-    e.routeLocked = e.route.length;
-    e.destination = best.port.id;
+  if (way) {
+    e.route = way.route;
+    e.routeLocked = way.locked;
+    e.destination = port.id;
   }
+}
+
+/** The group stops hunting (it keeps its other orders). */
+export function clearHunt(e) {
+  e.huntFor = null;
+  e.huntUntil = null;
+  e.huntPath = null;
+  e.engage = null;
 }
 
 export function updateEscort(world, e, dt) {
@@ -220,6 +285,17 @@ export function updateEscort(world, e, dt) {
       const [hx, hy] = headingVector(c.heading);
       const sol = solveIntercept(e.x, e.y, e.speed, c.x, c.y, hx * v, hy * v);
       e.course = sol ? sol.heading : bearing(e.x, e.y, c.x, c.y);
+      // Land ahead on the way (a headland, an island): round it by sea. Looked at every 5
+      // minutes, over the next 60 km.
+      const d = distance(e.x, e.y, c.x, c.y);
+      const k = Math.min(1, 60 / Math.max(d, 1e-6));
+      if (world.t % 300 === 0 && !clearAtSea(world, [e.x, e.y], [e.x + (c.x - e.x) * k, e.y + (c.y - e.y) * k])) {
+        const path = seaPath(world, [e.x, e.y], [c.x, c.y]);
+        if (path && path.length > 1) {
+          e.route = path.slice(0, -1);
+          e.routeLocked = 0;
+        }
+      }
     }
   }
   // A support group's member sails in station astern of its leader (formations.js).
@@ -244,6 +320,10 @@ export function updateEscort(world, e, dt) {
   if (e.waitForGroup) e.orderedKn = e.speedKn * world.rules.formations.waitSpeed;
   stepShip(world, e, dt, (port) => enterPort(world, e, port));
   e.orderedKn = ordered;
+  if (e.routeEnded) {
+    e.routeEnded = false;
+    shipEndAction(world, e);
+  }
   if (e.state !== 'atSea') return;
   // Meeting: within sight of an ocean convoy, the group takes station.
   for (const c of world.convoys) {
@@ -259,6 +339,45 @@ export function updateEscort(world, e, dt) {
       return;
     }
   }
+}
+
+/** What a group does at the end of its route: stop, hold on, meet a convoy, hunt, go into port. */
+function shipEndAction(world, e) {
+  const a = e.endAction || { kind: 'stop' };
+  if (a.kind === 'hold') return; // on along its course
+  if (a.kind === 'escort') {
+    const c = world.convoys.find((x) => x.id === a.id);
+    if (c && c.state === 'atSea') {
+      e.joinTarget = c.id;
+      e.leftConvoy = null;
+      return;
+    }
+  }
+  if (a.kind === 'hunt') {
+    startHunt(world, e, e.x, e.y, a.hours ? { hours: a.hours } : {});
+    return;
+  }
+  if (a.kind === 'port') {
+    sendEscortHome(world, e, a.id);
+    return;
+  }
+  e.state = 'waiting';
+  emit(world, 'convoyWaiting', { convoy: e.name, convoyId: e.id, unitKind: 'escort' });
+}
+
+/** End actions open to a group: stop, hold on, meet a convoy at sea, hunt there, go into a port. */
+export function shipEndChoices(world, e) {
+  const list = [{ kind: 'stop' }, { kind: 'hold' }, { kind: 'hunt' }];
+  for (const c of world.convoys) if (c.state === 'atSea' && c.type !== 'coastal' && !c.straggler) list.push({ kind: 'escort', id: c.id });
+  for (const p of acceptingPorts(world, e)) if (!p.foreign) list.push({ kind: 'port', id: p.id });
+  return list;
+}
+
+export function setShipEndAction(world, e, action) {
+  const choice = shipEndChoices(world, e).find((c) => c.kind === action.kind && (c.id || null) === (action.id || null));
+  if (!choice) return false;
+  e.endAction = { ...choice };
+  return true;
 }
 
 // ---- U-boats ----------------------------------------------------------------------
@@ -335,15 +454,18 @@ function attack(world, u, c) {
   emit(world, 'uboatAttack', { convoy: c.name, convoyId: c.id, sunk: n, escorts, x: c.x, y: c.y });
   if (n) sinkShips(world, c, n, 'uboat');
   if (escorts > 0) {
-    // The escort counter-attacks well only a U-boat it has seen.
-    const k = spotAttacker(world, u, c) ? 1 : A.unseenFactor;
-    if (rng.next() < U.pKillPerEscort * escorts * k) {
-      u.state = 'sunk';
-      world.stats.uboatsSunk++;
-      emit(world, 'uboatSunk', { convoy: c.name, convoyId: c.id, x: u.x, y: u.y });
-      return;
+    // Seen (the flash, the torpedo tracks): the nearest group goes for it with depth charges.
+    if (spotAttacker(world, u, c)) {
+      const group = world.escorts
+        .filter((e) => e.state === 'escorting' && e.escorting === c.id && !e.engage)
+        .sort((a, b) => distance(a.x, a.y, u.x, u.y) - distance(b.x, b.y, u.x, u.y))[0];
+      if (group) {
+        engage(world, group, u, 'flash');
+        return;
+      }
     }
-    if (rng.next() < U.pDriveOffPerEscort * escorts * k) {
+    // Unseen, it may still be driven off by the escort's sweep.
+    if (rng.next() < U.pDriveOffPerEscort * escorts * A.unseenFactor) {
       u.state = 'leaving';
       dive(world, u, A.diveHours);
       emit(world, 'uboatDrivenOff', { convoy: c.name, convoyId: c.id });

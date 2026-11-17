@@ -4,9 +4,9 @@
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatDate, formatTime } from '../core/time.js';
 import { FOOT_M } from '../sim/geo.js';
-import { reportTotals } from '../sim/reports.js';
+import { knownOutcome, reportTotals } from '../sim/reports.js';
 import { aircraftSpec } from '../sim/squadron.js';
-import { ftText } from './format.js';
+import { countText, ftText } from './format.js';
 
 /** Opens a dialog as a page; the game pauses while it is open when the setting asks. */
 export function showPage(app, dlg) {
@@ -52,23 +52,48 @@ function targetName(world, rep) {
   return site.longName || t(`sites.longName.${site.kind}`, { of: site.of || t('place.of', { place: site.name }) });
 }
 
+/** "10 Bf 110 Jabo, escorte de 10 Bf 109." — or a sweep without bombers, or bombers alone. */
+function forceText(f) {
+  if (!f.bombers) return t('reports.compositionSweep', { escort: f.escort, escortType: f.escortType });
+  if (!f.escort) return t('reports.compositionAlone', { bombers: f.bombers, bomberType: f.bomberType });
+  return t('reports.composition', { bombers: f.bombers, bomberType: f.bomberType, escort: f.escort, escortType: f.escortType });
+}
+
+/** Developer mode: what the raid really was, where it was going and how it really ended. */
+function devTruth(world, rep) {
+  if (rep.phantom) return t('reports.devPhantom');
+  const start = { bombers: rep.bombersStart, bomberType: rep.bomberType, escort: rep.escortStart, escortType: rep.escortType };
+  const end = rep.closed ? t('reports.devOutcome', { outcome: t(`reports.outcome.${rep.outcome}`) }) : '';
+  return `${t('reports.devTruth', { force: forceText(start), target: targetName(world, rep) || '—' })}${end}`;
+}
+
+/**
+ * One raid as the RAF knows it: the first plot, the force once one of our units saw it,
+ * the bombs that fell (that is how its target becomes known), the squadrons sent and the
+ * losses. Nothing it could not know: in developer mode, one line apart tells the truth.
+ */
 function reportCard(app, rep) {
   const w = app.world;
   const ms = (s) => w.startMs + s * 1000;
-  const from = formatTime(ms(rep.detectedT ?? rep.startT));
+  const exact = w.settings.detection === 'exact';
+  const from = formatTime(ms(rep.detectedT ?? (rep.seen ? rep.seen.t : rep.startT)));
   const to = rep.closed ? formatTime(ms(rep.endT)) : t('reports.ongoing');
+  const outcome = knownOutcome(rep, exact);
   const totals = reportTotals(rep);
   const lines = [];
-  if (rep.phantom) {
-    lines.push(`<p>${escapeHtml(t('reports.phantomText'))}</p>`);
+  if (rep.seen) {
+    lines.push(`<p class="comp">${escapeHtml(forceText(rep.seen))} ${escapeHtml(t('reports.seenBy', { by: rep.seen.by, time: formatTime(ms(rep.seen.t)) }))}</p>`);
+  } else if (exact && !rep.phantom) {
+    lines.push(`<p class="comp">${escapeHtml(forceText({ bombers: rep.bombersStart, bomberType: rep.bomberType, escort: rep.escortStart, escortType: rep.escortType }))}</p>`);
   } else {
-    lines.push(`<p class="comp">${escapeHtml(t('reports.composition', {
-      bombers: rep.bombersStart, bomberType: rep.bomberType, escort: rep.escortStart, escortType: rep.escortType,
-    }))} ${escapeHtml(t('reports.target', { target: targetName(w, rep) }))}</p>`);
-    const hits = rep.hits.map((h) => hitText(w, h));
-    if (rep.groundLosses) hits.push(t('reports.groundLosses', { n: rep.groundLosses }));
-    lines.push(`<p class="target">${escapeHtml(hits.length ? hits.join(' ') : t('reports.noHit'))}</p>`);
+    const est = rep.estimate;
+    const first = est ? t('reports.firstPlot', { count: countText(est.count, est.approx), alt: ftText(est.altFt) }) : '';
+    lines.push(`<p class="comp">${escapeHtml([first, t(rep.closed ? 'reports.neverSeen' : 'reports.notSeenYet')].filter(Boolean).join(' '))}</p>`);
   }
+  const hits = rep.hits.map((h) => hitText(w, h));
+  if (rep.groundLosses) hits.push(t('reports.groundLosses', { n: rep.groundLosses }));
+  if (hits.length) lines.push(`<p class="target">${escapeHtml(hits.join(' '))}</p>`);
+  else if (rep.closed) lines.push(`<p class="target">${escapeHtml(t(outcome === 'unseen' ? 'reports.unseenText' : 'reports.noBombs'))}</p>`);
   if (rep.squadrons.length) {
     const rows = rep.squadrons.map((s) => {
       const spec = aircraftSpec(w, s.type);
@@ -81,13 +106,13 @@ function reportCard(app, rep) {
       return `<tr class="${s.fights ? 'fought' : 'missed'}"><td><b>${escapeHtml(s.name)}</b> <small>${escapeHtml(type)}</small></td><td>${escapeHtml(result)}</td><td class="n">${escapeHtml(down)}</td><td class="n">${s.fights ? s.losses : '—'}</td></tr>`;
     });
     lines.push(`<table class="fights"><thead><tr><th>${escapeHtml(t('reports.squadron'))}</th><th>${escapeHtml(t('reports.result'))}</th><th class="n">${escapeHtml(t('reports.down'))}</th><th class="n">${escapeHtml(t('reports.losses'))}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`);
-  } else if (!rep.phantom) {
+  } else if (outcome !== 'unseen') {
     lines.push(`<p class="hint">${escapeHtml(t('reports.noSquadron'))}</p>`);
   }
-  if (!rep.phantom) {
+  if (rep.squadrons.length || hits.length || outcome !== 'unseen') {
     lines.push(`<p class="totals">${escapeHtml(t('reports.totals', { down: totals.down, b: totals.bombers, f: totals.fighters, lost: totals.lost }))}</p>`);
   }
-  const outcome = rep.closed ? rep.outcome : 'ongoing';
+  if (app.dev) lines.push(`<p class="dev-truth">${escapeHtml(devTruth(w, rep))}</p>`);
   return `<article class="report outcome-${outcome}" id="report-${escapeHtml(rep.raidId)}">
     <header><b>${escapeHtml(t('reports.raid', { label: rep.label }))}</b> <span class="when">${escapeHtml(from)} – ${escapeHtml(to)}</span>
     <span class="tag">${escapeHtml(t(`reports.outcome.${outcome}`))}</span></header>
@@ -95,28 +120,63 @@ function reportCard(app, rep) {
   </article>`;
 }
 
+/** The text of a raid report (the page and the tests). */
+export function reportHtml(app, rep) {
+  return reportCard(app, rep);
+}
+
 /** The raid reports, by day, newest first; `focus` scrolls to one raid. */
+/**
+ * A depth-charge attack: the group, the convoy it came from, how it found the U-boat, each
+ * pass and the result (sunk, damaged, lost, broken off).
+ */
+function navalCard(app, rep) {
+  const w = app.world;
+  const ms = (s) => w.startMs + s * 1000;
+  const from = formatTime(ms(rep.start));
+  const to = rep.end !== null ? formatTime(ms(rep.end)) : t('reports.ongoing');
+  const outcome = rep.end === null ? 'ongoing' : rep.result || 'brokenOff';
+  const passes = rep.passes.map((p, i) => `<li><span class="when">${escapeHtml(formatTime(ms(p.t)))}</span> ${escapeHtml(t('reports.naval.pass', { n: i + 1 }))} : ${escapeHtml(t(`reports.naval.passResult.${p.result}`))}</li>`);
+  return `<article class="report naval outcome-${outcome}" id="report-${escapeHtml(rep.id)}">
+    <header><b>${escapeHtml(t('reports.naval.title', { escort: rep.escort }))}</b> <span class="when">${escapeHtml(from)} – ${escapeHtml(to)}</span>
+    <span class="tag">${escapeHtml(t(`reports.naval.outcome.${outcome}`))}</span></header>
+    <p class="comp">${escapeHtml(t(rep.convoy ? 'reports.naval.context' : 'reports.naval.contextAlone', { ships: rep.ships, convoy: rep.convoy, how: t(`log.engageHow.${rep.how}`) }))}</p>
+    ${passes.length ? `<ol class="passes">${passes.join('')}</ol>` : `<p class="hint">${escapeHtml(t('reports.naval.noPass'))}</p>`}
+  </article>`;
+}
+
 export function openReports(app, focus = null) {
   const dlg = app.el.dlgReports;
   app.reportsOpened = true;
   const w = app.world;
-  const reports = [...w.reports.values()].sort((a, b) => (b.detectedT ?? b.startT) - (a.detectedT ?? a.startT));
+  // Raids and depth-charge attacks, the latest first, by day.
+  const items = [
+    ...[...w.reports.values()].map((rep) => ({ t: rep.detectedT ?? rep.startT, rep, naval: false })),
+    ...(w.navalReports || []).map((rep) => ({ t: rep.start, rep, naval: true })),
+  ].sort((a, b) => b.t - a.t);
   const byDay = new Map();
-  for (const rep of reports) {
-    const ms = w.startMs + (rep.detectedT ?? rep.startT) * 1000;
+  for (const item of items) {
+    const ms = w.startMs + item.t * 1000;
     const day = Math.floor(ms / 86400000);
     if (!byDay.has(day)) byDay.set(day, { ms, list: [] });
-    byDay.get(day).list.push(rep);
+    byDay.get(day).list.push(item);
   }
   const sections = [...byDay.values()].map(({ ms, list }) => {
-    const totals = list.reduce((acc, rep) => {
+    const totals = list.filter((x) => !x.naval).reduce((acc, { rep }) => {
       const x = reportTotals(rep);
       acc.down += x.down;
       acc.lost += x.lost;
       return acc;
     }, { down: 0, lost: 0 });
-    return `<section class="report-day"><h3>${escapeHtml(formatDate(ms, t('days'), t('months')))} <small>${escapeHtml(t('reports.dayTotals', { n: list.length, down: totals.down, lost: totals.lost }))}</small></h3>
-      ${list.map((rep) => reportCard(app, rep)).join('')}</section>`;
+    const raids = list.filter((x) => !x.naval).length;
+    const naval = list.filter((x) => x.naval);
+    const sunk = naval.filter((x) => x.rep.result === 'sunk').length;
+    const head = [
+      raids ? t('reports.dayTotals', { n: raids, down: totals.down, lost: totals.lost }) : '',
+      naval.length ? t('reports.naval.dayTotals', { n: naval.length, sunk }) : '',
+    ].filter(Boolean).join(' · ');
+    return `<section class="report-day"><h3>${escapeHtml(formatDate(ms, t('days'), t('months')))} <small>${escapeHtml(head)}</small></h3>
+      ${list.map((x) => (x.naval ? navalCard(app, x.rep) : reportCard(app, x.rep))).join('')}</section>`;
   });
   dlg.innerHTML = `
     <form method="dialog" class="page reports-page">

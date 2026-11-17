@@ -4,8 +4,11 @@ import { makeKanalkampf, makeWorld, run } from './helpers.js';
 import { planGroundRoute, setAlert } from '../src/sim/orders.js';
 import { effectiveAlert } from '../src/sim/crews.js';
 import {
-  addRoster, cancelTakeoff, removeRoster, scheduleSail, scheduleTakeoff, scheduleWing,
+  cancelTakeoff, scheduleSail, scheduleTakeoff, scheduleWing,
 } from '../src/sim/timetable.js';
+import {
+  addDaily, addOverride, endOverride, normalizeRoster, overrideOf, removeRosterEntry, startOverride, timeOfDay,
+} from '../src/sim/roster.js';
 import { routeConvoy } from '../src/sim/convoy.js';
 import { project } from '../src/sim/geo.js';
 import { addMember, newFormation, scrambleFormation } from '../src/sim/formations.js';
@@ -13,21 +16,74 @@ import { restore, snapshot } from '../src/save/game.js';
 
 const at = (w, minutes) => w.t + minutes * 60;
 
-test('duty roster: alert changes at their hour, once or every day', () => {
+const H = 3600;
+/** Seconds after midnight, `minutes` from now on the game clock. */
+const todIn = (w, minutes) => (timeOfDay(w) + minutes * 60) % 86400;
+
+test('duty roster: the daily plan changes the state at its hours, every day', () => {
   const w = makeKanalkampf('standard', { fatigue: 'on' });
   const s = w.squadrons.find((x) => x.id === '32');
   setAlert(w, s, 'rest');
-  addRoster(w, s, at(w, 10), 'thirty', true);
-  const once = addRoster(w, s, at(w, 20), 'cockpit');
-  assert.equal(s.roster.length, 2);
-  const ev = run(w, 11 * 60);
+  addDaily(w, s, todIn(w, 10), 'thirty');
+  const evening = addDaily(w, s, todIn(w, 20), 'cockpit');
+  assert.equal(s.roster.daily.length, 2);
+  let ev = run(w, 11 * 60);
   assert.ok(ev.some((e) => e.type === 'rosterApplied' && e.alert === 'thirty'));
   assert.equal(s.alert, 'thirty');
   assert.equal(effectiveAlert(w, s), 'rest', 'the recall from rest takes its time');
-  assert.equal(s.roster.length, 2, 'the daily change stays for tomorrow');
-  assert.ok(removeRoster(w, s, once.id));
-  assert.equal(s.roster.length, 1);
-  assert.ok(s.roster[0].at > w.t + 23 * 3600, 'tomorrow at the same hour');
+  ev = run(w, 10 * 60);
+  assert.equal(s.alert, 'cockpit');
+  assert.ok(removeRosterEntry(w, s, evening.id));
+  setAlert(w, s, 'rest');
+  ev = run(w, 24 * H);
+  assert.equal(ev.filter((e) => e.type === 'rosterApplied').length, 1, 'the next day, the same hour again, and only that one');
+  assert.equal(s.alert, 'thirty');
+});
+
+test('a plan for the coming hours, from H0: it replaces the daily plan, then the daily plan comes back', () => {
+  const w = makeKanalkampf('standard', { fatigue: 'on' });
+  const s = w.squadrons.find((x) => x.id === '32');
+  setAlert(w, s, 'available');
+  addDaily(w, s, todIn(w, 3 * 60), 'cockpit'); // daily: cockpit three hours from now
+  const o = startOverride(w, s, 24);
+  assert.equal(o.until - o.from, 24 * H);
+  // H0 to H+6 at rest, H+6 to H+9 on alert, H+9 to H+20 cockpit, H+20 to H+24 on alert.
+  assert.ok(addOverride(w, s, 0, 'rest'));
+  assert.equal(s.alert, 'rest', 'H+0 is now: at once');
+  addOverride(w, s, 6 * H, 'available');
+  addOverride(w, s, 9 * H, 'cockpit');
+  addOverride(w, s, 20 * H, 'available');
+  assert.equal(addOverride(w, s, 25 * H, 'rest'), null, 'after the end of the plan');
+  run(w, 5 * H);
+  assert.equal(s.alert, 'rest', 'the daily cockpit at H+3 waits');
+  run(w, 2 * H);
+  assert.equal(s.alert, 'available');
+  run(w, 3 * H);
+  assert.equal(s.alert, 'cockpit');
+  run(w, 11 * H);
+  assert.equal(s.alert, 'available');
+  const ev = run(w, 3 * H + 120);
+  assert.equal(overrideOf(w, s), null, 'over after 24 hours');
+  assert.ok(ev.some((e) => e.type === 'rosterResumed' && e.alert === 'cockpit'), 'back to the daily plan, with its state for this hour');
+  assert.equal(s.alert, 'cockpit');
+});
+
+test('unticking the plan for the coming hours brings the daily plan back at once; an M2.3 roster becomes a daily plan', () => {
+  const w = makeKanalkampf('standard', { fatigue: 'on' });
+  const s = w.squadrons.find((x) => x.id === '32');
+  setAlert(w, s, 'available');
+  addDaily(w, s, todIn(w, -60), 'thirty'); // daily: disponible since an hour ago
+  startOverride(w, s, 12);
+  addOverride(w, s, 0, 'cockpit');
+  assert.equal(s.alert, 'cockpit');
+  assert.ok(endOverride(w, s));
+  assert.equal(s.alert, 'thirty');
+  const old = w.squadrons.find((x) => x.id === '43');
+  old.roster = [{ id: 'T1', at: w.t + 600, alert: 'cockpit', daily: true }, { id: 'T2', at: w.t + 1200, alert: 'rest', daily: false }];
+  normalizeRoster(w, old);
+  assert.equal(old.roster.daily.length, 1);
+  assert.equal(old.roster.daily[0].tod, todIn(w, 10));
+  assert.equal(old.roster.override, null);
 });
 
 test('a take-off scheduled with a route prepared on the ground; the order at its time, airborne after the alert delay', () => {
@@ -112,12 +168,14 @@ test('a wing scheduled to take off together; a squadron scheduled later joins it
 test('the timetable is saved and restored', () => {
   const w = makeKanalkampf('standard', { fatigue: 'on' });
   const s = w.squadrons.find((x) => x.id === '32');
-  addRoster(w, s, at(w, 30), 'cockpit', true);
+  addDaily(w, s, todIn(w, 30), 'cockpit');
+  startOverride(w, s, 24);
+  addOverride(w, s, 2 * H, 'rest');
   scheduleTakeoff(w, s, at(w, 45));
   const b = makeKanalkampf('standard', { fatigue: 'on' });
   restore(b, JSON.parse(JSON.stringify(snapshot(w))));
   const t = b.squadrons.find((x) => x.id === '32');
-  assert.equal(t.roster.length, 1);
+  assert.deepEqual(t.roster, s.roster);
   assert.equal(t.schedule.at, s.schedule.at);
   assert.equal(b.nextTimetableId, w.nextTimetableId);
 });
