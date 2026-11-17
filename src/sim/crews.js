@@ -5,7 +5,11 @@
 
 import { emit } from './events.js';
 
-export const ALERT_STATES = ['rest', 'available', 'cockpit'];
+// Readiness on the ground, from the lowest: at rest (the pilots may be anywhere: two hours to
+// get them back), available (30 min), at readiness (5 min), in the cockpit (2 min). The delay
+// of a state is the time it takes to be in the air from it; raising the readiness takes the
+// difference (from rest to readiness: 1 h 55), lowering it is immediate.
+export const ALERT_STATES = ['rest', 'thirty', 'available', 'cockpit'];
 
 export function fatigueOn(world) {
   return world.settings.fatigue === 'on' || world.settings.fatigue === 'losses';
@@ -41,10 +45,39 @@ export function fatigueLevel(world, s) {
   return 'fresh';
 }
 
-/** Seconds for a squadron to get off the ground at its alert state, or null if stood down. */
+function alertDelay(world, state) {
+  return world.rules.crews.alert[state || 'available'].scrambleS;
+}
+
+/** The alert state the squadron is really at now: until a recall is over, the one before. */
+export function effectiveAlert(world, s) {
+  if (s.alertAt !== null && s.alertAt !== undefined && world.t < s.alertAt) return s.alertFrom || 'rest';
+  return s.alert || 'available';
+}
+
+/** Seconds from now until the squadron can be in the air (a recall under way included). */
 export function scrambleSeconds(world, s) {
   if (!fatigueOn(world)) return world.rules.squadron.scrambleSeconds;
-  return world.rules.crews.alert[s.alert || 'available'].scrambleS;
+  const pending = s.alertAt !== null && s.alertAt !== undefined && world.t < s.alertAt ? s.alertAt - world.t : 0;
+  return pending + alertDelay(world, s.alert);
+}
+
+/** A new alert state: a lower readiness at once, a higher one once the time it takes is past. */
+export function changeAlert(world, s, state) {
+  if (!ALERT_STATES.includes(state)) return false;
+  const now = scrambleSeconds(world, s);
+  const target = alertDelay(world, state);
+  if (!fatigueOn(world) || target >= now) {
+    s.alert = state;
+    s.alertAt = null;
+    s.alertFrom = null;
+    return true;
+  }
+  s.alertFrom = effectiveAlert(world, s);
+  s.alert = state;
+  s.alertAt = world.t + (now - target);
+  s.alertLong = now - target >= 600; // a recall worth telling the player when it is over
+  return true;
 }
 
 export function tire(world, s, points) {
@@ -77,7 +110,7 @@ function updateFatigue(world, s, dt) {
   let perHour;
   if (flying) perHour = C.fatiguePerFlightHour;
   else if (s.state === 'lost') return;
-  else perHour = C.alert[s.alert || 'available'].fatiguePerHour;
+  else perHour = C.alert[effectiveAlert(world, s)].fatiguePerHour;
   const before = fatigueLevel(world, s);
   s.fatigue = Math.max(0, Math.min(100, s.fatigue + (perHour * dt) / 3600));
   const after = fatigueLevel(world, s);
@@ -110,8 +143,22 @@ function replacePilots(world, dt) {
   });
 }
 
+/** A recall (or a raise of readiness) over: the new state holds from now. */
+function settleAlert(world, s) {
+  if (s.alertAt === null || s.alertAt === undefined || world.t < s.alertAt) return;
+  s.alertAt = null;
+  s.alertFrom = null;
+  if (s.alertLong) emit(world, 'alertReached', { squadron: s.name, squadronId: s.id, alert: s.alert });
+  s.alertLong = false;
+}
+
 /** Once a minute of game time. */
 export function updateCrews(world, dt) {
-  if (fatigueOn(world)) for (const s of world.squadrons) updateFatigue(world, s, dt);
+  if (fatigueOn(world)) {
+    for (const s of world.squadrons) {
+      settleAlert(world, s);
+      updateFatigue(world, s, dt);
+    }
+  }
   if (pilotLossesOn(world)) replacePilots(world, dt);
 }

@@ -26,7 +26,7 @@ export function createRandom(seed = 1) {
       return k;
     },
     get state() {
-      return state;
+      return state >>> 0; // one form for the same state, so that saves compare equal
     },
     setState(v) {
       state = v >>> 0;

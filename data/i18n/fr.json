@@ -96,8 +96,9 @@
     },
     "alert": {
       "rest": "Au repos",
-      "available": "Disponible",
-      "cockpit": "En cockpit"
+      "thirty": "30 min",
+      "available": "Prête",
+      "cockpit": "Au cockpit"
     }
   },
   "orders": {
@@ -142,7 +143,8 @@
       "state": "Cette unité ne peut pas recevoir d'étapes maintenant.",
       "noRuler": "Mesurez d'abord un cap avec la règle (touche R, ou glissez depuis l'unité).",
       "lastPoint": "Le tracé doit garder au moins un point : tracez-en un nouveau depuis l'unité.",
-      "intercept": "Interception impossible : pas de contact sûr avec ce raid, ou l'escadrille ne peut pas recevoir d'ordre."
+      "intercept": "Interception impossible : pas de contact sûr avec ce raid, ou l'escadrille ne peut pas recevoir d'ordre.",
+      "clock": "Heure non comprise : tapez par exemple 09:30."
     },
     "join": "Rejoindre {convoy}",
     "leave": "Quitter le convoi",
@@ -176,13 +178,14 @@
     "intercept": "Intercepter {raid} · {p} %",
     "interceptNone": "{raid} : hors couverture",
     "interceptHint": "Le contrôleur guide l'escadrille et la fait monter au-dessus du raid. Sa chance dépend de la couverture au point de rencontre : cœur d'un faisceau radar, bord de portée, observateurs, patrouille. Vous pouvez aussi glisser depuis l'escadrille jusqu'au raid.",
-    "alert": "Au sol",
+    "alert": "État d'alerte",
     "alerts": {
-      "rest": "Au repos",
-      "available": "Disponible",
-      "cockpit": "En cockpit"
+      "rest": "Repos (2 h)",
+      "thirty": "Disponible (30 min)",
+      "available": "Alerte (5 min)",
+      "cockpit": "Cockpit (2 min)"
     },
-    "alertHint": "Décollage en {n} min. Au repos, l'escadrille récupère vite mais ne peut pas décoller ; en cockpit, elle part en 2 min mais se fatigue.",
+    "alertHint": "Le délai d'un état, c'est le temps pour être en l'air après l'ordre de décoller. Monter d'un cran prend la différence (du repos à l'alerte : 1 h 55) ; descendre est immédiat.",
     "convoySpeed": "Vitesse",
     "speedBest": "{n} nœuds (le maximum)",
     "speedHint": "Au maximum, des navires lents décrochent et deviennent des traînards. À {n} nœuds ou moins, le convoi reste groupé. Le zigzag gêne les U-Boote mais ralentit d'environ 15 %.",
@@ -198,7 +201,44 @@
     "followLeader": "Voler avec {name}",
     "leaveFormation": "Quitter la formation",
     "formationHint": "En formation, l'escadrille suit son chef et attaque avec lui : l'escorte allemande se partage entre elles.",
-    "followRefused": "Impossible de rejoindre cette escadrille."
+    "followRefused": "Impossible de rejoindre cette escadrille.",
+    "alertNames": {
+      "rest": "au repos",
+      "thirty": "disponible (30 min)",
+      "available": "en alerte (5 min)",
+      "cockpit": "au cockpit (2 min)"
+    },
+    "recall": "Rappel en cours : {state} à {time} ; en l'air au plus tôt à {air}.",
+    "recalling": "rappel en cours",
+    "alertNow": "En l'air {d} après l'ordre de décoller.",
+    "restConfirm": "Mettre {name} au repos ? Le personnel peut partir : il faudra 2 h pour le rappeler.",
+    "restYes": "Au repos",
+    "cancel": "Annuler",
+    "remove": "Retirer",
+    "add": "Ajouter",
+    "at": "à",
+    "daily": "chaque jour",
+    "speed": "Vitesse",
+    "today": "aujourd'hui",
+    "tomorrow": "demain",
+    "roster": "Programmation des effectifs",
+    "rosterIntro": "Programmez l'état d'alerte de chaque escadrille de la base. La frise montre les 24 prochaines heures (sans les vols) ; les hachures, un rappel en cours.",
+    "scheduleHint": "Programmer un départ : l'heure saisie est celle de l'ordre. L'unité part ensuite selon son état : 2 min au cockpit, 5 min en alerte, 30 min disponible, 2 h au repos (le temps de rappeler le personnel). Anticipez l'état d'alerte, ou programmez-le dans les effectifs.",
+    "understood": "Compris",
+    "scrambleIn": "Décoller (en l'air dans {d})",
+    "scheduleAt": "Décollage programmé à",
+    "schedule": "Programmer",
+    "scheduled": "Décollage programmé à {time} (heure de l'ordre)",
+    "scheduledDaily": "Décollage programmé chaque jour à {time} (heure de l'ordre)",
+    "scheduledJoin": "Départ programmé à {time} pour rejoindre {formation}",
+    "scheduledRouteHint": "Glissez depuis l'aérodrome pour tracer la route : elle attend le décollage. Ou préparez des étapes dans l'onglet Navigation. Sans route ni étapes, l'escadrille patrouillera au-dessus de sa base.",
+    "waiting": "en attente : l'unité n'est pas prête",
+    "joinWing": "Rejoindre une formation",
+    "sailAt": "Appareillage programmé",
+    "sailScheduled": "Appareillage programmé : {time}",
+    "sailScheduledHint": "Tracez la route depuis le port, ou préparez des étapes : elles attendent l'heure.",
+    "sailJoin": "Appareillage programmé {time} pour rejoindre {formation}.",
+    "joinGroup": "Rejoindre un groupe de soutien"
   },
   "sheet": {
     "type": "Appareil",
@@ -398,7 +438,15 @@
       "light": "La moitié",
       "full": "Toutes"
     },
-    "confirmSpeed": "Demander avant d'accélérer pendant un raid ou une attaque de convoi"
+    "confirmSpeed": "Demander avant d'accélérer pendant un raid ou une attaque de convoi",
+    "questions": "Demander l'autorisation d'engager et de poursuivre (sinon les consignes s'appliquent seules)",
+    "devMode": "Mode développeur",
+    "devPassword": "Mot de passe",
+    "devOk": "Valider",
+    "devCancel": "Annuler",
+    "devWrong": "Mot de passe incorrect.",
+    "devUnavailable": "Cette page ne peut pas vérifier le mot de passe.",
+    "devHint": "Pour contrôler les scénarios : les vraies positions ennemies en magenta et un onglet « Ennemis ». Il ne change rien à la partie. Le cocher demande le mot de passe."
   },
   "objectives": {
     "convoyArrived": "Amener le convoi {convoy} dans un port britannique",
@@ -546,7 +594,6 @@
     },
     "missedGuided": " Le guidage n'avait que {p} % de chances ici.",
     "raidReport": "Rapport du raid {raid} : {outcome}, {down} abattu(s) pour {lost} perte(s). Cliquez pour le lire.",
-    "scrambleRefusedResting": "{squadron} est au repos : passez-la « Disponible » pour la faire décoller.",
     "scrambleRefusedNoPilots": "{squadron} n'a plus de pilote en état de voler.",
     "noAmmo": "{squadron} à {airfield} : munitions insuffisantes, réarmée à {n} %.",
     "squadronTired": "{squadron} est fatiguée ({n} %) : elle se bat moins bien. Mettez-la au repos dès que possible.",
@@ -594,7 +641,49 @@
     "formationScrambledAlone": "{formation} décolle (une seule escadrille prête).",
     "formationGathered": "{formation} est rassemblée ({n} escadrilles sur {of}) et part en mission.",
     "formationHomeward": "{formation} rentre au port : un de ses groupes arrive au bout de son autonomie.",
-    "formationMerged": "{from} rejoint {formation} : une seule formation."
+    "formationMerged": "{from} rejoint {formation} : une seule formation.",
+    "questionYes": {
+      "engage": "Autorisation d'engager le raid {raid} : {units}.",
+      "pursue": "Autorisation de poursuivre le raid {raid} : {units}.",
+      "beyond": "Autorisation de poursuivre le raid {raid} au-delà de mi-Manche : {units}."
+    },
+    "questionNo": {
+      "engage": "Pas d'engagement du raid {raid} : {units}.",
+      "pursue": "Pas de poursuite du raid {raid} : {units}.",
+      "beyond": "{units} ne passe pas mi-Manche derrière le raid {raid}."
+    },
+    "questionExpired": {
+      "engage": "Sans réponse : {units} n'engage pas le raid {raid}.",
+      "pursue": "Sans réponse : {units} ne poursuit pas le raid {raid}.",
+      "beyond": "Sans réponse : {units} ne passe pas mi-Manche derrière le raid {raid}."
+    },
+    "brokeOff": "{squadron} décroche à mi-Manche et rentre.",
+    "rosterApplied": "Effectifs : {squadron} passe {state}.",
+    "alertReached": "{squadron} est {state} : rappel terminé.",
+    "scheduledTakeoff": "Décollage programmé : ordre de décoller à {squadron}.",
+    "scheduledTakeoffLate": "Décollage programmé : ordre de décoller à {squadron}, en retard.",
+    "scheduleDelayed": "{unit} : l'ordre programmé attend ({reason}).",
+    "delayReasons": {
+      "refuelling": "plein en cours",
+      "scrambling": "décollage en cours",
+      "airborne": "en vol",
+      "combat": "au combat",
+      "returning": "sur le retour",
+      "lost": "unité perdue",
+      "refit": "carénage",
+      "noRoute": "ni route ni étapes",
+      "notReady": "aucune escadrille prête",
+      "refused": "décollage impossible"
+    },
+    "scheduledWing": "Décollage programmé : {formation} décolle ({n} escadrilles).",
+    "scheduledSail": "Appareillage programmé : {unit} appareille.",
+    "rallyArmed": "Plan de rassemblement de {formation} lancé : {n} unités, rendez-vous {time}.",
+    "rallyDeparted": "{formation} quitte le rendez-vous au complet ({n} sur {of}).",
+    "rallyDepartedLate": "{formation} quitte le rendez-vous à {n} sur {of}, sans {late}.",
+    "rallyWaiting": "{formation} attend ses retardataires, {min} min au plus.",
+    "rallyCaughtUp": "{unit} a rattrapé {formation}.",
+    "rallyDone": "{formation} : rassemblement terminé.",
+    "atRendezvous": "{squadron} est au rendez-vous de {formation} et tourne en attendant."
   },
   "reasons": {
     "fuel": "carburant",
@@ -675,7 +764,10 @@
     "uContactUnder": "U-Boot en plongée · {how} · {by}",
     "wingPlaque": "{name} · {n} sqn · {aircraft} · {alt}",
     "wingGathering": "rassemblement {n}/{of}",
-    "groupPlaque": "{name} · {n} gr. · {ships}"
+    "groupPlaque": "{name} · {n} gr. · {ships}",
+    "rallyAsap": "au plus tôt",
+    "rallyAir": "RV {name} · {time} · {alt}",
+    "rallySea": "RV {name} · {time}"
   },
   "help": {
     "title": "Comment jouer",
@@ -688,7 +780,7 @@
       "Tracés : cliquez une unité pour ouvrir sa fiche, à droite de la carte, et voir les carrés de sa route. Glissez un carré pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. En fin de tracé, l'escadrille orbite, sauf si vous choisissez autre chose dans l'onglet Route de sa fiche (se poser si le tracé finit dans la bulle d'un aérodrome).",
       "Victoire si les convois livrent l'essentiel de leur cargaison, si 4 bases sur 5 sont en service et si la chasse garde 60 % de ses avions le 24 juillet. Défaite immédiate si toutes les bases restent sans carburant 24 heures."
     ],
-    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle (la croix de son encart l'efface) · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler, puis fermer la fiche · ↑ ↓ : altitude (de l'unité choisie, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : pleine vitesse · O : orbiter · P : rentrer · Ctrl+Maj+D : mode développeur",
+    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle (la croix de son encart l'efface) · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler, puis fermer la fiche · ↑ ↓ : altitude (de l'unité choisie, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : pleine vitesse · O : orbiter · P : rentrer · Question à l'écran : Entrée = oui (au rendez-vous : le choix du plan), Échap = non (au rendez-vous : partir)",
     "close": "Compris",
     "stepsTraining": [
       "Carte de l'Atlantique : glissez depuis le convoi HX (à Halifax) pour tracer sa route jusqu'à Liverpool ou la Clyde, ou cliquez sur « Route de l'Amirauté ». En réglage Réaliste, on navigue au cap : mesurez avec la règle, ajoutez des étapes, puis appareillez. Près de l'entrée d'un chenal, un pilote prend le relais.",
@@ -699,14 +791,18 @@
       "Les installations bombardées (aérodromes, radars, ports) apparaissent dans l'onglet Installations : un radar hors service ouvre un trou dans la couverture, un aérodrome endommagé fait décoller plus lentement."
     ],
     "common": [
-      "Tracés : cliquez une unité pour ouvrir sa fiche à droite de la carte (onglets Ordres, Route, État, Fiche technique) ; tant qu'elle est ouverte, la règle, Entrée et ↑ ↓ s'adressent à cette unité. La croix ou Échap la ferme. Glissez les carrés de la route, ajoutez-en avec « + », prolongez par l'anneau du bout, double-cliquez pour retirer. Maj + glisser mesure (règle) ; la croix de son encart l'efface.",
+      "Tracés : cliquez une unité pour ouvrir sa fiche à droite de la carte. L'onglet Ordres regroupe ce qu'elle doit faire (décoller, missions, état d'alerte, attitude face à l'ennemi, formation) ; l'onglet Navigation, comment elle y va (route, étapes, cap, altitude, vitesse, fin de route, profil). Tant que la fiche est ouverte, la règle, Entrée et ↑ ↓ s'adressent à cette unité. La croix ou Échap la ferme. Glissez les carrés de la route, ajoutez-en avec « + », prolongez par l'anneau du bout, double-cliquez pour retirer. Maj + glisser mesure (règle) ; la croix de son encart l'efface.",
       "Formations (menu du haut) : groupez des escadrilles en big wing, ou des groupes d'escorte en groupe de soutien. La formation devient une seule unité, avec une fiche et les mêmes ordres pour tous ; son chef (★) mène, le suivant prend la relève. Les fiches techniques (menu du haut) donnent vitesses, plafonds et autonomies.",
+      "Face à l'ennemi (onglet Ordres) : en Défense, une escadrille n'attaque pas d'elle-même et demande l'autorisation quand elle voit un raid ; en Attaque (le défaut), elle attaque les raids qui arrivent et demande avant de poursuivre un raid qui rentre ; en Attaque et poursuite, elle poursuit sans demander jusqu'à mi-Manche, puis demande. Une question passe le jeu à ×1 et y reste ; sans réponse en 60 s, c'est non. Une seule question par raid et par escadrille ; on peut couper les questions dans Réglages. Un tracé qui finit sur un raid, ou « Intercepter », vaut autorisation.",
+      "États d'alerte : Repos (2 h : le personnel peut être n'importe où), Disponible (30 min), Alerte (5 min), Cockpit (2 min). Le délai est le temps pour être en l'air après l'ordre de décoller ; monter d'un état prend la différence (du repos à l'alerte : 1 h 55), descendre est immédiat. Avec la fatigue, l'onglet Effectifs d'un aérodrome programme l'état de chaque escadrille sur 24 h (« chaque jour » pour un tour de service).",
+      "Programmer : « Décollage programmé » (ou « Appareillage programmé ») donne l'ordre à l'heure dite, avec la route tracée depuis la base ou les étapes préparées ; l'heure saisie est celle de l'ordre, le délai de l'état d'alerte s'y ajoute. « Rejoindre une formation » fait partir une escadrille à son heure pour rejoindre une big wing (ou un groupe de soutien).",
+      "Rassemblement (onglet d'une big wing ou d'un groupe de soutien) : sur le chef, ou sur un point à une heure donnée (ou au plus tôt), avec la route à suivre ensuite. Chaque membre a son heure de départ : en Arcade elles sont calculées, en Standard la fiche montre l'heure d'arrivée de chacun, en Réaliste à vous de compter (délai, montée, trajet). Avec une heure fixée, la formation part à cette heure (les premiers arrivés tournent) ; au plus tôt, dès que tous sont là. À l'heure, s'il manque quelqu'un : attendre (un temps maximum), ralentir vers la cible ou partir ; une big wing vous pose la question. Les retardataires suivent le plan en retard et rejoignent en route.",
       "Chaque raid se termine par un rapport, rangé dans « Rapports ». La partie est gardée dans le navigateur ; le menu « Scénario » permet de l'exporter dans un fichier."
     ],
     "scenario": {
       "adlertag": [
         "Adlertag, 12-18 août 1940. La Luftwaffe vise d'abord les radars de la côte (Dover, Rye, Pevensey, Ventnor), puis les aérodromes. Un radar détruit ouvre un trou dans la couverture : placez la station mobile (onglet Installations, « Déployer ») quand elle arrive.",
-        "Les raids sans bombardiers, très haut et rapides, sont des chasses libres de Bf 109 : elles cherchent à user vos escadrilles. Gardez vos forces pour les bombardiers. L'état d'alerte (repos, disponible, au cockpit) règle la vitesse de décollage et la fatigue.",
+        "Les raids sans bombardiers, très haut et rapides, sont des chasses libres de Bf 109 : elles cherchent à user vos escadrilles. Gardez vos forces pour les bombardiers. L'état d'alerte (repos 2 h, disponible 30 min, alerte 5 min, cockpit 2 min) règle le délai de décollage et la fatigue ; l'onglet Effectifs d'un aérodrome le programme.",
         "Les bases de secteur (Biggin Hill, Kenley, Hornchurch, North Weald, Tangmere, Middle Wallop, Northolt) doivent rester en service. Sans munitions ni carburant, une base ne réarme plus : surveillez les stocks et les trains depuis Chilmark et les ports.",
         "Victoire si 5 bases de secteur sur 7 et 7 radars sur 9 sont en service le 18 août au soir, si 90 avions ennemis sont abattus, si la chasse garde la moitié de ses avions et si le HX 62 livre 60 % de sa cargaison."
       ],
@@ -843,7 +939,8 @@
     "ft": "{n} ft",
     "ftRel": "{sign}{n} ft",
     "km": "{n} km",
-    "straggler": "{name} · traînard {n}"
+    "straggler": "{name} · traînard {n}",
+    "minShort": "min"
   },
   "legs": {
     "duration": "Cap {heading} pendant {d}",
@@ -1307,6 +1404,10 @@
     "patrolBounced": {
       "title": "Patrouille surprise",
       "text": "{squadron} est surprise par l'escorte du raid {raid} (avions restants : {n})."
+    },
+    "scheduleDelayed": {
+      "title": "Ordre en attente",
+      "text": "{unit} : l'ordre programmé ne peut pas être exécuté ({reason}). Il partira dès que possible."
     }
   },
   "speedConfirm": {
@@ -1318,9 +1419,9 @@
   },
   "dev": {
     "badge": "DEV",
-    "badgeTitle": "Mode développeur (Ctrl+Maj+D) : les vraies positions ennemies sont affichées.",
+    "badgeTitle": "Mode développeur (Réglages) : les vraies positions ennemies sont affichées.",
     "tab": "Ennemis",
-    "on": "Mode développeur activé : les vraies positions ennemies s'affichent (Ctrl+Maj+D pour l'arrêter).",
+    "on": "Mode développeur activé : les vraies positions ennemies s'affichent (Réglages pour l'arrêter).",
     "off": "Mode développeur arrêté.",
     "phantom": "fausse alerte",
     "nowhere": "nulle part",
@@ -1405,15 +1506,19 @@
       "returning": "rentre à sa base",
       "notEscort": "pas un groupe d'escorte",
       "missing": "introuvable"
-    }
+    },
+    "refused": "Cette unité ne peut pas rejoindre la formation."
   },
   "unit": {
     "tabs": {
       "orders": "Ordres",
+      "nav": "Navigation",
       "route": "Route",
       "state": "État",
       "card": "Fiche technique",
-      "members": "Membres"
+      "rally": "Rassemblement",
+      "members": "Membres",
+      "roster": "Effectifs"
     },
     "centre": "Centrer la carte sur l'unité",
     "close": "Fermer la fiche (Échap)",
@@ -1451,6 +1556,101 @@
     "wingHintGroundHeadings": "Préparez des branches dans l'onglet Route, ou décollez ensemble : la formation se rassemble au-dessus du chef avant de partir.",
     "wingHintAir": "Glissez depuis la formation pour tracer sa route : toutes ses escadrilles la suivent, à la vitesse de la plus lente.",
     "wingHintAirHeadings": "Donnez un cap ou des branches au chef : toutes les escadrilles le suivent, à la vitesse de la plus lente.",
-    "groupHint": "Tracez la route depuis le groupe de soutien : ses groupes suivent le chef en ligne de file. Quand le plus court arrive au bout de son autonomie, tous rentrent."
+    "groupHint": "Tracez la route depuis le groupe de soutien : ses groupes suivent le chef en ligne de file. Quand le plus court arrive au bout de son autonomie, tous rentrent.",
+    "roe": "Face à l'ennemi",
+    "roes": {
+      "defend": "Défense",
+      "attack": "Attaque",
+      "pursue": "Attaque et poursuite"
+    },
+    "roeHint": {
+      "defend": "N'attaque pas d'elle-même (sauf un raid sur le convoi qu'elle couvre) : un raid en vue demande votre autorisation.",
+      "attack": "Attaque les raids qui arrivent ; un raid qui rentre demande votre autorisation de poursuivre.",
+      "pursue": "Attaque et poursuit les raids qui rentrent, sans demander, jusqu'à mi-Manche ; au-delà, elle demande."
+    }
+  },
+  "question": {
+    "title": {
+      "engage": "Engager ?",
+      "pursue": "Poursuivre ?",
+      "beyond": "Mi-Manche",
+      "rally": "Rendez-vous"
+    },
+    "text": {
+      "engage": "Raid {raid} en vue de {units}, en défense : autorisation d'engager ?",
+      "pursue": "Le raid {raid} rentre, {units} au contact : autorisation de poursuivre ?",
+      "beyond": "{units} poursuit le raid {raid} au-delà de mi-Manche : autorisation de continuer ?",
+      "rally": "{units} au rendez-vous ; il manque {missing}. Attendre, ralentir vers la cible, ou partir sans eux ?"
+    },
+    "yes": "Oui (Entrée)",
+    "no": "Non (Échap)",
+    "show": "Voir",
+    "left": "{n} s",
+    "more": "+{n}",
+    "and": "et",
+    "options": {
+      "wait": "Attendre",
+      "slow": "Ralentir",
+      "go": "Partir"
+    },
+    "default": "(Entrée)"
+  },
+  "rally": {
+    "where": "Lieu du rassemblement",
+    "overLeaderBtn": "Sur le chef",
+    "atPointBtn": "Sur un point",
+    "noPoint": "Point à placer sur la carte",
+    "place": "Placer sur la carte",
+    "placing": "Cliquez sur la carte…",
+    "routeHint": "Route après le rendez-vous : glissez depuis le point RV sur la carte ({n} point(s) tracé(s)). Sans route, la formation tourne au-dessus du point.",
+    "routeClear": "Effacer la route",
+    "when": "Heure du rendez-vous",
+    "asap": "Au plus tôt",
+    "setTime": "Fixer l'heure",
+    "timeSet": "Rendez-vous à {time} : la formation part à cette heure ; les premiers arrivés l'attendent sur place.",
+    "missingTitle": "Si quelqu'un manque à l'heure",
+    "missing": {
+      "wait": "Attendre",
+      "slow": "Ralentir vers la cible",
+      "go": "Partir sans lui"
+    },
+    "upTo": "au plus",
+    "missingHintAir": "Au rendez-vous, s'il manque une escadrille, la question vous est posée ; sans réponse, ce choix s'applique. Les retardataires suivent le plan en retard, à pleine vitesse.",
+    "missingHintSea": "Au rendez-vous, s'il manque un groupe, ce choix s'applique. Les retardataires suivent le plan en retard.",
+    "leaderHint": "Sur le chef : les membres décollent à leur heure et rejoignent le chef ; le chef tourne au-dessus de sa base jusqu'à ce qu'ils l'aient rejoint (15 min au plus).",
+    "departures": "Départs (heure de l'ordre)",
+    "departuresAuto": "Départs calculés (heure de l'ordre)",
+    "arrival": "au point vers {time}",
+    "aid": {
+      "auto": "Arcade : les départs sont calculés pour que tous arrivent ensemble.",
+      "eta": "Standard : l'heure d'arrivée de chacun s'affiche selon son départ. Sans heure, il part au lancement du plan.",
+      "none": "Réaliste : à vous de compter le délai de décollage, la montée et le trajet (règle, profil). Sans heure, il part au lancement du plan."
+    },
+    "compute": "Calculer les départs",
+    "arm": "Lancer le plan",
+    "cancel": "Annuler le plan",
+    "underWay": "Plan de rassemblement en cours : voir l'onglet Rassemblement.",
+    "phase": {
+      "armed": "Rassemblement en cours",
+      "deciding": "Au rendez-vous : décision",
+      "waiting": "Attend ses retardataires",
+      "gone": "Partie du rendez-vous"
+    },
+    "atPoint": "rendez-vous {time}",
+    "overLeader": "rassemblement sur le chef",
+    "asapAround": "au plus tôt (vers {time})",
+    "late": "en retard",
+    "inAir": "en vol",
+    "status": {
+      "planned": "départ à {time}",
+      "late": "en retard, suit le plan",
+      "there": "au point",
+      "takingOff": "décolle",
+      "onWay": "en route"
+    },
+    "errors": {
+      "arm": "Placez d'abord le point de rendez-vous sur la carte."
+    },
+    "leaderHintSea": "Sur le chef : le chef appareille à son heure avec ses propres ordres (étapes ou route tracée depuis le port) ; chaque groupe appareille à la sienne, rejoint le chef en mer et prend son poste."
   }
 }

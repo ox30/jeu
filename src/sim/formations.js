@@ -61,7 +61,7 @@ function defaultName(world, kind, leader) {
 }
 
 /** A follower flies to its leader and keeps station (the big wing mechanics, silently). */
-function linkToLeader(s, leader) {
+export function linkToLeader(s, leader) {
   s.route = [];
   s.plan = [];
   s.legState = null;
@@ -117,6 +117,8 @@ function onMission(s) {
 function placeAirMember(world, f, s) {
   const leader = leaderOf(world, f);
   if (!leader || s === leader) return;
+  // A squadron with its own take-off time goes at that time (timetable.js).
+  if (s.schedule && s.state === 'ready') return;
   const leaderUp = leader.state === 'scrambling' || isFlying(leader);
   if (!leaderUp) {
     unlink(s);
@@ -313,9 +315,11 @@ export function scrambleFormation(world, f, orders = {}) {
     leader = ready;
   }
   if (leader.state === 'ready' && !scramble(world, leader, orders)) return 0;
+  if (leader.schedule && !leader.schedule.daily) leader.schedule = null;
   let n = 1;
   for (const s of membersOf(world, f).slice(1)) {
-    if (s.state !== 'ready') continue;
+    // A squadron with its own take-off time keeps it (timetable.js).
+    if (s.state !== 'ready' || s.schedule) continue;
     if (!scramble(world, s, {})) continue;
     linkToLeader(s, leader);
     n++;
@@ -446,6 +450,8 @@ function updateNaval(world, f) {
     if (e.state === 'lost') removeMember(world, f, e.id, true);
   }
   if (!world.formations.includes(f)) return;
+  // A rendezvous plan under way moves the groups itself (rally.js).
+  if (f.rally && f.rally.phase !== 'plan' && f.rally.phase !== 'gone') return;
   const list = membersOf(world, f);
   const leader = list[0];
   const convoyId = leader.escorting || leader.joinTarget || leader.huntFor || null;

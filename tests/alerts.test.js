@@ -1,10 +1,11 @@
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { data, makeKanalkampf, makeWorld, run, runTo } from './helpers.js';
 import { ALERT_SPEED, ALERT_TYPES, alertFor } from '../src/ui/alertRules.js';
 import { SPEEDS, enemyAction, requestSpeed } from '../src/ui/actions.js';
 import { setDictionary, t } from '../src/core/i18n.js';
-import { devRaids, raidLine, uboatLine } from '../src/ui/dev.js';
+import { checkDevPassword, devRaids, passwordHash, raidLine, uboatLine } from '../src/ui/dev.js';
 
 setDictionary(data.fr);
 
@@ -85,4 +86,16 @@ test('developer mode lines tell the real force, target and state', () => {
   const u = w.uboats[0];
   assert.match(uboatLine(w, u), /torpilles|au port|coulé/);
   assert.equal(t('dev.badge'), 'DEV');
+});
+
+test('developer mode opens with its password only; data/dev.json keeps just its SHA-256', async () => {
+  const dev = JSON.parse(readFileSync(new URL('../data/dev.json', import.meta.url), 'utf8'));
+  assert.match(dev.passwordSha256, /^[0-9a-f]{64}$/);
+  assert.equal(await passwordHash('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+  const hash = await passwordHash('Mot de passe');
+  assert.equal(await checkDevPassword('mot de passe', hash), true, 'capitals do not count');
+  assert.equal(await checkDevPassword('  Mot de passe ', hash), true, 'nor spaces around it');
+  assert.equal(await checkDevPassword('mot de pass', hash), false);
+  assert.equal(await checkDevPassword('', hash), false);
+  assert.equal(await checkDevPassword('mot de passe', ''), false, 'no password set: closed');
 });

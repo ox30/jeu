@@ -7,7 +7,24 @@ const KEY = 'jeu-1940.game.v1';
 const SITE_FIELDS = ['damage', 'attacks', 'wasOut', 'stocks', 'minStock', 'progress', 'starved', 'dryHours', 'lowWarned'];
 const LISTS = ['convoys', 'escorts', 'uboats', 'squadrons', 'raids', 'dfZones', 'dfPending', 'uboatPlots', 'ferries'];
 const VALUES = ['t', 'nextPlotId', 'nextTrainId', 'stats', 'objectives', 'allDone', 'ended', 'outcome', 'defeatReason',
-  'dryHours', 'pilots', 'firedEvents', 'mru', 'flags', 'currency', 'shipping', 'convoyRaidState', 'scheduled', 'formations', 'nextFormationId'];
+  'dryHours', 'pilots', 'firedEvents', 'mru', 'flags', 'currency', 'shipping', 'convoyRaidState', 'scheduled', 'formations', 'nextFormationId',
+  'questions', 'nextQuestionId', 'asked', 'nextTimetableId'];
+
+// Fields added after a save was made: a game saved by an earlier version gets them on restore.
+const SQUADRON_DEFAULTS = () => ({
+  formation: null, holdForWing: false, wingSlowest: null, roe: 'attack', cleared: new Set(), clearedBeyond: new Set(),
+  attackRaid: null, breakOff: null, alertAt: null, alertFrom: null, alertLong: false, roster: [], schedule: null, lateFor: null, rallySlow: null,
+});
+const SHIP_DEFAULTS = () => ({
+  formation: null, followEscort: null, followSlot: 0, waitForGroup: false, leftConvoy: null, schedule: null, lateFor: null,
+});
+const WORLD_DEFAULTS = () => ({
+  formations: [], nextFormationId: 1, questions: [], nextQuestionId: 1, asked: new Set(), nextTimetableId: 1,
+});
+
+function fillDefaults(target, defaults) {
+  for (const [k, v] of Object.entries(defaults)) if (target[k] === undefined) target[k] = v;
+}
 
 /** Plain JSON for Maps, Sets and nested objects. */
 function encode(v) {
@@ -84,6 +101,10 @@ export function restore(world, snap, addMobileRadar = null) {
   });
   world.mobileRadars = [];
   if (addMobileRadar) for (const def of decode(snap.mobileRadars || [])) addMobileRadar(world, def);
+  fillDefaults(world, WORLD_DEFAULTS());
+  for (const s of world.squadrons) fillDefaults(s, SQUADRON_DEFAULTS());
+  for (const e of world.escorts) fillDefaults(e, SHIP_DEFAULTS());
+  for (const c of world.convoys) if (c.schedule === undefined) c.schedule = null;
   world.events = [];
   return world;
 }

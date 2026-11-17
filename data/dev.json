@@ -1,0 +1,4 @@
+{
+  "note": "Mode développeur : case à cocher dans les Réglages, protégée par ce mot de passe (son empreinte SHA-256, en minuscules et sans espaces autour). Le changer : node tools/dev-password.mjs \"mot de passe\". Ce n'est qu'un verrou : il évite d'allumer le mode par hasard, le code du jeu reste lisible.",
+  "passwordSha256": "7b15815b4307752c3b45802a7c62e6352113fdd1d6c975112fb38f186de7656a"
+}

@@ -44,6 +44,7 @@ export function createConvoy(world, def) {
     course: def.heading ?? 90,
     route: [],
     routeLocked: 0, // last points of the route that the player cannot move (channel, port)
+    schedule: null, // a sailing ordered for later (timetable.js)
     plan: [],
     legState: null,
     // inPort (also: at anchor, waiting for the order to sail) | atSea | waiting | arrived | lost
@@ -414,7 +415,8 @@ export function routeConvoy(world, c, points) {
   if (c.kind === 'escort') c.homeward = Boolean(destination);
   c.plan = [];
   c.legState = null;
-  c.state = 'atSea';
+  // A sailing ordered for later: the route waits in port until then (timetable.js).
+  if (!(c.schedule && c.state === 'inPort')) c.state = 'atSea';
   c.destination = destination ? destination.id : null;
   if (c.kind === 'escort') c.joinTarget = null;
   const etaMs = world.startMs + (world.t + polylineLength(full) / routeSpeed(c)) * 1000;

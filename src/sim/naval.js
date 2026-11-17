@@ -89,6 +89,8 @@ export function createEscortGroup(world, def) {
     joinTarget: null, // convoy the group is ordered to meet
     escorting: null, // convoy the group is with
     leftConvoy: null, // convoy it was ordered to leave: it does not take station again by itself
+    schedule: null, // a sailing ordered for later (timetable.js)
+    lateFor: null, // a support group it is catching up with (rally.js)
     enduranceMax: def.enduranceDays * 86400,
     endurance: def.enduranceDays * 86400,
     timer: 0,

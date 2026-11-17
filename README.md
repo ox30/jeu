@@ -56,8 +56,11 @@ donne les étapes propres au scénario en cours.
 
 **La fiche d'une unité** s'ouvre à droite de la carte, à côté de la colonne (Objectifs,
 Tableau d'état, Journal), quand on clique une unité ou une installation. Elle tient en
-onglets courts : **Ordres**, **Route** (étapes, profil de montée, fin de route), **État** et
-**Fiche technique** ; une formation a un onglet **Membres**. Tant qu'elle est ouverte, tout
+onglets courts : **Ordres** (ce que l'unité doit faire : décoller, missions, état d'alerte,
+attitude face à l'ennemi, formation, départs programmés), **Navigation** (comment elle y va :
+route, étapes, cap, altitude, vitesse, fin de route, profil de montée), **État** et **Fiche
+technique** ; une formation a aussi **Rassemblement** et **Membres**, un aérodrome
+**Effectifs**. Tant qu'elle est ouverte, tout
 s'adresse à cette unité : la règle, Entrée pour ajouter l'étape mesurée, ↑ ↓ pour l'altitude.
 Un clic sur une autre unité change de fiche ; un clic sur la carte ne ferme plus rien ; la
 croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte sur l'unité.
@@ -84,6 +87,17 @@ croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte
    De même, un U-Boot vu par une escorte (vigie ou ASDIC) ou par un avion est suivi en direct ;
    perdu, il laisse un repère à sa dernière position, d'où partent ses cercles. Les
    observateurs (Observer Corps) restent des plots.
+   **Face à l'ennemi** (onglet Ordres d'une escadrille ou d'une big wing) : en *Défense*,
+   l'unité n'attaque pas d'elle-même (sauf un raid sur le convoi qu'elle couvre) et demande
+   l'autorisation d'engager quand elle voit un raid ; en *Attaque* (le défaut, comme au M2.2),
+   elle attaque les raids qui arrivent et demande avant de poursuivre un raid qui rentre ; en
+   *Attaque et poursuite*, elle poursuit sans demander jusqu'à mi-Manche, puis demande
+   l'autorisation d'aller au-delà. Une question s'affiche au-dessus de la carte, passe le jeu à ×1 et l'y
+   laisse après la réponse ; sans réponse en 60 s de jeu, c'est non. Il n'y a qu'une question
+   par raid et par escadrille (une seule pour une big wing), et on peut couper les questions
+   dans « Réglages » (l'unité applique alors son attitude sans demander). Un tracé qui finit
+   sur le raid, ou « Intercepter », vaut autorisation. Les groupes d'escorte gardent leur
+   règle « Rester » ou « Chasser », sans question.
 5. **Tracés.** Cliquez une unité pour voir les carrés de sa route : glissez-les, ajoutez-en
    avec « + », prolongez par l'anneau du bout, double-cliquez pour retirer ; un point choisi
    prend une altitude (↑ ↓). En fin de tracé, l'escadrille orbite, sauf autre choix dans
@@ -103,18 +117,44 @@ croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte
    - **Groupe de soutien** (escortes) : les groupes appareillent, rejoignent un convoi,
      chassent et rentrent ensemble ; en route libre, ils suivent le chef en ligne de file.
      L'autonomie est celle du plus court : quand il doit rentrer, tous rentrent.
+   - **Rassemblement** (onglet d'une formation) : sur le chef, ou sur un point placé sur la
+     carte, à une altitude, à une heure donnée ou au plus tôt, avec la route à suivre ensuite
+     (tracée depuis le point). Chaque membre a son heure de départ, celle de l'ordre : en
+     Arcade elles sont calculées pour que tous arrivent ensemble ; en Standard la fiche
+     affiche l'heure d'arrivée de chacun ; en Réaliste seulement les distances, à vous de
+     compter le délai d'alerte, la montée et le trajet. « Lancer le plan » donne les ordres à
+     leur heure. Avec une heure fixée, la formation quitte le rendez-vous à cette heure (les
+     premiers arrivés tournent en attendant) ; au plus tôt, dès que tous sont là. À l'heure
+     du rendez-vous, s'il manque quelqu'un, la formation attend (un
+     temps maximum), ralentit vers la cible ou part sans lui ; une big wing pose la question
+     (Entrée : le choix du plan). Les retardataires suivent le plan en retard, à pleine
+     vitesse, et reprennent leur place en la rattrapant.
 7. **Pilotes.** La fatigue monte en vol et en combat, baisse au sol. L'état d'alerte règle le
-   délai de décollage : au repos (pas de décollage, récupération), disponible (5 min), en
-   cockpit (2 min, fatigue). En Réaliste, des pilotes sont tués et remplacés lentement.
-8. **Logistique.** Les convois déchargent carburant et matériel dans les ports ; le dépôt de
+   délai pour être en l'air après l'ordre de décoller : *Repos* 2 h (le personnel peut être
+   n'importe où ; on le confirme, récupération rapide), *Disponible* 30 min, *Alerte* 5 min,
+   *Cockpit* 2 min (fatigue). Monter d'un état prend la différence (du repos à l'alerte :
+   1 h 55, la fiche montre le rappel en cours) ; descendre est immédiat. L'onglet
+   **Effectifs** d'un aérodrome programme l'état de chacune de ses escadrilles, à une heure
+   ou chaque jour, avec une frise des 24 heures à venir. En Réaliste, des pilotes sont tués
+   et remplacés lentement.
+8. **Départs programmés.** « Décollage programmé » (ou « Appareillage programmé » pour un
+   convoi ou un groupe d'escorte, à un jour et une heure) donne l'ordre à l'heure dite : la
+   route se trace depuis la base (en pointillé, elle attend) ou les étapes se préparent dans
+   l'onglet Navigation. L'heure est celle de l'ordre : le délai de l'état d'alerte s'y ajoute,
+   d'où un rappel la première fois qu'on programme. « Chaque jour » répète l'ordre (une
+   patrouille côtière à l'aube, par exemple). « Rejoindre une formation » (ou « Rejoindre un
+   groupe de soutien ») fait partir l'unité à son heure pour rejoindre une big wing en vol
+   (heure calculée à la règle). Un ordre qui ne peut pas partir (plein en cours, carénage,
+   ni route ni étapes) attend et lève une alerte.
+9. **Logistique.** Les convois déchargent carburant et matériel dans les ports ; le dépôt de
    Chilmark fournit les munitions. Envoyez des trains (jusqu'à 100 t, chargement mélangé) ou
    fixez des stocks minimum : les trains partent seuls. Sans carburant, une escadrille ne
    refait pas le plein ; sans munitions, elle repart à moitié armée, ou pas du tout. Les
    usines transforment le matériel en avions.
-9. **Installations.** Aérodromes, radars, ports et usines peuvent être bombardés. Un radar
+10. **Installations.** Aérodromes, radars, ports et usines peuvent être bombardés. Un radar
    hors service ouvre un trou dans la couverture ; à partir d'Adlertag, une station radar
    mobile peut le boucher (onglet Installations, « Déployer »).
-10. **Dollars (hiver 1941).** Avant le prêt-bail, la cargaison des convois se paie comptant :
+11. **Dollars (hiver 1941).** Avant le prêt-bail, la cargaison des convois se paie comptant :
    l'onglet Logistique règle la part achetée de chaque convoi, ou commande des Hudson et des
    Catalina en Amérique.
 
@@ -135,17 +175,23 @@ prochain événement : le joueur doit pouvoir être surpris.
 Raccourcis : Espace pause · 1 à 6 vitesse · A Atlantique · L Grande-Bretagne · G Angleterre ·
 R ou Maj + glisser règle (la croix de son encart l'efface) · Entrée ajouter l'étape mesurée ·
 C couverture radar · Échap annuler, puis fermer la fiche · ↑ ↓ altitude · Suppr retirer le point choisi ·
-S décoller · B pleine vitesse · O orbite · P rentrer · Ctrl+Maj+D mode développeur.
+S décoller · B pleine vitesse · O orbite · P rentrer · question à l'écran : Entrée oui (au
+rendez-vous : le choix du plan), Échap non (au rendez-vous : partir).
 
 ## Mode développeur
 
-Ctrl+Maj+D (ou `?dev` dans l'adresse) affiche en magenta ce que l'ennemi fait vraiment, pour
-contrôler les scénarios : chaque raid dès son rassemblement, avec sa composition, son
+La case « Mode développeur » des Réglages, protégée par un mot de passe, affiche en magenta
+ce que l'ennemi fait vraiment, pour contrôler les scénarios : chaque raid dès son rassemblement, avec sa composition, son
 altitude, sa phase et un trait vers sa cible ; chaque U-Boot à sa vraie position, avec son
 état (patrouille, piste ou rejoint un convoi, rentre au port), ses torpilles et sa plongée.
 Un badge « DEV » s'affiche dans le bandeau et un onglet « Ennemis » liste les raids à venir
 et l'état des U-Boote. Le mode ne fait que lire la simulation : la partie, les sauvegardes et
-les reprises restent identiques.
+les reprises restent identiques. Décocher la case l'arrête.
+
+Le mot de passe n'est écrit nulle part : `data/dev.json` ne garde que son empreinte SHA-256
+(espaces autour et majuscules ne comptent pas). Pour le changer :
+`node tools/dev-password.mjs "nouveau mot de passe"`, puis reconstruire `dist/index.html`.
+C'est un verrou contre l'allumage par hasard, pas un secret : le code du jeu reste lisible.
 
 ## Ordres au cap et étapes
 
@@ -171,7 +217,8 @@ Trois préréglages, modifiables un par un dans « Réglages » :
 | Campagne : pertes reportées | aucune | la moitié | toutes |
 
 Options : tiges d'altitude, grille de carrés, zoom automatique et ralenti à l'alerte,
-confirmation des vitesses élevées pendant une action ennemie, sons, pause pendant les pages.
+confirmation des vitesses élevées pendant une action ennemie, questions d'engagement et de
+poursuite, sons, pause pendant les pages.
 
 ## Organisation du code
 
@@ -183,14 +230,16 @@ confirmation des vitesses élevées pendant une action ennemie, sons, pause pend
 │   ├── main.js                démarrage et boucle de jeu
 │   ├── core/                  temps, aléatoire à graine, traductions, chargement des données
 │   ├── sim/                   simulation (aucun accès à la page) : convois et navires,
-│   │                          escadrilles, formations, raids, détection, contact direct,
-│   │                          guidage, combat, patrouilles,
+│   │                          escadrilles, formations et rassemblements, raids, détection,
+│   │                          contact direct, guidage, attitude face à l'ennemi et
+│   │                          questions, combat, départs programmés et effectifs, patrouilles,
 │   │                          lutte anti-sous-marine, pilotes, installations, logistique,
 │   │                          radars mobiles, événements datés, convois réguliers et dollars,
 │   │                          rapports, objectifs
 │   ├── render/                caméra, carte, symboles, animations, vue de profil
 │   ├── ui/                    souris, clavier, panneaux et fiche d'unité, pages (rapports,
-│   │                          fiches techniques, formations), alertes, campagne, tutoriel,
+│   │                          fiches techniques, formations), alertes, questions, campagne,
+│   │                          tutoriel,
 │   │                          mode développeur, sons
 │   └── save/                  réglages et parties gardés dans le navigateur
 ├── data/
@@ -219,7 +268,7 @@ facilite les tests et l'équilibrage.
 npm test
 ```
 
-Les 88 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
+Les 107 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
 terre et la mer, les routes, les étapes et leur édition, le pilote à l'entrée des chenaux,
 les interceptions, le guidage du contrôleur et les ratés, les rapports, les installations,
 les trains mélangés, les munitions, la fatigue et les pilotes, les patrouilles, les U-Boote
@@ -227,8 +276,12 @@ les trains mélangés, les munitions, la fatigue et les pilotes, les patrouilles
 l'identique, les nouveaux scénarios, les achats en dollars, la campagne, les alertes, la
 confirmation des vitesses, le mode développeur, le contact direct (raids et U-Boote), les
 formations (rassemblement, vitesse de la plus lente, relève du chef, fusion, guidage d'une
-big wing, groupe de soutien qui suit son chef et rentre ensemble) et une quinzaine complète
-sans ordres.
+big wing, groupe de soutien qui suit son chef et rentre ensemble), l'attitude face à
+l'ennemi (questions d'engagement, de poursuite et de mi-Manche, refus, questions coupées),
+les états d'alerte et la programmation des effectifs, les décollages et appareillages
+programmés (chaque jour, rejoindre une formation, ordre qui attend), les plans de
+rassemblement (départs calculés, retardataire, attendre ou ralentir, groupe de soutien sur un
+point ou sur son chef) et une quinzaine complète sans ordres.
 
 ## Outils
 

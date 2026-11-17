@@ -14,18 +14,19 @@
 import { panBy, toWorld, zoomAt } from '../render/camera.js';
 import {
   SPEEDS, activePoint, addRulerLeg, cancelSpeed, changeAltitude, changePointAltitude, confirmSpeed, deletePoint, extendRoute, findUnit,
-  finishDrawing, orderMru, goView, headingsMode, insertPoint, movePoint, orderHome, orderOrbit, requestSpeed, scrambleSquadron, select,
+  finishDrawing, orderMru, goView, headingsMode, insertPoint, movePoint, orderHome, orderOrbit, placeRallyPoint, requestSpeed, scrambleSquadron, select,
   selectedFormation, selectedSquadron, selectedUnit, setActivePoint, toggleBuster, togglePause,
 } from './actions.js';
 import { membersOf } from '../sim/formations.js';
+import { answerShown } from './questions.js';
 
-const UNIT_KINDS = new Set(['squadron', 'convoy', 'airfield', 'escort']);
+const UNIT_KINDS = new Set(['squadron', 'convoy', 'airfield', 'escort', 'rally']);
 const HANDLE_KINDS = new Set(['routePoint', 'routeMid', 'routeExtend']);
 
 /** World position a measurement starts from when the player drags from a unit. */
 function unitOrigin(app, hit) {
-  const u = findUnit(app, hit.kind, hit.id);
-  return u ? [u.x, u.y] : toWorld(app.camera, hit.x, hit.y);
+  const u = hit.kind === 'rally' ? null : findUnit(app, hit.kind, hit.id);
+  return u && Number.isFinite(u.x) ? [u.x, u.y] : toWorld(app.camera, hit.x, hit.y);
 }
 
 /** Selection made by a drag from an aerodrome: its first ready squadron, or the aerodrome. */
@@ -38,6 +39,7 @@ function selectFromAirfield(app, fieldId) {
 /** What a click on a symbol selects: the formation of a squadron or a group in one. */
 function selectClicked(app, hit) {
   if (hit.formation) select(app, 'formation', hit.formation);
+  else if (hit.kind === 'rally') select(app, 'formation', hit.id);
   else select(app, hit.kind, hit.id);
 }
 
@@ -87,6 +89,13 @@ export function attachInput(app) {
     if (hit && hit.kind === 'rulerClose') {
       // The cross on the ruler's box: the ruler goes, the ruler tool (if on) stays.
       app.ruler = null;
+      gesture = null;
+      return;
+    }
+    if (app.tool === 'rally') {
+      // Placing a formation's rendezvous: a click on the map.
+      const [wx, wy] = toWorld(app.camera, p[0], p[1]);
+      placeRallyPoint(app, wx, wy);
       gesture = null;
       return;
     }
@@ -262,16 +271,17 @@ export function attachInput(app) {
     const unit = selectedUnit(app);
     const point = activePoint(app);
     const key = e.key;
-    if (e.ctrlKey && e.shiftKey && (key === 'D' || key === 'd')) {
-      e.preventDefault();
-      app.toggleDev();
-      return;
-    }
     // A high speed asked during an enemy action waits for Enter (yes) or Escape (no).
     if (app.speedConfirm && (key === 'Enter' || key === 'Escape')) {
       e.preventDefault();
       if (key === 'Enter') confirmSpeed(app);
       else cancelSpeed(app);
+      return;
+    }
+    // A question from a squadron: Enter is yes, Escape is no.
+    if (app.questionShown && (key === 'Enter' || key === 'Escape')) {
+      e.preventDefault();
+      answerShown(app, key === 'Enter');
       return;
     }
     if (key === ' ') {

@@ -13,9 +13,11 @@ import {
   activePoint, addRulerLeg, addTypedLeg, cancelEditLeg, centreOn, changeAltitude, changePointAltitude, clearPointAltitude,
   deletePoint, findUnit, goView, orderAdmiraltyRoute, orderClearPlan, orderCover, orderEndAction, orderEscortHome,
   orderHome, orderJoin, orderLeave, orderMinStock, orderOrbit, orderRemoveLeg, orderSail, orderTrain, orderVector,
-  orderAlert, orderConvoySpeed, orderEscortBehaviour, orderIntercept, orderOffer, orderPurchase,
+  orderConvoySpeed, orderEscortBehaviour, orderIntercept, orderOffer, orderPurchase,
   orderZigzag, scrambleSquadron, select, selectedUnit, startEditLeg, toggleBuster,
   orderDissolve, orderFormationAlert, orderLaunchWaiting, orderLeaveFormationOf, orderMerge, orderNewFormation,
+  cancelConfirm, orderAlertChecked, orderCancelSchedule, orderRally, orderRoe, orderRosterAdd, orderRosterRemove, orderScheduleJoin,
+  orderScheduleSail, orderScheduleTakeoff, orderScheduleWing,
 } from './ui/actions.js';
 import { formationById, leaderOf } from './sim/formations.js';
 import { contactEstimate } from './sim/query.js';
@@ -24,6 +26,7 @@ import { carryFor, loadCampaign, recordResult } from './ui/campaign.js';
 import { attachTutorial, startTutorial, stopTutorial, tutorialEvent, updateTutorial } from './ui/tutorial.js';
 import { fighterShare } from './sim/objectives.js';
 import { alertForEvent, initAlert, resetAlerts, updateAlerts } from './ui/alerts.js';
+import { initQuestions, questionAsked, renderQuestion } from './ui/questions.js';
 import { ALERT_TYPES } from './ui/alertRules.js';
 import { loadDev, saveDev } from './ui/dev.js';
 import { openDesktopNotice, openEnd, openHelp, openScenarios, openSettings, openSuccess } from './ui/dialogs.js';
@@ -42,7 +45,7 @@ import { setSpeed } from './sim/orders.js';
 const MAX_STEPS_PER_FRAME = 6000;
 // Events handled at once, without the rest of the frame's steps: every alert, and a few more.
 const INTERRUPTING = new Set([
-  ...ALERT_TYPES, 'scenarioEnd', 'allObjectivesDone', 'convoyArrived', 'pilotAboard', 'uboatSighted', 'scenarioEvent', 'mruReady',
+  ...ALERT_TYPES, 'scenarioEnd', 'allObjectivesDone', 'convoyArrived', 'pilotAboard', 'uboatSighted', 'scenarioEvent', 'mruReady', 'question',
 ]);
 const RADIO = new Set(['tallyHo', 'missed', 'nothingSeen', 'bingo', 'outOfAmmo', 'divert', 'divertOut', 'legMissed', 'convoySighted', 'interceptOrdered', 'uboatSighted']);
 const SCENARIOS = ['kanalkampf', 'adlertag', 'quinze-septembre', 'hiver-atlantique', 'm0-july-1940'];
@@ -95,6 +98,16 @@ function collectElements() {
     speedConfirm: $('speed-confirm'),
     alert: $('alert'),
     alertTitle: $('alert-title'),
+    question: $('question'),
+    questionTitle: $('question-title'),
+    questionText: $('question-text'),
+    questionLeft: $('question-left'),
+    questionMore: $('question-more'),
+    questionYes: $('question-yes'),
+    questionNo: $('question-no'),
+    questionShow: $('question-show'),
+    questionYesNo: $('question-yesno'),
+    questionOptions: $('question-options'),
     alertMore: $('alert-more'),
     alertText: $('alert-text'),
     alertShow: $('alert-show'),
@@ -114,16 +127,17 @@ function collectElements() {
 }
 
 async function loadData() {
-  const [fr, rules, presets, atlantic, channel, labels, ...scenarios] = await Promise.all([
+  const [fr, rules, presets, dev, atlantic, channel, labels, ...scenarios] = await Promise.all([
     loadJSON('data/i18n/fr.json'),
     loadJSON('data/rules.json'),
     loadJSON('data/presets.json'),
+    loadJSON('data/dev.json'),
     loadJSON('data/maps/atlantic.json'),
     loadJSON('data/maps/channel.json'),
     loadJSON('data/maps/labels.json'),
     ...SCENARIOS.map((id) => loadJSON(`data/scenarios/${id}.json`)),
   ]);
-  return { fr, rules, presets, atlantic, channel, labels, scenarios };
+  return { fr, rules, presets, dev, atlantic, channel, labels, scenarios };
 }
 
 function scenarioById(data, id) {
@@ -145,6 +159,8 @@ function handleEvents(app, events) {
     if (e.type === 'uboatAttack' || e.type === 'convoyBombed') app.lastNavalAttack = e.t;
     if (e.type === 'raidDetected') {
       if (alert && app.settings.autoZoom && app.camera.scale < 0.6) goView(app, 'england');
+    } else if (e.type === 'question') {
+      questionAsked(app);
     } else if (e.type === 'scenarioEvent' && e.important) {
       setTimeout(() => openEvent(app, e), 200);
     } else if (e.type === 'allObjectivesDone') {
@@ -163,6 +179,16 @@ function handleEvents(app, events) {
 function inputValue(id) {
   const input = document.getElementById(id);
   return input ? input.value.trim() : '';
+}
+
+/** The first time the player schedules anything, a reminder: anticipate the alert state. */
+function firstSchedule(app) {
+  if (!app.scheduleHintSeen) app.scheduleHintShown = true;
+}
+
+function inputChecked(id) {
+  const input = document.getElementById(id);
+  return Boolean(input && input.checked);
 }
 
 function clearLegInputs() {
@@ -296,7 +322,81 @@ function onPanelClick(app, e) {
       if (sq) orderIntercept(app, sq, b.dataset.raid);
       break;
     case 'alert':
-      if (sq) orderAlert(app, sq, b.dataset.alert);
+      if (unit) orderAlertChecked(app, unit, b.dataset.alert);
+      break;
+    case 'confirm-rest':
+      if (unit) orderAlertChecked(app, unit, 'rest');
+      break;
+    case 'confirm-cancel':
+      cancelConfirm(app);
+      break;
+    case 'roe':
+      if (unit) orderRoe(app, unit, b.dataset.roe);
+      break;
+    case 'roster-add':
+      firstSchedule(app);
+      if (unit) orderRosterAdd(app, unit, inputValue(`roster-alert-${id}`), inputValue(`roster-time-${id}`), inputChecked(`roster-daily-${id}`));
+      break;
+    case 'roster-remove':
+      if (unit) orderRosterRemove(app, unit, b.dataset.entry);
+      break;
+    case 'schedule-takeoff':
+      firstSchedule(app);
+      if (unit) orderScheduleTakeoff(app, unit, inputValue(`sched-time-${id}`), inputChecked(`sched-daily-${id}`));
+      break;
+    case 'schedule-wing':
+      firstSchedule(app);
+      if (unit) orderScheduleWing(app, unit, inputValue(`sched-time-${id}`), inputChecked(`sched-daily-${id}`));
+      break;
+    case 'schedule-join':
+      firstSchedule(app);
+      if (unit && unit.kind === 'squadron') orderScheduleJoin(app, unit, inputValue(`join-formation-${id}`), inputValue(`join-time-${id}`));
+      else if (unit) orderScheduleJoin(app, unit, inputValue(`group-formation-${id}`), inputValue(`group-time-${id}`), Number(inputValue(`group-day-${id}`) || 0));
+      break;
+    case 'schedule-sail':
+      firstSchedule(app);
+      if (unit) orderScheduleSail(app, unit, Number(inputValue(`sail-day-${id}`) || 0), inputValue(`sail-time-${id}`));
+      break;
+    case 'schedule-cancel':
+      if (unit) orderCancelSchedule(app, unit);
+      break;
+    case 'hint-seen':
+      app.scheduleHintSeen = true;
+      app.scheduleHintShown = false;
+      try {
+        localStorage.setItem('jeu-1940.scheduleHint.v1', '1');
+      } catch {
+        // ignore
+      }
+      break;
+    case 'rally-where':
+      if (unit) orderRally(app, unit, { kind: 'where', where: b.dataset.where });
+      break;
+    case 'rally-place':
+      if (unit) orderRally(app, unit, { kind: 'place' });
+      break;
+    case 'rally-alt-up':
+    case 'rally-alt-down':
+      if (unit) orderRally(app, unit, { kind: 'alt', deltaFt: action === 'rally-alt-up' ? 1000 : -1000 });
+      break;
+    case 'rally-asap':
+      if (unit) orderRally(app, unit, { kind: 'time', text: 'asap' });
+      break;
+    case 'rally-time': {
+      const day = inputValue(`rally-day-${id}`);
+      if (unit) orderRally(app, unit, { kind: 'time', text: inputValue(`rally-time-${id}`), dayOffset: day === '' ? null : Number(day) });
+      break;
+    }
+    case 'rally-missing':
+      if (unit) orderRally(app, unit, { kind: 'missing', missing: b.dataset.missing, waitMin: Number(inputValue(`rally-wait-${id}`)) || null });
+      break;
+    case 'rally-arm':
+      firstSchedule(app);
+    // falls through
+    case 'rally-compute':
+    case 'rally-cancel':
+    case 'rally-route-clear':
+      if (unit) orderRally(app, unit, { kind: { 'rally-compute': 'compute', 'rally-arm': 'arm', 'rally-cancel': 'cancel', 'rally-route-clear': 'routeClear' }[action] });
       break;
     case 'zigzag':
       if (unit) orderZigzag(app, unit);
@@ -412,6 +512,13 @@ function onPanelChange(app, e) {
   } else if (target.dataset.change === 'convoy-speed') {
     const c = app.world.convoys.find((x) => x.id === target.dataset.id);
     if (c) orderConvoySpeed(app, c, Number(target.value));
+  } else if (target.dataset.change === 'rally-dep') {
+    const f = formationById(app.world, target.dataset.id);
+    const day = inputValue(`rally-dep-day-${target.dataset.unit}`);
+    if (f) orderRally(app, f, { kind: 'departure', unitId: target.dataset.unit, text: target.value, dayOffset: day === '' ? null : Number(day) });
+  } else if (target.dataset.change === 'rally-wait') {
+    const f = formationById(app.world, target.dataset.id);
+    if (f && f.rally) orderRally(app, f, { kind: 'missing', missing: f.rally.missing, waitMin: Number(target.value) });
   }
   app.dirtyPanels = true;
 }
@@ -504,9 +611,15 @@ async function start() {
   app.setTool = (tool) => {
     app.tool = tool;
     if (!tool) app.ruler = null;
-    app.canvas.style.cursor = tool === 'ruler' ? 'crosshair' : 'grab';
+    app.canvas.style.cursor = tool === 'ruler' || tool === 'rally' ? 'crosshair' : 'grab';
     app.dirtyHud = true;
+    app.dirtyPanels = true;
   };
+  try {
+    app.scheduleHintSeen = localStorage.getItem('jeu-1940.scheduleHint.v1') === '1';
+  } catch {
+    app.scheduleHintSeen = false;
+  }
   app.toggleRadarCover = () => {
     settings.radarCover = !settings.radarCover;
     saveSettings(settings);
@@ -592,9 +705,11 @@ async function start() {
     app.save();
   };
 
-  // Developer mode: the real enemy positions on the map, and an "Enemies" tab.
-  app.toggleDev = () => {
-    app.dev = !app.dev;
+  // Developer mode: the real enemy positions on the map, and an "Enemies" tab. Switched on
+  // from the settings, with the password (dialogs.js).
+  app.setDev = (on) => {
+    if (app.dev === on) return;
+    app.dev = on;
     saveDev(app.dev);
     if (!app.dev && app.toteTab === 'enemies') app.toteTab = 'units';
     addLogEntry(app, t(app.dev ? 'dev.on' : 'dev.off'), 'info', app.world.t);
@@ -627,6 +742,7 @@ async function start() {
 
   initHud(app);
   initAlert(app);
+  initQuestions(app);
   attachInput(app);
   attachTutorial(app);
   // The side panel and the unit panel beside it answer the same buttons.
@@ -702,6 +818,7 @@ async function start() {
 
     handleEvents(app, drainEvents(world));
     updateAlerts(app);
+    renderQuestion(app);
     updateTutorial(app);
     if (!world.ended && world.t - (app.lastSaveT ?? 0) >= 900 && now - (app.lastSaveReal ?? 0) > 4000) app.save();
     drawScene(app.ctx, app, app.paused ? 1 : Math.max(0, Math.min(1, app.accumulator)));

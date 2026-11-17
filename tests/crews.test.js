@@ -1,20 +1,33 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { scramble, setAlert } from '../src/sim/orders.js';
-import { formFactor, strength } from '../src/sim/crews.js';
+import { effectiveAlert, formFactor, scrambleSeconds, strength } from '../src/sim/crews.js';
 import { dispatchTrain } from '../src/sim/logistics.js';
 import { makeKanalkampf, run } from './helpers.js';
 
-test('alert states: stood down a squadron cannot take off; in the cockpits it takes off faster', () => {
+test('alert states: two hours from rest; raising the readiness takes the difference, lowering it is immediate', () => {
   const world = makeKanalkampf('standard', { fatigue: 'on' });
   const sq = world.squadrons.find((s) => s.id === '32');
   setAlert(world, sq, 'rest');
-  assert.equal(scramble(world, sq, { vector: 90 }), false);
+  assert.equal(sq.alertAt, null, 'standing down is immediate');
+  assert.equal(scrambleSeconds(world, sq), 7200, 'two hours to the air from rest');
   setAlert(world, sq, 'available');
+  assert.equal(sq.alertAt, world.t + 6900, 'the recall takes 1 h 55');
+  assert.equal(effectiveAlert(world, sq), 'rest');
+  assert.equal(scrambleSeconds(world, sq), 7200, 'still two hours to the air');
+  run(world, 3600);
+  assert.equal(scrambleSeconds(world, sq), 3600);
+  const ev = run(world, 3360);
+  assert.ok(ev.some((e) => e.type === 'alertReached'), 'the player is told the recall is over');
+  assert.equal(effectiveAlert(world, sq), 'available');
   assert.equal(scramble(world, sq, { vector: 90 }), true);
-  assert.ok(sq.timer >= 300, 'five minutes when available');
+  assert.ok(sq.timer >= 300, 'five minutes at readiness');
   const other = world.squadrons.find((s) => s.id === '74');
+  setAlert(world, other, 'thirty');
+  assert.equal(scrambleSeconds(world, other), 1800, 'thirty minutes when available');
   setAlert(world, other, 'cockpit');
+  assert.equal(scrambleSeconds(world, other), 1800, 'into the cockpits: not faster than the thirty minutes');
+  run(world, 1800);
   scramble(world, other, { vector: 90 });
   assert.ok(other.timer <= 130, 'two minutes from the cockpits');
 });

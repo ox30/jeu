@@ -13,7 +13,7 @@ import { airfieldDelayFactor, isOperational } from './sites.js';
 import { bearing, distance, headingDiff, polylineLength } from './geo.js';
 import { sendEscortHome } from './naval.js';
 import { interceptChance } from './control.js';
-import { ALERT_STATES, scrambleSeconds, strength, tire } from './crews.js';
+import { ALERT_STATES, changeAlert, scrambleSeconds, strength, tire } from './crews.js';
 import { dispatchTrain } from './logistics.js';
 
 export { editShipRoute, routeConvoy };
@@ -45,11 +45,7 @@ export function scramble(world, s, { route = null, vector = null, orbit = false,
     emit(world, 'scrambleRefused', { squadron: s.name, squadronId: s.id, state: 'airfieldOut' });
     return false;
   }
-  const delay = scrambleSeconds(world, s);
-  if (delay === null) {
-    emit(world, 'scrambleRefused', { squadron: s.name, squadronId: s.id, state: 'resting' });
-    return false;
-  }
+  const delay = scrambleSeconds(world, s); // from rest, the time to recall the crews (2 h)
   if (strength(world, s) <= 0) {
     emit(world, 'scrambleRefused', { squadron: s.name, squadronId: s.id, state: 'noPilots' });
     return false;
@@ -87,6 +83,7 @@ function prepareNavigation(world, s) {
   s.orbit = false;
   s.cover = null;
   s.intercept = null;
+  s.attackRaid = null;
   s.follow = null;
   s.inFormation = false;
 }
@@ -144,6 +141,23 @@ export function interceptRaid(world, s, raidId) {
   const contact = world.contacts.get(raidId);
   emit(world, 'interceptOrdered', { squadron: s.name, squadronId: s.id, raid: contact ? contact.label : raidId, raidId, p: chance.p });
   return chance.p;
+}
+
+/** A route prepared on the ground for a squadron that takes off later (timetable.js). */
+export function planGroundRoute(world, s, points) {
+  if ((s.state !== 'ready' && s.state !== 'refuelling') || !points.length) return false;
+  s.route = copyRoute(points);
+  s.plan = [];
+  s.legState = null;
+  s.vector = null;
+  applyPointAltitude(s);
+  checkEndAction(world, s);
+  if (s.schedule) {
+    s.schedule.route = copyRoute(points);
+    s.schedule.plan = [];
+    s.schedule.endAction = { ...s.endAction };
+  }
+  return true;
 }
 
 export function setRoute(world, s, points) {
@@ -288,8 +302,7 @@ export function setAltitude(world, s, feet) {
 /** State of readiness on the ground: stood down (rest), available, or pilots in the cockpits. */
 export function setAlert(world, s, state) {
   if (!ALERT_STATES.includes(state)) return false;
-  s.alert = state;
-  return true;
+  return changeAlert(world, s, state);
 }
 
 export function setSpeed(world, s, mode) {

@@ -51,6 +51,20 @@
           <button type="button" id="alert-close" class="close" data-i18n-label="alert.close">×</button>
         </span>
       </div>
+      <div id="question" class="question" hidden role="alertdialog" aria-live="assertive">
+        <strong id="question-title"></strong>
+        <span id="question-text"></span>
+        <span id="question-left" class="question-left"></span>
+        <span class="question-buttons">
+          <span id="question-yesno" class="question-buttons">
+            <button type="button" id="question-yes" data-i18n="question.yes"></button>
+            <button type="button" id="question-no" data-i18n="question.no"></button>
+          </span>
+          <span id="question-options" class="question-buttons" hidden></span>
+          <button type="button" id="question-show" class="secondary" data-i18n="question.show"></button>
+        </span>
+        <span id="question-more" class="question-more" hidden></span>
+      </div>
       <div id="coach" class="coach" hidden role="status" aria-live="polite"></div>
       <aside id="unit-panel" class="unit-panel" hidden aria-labelledby="unit-title">
         <header class="unit-head">

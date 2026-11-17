@@ -214,28 +214,19 @@
         "posSigmaKm": 0,
         "countError": 0,
         "altSigmaM": 0,
-        "delayS": [
-          0,
-          0
-        ]
+        "delayS": [0, 0]
       },
       "approximate": {
         "posSigmaKm": 2.5,
         "countError": 0.3,
         "altSigmaM": 600,
-        "delayS": [
-          0,
-          0
-        ]
+        "delayS": [0, 0]
       },
       "delayed": {
         "posSigmaKm": 4,
         "countError": 0.45,
         "altSigmaM": 1100,
-        "delayS": [
-          90,
-          180
-        ]
+        "delayS": [90, 180]
       }
     }
   },
@@ -319,11 +310,15 @@
     "giveUpS": 600
   },
   "crews": {
-    "note": "Pilotes, fatigue et alerte au sol. Réglage « fatigue » : off (Arcade), on (Standard), losses (Réaliste, pilotes tués).",
+    "note": "Pilotes, fatigue et alerte au sol. Réglage « fatigue » : off (Arcade), on (Standard), losses (Réaliste, pilotes tués). États d'alerte : délai pour être en l'air (repos 2 h, disponible 30 min, alerte 5 min, cockpit 2 min) et fatigue par heure ; monter d'un cran prend la différence des délais.",
     "alert": {
       "rest": {
-        "scrambleS": null,
+        "scrambleS": 7200,
         "fatiguePerHour": -8
+      },
+      "thirty": {
+        "scrambleS": 1800,
+        "fatiguePerHour": -5
       },
       "available": {
         "scrambleS": 300,
@@ -534,8 +529,30 @@
     "keepFactor": 1.15
   },
   "formations": {
-    "note": "Formations : Big Wing (chasse) et groupe de soutien (escortes). Le chef d'une Big Wing tourne au-dessus du terrain jusqu'au rassemblement, au plus gatherMaxS secondes ; le chef d'un groupe de soutien ralentit (waitSpeed) tant qu'un groupe n'a pas rejoint son poste.",
+    "note": "Formations (big wing, groupe de soutien) : rassemblement au plus 15 min au-dessus du chef ; le chef d'un groupe de soutien ralentit à 70 % tant qu'un groupe n'a pas rejoint ; une wing partie de son rendez-vous sans tout le monde peut ralentir à 75 % pour ses retardataires.",
     "gatherMaxS": 900,
-    "waitSpeed": 0.7
+    "waitSpeed": 0.7,
+    "slowFactor": 0.75
+  },
+  "pursuit": {
+    "note": "Consignes face à l'ennemi : délai de réponse aux questions (secondes de jeu) et ligne de mi-Manche (longitude, latitude), du nord au sud. Au-delà de la ligne, côté continent, une poursuite demande une autorisation.",
+    "answerS": 60,
+    "midChannel": [
+      [1.5, 58.0],
+      [2.6, 55.5],
+      [3.6, 53.5],
+      [3.4, 52.6],
+      [2.8, 51.9],
+      [2.1, 51.35],
+      [1.45, 51.0],
+      [1.15, 50.72],
+      [0.6, 50.35],
+      [-0.3, 50.15],
+      [-1.3, 50.1],
+      [-2.2, 50.05],
+      [-3.6, 49.55],
+      [-5.15, 49.2],
+      [-6.5, 49.0]
+    ]
   }
 }

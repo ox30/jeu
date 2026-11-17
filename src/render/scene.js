@@ -23,6 +23,7 @@ import { isPatrol, sightKm } from '../sim/patrols.js';
 import { fuelDays } from '../sim/logistics.js';
 import { drawDevLayer } from './devLayer.js';
 import { formationById } from '../sim/formations.js';
+import { rallyPoint } from '../sim/rally.js';
 
 const DEG = Math.PI / 180;
 
@@ -1012,6 +1013,53 @@ function drawInterceptPoint(ctx, cam, app, alpha) {
   plaque(ctx, bx + 10, by + 30, lines, { accent: COLORS.intercept, size: 10 });
 }
 
+// ---- rendezvous of formations ------------------------------------------------------
+
+/** Where a member of a formation sets out from, for its line to the rendezvous. */
+function memberStart(world, u) {
+  if (u.kind === 'squadron' && !isFlying(u)) return world.byId.airfield.get(u.airfield);
+  return u;
+}
+
+function drawRallies(ctx, cam, app) {
+  const world = app.world;
+  for (const f of world.formations || []) {
+    const r = f.rally;
+    const p = rallyPoint(f);
+    if (!r || !p || r.phase === 'gone') continue;
+    const [sx, sy] = toScreen(cam, p.x, p.y);
+    const selected = isSelected(app, 'formation', f.id);
+    const color = selected ? COLORS.select : 'rgba(44, 74, 124, 0.9)';
+    if (selected) {
+      // Each member's way to the point, and the route after it.
+      for (const id of f.members) {
+        const u = (f.kind === 'air' ? world.squadrons : world.escorts).find((x) => x.id === id);
+        if (!u || u.state === 'lost') continue;
+        const from = memberStart(world, u);
+        if (distance(from.x, from.y, p.x, p.y) < 1) continue;
+        pencilLine(ctx, [toScreen(cam, from.x, from.y), [sx, sy]], { color: 'rgba(44, 74, 124, 0.45)', width: 1.2, dash: [3, 4], arrow: false });
+      }
+      if (r.route.length) {
+        pencilLine(ctx, [[sx, sy], ...r.route.map(([x, y]) => toScreen(cam, x, y))], { color: COLORS.pencil, width: 1.8 });
+      }
+    }
+    if (!onScreen(cam, sx, sy)) continue;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 9, 0, Math.PI * 2);
+    ctx.moveTo(sx - 13, sy);
+    ctx.lineTo(sx + 13, sy);
+    ctx.moveTo(sx, sy - 13);
+    ctx.lineTo(sx, sy + 13);
+    ctx.stroke();
+    const when = r.at !== null ? formatTime(world.startMs + r.at * 1000) : t('map.rallyAsap');
+    const lines = [t(f.kind === 'air' ? 'map.rallyAir' : 'map.rallySea', { name: f.name, time: when, alt: ftText(feetOf(r.altM)) })];
+    const box = placePlaque(ctx, app, sx, sy, lines, { accent: color, size: 10 }, 12);
+    app.hits.push({ kind: 'rally', id: f.id, x: sx, y: sy, r: 12, priority: 1, box });
+  }
+}
+
 // ---- squadrons ---------------------------------------------------------------------
 
 function drawSquadrons(ctx, cam, app, alpha) {
@@ -1040,6 +1088,22 @@ function drawSquadrons(ctx, cam, app, alpha) {
       continue;
     }
     if (!isFlying(sq)) {
+      // A take-off ordered for later: its route waits, dashed, from the aerodrome.
+      if (sq.schedule && sq.state === 'ready' && sq.route.length && !sq.schedule.join) {
+        const f = world.byId.airfield.get(sq.airfield);
+        const [fx, fy] = toScreen(cam, f.x, f.y);
+        const points = sq.route.map(([x, y]) => toScreen(cam, x, y));
+        pencilLine(ctx, [[fx, fy], ...points], { color: 'rgba(44, 74, 124, 0.55)', width: 1.4, dash: [6, 5] });
+        if (selected || cam.scale > 0.9) {
+          // Labelled at the end of the first leg, clear of the aerodrome's own names.
+          const [lx, ly] = points[0];
+          ctx.font = `11px ${FONTS.mono}`;
+          ctx.textAlign = lx >= fx ? 'left' : 'right';
+          ctx.textBaseline = 'bottom';
+          ctx.fillStyle = '#2c4a7c';
+          ctx.fillText(`${sq.name} ${formatTime(world.startMs + sq.schedule.at * 1000)}`, lx + (lx >= fx ? 6 : -6), ly - 4);
+        }
+      }
       // A plan prepared before take-off is drawn from the aerodrome, and so is a route.
       if (selected && sq.plan.length && (sq.state === 'ready' || sq.state === 'scrambling')) drawPlanTrack(ctx, cam, app, sq, true);
       if (sq.state === 'scrambling' && sq.route.length) {
@@ -1488,6 +1552,7 @@ export function drawScene(ctx, app, alpha) {
   drawTrains(ctx, cam, app, alpha);
   drawConvoys(ctx, cam, app, alpha);
   drawEscorts(ctx, cam, app, alpha);
+  drawRallies(ctx, cam, app);
   drawContacts(ctx, cam, app, alpha);
   drawInterceptPoint(ctx, cam, app, alpha);
   drawSquadrons(ctx, cam, app, alpha);

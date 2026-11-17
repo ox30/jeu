@@ -13,6 +13,9 @@ import { checkEngagements, checkMisses, updateCombat } from './combat.js';
 import { checkAlerts, updateDetection } from './detection.js';
 import { updateContacts } from './contact.js';
 import { createFormations, updateFormations } from './formations.js';
+import { createQuestions, updateQuestions } from './engagement.js';
+import { createTimetable, updateTimetable } from './timetable.js';
+import { updateRallies } from './rally.js';
 import { createGrid } from './grid.js';
 import { initSite, repairSites } from './sites.js';
 import { checkDefeat, checkObjectives, createObjectives, finalize } from './objectives.js';
@@ -125,6 +128,8 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
   createSchedule(world);
   createShipping(world);
   createFormations(world);
+  createQuestions(world);
+  createTimetable(world);
   world.raids = [
     ...scenario.raids.map((r) => createRaid(world, r)),
     ...(scenario.phantoms || []).map((p) => createPhantom(world, p)),
@@ -175,9 +180,11 @@ export function step(world, dt = 1) {
   checkEngagements(world);
   checkMisses(world);
   updateCombat(world, dt);
+  updateQuestions(world);
   if (world.t % world.rules.visual.checkEveryS === 0) {
     updateContacts(world);
     updateFormations(world);
+    updateRallies(world);
   }
   const minute = world.rules.detection.plotIntervalS;
   if (world.t % minute === 0) {
@@ -189,6 +196,7 @@ export function step(world, dt = 1) {
     updateAsw(world);
     updateMru(world);
     updateSchedule(world);
+    updateTimetable(world);
     updateShipping(world);
     updateConvoyRaids(world);
     ageDfZones(world);

@@ -1,6 +1,6 @@
-// Developer mode (Ctrl+Maj+D): shows what the enemy really does, to check the scenarios.
-// It only reads the simulation: switching it on changes nothing in the game, and a game
-// saved with it on replays the same.
+// Developer mode (a box in the settings, behind a password): shows what the enemy really
+// does, to check the scenarios. It only reads the simulation: switching it on changes
+// nothing in the game, and a game saved with it on replays the same.
 
 import { formatNumber, t } from '../core/i18n.js';
 import { FOOT_M } from '../sim/geo.js';
@@ -11,7 +11,6 @@ const KEY = 'jeu-1940.dev.v1';
 
 export function loadDev() {
   try {
-    if (typeof location !== 'undefined' && /[?&]dev\b/.test(location.search)) return true;
     return localStorage.getItem(KEY) === '1';
   } catch {
     return false;
@@ -24,6 +23,24 @@ export function saveDev(on) {
   } catch {
     // ignore
   }
+}
+
+/** The SHA-256 of a password, in hex; spaces around it and capitals do not count. */
+export async function passwordHash(text) {
+  const bytes = new TextEncoder().encode(String(text).trim().toLowerCase());
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Whether the password opens developer mode (data/dev.json keeps its SHA-256, never the
+ * password); null where the page cannot check it. A lock against switching it on by chance,
+ * not a secret: the game's code can be read.
+ */
+export async function checkDevPassword(text, expected) {
+  if (!globalThis.crypto || !globalThis.crypto.subtle || typeof TextEncoder === 'undefined') return null;
+  if (!expected) return false;
+  return (await passwordHash(text)) === String(expected).toLowerCase();
 }
 
 /** Raids the player could meet in this game (false alarms only when they are switched on). */

@@ -432,7 +432,6 @@ export function eventMessage(world, e) {
       break;
     case 'scrambleRefused':
       if (e.state === 'airfieldOut') key = 'log.scrambleRefusedOut';
-      else if (e.state === 'resting') key = 'log.scrambleRefusedResting';
       else if (e.state === 'noPilots') key = 'log.scrambleRefusedNoPilots';
       else p.state = t(`states.squadron.${e.state}`).toLowerCase();
       break;
@@ -460,9 +459,36 @@ export function eventMessage(world, e) {
     case 'legDone':
       p.next = headingText(e.next);
       break;
+    case 'question':
+      return null; // the banner asks; the answer goes into the journal
+    case 'questionYes':
+    case 'questionNo':
+    case 'questionExpired':
+      key = `log.${e.type}.${e.kind}`;
+      break;
     case 'formationCreated':
       key = e.kind === 'air' ? 'log.formationCreatedAir' : 'log.formationCreatedNaval';
       break;
+    case 'rosterApplied':
+    case 'alertReached':
+      p.state = t(`orders.alertNames.${e.alert}`);
+      break;
+    case 'scheduledTakeoff':
+      if (e.late) key = 'log.scheduledTakeoffLate';
+      break;
+    case 'scheduleDelayed': {
+      const reason = t(`log.delayReasons.${e.reason}`);
+      p.reason = reason === `log.delayReasons.${e.reason}` ? e.reason : reason;
+      break;
+    }
+    case 'rallyArmed':
+      p.time = e.at === null || e.at === undefined ? t('rally.asap').toLowerCase() : `${t('orders.at')} ${formatTime(world.startMs + e.at * 1000)}`;
+      break;
+    case 'rallyDeparted':
+      if (e.late) key = 'log.rallyDepartedLate';
+      break;
+    case 'rallyDecided':
+      return null; // the departure or the wait says it
     case 'formationLeftBy':
       key = `log.formationLeftBy.${e.reason}`;
       break;

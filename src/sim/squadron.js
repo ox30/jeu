@@ -8,6 +8,7 @@ import { airfieldDelayFactor, isOperational, nearestOperationalAirfield } from '
 import { drawAmmo, drawFuel, sortieFuel } from './logistics.js';
 import { guidanceHeading } from './control.js';
 import { pilotsKilled } from './crews.js';
+import { chaseHeading } from './engagement.js';
 
 /** Characteristics of an aircraft type: a fighter, or a patrol aircraft. */
 export function aircraftSpec(world, type) {
@@ -33,7 +34,14 @@ export function createSquadron(world, def) {
     aircraftStart: def.aircraft,
     pilots: def.pilots ?? def.aircraft,
     fatigue: def.fatigue ?? 10, // 0 (fresh) to 100 (exhausted)
-    alert: def.alert || 'available', // on the ground: rest | available | cockpit
+    alert: def.alert || 'available', // on the ground: rest | thirty | available | cockpit (crews.js)
+    alertAt: null, // a recall under way: when the new state holds
+    alertFrom: null, // the state it holds until then
+    alertLong: false,
+    roster: [], // duty roster: alert changes at given hours (timetable.js)
+    schedule: null, // a take-off ordered for later (timetable.js)
+    lateFor: null, // a formation it is catching up with, late at the rendezvous (rally.js)
+    rallySlow: null, // a wing's leader slowing for its latecomers: speed factor
     x: field.x,
     y: field.y,
     px: field.x,
@@ -55,6 +63,11 @@ export function createSquadron(world, def) {
     formation: null, // id of the formation (big wing) it belongs to
     holdForWing: false, // a wing's leader circles while its squadrons gather
     wingSlowest: null, // a wing's leader: speeds of its slowest squadron in formation
+    roe: 'attack', // on meeting the enemy: defend | attack | pursue (engagement.js); attack, as in M2.2
+    cleared: new Set(), // raids it has leave to attack whatever its order
+    clearedBeyond: new Set(), // raids it has leave to follow beyond mid-Channel
+    attackRaid: null, // a raid it goes after while it can see it
+    breakOff: null, // a raid it must leave (refused leave beyond mid-Channel)
     speedMode: 'cruise', // cruise | max
     state: 'ready', // ready | scrambling | airborne | combat | returning | refuelling | lost
     timer: 0,
@@ -87,6 +100,8 @@ export function squadronSpeed(world, s) {
   let kmh = max ? type.maxKmh : type.cruiseKmh;
   // The leader of a big wing flies at the speed of its slowest squadron (formations.js).
   if (s.wingSlowest) kmh = Math.min(kmh, max ? s.wingSlowest.maxKmh : s.wingSlowest.cruiseKmh);
+  // A wing that left its rendezvous without everyone slows down for the latecomers (rally.js).
+  if (s.rallySlow) kmh *= s.rallySlow;
   return kmh / 3600;
 }
 
@@ -111,6 +126,7 @@ function clearNavigation(s) {
   s.orbit = false;
   s.cover = null;
   s.intercept = null;
+  s.attackRaid = null;
   s.follow = null;
   s.inFormation = false;
 }
@@ -210,6 +226,12 @@ export function applyEndAction(world, s) {
     s.orbit = true;
   }
   s.endAction = { kind: 'orbit' };
+  // At the rendezvous of its big wing: it circles there, waiting for the others.
+  const f = s.formation ? world.formations.find((x) => x.id === s.formation) : null;
+  if (done === 'orbit' && f && f.rally && f.rally.where === 'point' && ['armed', 'deciding', 'waiting'].includes(f.rally.phase)) {
+    emit(world, 'atRendezvous', { squadron: s.name, squadronId: s.id, formation: f.name });
+    return;
+  }
   emit(world, 'routeEnded', { squadron: s.name, squadronId: s.id, action: done });
 }
 
@@ -386,12 +408,16 @@ export function updateSquadron(world, s, dt) {
     const v = squadronSpeed(world, s);
     let desired = s.heading;
     let turnRate = R.turnRateDegPerSec;
+    let chase = null;
     if (s.state === 'returning') {
       desired = bearing(s.x, s.y, field.x, field.y);
     } else if (s.holdForWing) {
       // A wing's leader circles while its squadrons gather.
       desired = s.heading + 90;
       turnRate = R.orbitTurnDegPerSec;
+    } else if (s.attackRaid && (chase = chaseHeading(world, s, v)) !== null) {
+      // Leave to attack a raid it can see: it goes after it.
+      desired = chase;
     } else if (s.route.length) {
       const [wx, wy] = s.route[0];
       if (distance(s.x, s.y, wx, wy) < Math.max(R.waypointReachedKm, v * dt * 2)) {

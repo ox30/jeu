@@ -78,6 +78,7 @@
     "radarCover": false,
     "altitudeStalks": true,
     "grid": true,
-    "confirmSpeed": true
+    "confirmSpeed": true,
+    "questions": true
   }
 }

@@ -4,6 +4,7 @@
 // Any new event that needs the player should get a rule here.
 
 import { distance } from '../sim/geo.js';
+import { t } from '../core/i18n.js';
 import { countText, ftText, placeText } from './format.js';
 
 /** Highest speed left after an alert of each level ("slow down on alert" setting). */
@@ -30,6 +31,11 @@ function siteAt(world, key) {
 function airfieldAt(world, name) {
   const f = world.airfields.find((a) => a.name === name);
   return f ? { x: f.x, y: f.y, kind: 'site', id: `airfield:${f.id}` } : null;
+}
+
+function reasonText(reason) {
+  const text = t(`log.delayReasons.${reason}`);
+  return text === `log.delayReasons.${reason}` ? reason : text;
 }
 
 const RULES = {
@@ -140,6 +146,16 @@ const RULES = {
     params: { airfield: e.airfield },
     focus: airfieldAt(w, e.airfield),
   }),
+  scheduleDelayed: (w, e) => {
+    const reason = e.reason;
+    return {
+      level: 'warning',
+      key: `delayed:${e.unitId}`,
+      quiet: H,
+      params: { unit: e.unit, reason: reasonText(reason) },
+      focus: { x: e.x, y: e.y, kind: e.unitKind === 'formation' ? 'formation' : e.unitKind, id: e.unitId },
+    };
+  },
   patrolBounced: (w, e) => ({
     level: 'warning',
     key: `bounced:${e.squadronId}`,

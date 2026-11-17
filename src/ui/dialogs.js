@@ -2,6 +2,7 @@
 
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { objectiveText } from './format.js';
+import { checkDevPassword } from './dev.js';
 import { markHelpSeen, matchingPreset, saveSettings } from '../save/settings.js';
 import { showPage } from './pages.js';
 import { CHAIN, TRAINING, saveCampaign, scenarioStatus } from './campaign.js';
@@ -42,14 +43,27 @@ export function openSettings(app) {
         ${checkbox('autoZoom', s.autoZoom, t('settings.autoZoom'))}
         ${checkbox('slowOnAlert', s.slowOnAlert, t('settings.slowOnAlert'))}
         ${checkbox('confirmSpeed', s.confirmSpeed !== false, t('settings.confirmSpeed'))}
+        ${checkbox('questions', s.questions !== false, t('settings.questions'))}
         ${checkbox('sound', s.sound, t('settings.sound'))}
+      </fieldset>
+      <fieldset class="dev-settings">
+        <label class="check"><input type="checkbox" data-dev="toggle"${app.dev ? ' checked' : ''}> ${escapeHtml(t('settings.devMode'))}</label>
+        <div class="dev-password" hidden>
+          <input type="password" data-dev="password" autocomplete="off" spellcheck="false" placeholder="${escapeHtml(t('settings.devPassword'))}" aria-label="${escapeHtml(t('settings.devPassword'))}">
+          <button type="button" data-dev="ok">${escapeHtml(t('settings.devOk'))}</button>
+          <button type="button" data-dev="cancel" class="secondary">${escapeHtml(t('settings.devCancel'))}</button>
+          <span class="dev-error" role="alert" hidden></span>
+        </div>
+        <p class="hint">${escapeHtml(t('settings.devHint'))}</p>
       </fieldset>
       <p class="hint">${escapeHtml(t('settings.note'))}</p>
       <div class="dialog-buttons"><button value="close">${escapeHtml(t('settings.close'))}</button></div>
     </form>`;
   const form = dlg.querySelector('form');
+  devSettings(app, form);
   form.addEventListener('change', (e) => {
     const field = e.target;
+    if (field.dataset.dev) return; // developer mode: devSettings()
     if (field.name === 'preset') {
       if (field.value !== 'custom') Object.assign(s, presets.presets[field.value]);
     } else if (field.type === 'checkbox') {
@@ -68,6 +82,64 @@ export function openSettings(app) {
     openSettings.refresh(form, s, presets);
   });
   showPage(app, dlg);
+}
+
+/**
+ * The developer mode box: ticking it asks the password (data/dev.json keeps its SHA-256);
+ * unticking it switches the mode off at once.
+ */
+function devSettings(app, form) {
+  const box = form.querySelector('[data-dev="toggle"]');
+  const area = form.querySelector('.dev-password');
+  const input = form.querySelector('[data-dev="password"]');
+  const error = form.querySelector('.dev-error');
+  const close = () => {
+    area.hidden = true;
+    error.hidden = true;
+    input.value = '';
+  };
+  const fail = (key) => {
+    error.textContent = t(key);
+    error.hidden = false;
+    input.select();
+  };
+  const check = async () => {
+    const ok = await checkDevPassword(input.value, app.data.dev && app.data.dev.passwordSha256);
+    if (ok === null) {
+      fail('settings.devUnavailable');
+      return;
+    }
+    if (!ok) {
+      fail('settings.devWrong');
+      return;
+    }
+    close();
+    box.checked = true;
+    app.setDev(true);
+  };
+  box.addEventListener('change', () => {
+    if (!box.checked) {
+      close();
+      app.setDev(false);
+      return;
+    }
+    if (app.dev) return;
+    area.hidden = false;
+    error.hidden = true;
+    input.focus();
+  });
+  form.querySelector('[data-dev="ok"]').addEventListener('click', check);
+  form.querySelector('[data-dev="cancel"]').addEventListener('click', () => {
+    close();
+    box.checked = false;
+  });
+  // Enter checks the password instead of closing the dialog.
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      check();
+    }
+  });
 }
 
 // Keeps the form in step after a preset change.

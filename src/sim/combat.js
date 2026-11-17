@@ -10,6 +10,7 @@ import { startReturn } from './squadron.js';
 import { endGuidance } from './control.js';
 import { formFactor, lossFactor, pilotsKilled, strength, tire } from './crews.js';
 import { aircraftSpec } from './squadron.js';
+import { askClearance, engagementCall, questionsOn, seesRaid } from './engagement.js';
 
 /** Why a squadron cannot engage a raid at this distance and height difference, or null. */
 export function engageProblem(world, km, dzM) {
@@ -24,24 +25,33 @@ export function engageProblem(world, km, dzM) {
   return low ? 'below' : 'above';
 }
 
-/** Starts combat for every airborne squadron that meets a raid. */
+/**
+ * Starts combat for every airborne squadron that meets a raid its orders let it attack. A
+ * raid it sees but may not attack (its standing order, a raid going home, mid-Channel)
+ * brings a question to the player (engagement.js).
+ */
 export function checkEngagements(world) {
   const R = world.rules.squadron;
+  const sight = Math.max(world.rules.visual.airDayKm, R.engageRangeKm);
   for (const s of world.squadrons) {
     if (s.state !== 'airborne' || s.ammo <= 0.05 || s.role !== 'fighter') continue;
     for (const r of world.raids) {
-      // A raid heading home is not chased automatically: that is the player's choice (an
-      // interception ordered on it counts as one).
-      const guidedOnto = s.intercept && s.intercept.raidId === r.id;
-      if (!isActive(r) || (r.phase === 'outbound' && !guidedOnto)) continue;
-      if (distance(s.x, s.y, r.x, r.y) > R.engageRangeKm) continue;
+      if (!isActive(r)) continue;
+      const d = distance(s.x, s.y, r.x, r.y);
+      if (d > sight) continue;
       if (r.phantom) {
-        if (!s.nothingSeen.has(r.id)) {
+        if (d <= R.engageRangeKm && !s.nothingSeen.has(r.id)) {
           s.nothingSeen.add(r.id);
           emit(world, 'nothingSeen', { squadron: s.name, squadronId: s.id, raid: r.label, raidId: r.id, x: s.x, y: s.y });
         }
         continue;
       }
+      const call = engagementCall(world, s, r);
+      if (!call.engage) {
+        if (seesRaid(world, s, r)) askClearance(world, call.ask, s, r);
+        continue;
+      }
+      if (d > R.engageRangeKm) continue;
       const dz = s.alt - r.alt;
       if (dz < -R.engageBelowM || dz > R.engageAboveM) continue;
       engage(world, s, r, dz);
@@ -200,6 +210,16 @@ export function disengage(world, s, announce = true, end = 'order') {
 
 export function updateCombat(world, dt) {
   for (const s of world.squadrons) {
+    if (s.breakOff) {
+      // Refused leave to go on beyond mid-Channel: it breaks off and goes home.
+      const raidId = s.breakOff;
+      s.breakOff = null;
+      if (s.state === 'combat' && s.engagedRaid === raidId) disengage(world, s, true, 'midChannel');
+      if (s.state === 'airborne') {
+        startReturn(world, s, 'order');
+        emit(world, 'brokeOff', { squadron: s.name, squadronId: s.id, raidId });
+      }
+    }
     if (s.state !== 'combat') {
       // Left the fight another way (fuel, ordered home): the report still goes out.
       if (s.engagement) report(world, s, world.raids.find((raid) => raid.id === s.engagement.raidId), s.returnReason || 'order');
@@ -309,5 +329,19 @@ export function combatRound(world, s, r) {
     emit(world, 'outOfAmmo', { squadron: s.name, squadronId: s.id, airfield: world.byId.airfield.get(s.airfield).name });
     return;
   }
-  if (r.phase === 'outbound') disengage(world, s, true, 'homeward');
+  if (r.phase === 'outbound') {
+    // The raid is going home: the squadron goes on only with its order or leave to.
+    const call = engagementCall(world, s, r);
+    if (call.engage) return;
+    if (call.ask === 'beyond') {
+      // Mid-Channel: it fights on while the question waits; refused or unanswered, it breaks off.
+      if (askClearance(world, 'beyond', s, r)) return;
+      disengage(world, s, true, 'midChannel');
+      startReturn(world, s, 'order');
+      emit(world, 'brokeOff', { squadron: s.name, squadronId: s.id, raidId: r.id });
+      return;
+    }
+    disengage(world, s, true, 'homeward');
+    if (questionsOn(world)) askClearance(world, 'pursue', s, r);
+  }
 }

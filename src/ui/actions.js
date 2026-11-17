@@ -4,7 +4,7 @@ import { t } from '../core/i18n.js';
 import { bearing, distance, simplifyPolyline } from '../sim/geo.js';
 import { contactEstimate } from '../sim/query.js';
 import {
-  addLeg, clearPlan, departConvoy, editShipRoute, editableRoute, escortHome, joinConvoy, leaveConvoy, removeLeg, removeRoutePoint, returnToBase, routeCanExtend, routeConvoy, scramble, sendTrain, setAltitude, setCover, setEndAction, setMinStock, setOrbit, setPointAltitude, setRoute, setSpeed, setVector, updateLeg, interceptRaid, setAlert, setConvoySpeed, setEscortBehaviour, setZigzag, followSquadron, leaveFormation,
+  addLeg, clearPlan, departConvoy, editShipRoute, editableRoute, escortHome, joinConvoy, leaveConvoy, removeLeg, removeRoutePoint, returnToBase, routeCanExtend, routeConvoy, scramble, sendTrain, setAltitude, setCover, setEndAction, setMinStock, setOrbit, setPointAltitude, setRoute, setSpeed, setVector, updateLeg, interceptRaid, setAlert, setConvoySpeed, setEscortBehaviour, setZigzag, followSquadron, leaveFormation, planGroundRoute,
 } from '../sim/orders.js';
 import { buyOffer, setPurchase } from '../sim/shipping.js';
 import { feetOf, squadronSpeed } from '../sim/squadron.js';
@@ -13,9 +13,17 @@ import { parseLegEnd } from '../sim/navigation.js';
 import { deployMru } from '../sim/mru.js';
 import { VIEWS, animateTo, toWorld, viewFrame } from '../render/camera.js';
 import {
-  dissolveFormation, formationById, formationOf, interceptFormation, launchWaiting, leaderOf, membersOf, mergeFormations, newFormation,
+  addMember, dissolveFormation, formationById, formationOf, interceptFormation, launchWaiting, leaderOf, membersOf, mergeFormations, newFormation,
   removeMember, scrambleFormation,
 } from '../sim/formations.js';
+import { setRoe } from '../sim/engagement.js';
+import {
+  addRoster, cancelSail, cancelTakeoff, cancelWing, removeRoster, scheduleSail, scheduleTakeoff, scheduleWing,
+} from '../sim/timetable.js';
+import {
+  armRally, cancelRally, computeDepartures, newRally, setDeparture, setRallyAlt, setRallyMissing, setRallyPoint, setRallyRoute, setRallyTime,
+  setRallyWhere,
+} from '../sim/rally.js';
 import { isFlying } from '../sim/squadron.js';
 import { addLogEntry } from './panels.js';
 
@@ -475,6 +483,18 @@ export function finishDrawing(app, hit, screenPoints, endHit = null) {
   const simplified = simplifyPolyline(screenPoints, 3);
   const points = simplified.slice(1).map(([sx, sy]) => toWorld(cam, sx, sy));
   if (!points.length) return;
+  // From the point of a rendezvous: the route the formation follows from there.
+  if (hit.kind === 'rally') {
+    const f = formationById(world, hit.id);
+    if (f) {
+      setRallyRoute(world, f, points);
+      select(app, 'formation', f.id);
+    }
+    app.dirtyPanels = true;
+    return;
+  }
+  // A line that ends on a raid is leave to attack it, whatever the standing order.
+  const onRaid = endHit && endHit.kind === 'raid' ? world.raids.find((r) => r.id === endHit.id) : null;
 
   if (hit.kind === 'squadron') {
     const sq = findUnit(app, 'squadron', hit.id);
@@ -483,7 +503,10 @@ export function finishDrawing(app, hit, screenPoints, endHit = null) {
       // A wing on the ground takes off along the line.
       scrambleFormation(world, f, { route: points });
       select(app, 'formation', f.id);
-    } else if (sq && setRoute(world, sq, points)) selectUnit(app, sq);
+    } else if (sq && setRoute(world, sq, points)) {
+      if (onRaid) clearFor(app, sq, onRaid);
+      selectUnit(app, sq);
+    }
   } else if (hit.kind === 'airfield') {
     // The selected squadron if it is on this field, otherwise the first one ready, otherwise
     // one already taking off (it simply gets the new route).
@@ -498,19 +521,27 @@ export function finishDrawing(app, hit, screenPoints, endHit = null) {
       return;
     }
     const f = formationOf(world, sq);
-    if (f) {
+    if (sq.schedule && !sq.schedule.join && sq.state === 'ready') {
+      // A take-off ordered for later: the line is its route, it waits on the ground.
+      planGroundRoute(world, sq, points);
+      select(app, 'squadron', sq.id);
+    } else if (f) {
       // A squadron of a big wing goes with its wing: the line is the wing's route.
       const leader = leaderOf(world, f);
-      if (leader && (isFlying(leader) || leader.state === 'scrambling')) {
+      if (leader && leader.schedule && leader.state === 'ready') {
+        planGroundRoute(world, leader, points);
+      } else if (leader && (isFlying(leader) || leader.state === 'scrambling')) {
         setRoute(world, leader, points);
         launchWaiting(world, f);
       } else {
         scrambleFormation(world, f, { route: points });
       }
+      if (onRaid) for (const m of membersOf(world, f)) m.cleared.add(onRaid.id);
       select(app, 'formation', f.id);
     } else {
       if (sq.state === 'ready') scramble(world, sq, { route: points });
       else setRoute(world, sq, points);
+      if (onRaid) clearFor(app, sq, onRaid);
       select(app, 'squadron', sq.id);
     }
   } else if (hit.kind === 'convoy' || hit.kind === 'escort') {
@@ -661,4 +692,212 @@ export function orderMru(app, a, b) {
   app.setTool(null);
   app.dirtyPanels = true;
   return result.ok;
+}
+
+// ---- standing orders, timetable, rendezvous -----------------------------------------------
+
+/** "HH:MM" typed by the player → game seconds: that time today, or tomorrow once past. */
+export function clockToT(app, text, dayOffset = null) {
+  const m = /^\s*(\d{1,2})[:h.](\d{2})\s*$/.exec(String(text || ''));
+  if (!m) return null;
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  if (hh > 23 || mm > 59) return null;
+  const w = app.world;
+  const dayMs = 86400000;
+  const nowMs = w.startMs + w.t * 1000;
+  const midnight = Math.floor(nowMs / dayMs) * dayMs;
+  let ms = midnight + (hh * 60 + mm) * 60000;
+  if (dayOffset !== null) ms += dayOffset * dayMs;
+  else if (ms < nowMs - 30000) ms += dayMs;
+  return Math.round((ms - w.startMs) / 1000);
+}
+
+/** Leave to attack a raid (a line drawn onto it): for the squadron and its formation. */
+function clearFor(app, sq, r) {
+  for (const s of wingOf(app, sq)) {
+    if (!s) continue;
+    s.cleared.add(r.id);
+  }
+  if (!sq.follow) sq.attackRaid = r.id;
+}
+
+/** Squadrons an order on `u` goes to: the members of its formation, or `u` alone. */
+function wingOf(app, u) {
+  if (u && u.members) return membersOf(app.world, u);
+  const f = u ? formationOf(app.world, u) : null;
+  return f ? membersOf(app.world, f) : [u];
+}
+
+/** Standing order on meeting the enemy, for a squadron or every squadron of its formation. */
+export function orderRoe(app, u, roe) {
+  for (const s of wingOf(app, u)) if (s && s.kind === 'squadron') setRoe(app.world, s, roe);
+  app.dirtyPanels = true;
+}
+
+/**
+ * Alert state for a squadron (or the squadrons of a formation on the ground). Standing down
+ * to rest asks first: it takes two hours to get the pilots back.
+ */
+export function orderAlertChecked(app, u, state) {
+  const list = wingOf(app, u).filter((s) => s && s.kind === 'squadron');
+  if (state === 'rest' && !(app.confirm && app.confirm.action === 'alert' && app.confirm.id === u.id)) {
+    app.confirm = { action: 'alert', id: u.id, kind: u.members ? 'formation' : 'squadron', alert: 'rest' };
+    app.dirtyPanels = true;
+    return false;
+  }
+  app.confirm = null;
+  for (const s of list) setAlert(app.world, s, state);
+  app.dirtyPanels = true;
+  return true;
+}
+
+export function cancelConfirm(app) {
+  app.confirm = null;
+  app.dirtyPanels = true;
+}
+
+export function orderRosterAdd(app, s, alert, text, daily) {
+  const at = clockToT(app, text);
+  if (at === null) {
+    sheetMessage(app, t('orders.errors.clock'));
+    return false;
+  }
+  addRoster(app.world, s, at, alert, daily);
+  app.dirtyPanels = true;
+  return true;
+}
+
+export function orderRosterRemove(app, s, entryId) {
+  removeRoster(app.world, s, entryId);
+  app.dirtyPanels = true;
+}
+
+export function orderScheduleTakeoff(app, s, text, daily) {
+  const at = clockToT(app, text);
+  if (at === null) {
+    sheetMessage(app, t('orders.errors.clock'));
+    return false;
+  }
+  scheduleTakeoff(app.world, s, at, { daily });
+  app.dirtyPanels = true;
+  return true;
+}
+
+/** A squadron (or an escort group) to join a formation, leaving at a time of its own. */
+export function orderScheduleJoin(app, u, formationId, text, dayOffset = null) {
+  const at = clockToT(app, text, dayOffset);
+  const f = formationById(app.world, formationId);
+  if (at === null || !f) {
+    sheetMessage(app, t('orders.errors.clock'));
+    return false;
+  }
+  if (!f.members.includes(u.id)) {
+    // The time first, so that it is not sent off at once (formations.js).
+    if (u.kind === 'squadron') scheduleTakeoff(app.world, u, at, { join: f.id });
+    else u.schedule = { id: `J${u.id}`, at, join: f.id, delayed: false };
+    if (!addMember(app.world, f, u.id)) {
+      u.schedule = null;
+      sheetMessage(app, t('formations.refused'));
+      return false;
+    }
+  } else if (u.kind === 'squadron') scheduleTakeoff(app.world, u, at, { join: f.id });
+  else u.schedule = { id: `J${u.id}`, at, join: f.id, delayed: false };
+  app.dirtyPanels = true;
+  return true;
+}
+
+export function orderCancelSchedule(app, u) {
+  if (u.members) cancelWing(app.world, u);
+  else if (u.kind === 'squadron') cancelTakeoff(app.world, u);
+  else cancelSail(app.world, u);
+  app.dirtyPanels = true;
+}
+
+export function orderScheduleWing(app, f, text, daily) {
+  const at = clockToT(app, text);
+  if (at === null) {
+    sheetMessage(app, t('orders.errors.clock'));
+    return false;
+  }
+  scheduleWing(app.world, f, at, { daily });
+  app.dirtyPanels = true;
+  return true;
+}
+
+export function orderScheduleSail(app, c, dayOffset, text) {
+  const at = clockToT(app, text, dayOffset);
+  if (at === null || at < app.world.t - 60) {
+    sheetMessage(app, t('orders.errors.clock'));
+    return false;
+  }
+  scheduleSail(app.world, c, at);
+  app.dirtyPanels = true;
+  return true;
+}
+
+// Rendezvous plans (rally.js): edits while the plan is not under way.
+
+export function orderRally(app, f, change) {
+  const w = app.world;
+  if (!f.rally) newRally(w, f);
+  switch (change.kind) {
+    case 'where':
+      setRallyWhere(w, f, change.where);
+      if (change.where === 'point' && f.rally.x === null) {
+        app.rallyFor = f.id;
+        app.setTool('rally');
+      }
+      break;
+    case 'place':
+      app.rallyFor = f.id;
+      app.setTool(app.tool === 'rally' ? null : 'rally');
+      break;
+    case 'alt':
+      setRallyAlt(w, f, f.rally.altM + change.deltaFt * 0.3048);
+      break;
+    case 'time': {
+      if (change.text === 'asap') setRallyTime(w, f, null);
+      else {
+        const at = clockToT(app, change.text, change.dayOffset ?? null);
+        if (at === null) sheetMessage(app, t('orders.errors.clock'));
+        else setRallyTime(w, f, at);
+      }
+      break;
+    }
+    case 'missing':
+      setRallyMissing(w, f, change.missing, change.waitMin ?? null);
+      break;
+    case 'departure': {
+      const at = change.text ? clockToT(app, change.text, change.dayOffset ?? null) : null;
+      if (change.text && at === null) sheetMessage(app, t('orders.errors.clock'));
+      else setDeparture(w, f, change.unitId, at);
+      break;
+    }
+    case 'compute':
+      computeDepartures(w, f);
+      break;
+    case 'routeClear':
+      f.rally.route = [];
+      break;
+    case 'arm':
+      if (!armRally(w, f)) sheetMessage(app, t('rally.errors.arm'));
+      break;
+    case 'cancel':
+      cancelRally(w, f);
+      break;
+    default:
+  }
+  app.dirtyPanels = true;
+}
+
+/** The point of the rendezvous placed with a click on the map (tool "rally"). */
+export function placeRallyPoint(app, x, y) {
+  const f = formationById(app.world, app.rallyFor);
+  if (f) {
+    if (!f.rally) newRally(app.world, f);
+    setRallyPoint(app.world, f, x, y);
+  }
+  app.setTool(null);
+  app.dirtyPanels = true;
 }
