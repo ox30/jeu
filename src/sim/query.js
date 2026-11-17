@@ -13,7 +13,9 @@ export function visiblePlots(world, contact) {
 export function contactEstimate(world, contact) {
   if (contact.lost) return null;
   const raid = world.raids.find((r) => r.id === contact.raidId);
-  if (world.settings.detection === 'exact') {
+  // Exact detection, or a raid in direct contact (seen by one of the player's units).
+  const live = Boolean(raid && raid.seen && !raid.phantom && isActive(raid));
+  if (world.settings.detection === 'exact' || live) {
     if (!raid || !isActive(raid)) return null;
     const v = raid.phase === 'assembling' ? 0 : raid.speed;
     const rad = (raid.heading * Math.PI) / 180;
@@ -28,7 +30,12 @@ export function contactEstimate(world, contact) {
       altM: raid.alt,
       heading: raid.heading,
       exact: true,
-      source: contact.plots.length ? contact.plots[contact.plots.length - 1].source : null,
+      live,
+      seen: live ? raid.seen : null,
+      force: live || world.settings.detection === 'exact'
+        ? { bombers: raid.bombers, bomberType: raid.bomberType, escort: raid.escort, escortType: raid.escortType, phantom: raid.phantom }
+        : null,
+      source: live ? 'visual' : contact.plots.length ? contact.plots[contact.plots.length - 1].source : null,
     };
   }
   const plots = visiblePlots(world, contact);

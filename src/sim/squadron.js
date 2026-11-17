@@ -52,6 +52,9 @@ export function createSquadron(world, def) {
     intercept: null, // guided onto a raid by the controller (Arcade): { raidId, p, ok }
     follow: null, // big wing: id of the squadron it flies with
     inFormation: false,
+    formation: null, // id of the formation (big wing) it belongs to
+    holdForWing: false, // a wing's leader circles while its squadrons gather
+    wingSlowest: null, // a wing's leader: speeds of its slowest squadron in formation
     speedMode: 'cruise', // cruise | max
     state: 'ready', // ready | scrambling | airborne | combat | returning | refuelling | lost
     timer: 0,
@@ -80,7 +83,11 @@ export function feetOf(altM) {
 /** Cruise or full speed of a squadron, in km/s. */
 export function squadronSpeed(world, s) {
   const type = aircraftSpec(world, s.type);
-  return (s.speedMode === 'max' && s.state !== 'returning' ? type.maxKmh : type.cruiseKmh) / 3600;
+  const max = s.speedMode === 'max' && s.state !== 'returning';
+  let kmh = max ? type.maxKmh : type.cruiseKmh;
+  // The leader of a big wing flies at the speed of its slowest squadron (formations.js).
+  if (s.wingSlowest) kmh = Math.min(kmh, max ? s.wingSlowest.maxKmh : s.wingSlowest.cruiseKmh);
+  return kmh / 3600;
 }
 
 function nearestAirfield(world, x, y) {
@@ -111,11 +118,12 @@ function clearNavigation(s) {
 /** The leader of a squadron in a big wing, or null when the formation is broken. */
 function wingLeader(world, s) {
   const leader = world.squadrons.find((x) => x.id === s.follow);
-  if (leader && (leader.state === 'airborne' || leader.state === 'combat') && !leader.follow) return leader;
+  if (leader && (leader.state === 'airborne' || leader.state === 'combat' || leader.state === 'scrambling') && !leader.follow) return leader;
   s.follow = null;
   s.inFormation = false;
   s.orbit = true;
-  emit(world, 'formationBroken', { squadron: s.name, squadronId: s.id });
+  // In a formation of the player's, the next leader is chosen a moment later (formations.js).
+  if (!s.formation) emit(world, 'formationBroken', { squadron: s.name, squadronId: s.id });
   return null;
 }
 
@@ -138,7 +146,8 @@ function joiningHeading(world, s, R) {
   const [tx, ty] = formationSlot(world, s, leader);
   s.targetAlt = leader.targetAlt;
   s.speedMode = 'max';
-  if (distance(s.x, s.y, tx, ty) < R.formationKm) {
+  // Station is kept only with a leader in the air (one still on the ground is circled over).
+  if (leader.state === 'airborne' && distance(s.x, s.y, tx, ty) < R.formationKm) {
     s.inFormation = true;
     emit(world, 'formationJoined', { squadron: s.name, squadronId: s.id, leader: leader.name, leaderId: leader.id });
   }
@@ -356,7 +365,12 @@ export function updateSquadron(world, s, dt) {
   if (s.alt < wantAlt) s.alt = Math.min(wantAlt, s.alt + (type.climbMpm / 60) * dt);
   else s.alt = Math.max(wantAlt, s.alt - (R.descentMpm / 60) * dt);
 
-  const leader = !raid && s.follow && s.inFormation && s.state === 'airborne' ? wingLeader(world, s) : null;
+  let leader = !raid && s.follow && s.inFormation && s.state === 'airborne' ? wingLeader(world, s) : null;
+  if (leader && leader.state !== 'airborne') {
+    // The leader is fighting: the wing breaks to engage, and gathers again afterwards.
+    s.inFormation = false;
+    leader = null;
+  }
   if (raid) {
     // In combat the squadron stays with the raid.
     s.x = raid.x;
@@ -374,6 +388,10 @@ export function updateSquadron(world, s, dt) {
     let turnRate = R.turnRateDegPerSec;
     if (s.state === 'returning') {
       desired = bearing(s.x, s.y, field.x, field.y);
+    } else if (s.holdForWing) {
+      // A wing's leader circles while its squadrons gather.
+      desired = s.heading + 90;
+      turnRate = R.orbitTurnDegPerSec;
     } else if (s.route.length) {
       const [wx, wy] = s.route[0];
       if (distance(s.x, s.y, wx, wy) < Math.max(R.waypointReachedKm, v * dt * 2)) {

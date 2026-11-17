@@ -521,5 +521,21 @@
     "note": "Station radar mobile : portée réduite, installation de quelques heures.",
     "rangeFactor": 0.75,
     "deployHours": 6
+  },
+  "visual": {
+    "note": "Contact direct : un ennemi vu par une unité du joueur est suivi en temps réel jusqu'à la perte de vue. Portées de vue des chasseurs, des navires et des installations ; les patrouilles gardent la leur.",
+    "checkEveryS": 5,
+    "airDayKm": 25,
+    "airNightKm": 3,
+    "seaDayKm": 12,
+    "seaNightKm": 1,
+    "siteDayKm": 8,
+    "siteNightKm": 0,
+    "keepFactor": 1.15
+  },
+  "formations": {
+    "note": "Formations : Big Wing (chasse) et groupe de soutien (escortes). Le chef d'une Big Wing tourne au-dessus du terrain jusqu'au rassemblement, au plus gatherMaxS secondes ; le chef d'un groupe de soutien ralentit (waitSpeed) tant qu'un groupe n'a pas rejoint son poste.",
+    "gatherMaxS": 900,
+    "waitSpeed": 0.7
   }
 }

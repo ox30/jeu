@@ -214,6 +214,21 @@ function shipCards(world) {
   ].join('');
 }
 
+/** The technical card of one unit, for its panel: a squadron's aircraft, or the ships. */
+export function unitCardHtml(world, u) {
+  const R = world.rules;
+  if (u.kind === 'squadron') {
+    if (R.fighters[u.type]) return `<div class="cards one">${fighterCard(u.type, R.fighters[u.type])}</div>`;
+    if (R.patrols[u.type]) return `<div class="cards one">${fighterCard(u.type, R.patrols[u.type], true)}</div>`;
+    return '';
+  }
+  const all = shipCards(world);
+  // Ship cards: convoy, escort, U-boat, in that order.
+  const parts = all.split('</article>').filter((x) => x.trim()).map((x) => `${x}</article>`);
+  const pick = u.kind === 'convoy' ? parts[0] : u.kind === 'escort' ? parts[1] : '';
+  return pick ? `<div class="cards one">${pick}</div>` : '';
+}
+
 /** Cards of the aircraft and ships, with the numbers the game uses. */
 export function openCards(app, focus = null) {
   const dlg = app.el.dlgCards;

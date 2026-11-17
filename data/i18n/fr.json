@@ -45,17 +45,19 @@
     "scenario": "Scénario",
     "reports": "Rapports",
     "radarShort": "Radar",
-    "cards": "Fiches"
+    "cards": "Fiches",
+    "formations": "Formations",
+    "formationsTitle": "Grouper des escadrilles en big wing, ou des groupes d'escorte en groupe de soutien"
   },
   "panel": {
     "objectives": "Objectifs",
     "tote": "Tableau d'état",
     "sheet": "Fiche",
     "log": "Journal des opérations",
-    "hint": "Cliquez sur une unité ou une installation pour voir sa fiche. Glissez depuis une unité pour tracer sa route.",
+    "hint": "Cliquez sur une unité ou une installation pour ouvrir sa fiche à droite de la carte. Glissez depuis une unité pour tracer sa route.",
     "units": "Unités",
     "sites": "Installations",
-    "hintHeadings": "Cliquez sur une unité ou une installation pour voir sa fiche. Glissez depuis une unité pour mesurer un cap avec la règle.",
+    "hintHeadings": "Cliquez sur une unité ou une installation pour ouvrir sa fiche à droite de la carte. Glissez depuis une unité pour mesurer un cap avec la règle.",
     "logistics": "Logistique",
     "logCount": "· {n}"
   },
@@ -323,7 +325,17 @@
     "uplotHint": "Les deux cercles grandissent avec l'âge du plot : en tirets, ce que le U-Boot peut avoir parcouru en surface (17 nœuds) ; en pointillé, sous l'eau (5 nœuds, au plus 70 milles avant de devoir refaire surface).",
     "stragglerHint": "Un navire tombé derrière son convoi : seul, sans escorte, une proie facile. Il suit la même route, plus lentement. Un groupe d'escorte peut le rejoindre.",
     "huntingUntil": "chasse un contact jusqu'à {time}",
-    "inFormation": "en formation avec {name}"
+    "inFormation": "en formation avec {name}",
+    "visual": "contact direct",
+    "visualBy": "Contact direct : en vue de {by} depuis {time}",
+    "ucontactTitle": "U-Boot au contact",
+    "ucontactBy": "{how}, par {by}",
+    "ucontactSince": "Depuis",
+    "depth": "Profondeur",
+    "surfaced": "en surface",
+    "submerged": "en plongée",
+    "ucontactHint": "Le U-Boot est suivi tant qu'il reste en vue ou au contact de l'ASDIC. Perdu, il laisse un repère à sa dernière position.",
+    "gathering": "rassemblement"
   },
   "settings": {
     "title": "Réglages",
@@ -563,7 +575,26 @@
     "formationBroken": "{squadron} vole seule : la formation est rompue.",
     "offerBought": "Commande passée en Amérique : {offer}, pour {cost} millions de dollars. Livraison vers le {date}.",
     "carryApplied": "Campagne : la chasse commence à {share} % de ses avions, après les pertes de la bataille précédente. Les usines et les convoyeurs combleront les vides.",
-    "scenarioStartAtSea": "Prise de service. Le convoi {convoy} est en mer : tracez sa route sur la carte de l'Atlantique, ou donnez-lui des étapes."
+    "scenarioStartAtSea": "Prise de service. Le convoi {convoy} est en mer : tracez sa route sur la carte de l'Atlantique, ou donnez-lui des étapes.",
+    "raidSighted": "Raid {raid} en vue de {by} : {force}, vers {alt}.",
+    "raidSightLost": "Raid {raid} perdu de vue : retour aux plots.",
+    "uboatContactLost": "{by} a perdu le contact du U-Boot : sa dernière position est reportée sur la carte ({time}).",
+    "formationCreatedAir": "{formation} est formée autour de {leader}.",
+    "formationCreatedNaval": "{formation} est formé autour du {leader}.",
+    "formationJoinedBy": "{unit} rejoint {formation}.",
+    "formationLeftBy": {
+      "order": "{unit} quitte {formation}.",
+      "fuel": "{unit} quitte {formation}, à court d'essence, et rentre.",
+      "ammo": "{unit} quitte {formation}, sans munitions, et rentre.",
+      "lost": "{unit} est perdue : {formation} continue sans elle."
+    },
+    "formationDissolved": "{formation} est dissoute.",
+    "formationLeader": "{leader} prend la tête de {formation}.",
+    "formationScrambled": "{formation} décolle : {n} escadrilles se rassemblent au-dessus du chef.",
+    "formationScrambledAlone": "{formation} décolle (une seule escadrille prête).",
+    "formationGathered": "{formation} est rassemblée ({n} escadrilles sur {of}) et part en mission.",
+    "formationHomeward": "{formation} rentre au port : un de ses groupes arrive au bout de son autonomie.",
+    "formationMerged": "{from} rejoint {formation} : une seule formation."
   },
   "reasons": {
     "fuel": "carburant",
@@ -638,7 +669,13 @@
       "aircraft": "vu d'avion",
       "asv": "radar ASV",
       "df": "radiogoniométrie"
-    }
+    },
+    "seenTag": "en vue · {by}",
+    "uContact": "U-Boot · {how} · {by}",
+    "uContactUnder": "U-Boot en plongée · {how} · {by}",
+    "wingPlaque": "{name} · {n} sqn · {aircraft} · {alt}",
+    "wingGathering": "rassemblement {n}/{of}",
+    "groupPlaque": "{name} · {n} gr. · {ships}"
   },
   "help": {
     "title": "Comment jouer",
@@ -648,10 +685,10 @@
       "Le convoi côtier CW 7 attend dans la Tamise avec du matériel pour Southampton. Faites-le appareiller quand vous pourrez le couvrir : de jour, la Luftwaffe l'attaque dans la Manche. Une escadrille peut « Couvrir » le convoi.",
       "Logistique : les convois déchargent carburant et matériel dans les ports. Envoyez des trains vers les bases (carburant) et les usines (matériel), ou fixez un stock minimum dans la fiche d'une base : les trains partent seuls. Sans carburant, une escadrille ne refait pas le plein. Les usines remplacent les avions perdus.",
       "Défense : à l'alerte, faites décoller une escadrille vers le raid, réglez son altitude (↑ ↓) pour arriver au-dessus. En Arcade, « Intercepter » (ou glisser jusqu'au raid) laisse le contrôleur la guider : sa chance dépend de la couverture radar. Le trait pointillé d'un raid manqué donne l'écart ; chaque raid finit par un rapport, rangé dans « Rapports ».",
-      "Tracés : cliquez une unité pour voir les carrés de sa route. Glissez un carré pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. En fin de tracé, l'escadrille orbite, sauf si vous choisissez autre chose dans sa fiche (se poser si le tracé finit dans la bulle d'un aérodrome).",
+      "Tracés : cliquez une unité pour ouvrir sa fiche, à droite de la carte, et voir les carrés de sa route. Glissez un carré pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. En fin de tracé, l'escadrille orbite, sauf si vous choisissez autre chose dans l'onglet Route de sa fiche (se poser si le tracé finit dans la bulle d'un aérodrome).",
       "Victoire si les convois livrent l'essentiel de leur cargaison, si 4 bases sur 5 sont en service et si la chasse garde 60 % de ses avions le 24 juillet. Défaite immédiate si toutes les bases restent sans carburant 24 heures."
     ],
-    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle (la croix de son encart l'efface) · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler · ↑ ↓ : altitude (de l'escadrille, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : pleine vitesse · O : orbiter · P : rentrer · Ctrl+Maj+D : mode développeur",
+    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle (la croix de son encart l'efface) · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler, puis fermer la fiche · ↑ ↓ : altitude (de l'unité choisie, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : pleine vitesse · O : orbiter · P : rentrer · Ctrl+Maj+D : mode développeur",
     "close": "Compris",
     "stepsTraining": [
       "Carte de l'Atlantique : glissez depuis le convoi HX (à Halifax) pour tracer sa route jusqu'à Liverpool ou la Clyde, ou cliquez sur « Route de l'Amirauté ». En réglage Réaliste, on navigue au cap : mesurez avec la règle, ajoutez des étapes, puis appareillez. Près de l'entrée d'un chenal, un pilote prend le relais.",
@@ -662,7 +699,8 @@
       "Les installations bombardées (aérodromes, radars, ports) apparaissent dans l'onglet Installations : un radar hors service ouvre un trou dans la couverture, un aérodrome endommagé fait décoller plus lentement."
     ],
     "common": [
-      "Tracés : cliquez une unité pour voir les carrés de sa route ; glissez-les, ajoutez-en avec « + », prolongez par l'anneau du bout, double-cliquez pour retirer. Maj + glisser mesure (règle) ; la croix de son encart l'efface. Les fiches techniques (menu du haut) donnent vitesses, plafonds et autonomies.",
+      "Tracés : cliquez une unité pour ouvrir sa fiche à droite de la carte (onglets Ordres, Route, État, Fiche technique) ; tant qu'elle est ouverte, la règle, Entrée et ↑ ↓ s'adressent à cette unité. La croix ou Échap la ferme. Glissez les carrés de la route, ajoutez-en avec « + », prolongez par l'anneau du bout, double-cliquez pour retirer. Maj + glisser mesure (règle) ; la croix de son encart l'efface.",
+      "Formations (menu du haut) : groupez des escadrilles en big wing, ou des groupes d'escorte en groupe de soutien. La formation devient une seule unité, avec une fiche et les mêmes ordres pour tous ; son chef (★) mène, le suivant prend la relève. Les fiches techniques (menu du haut) donnent vitesses, plafonds et autonomies.",
       "Chaque raid se termine par un rapport, rangé dans « Rapports ». La partie est gardée dans le navigateur ; le menu « Scénario » permet de l'exporter dans un fichier."
     ],
     "scenario": {
@@ -674,7 +712,7 @@
       ],
       "quinze-septembre": [
         "15 septembre 1940, une seule journée. Deux grandes vagues visent les docks de Londres, vers 11 h et vers 14 h, précédées de chasses libres.",
-        "Contre une escorte de cent chasseurs, engagez beaucoup d'escadrilles sur le même raid : la pression de l'escorte se partage entre elles. Les cinq escadrilles de Duxford peuvent voler en « Big Wing » : faites décoller un chef, puis, dans la fiche des autres, « Voler avec » ce chef.",
+        "Contre une escorte de cent chasseurs, engagez beaucoup d'escadrilles sur le même raid : la pression de l'escorte se partage entre elles. Les cinq escadrilles de Duxford peuvent voler en « Big Wing » : groupez-les dans « Formations » (menu du haut). Elles décollent ensemble, se rassemblent au-dessus du chef — ce qui prend du temps — puis volent à la vitesse des Hurricane.",
         "Victoire si 40 avions ennemis sont abattus, si les docks restent sous 50 % de dégâts et si la chasse garde 70 % de ses avions."
       ],
       "hiver-atlantique": [
@@ -750,7 +788,9 @@
     "patrols": "Patrouilles",
     "uboats": "Contacts sous-marins",
     "uplot": "U-Boot",
-    "agoH": "il y a {n} h"
+    "agoH": "il y a {n} h",
+    "wingExtra": "{n} sqn · {total}",
+    "groupExtra": "{n} groupes · {total} navires"
   },
   "sites": {
     "kinds": {
@@ -1314,5 +1354,103 @@
     "back": "reprend la mer vers le {date}",
     "show": "Voir",
     "torpedoesShort": "{n} t"
+  },
+  "formations": {
+    "title": "Formations",
+    "intro": {
+      "air": "Une big wing est une seule unité : une fiche, les mêmes ordres pour toutes ses escadrilles. Elle décolle ensemble, se rassemble au-dessus de son chef, puis vole à la vitesse de la plus lente. Une escadrille à court d'essence ou de munitions la quitte et rentre ; le chef suivant (★) prend la tête.",
+      "naval": "Un groupe de soutien réunit des groupes d'escorte : ils appareillent, escortent et chassent ensemble. Quand le plus court d'entre eux arrive au bout de son autonomie, tout le groupe rentre au port."
+    },
+    "kind": {
+      "air": "Big wing (air)",
+      "naval": "Groupe de soutien (mer)"
+    },
+    "new": {
+      "air": "+ Nouvelle big wing",
+      "naval": "+ Nouveau groupe de soutien"
+    },
+    "startHint": {
+      "air": "Choisissez à gauche l'escadrille qui mènera la nouvelle big wing (→) : elle en sera le chef. Ajoutez ensuite les autres.",
+      "naval": "Choisissez à gauche le groupe d'escorte qui mènera le groupe de soutien (→). Ajoutez ensuite les autres."
+    },
+    "available": "Disponibles",
+    "members": "Composition",
+    "filterAll": "Toutes",
+    "filterAir": "En vol",
+    "filterGround": "Au sol",
+    "filterSea": "En mer",
+    "filterPort": "Au port",
+    "atSea": "en mer",
+    "aircraft": "{n} avions",
+    "ships": "{n} navires",
+    "inOther": "dans {name}",
+    "add": "Ajouter à la formation",
+    "remove": "Retirer de la formation",
+    "up": "Monter dans la liste",
+    "down": "Descendre dans la liste",
+    "isLeader": "Chef de la formation",
+    "makeLeader": "En faire le chef",
+    "noneLeft": "Plus aucune unité à ajouter.",
+    "name": "Nom",
+    "total": {
+      "air": "{n} escadrilles · {total} avions",
+      "naval": "{n} groupes · {total} navires"
+    },
+    "addMore": "Ajoutez au moins une autre unité depuis la colonne de gauche.",
+    "show": "Voir sur la carte",
+    "dissolve": "Dissoudre",
+    "problem": {
+      "notFighter": "pas un chasseur",
+      "lost": "perdue",
+      "returning": "rentre à sa base",
+      "notEscort": "pas un groupe d'escorte",
+      "missing": "introuvable"
+    }
+  },
+  "unit": {
+    "tabs": {
+      "orders": "Ordres",
+      "route": "Route",
+      "state": "État",
+      "card": "Fiche technique",
+      "members": "Membres"
+    },
+    "centre": "Centrer la carte sur l'unité",
+    "close": "Fermer la fiche (Échap)",
+    "kind": {
+      "air": "big wing",
+      "naval": "groupe de soutien"
+    },
+    "aircraftShort": "{n}/{total} avions",
+    "shipsShort": "{n} navires",
+    "ammoShort": "munitions {n} %",
+    "wingSummary": "{n} escadrilles · {total} avions · {state}",
+    "groupSummary": "{n} groupes · {total} navires · {state}",
+    "gathering": "rassemblement {n}/{of}",
+    "inStation": "en formation",
+    "joiningShort": "rejoint",
+    "leaderOf": "Chef de {name}.",
+    "memberOf": "Membre de {name}.",
+    "memberHintAir": "Les ordres se donnent à la formation : elle décolle, vole et rentre ensemble.",
+    "memberHintSea": "Les ordres se donnent au groupe de soutien : ses groupes appareillent, escortent et rentrent ensemble.",
+    "showFormation": "Voir la formation",
+    "leaveFormation": "Retirer de la formation",
+    "newWing": "Créer une big wing avec cette escadrille",
+    "newGroup": "Créer un groupe de soutien avec ce groupe",
+    "see": "Fiche",
+    "remove": "Retirer",
+    "manage": "Composer…",
+    "dissolve": "Dissoudre",
+    "mergeTitle": "Fusionner",
+    "mergeWith": "Prendre {name}",
+    "mergeHint": "Toutes les unités de l'autre formation rejoignent celle-ci, à la suite.",
+    "scrambleWing": "Décoller ensemble ({n} prêtes)",
+    "launchWaiting": "Faire décoller les {n} restées au sol",
+    "scrambleRefused": "Aucune escadrille de la formation ne peut décoller.",
+    "wingHintGround": "Glissez depuis le chef (ou son aérodrome) pour tracer la route de la formation, ou décollez ensemble : elle se rassemble au-dessus du chef avant de partir.",
+    "wingHintGroundHeadings": "Préparez des branches dans l'onglet Route, ou décollez ensemble : la formation se rassemble au-dessus du chef avant de partir.",
+    "wingHintAir": "Glissez depuis la formation pour tracer sa route : toutes ses escadrilles la suivent, à la vitesse de la plus lente.",
+    "wingHintAirHeadings": "Donnez un cap ou des branches au chef : toutes les escadrilles le suivent, à la vitesse de la plus lente.",
+    "groupHint": "Tracez la route depuis le groupe de soutien : ses groupes suivent le chef en ligne de file. Quand le plus court arrive au bout de son autonomie, tous rentrent."
   }
 }

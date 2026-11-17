@@ -6,7 +6,7 @@ import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatTime } from '../core/time.js';
 import { unproject } from '../sim/geo.js';
 import { cargoShare } from '../sim/convoy.js';
-import { RESOURCES, fuelDays, fullTrain, inbound, trainHours, wagonsFor } from '../sim/logistics.js';
+import { RESOURCES, fuelDays, fullTrain, inbound, trainHours } from '../sim/logistics.js';
 import { escortStrength } from '../sim/naval.js';
 import { capacityFactor, isOperational } from '../sim/sites.js';
 import { lineCost, offerCost, offers } from '../sim/shipping.js';

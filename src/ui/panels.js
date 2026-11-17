@@ -1,19 +1,20 @@
-// Side panel: objectives, tote board (units, installations), the sheet of the selected unit
-// or installation with its orders and legs, and the operations journal. Panels are rebuilt
-// a few times per second, only when their content changes, so that buttons and inputs stay
-// usable.
+// Side panel: objectives, tote board (units, installations) and the operations journal; and
+// beside it the panel of the selected unit or installation, in tabs (orders, route, state,
+// card). Panels are rebuilt a few times per second, only when their content changes, so that
+// buttons and inputs stay usable.
 
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatDate, formatTime } from '../core/time.js';
 import { distance, unproject } from '../sim/geo.js';
 import { gridRef } from '../sim/grid.js';
 import { convoyRemainingKm, currentSpeed, orderedKnots } from '../sim/convoy.js';
-import { reachKm } from '../sim/asw.js';
+import { isSubmerged, reachKm } from '../sim/asw.js';
 import { legTarget } from '../sim/navigation.js';
 import { editableRoute, endChoices, planTrack } from '../sim/orders.js';
 import { interceptChance } from '../sim/control.js';
-import { nearestContact } from '../sim/query.js';
 import { activePoint, editingLegIndex } from './actions.js';
+import { formationById, formationOf, membersOf } from '../sim/formations.js';
+import { unitCardHtml } from './pages.js';
 import { altitudeSigmaFt, contactEstimate, visiblePlots } from '../sim/query.js';
 import { aircraftSpec, feetOf, isFlying } from '../sim/squadron.js';
 import { fatigueLevel, fatigueOn, pilotLossesOn, scrambleSeconds, strength } from '../sim/crews.js';
@@ -136,32 +137,51 @@ function renderUnits(app) {
       <span class="state">${escapeHtml(t(`states.convoy.${cstate}`))}</span>
       <span class="extra">${escapeHtml(convoyExtra(app, c))}</span></div>`);
   }
-  if (w.escorts.length) {
-    parts.push(`<div class="tote-group">${escapeHtml(t('tote.escorts'))}</div>`);
-    for (const e of w.escorts) {
-      const with_ = e.state === 'escorting' ? w.convoys.find((c) => c.id === e.escorting) : null;
-      parts.push(`<div class="tote-row${isSel(app, 'escort', e.id) ? ' sel' : ''}" data-action="select" data-kind="escort" data-id="${escapeHtml(e.id)}">
-        <span class="lamp escort-${e.state}"></span><span class="name">${escapeHtml(e.short)}</span>
-        <span class="state">${escapeHtml(t(`states.escort.${e.state}`))}</span>
-        <span class="extra">${escapeHtml(with_ ? t('tote.escortingShort', { convoy: with_.name }) : '')}</span></div>`);
-    }
-  }
-  const fighters = w.squadrons.filter((s) => s.role === 'fighter');
-  const patrols = w.squadrons.filter((s) => s.role !== 'fighter');
-  const groups = [[t('tote.squadrons'), fighters]];
-  if (patrols.length) groups.push([t('tote.patrols'), patrols]);
-  for (const [title, list] of groups) {
-  parts.push(`<div class="tote-group">${escapeHtml(title)}</div>`);
-  for (const s of list) {
+  const escortRow = (e, member = false) => {
+    const with_ = e.state === 'escorting' ? w.convoys.find((c) => c.id === e.escorting) : null;
+    return `<div class="tote-row${member ? ' member' : ''}${isSel(app, 'escort', e.id) ? ' sel' : ''}" data-action="select" data-kind="escort" data-id="${escapeHtml(e.id)}">
+      <span class="lamp escort-${e.state}"></span><span class="name">${escapeHtml(e.short)}</span>
+      <span class="state">${escapeHtml(t(`states.escort.${e.state}`))}</span>
+      <span class="extra">${escapeHtml(with_ ? t('tote.escortingShort', { convoy: with_.name }) : '')}</span></div>`;
+  };
+  const squadronRow = (s, member = false) => {
     const where = isFlying(s) ? altitudeText(s.alt) : w.byId.airfield.get(s.airfield).name;
     const level = fatigueOn(w) && s.state !== 'lost' ? fatigueLevel(w, s) : 'fresh';
     const tired = level !== 'fresh' ? ` <span class="fatigue-${level}" title="${escapeHtml(t('sheet.fatigue'))}">${escapeHtml(t(`sheet.fatigueLevels.${level}`))}</span>` : '';
     const stateText = s.state === 'ready' && fatigueOn(w) && s.alert !== 'available' ? t(`states.alert.${s.alert}`) : t(`states.squadron.${s.state}`);
-    parts.push(`<div class="tote-row${isSel(app, 'squadron', s.id) ? ' sel' : ''}" data-action="select" data-kind="squadron" data-id="${escapeHtml(s.id)}">
+    return `<div class="tote-row${member ? ' member' : ''}${isSel(app, 'squadron', s.id) ? ' sel' : ''}" data-action="select" data-kind="squadron" data-id="${escapeHtml(s.id)}">
       <span class="lamp sq-${s.state}${s.state === 'ready' ? ` alert-${s.alert}` : ''}"></span><span class="name">${escapeHtml(s.name)}</span>
       <span class="state">${escapeHtml(stateText)}</span>
-      <span class="extra">${strength(w, s)}/${s.aircraftStart} · ${escapeHtml(where)}${tired}</span></div>`);
+      <span class="extra">${strength(w, s)}/${s.aircraftStart} · ${escapeHtml(where)}${tired}</span></div>`;
+  };
+  // A formation is one line, its members in small below it.
+  const formationRows = (kind) => w.formations.filter((f) => f.kind === kind).map((f) => {
+    const members = membersOf(w, f);
+    const leader = members[0];
+    if (!leader) return '';
+    const air = kind === 'air';
+    const total = members.reduce((n, u) => n + (air ? strength(w, u) : u.ships), 0);
+    const where = air ? (isFlying(leader) ? altitudeText(leader.alt) : w.byId.airfield.get(leader.airfield).name) : '';
+    const state = air ? (leader.holdForWing ? t('sheet.gathering') : t(`states.squadron.${leader.state}`)) : t(`states.escort.${leader.state}`);
+    const extra = air ? `${t('tote.wingExtra', { n: members.length, total })} · ${where}` : t('tote.groupExtra', { n: members.length, total });
+    return `<div class="tote-row formation${isSel(app, 'formation', f.id) ? ' sel' : ''}" data-action="select" data-kind="formation" data-id="${escapeHtml(f.id)}">
+      <span class="lamp ${air ? `sq-${leader.state}` : `escort-${leader.state}`}"></span><span class="name">${escapeHtml(f.name)}</span>
+      <span class="state">${escapeHtml(state)}</span>
+      <span class="extra">${escapeHtml(extra)}</span></div>${members.map((u) => (air ? squadronRow(u, true) : escortRow(u, true))).join('')}`;
+  }).join('');
+  if (w.escorts.length) {
+    parts.push(`<div class="tote-group">${escapeHtml(t('tote.escorts'))}</div>`);
+    parts.push(formationRows('naval'));
+    for (const e of w.escorts) if (!e.formation) parts.push(escortRow(e));
   }
+  const fighters = w.squadrons.filter((s) => s.role === 'fighter');
+  const patrols = w.squadrons.filter((s) => s.role !== 'fighter');
+  const groups = [[t('tote.squadrons'), fighters, true]];
+  if (patrols.length) groups.push([t('tote.patrols'), patrols, false]);
+  for (const [title, list, wings] of groups) {
+    parts.push(`<div class="tote-group">${escapeHtml(title)}</div>`);
+    if (wings) parts.push(formationRows('air'));
+    for (const s of list) if (!s.formation) parts.push(squadronRow(s));
   }
   parts.push(`<div class="tote-group">${escapeHtml(t('tote.raids'))}</div>`);
   let any = false;
@@ -331,10 +351,11 @@ function interceptBlock(app, s) {
   return `<div class="order-line intercepts">${buttons.join('')}</div><p class="hint">${escapeHtml(t('orders.interceptHint'))}</p>`;
 }
 
-function renderPlan(app, u) {
+/** The list of legs (or the route being followed) of a unit. */
+function planList(app, u) {
   const w = app.world;
   const moving = u.kind === 'squadron' ? isFlying(u) : u.state === 'atSea';
-  const parts = [interceptBlock(app, u), pointBlock(app, u), `<div class="sub">${escapeHtml(t('orders.plan'))}</div>`];
+  const parts = [`<div class="sub">${escapeHtml(t('orders.plan'))}</div>`];
   if (u.route && u.route.length && !u.plan.length) {
     parts.push(`<p class="hint">${escapeHtml(t('orders.followingRoute', { n: u.route.length }))}</p>`);
   } else if (!u.plan.length) {
@@ -355,10 +376,13 @@ function renderPlan(app, u) {
     });
     parts.push('</ol>');
   }
-  if (app.sheetMessage && performance.now() < app.sheetMessage.until) {
-    parts.push(`<p class="message ${app.sheetMessage.level}">${escapeHtml(app.sheetMessage.text)}</p>`);
-  }
   return parts.join('');
+}
+
+/** A refused order or a typing mistake, shown for a few seconds. */
+function messageBlock(app) {
+  if (!app.sheetMessage || performance.now() >= app.sheetMessage.until) return '';
+  return `<p class="message ${app.sheetMessage.level}">${escapeHtml(app.sheetMessage.text)}</p>`;
 }
 
 function legForm(app, u) {
@@ -384,7 +408,10 @@ function legForm(app, u) {
   ].join('');
 }
 
-// ---- sheets ------------------------------------------------------------------------
+// ---- unit panel ----------------------------------------------------------------------
+// The sheet of the selected unit opens in its own panel beside the map, in short tabs:
+// Orders, Route, State, Card (Members for a formation). It stays on that unit until the
+// cross or Escape; a click on another unit changes it.
 
 function climbArrow(s) {
   const target = s.targetAlt;
@@ -401,41 +428,39 @@ function endActionLine(app, s) {
   return `<div class="order-line"><label class="grow">${escapeHtml(t('orders.endAction'))} <select id="end-action" data-change="end-action" data-id="${escapeHtml(s.id)}">${options(list, current)}</select></label></div>`;
 }
 
-function endKey(app, s) {
-  if (!(s.route.length || s.plan.length)) return '';
-  const choices = endChoices(app.world, s).map((a) => `${a.kind}${a.id || ''}`).join(',');
-  return `${s.endAction.kind}${s.endAction.id || ''}|${choices}`;
+/** Splits an old-style sheet text into its title (the <h3>) and the rest. */
+function splitTitle(html) {
+  const m = html.match(/^\s*<h3>([\s\S]*?)<\/h3>/);
+  return m ? { title: m[1], body: html.slice(m[0].length) } : { title: '', body: html };
 }
 
-/** Fighters that could lead a big wing for squadron `s`, nearest first. */
-function wingLeaders(w, s) {
-  return w.squadrons
-    .filter((o) => o !== s && o.role === 'fighter' && !o.follow && (o.state === 'airborne' || o.state === 'scrambling'))
-    .map((o) => ({ o, d: Math.hypot(o.x - s.x, o.y - s.y) }))
-    .filter((x) => x.d < 80)
-    .sort((a, b) => a.d - b.d)
-    .slice(0, 4)
-    .map((x) => x.o);
+function tab(id, parts = {}) {
+  const t0 = { id, pre: '', keyed: '', post: '', profile: false, ...parts };
+  // The route tab's forms take the look of the orders.
+  if (id === 'route' && t0.keyed) t0.keyed = `<div class="orders">${t0.keyed}</div>`;
+  return t0;
 }
 
-/** Big wing: join a leader in the air, or leave the formation. */
-function formationBlock(app, s) {
+/** "Member of Big Wing Duxford [See] [Leave]", or the button that starts a formation. */
+function formationLine(app, u) {
   const w = app.world;
-  if (s.role !== 'fighter' || !(s.state === 'airborne' || s.state === 'scrambling')) return '';
-  if (s.follow) {
-    return `<div class="order-line"><span>${escapeHtml(t('orders.formation'))}</span>${button('leave-formation', t('orders.leaveFormation'), { id: s.id })}</div>`;
+  const f = formationOf(w, u);
+  if (f) {
+    const leader = f.members[0] === u.id;
+    return `<div class="formation-line"><p>${escapeHtml(t(leader ? 'unit.leaderOf' : 'unit.memberOf', { name: f.name }))}</p>
+      <div class="order-line">${button('select', t('unit.showFormation'), { id: f.id, kind: 'formation' })}
+      ${button('formation-remove', t('unit.leaveFormation'), { id: u.id, extra: ` data-formation="${escapeHtml(f.id)}"` })}</div>
+      <p class="hint">${escapeHtml(t(u.kind === 'squadron' ? 'unit.memberHintAir' : 'unit.memberHintSea'))}</p></div>`;
   }
-  const leaders = wingLeaders(w, s);
-  if (!leaders.length) return '';
-  const buttons = leaders.map((o) => button('follow', t('orders.followLeader', { name: o.name }), { id: s.id, extra: ` data-leader="${escapeHtml(o.id)}"` }));
-  return `<div class="order-line"><span>${escapeHtml(t('orders.formation'))}</span>${buttons.join('')}</div><p class="hint">${escapeHtml(t('orders.formationHint'))}</p>`;
+  if (u.state === 'lost' || (u.kind === 'squadron' && u.role !== 'fighter')) return '';
+  return `<div class="order-line">${button('formation-new', t(u.kind === 'squadron' ? 'unit.newWing' : 'unit.newGroup'), { id: u.id, kind: u.kind })}</div>`;
 }
 
-function squadronSheet(app, s) {
+// ---- squadrons ----
+
+function squadronStateText(app, s) {
   const w = app.world;
-  const type = aircraftSpec(w, s.type);
   const field = w.byId.airfield.get(s.airfield);
-  const home = w.byId.airfield.get(s.home);
   let state = t(`states.squadron.${s.state}`);
   if (s.state === 'refuelling') state += ` · ${t('sheet.readyIn', { n: Math.ceil(s.timer / 60) })}`;
   if (s.state === 'scrambling') state += ` · ${t('sheet.takeoffIn', { n: Math.ceil(s.timer / 60) })}`;
@@ -443,7 +468,8 @@ function squadronSheet(app, s) {
     const raid = w.raids.find((r) => r.id === s.engagedRaid);
     if (raid) state += ` · ${t('sheet.inCombatWith', { raid: raid.label })}`;
   }
-  if (s.state === 'airborne' && s.orbit) state += ` · ${t('sheet.orbiting')}`;
+  if (s.holdForWing) state += ` · ${t('sheet.gathering')}`;
+  else if (s.state === 'airborne' && s.orbit) state += ` · ${t('sheet.orbiting')}`;
   if (s.follow) {
     const leader = w.squadrons.find((o) => o.id === s.follow);
     if (leader) state += ` · ${t(s.inFormation ? 'sheet.inFormation' : 'sheet.joining', { name: leader.name })}`;
@@ -457,11 +483,18 @@ function squadronSheet(app, s) {
     if (c) state += ` · ${t('sheet.covering', { convoy: c.name })}`;
   }
   if (s.state === 'returning') state += ` · ${t('sheet.returningTo', { name: field.name })}`;
+  return state;
+}
+
+function squadronRows(app, s, state) {
+  const w = app.world;
+  const type = aircraftSpec(w, s.type);
+  const field = w.byId.airfield.get(s.airfield);
+  const home = w.byId.airfield.get(s.home);
   const fuel = w.settings.fuel === 'unlimited' ? t('sheet.unlimited') : t('sheet.minutes', { n: Math.max(0, Math.floor(s.fuel)) });
   const flying = isFlying(s);
   const grid = flying ? gridRef(w.grid, s.x, s.y) : null;
-  const info = [
-    `<h3>${escapeHtml(s.name)} <small><button type="button" class="link" data-action="cards" data-type="${escapeHtml(s.type)}" title="${escapeHtml(t('cards.open'))}">${escapeHtml(s.typeName)} ⓘ</button></small></h3>`,
+  return [
     s.role !== 'fighter' ? `<p class="hint">${escapeHtml(t(`sheet.roleHint.${s.role}`))}</p>` : '',
     row(t('sheet.state'), escapeHtml(state)),
     row(t('sheet.airfield'), escapeHtml(home.name + (field.id !== home.id ? ` → ${field.name}` : ''))),
@@ -474,22 +507,16 @@ function squadronSheet(app, s) {
     grid ? row(t('sheet.grid'), escapeHtml(grid)) : '',
     row(t('sheet.speed'), escapeHtml(s.speedMode === 'max' ? t('sheet.speedMax', { n: type.maxKmh }) : t('sheet.speedCruise', { n: type.cruiseKmh }))),
     row(t('sheet.fuel'), escapeHtml(fuel)),
-    s.role === 'fighter' ? row(t('sheet.ammo'), escapeHtml(t('sheet.percent', { n: Math.round(s.ammo * 100) }))) : row(t('sheet.sight'), escapeHtml(t('sheet.sightText', { n: Math.round(w.rules.patrols[s.type][isDaylightSafe(w) ? 'sightDayKm' : 'sightNightKm']) }))),
+    s.role === 'fighter' ? row(t('sheet.ammo'), escapeHtml(t('sheet.percent', { n: Math.round(s.ammo * 100) })))
+      : row(t('sheet.sight'), escapeHtml(t('sheet.sightText', { n: Math.round(w.rules.patrols[s.type][isDaylightSafe(w) ? 'sightDayKm' : 'sightNightKm']) }))),
     s.lastReport ? `<p class="report-line">${escapeHtml(reportText(w, s.lastReport))}</p>` : '',
   ].join('');
+}
 
-  const airborneOrMoving = flying || s.state === 'scrambling';
-  const headings = app.settings.orders === 'headings';
-  const grounded = s.state === 'ready' || s.state === 'refuelling';
-  const alertLine = fatigueOn(w) && grounded && s.role === 'fighter' ? [
-    `<div class="order-line"><span>${escapeHtml(t('orders.alert'))}</span>`,
-    ...['rest', 'available', 'cockpit'].map((a) => button('alert', t(`orders.alerts.${a}`), { id: s.id, kind: 'squadron', active: s.alert === a, extra: ` data-alert="${a}"` })),
-    `</div><p class="hint">${escapeHtml(t('orders.alertHint', { n: scrambleSeconds(w, s) === null ? '—' : Math.round(scrambleSeconds(w, s) / 60) }))}</p>`,
-  ].join('') : '';
-  const orders = [
-    `<div class="orders">`,
-    button('scramble', t('orders.scramble'), { id: s.id, disabled: s.state !== 'ready' || scrambleSeconds(w, s) === null }),
-    alertLine,
+/** Altitude, speed, vector, orbit, home: the flying orders of a squadron (or a wing's leader). */
+function flightOrders(app, s, { homeAction = 'home', homeId = s.id } = {}) {
+  const airborneOrMoving = isFlying(s) || s.state === 'scrambling';
+  return [
     `<div class="order-line"><span>${escapeHtml(t('orders.altitude'))}</span>`,
     button('alt-down', '−', { id: s.id }),
     `<b class="alt-value">${escapeHtml(ftText(feetOf(s.targetAlt)))}</b>`,
@@ -501,37 +528,69 @@ function squadronSheet(app, s) {
     button('vector', t('orders.applyVector'), { id: s.id, disabled: !airborneOrMoving }),
     `</div><div class="order-line">`,
     button('orbit', t('orders.orbit'), { id: s.id, disabled: !(s.state === 'airborne' || s.state === 'combat' || s.state === 'returning') }),
-    button('home', t('orders.home'), { id: s.id, disabled: !(s.state === 'airborne' || s.state === 'combat') }),
-    `</div>`,
-    coverButtons(app, s),
-    formationBlock(app, s),
-    endActionLine(app, s),
-    s.state !== 'lost' ? legForm(app, s) : '',
-    button('centre', t('orders.centre'), { id: s.id, kind: 'squadron' }),
-    `<p class="hint">${escapeHtml(s.state === 'ready'
-      ? (headings ? t('orders.scrambleHintHeadings') : t('orders.scrambleHint'))
-      : (headings ? t('orders.headingsHint') : t('orders.drawHint')))}</p>`,
+    button(homeAction, t('orders.home'), { id: homeId, disabled: !(s.state === 'airborne' || s.state === 'combat') }),
     `</div>`,
   ].join('');
+}
+
+function squadronPanel(app, s) {
+  const w = app.world;
+  const state = squadronStateText(app, s);
+  const headings = app.settings.orders === 'headings';
+  const grounded = s.state === 'ready' || s.state === 'refuelling';
+  const alertLine = fatigueOn(w) && grounded && s.role === 'fighter' ? [
+    `<div class="order-line"><span>${escapeHtml(t('orders.alert'))}</span>`,
+    ...['rest', 'available', 'cockpit'].map((a) => button('alert', t(`orders.alerts.${a}`), { id: s.id, kind: 'squadron', active: s.alert === a, extra: ` data-alert="${a}"` })),
+    `</div><p class="hint">${escapeHtml(t('orders.alertHint', { n: scrambleSeconds(w, s) === null ? '—' : Math.round(scrambleSeconds(w, s) / 60) }))}</p>`,
+  ].join('') : '';
+  const member = formationOf(w, s);
+  let orders;
+  if (s.state === 'lost') orders = '';
+  else if (member) orders = `<div class="orders">${alertLine}${formationLine(app, s)}</div>`;
+  else {
+    orders = [
+      `<div class="orders">`,
+      button('scramble', t('orders.scramble'), { id: s.id, disabled: s.state !== 'ready' || scrambleSeconds(w, s) === null }),
+      alertLine,
+      flightOrders(app, s),
+      coverButtons(app, s),
+      `<p class="hint">${escapeHtml(s.state === 'ready'
+        ? (headings ? t('orders.scrambleHintHeadings') : t('orders.scrambleHint'))
+        : (headings ? t('orders.headingsHint') : t('orders.drawHint')))}</p>`,
+      formationLine(app, s),
+      `</div>`,
+    ].join('');
+  }
+  const where = isFlying(s) ? ftText(feetOf(s.alt)) + climbArrow(s) : w.byId.airfield.get(s.airfield).name;
+  const tabs = [
+    tab('orders', { keyed: orders, post: member ? '' : interceptBlock(app, s), profile: s.state !== 'lost' && !member }),
+    s.state === 'lost' || member ? null : tab('route', {
+      pre: pointBlock(app, s) + planList(app, s), keyed: endActionLine(app, s) + legForm(app, s), key: editingLegIndex(app, s), profile: true,
+    }),
+    tab('state', { pre: squadronRows(app, s, state), profile: Boolean(member) && isFlying(s) }),
+    tab('card', { keyed: unitCardHtml(w, s) }),
+  ].filter(Boolean);
   return {
-    info,
-    plan: s.state === 'lost' ? '' : renderPlan(app, s),
-    orders,
-    profile: s.state !== 'lost',
-    key: `sq:${s.id}:${s.state}:${s.alert}:${s.speedMode}:${Math.round(feetOf(s.targetAlt))}:${app.settings.orders}:${s.cover}:${w.convoys.filter((c) => c.type === 'coastal' && c.state === 'atSea').length}:${endKey(app, s)}:${editingLegIndex(app, s)}:${s.follow}:${s.inFormation}:${s.role === 'fighter' ? wingLeaders(w, s).map((o) => o.id).join(',') : ''}`,
+    group: 'squadron',
+    title: `${escapeHtml(s.name)} <small><button type="button" class="link" data-action="cards" data-type="${escapeHtml(s.type)}" title="${escapeHtml(t('cards.open'))}">${escapeHtml(s.typeName)} ⓘ</button></small>`,
+    summary: escapeHtml(`${state} · ${t('unit.aircraftShort', { n: s.aircraft, total: s.aircraftStart })} · ${where}`),
+    tabs,
+    profileUnit: s,
   };
 }
 
-function convoySheet(app, c) {
+// ---- convoys and escort groups ----
+
+function convoyPanel(app, c) {
   const w = app.world;
   const dest = c.destination ? w.byId.port.get(c.destination).name : t('sheet.none');
   const [lon, lat] = unproject(c.x, c.y);
   const remaining = convoyRemainingKm(c);
   const speedKn = Math.round((currentSpeed(c) * 3600) / 1.852);
-  const info = [
-    `<h3>${escapeHtml(t('sheet.convoyTitle', { name: convoyLabel(c) }))}</h3>`,
+  const stateText = t(`states.convoy.${c.state === 'arrived' && c.unloading ? 'unloading' : c.state}`);
+  const rows = [
     c.straggler ? `<p class="hint">${escapeHtml(t('sheet.stragglerHint'))}</p>` : '',
-    row(t('sheet.state'), escapeHtml(t(`states.convoy.${c.state === 'arrived' && c.unloading ? 'unloading' : c.state}`))),
+    row(t('sheet.state'), escapeHtml(stateText)),
     c.tankers || c.freighters ? convoyCargoRows(app, c)
       : row(t('sheet.ships'), c.ships === c.shipsStart ? String(c.ships) : t('sheet.aircraftOf', { n: c.ships, total: c.shipsStart })),
     row(t('sheet.speed'), escapeHtml(speedKn < c.speedKn && c.state === 'atSea'
@@ -540,7 +599,6 @@ function convoySheet(app, c) {
     c.state === 'atSea' ? row(t('sheet.heading'), headingText(c.heading)) : '',
     row(t('sheet.position'), escapeHtml(positionText(lat, lon))),
     row(t('sheet.destination'), escapeHtml(c.state === 'arrived' ? w.byId.port.get(c.portId).name : dest)),
-    c.state === 'lost' ? '' : '',
     remaining !== null && c.state === 'atSea' ? row(t('sheet.remaining'), escapeHtml(kmText(remaining))) : '',
     remaining !== null && c.state === 'atSea' ? row(t('sheet.eta'), escapeHtml(dateTimeText(w.startMs + (w.t + remaining / currentSpeed(c)) * 1000))) : '',
   ].join('');
@@ -558,19 +616,164 @@ function convoySheet(app, c) {
     c.state === 'inPort' ? button('sail', t('orders.sail'), { id: c.id, kind: 'convoy', disabled: !c.plan.length }) : '',
     speedLine,
     canOrder && c.admiraltyRoute.length && !c.route.length ? button('admiralty', t('orders.admiralty'), { id: c.id }) : '',
-    canOrder ? legForm(app, c) : '',
-    button('centre', t('orders.centre'), { id: c.id, kind: 'convoy' }),
     canOrder ? `<p class="hint">${escapeHtml(c.state === 'inPort' ? t('orders.sailHint') : headings ? t('orders.headingsHint') : t('orders.drawHint'))}</p>` : '',
     `</div>`,
   ].join('');
+  const tabs = [
+    tab('orders', { keyed: orders }),
+    canOrder ? tab('route', { pre: pointBlock(app, c) + planList(app, c), keyed: legForm(app, c), key: editingLegIndex(app, c) }) : null,
+    tab('state', { pre: rows }),
+    tab('card', { keyed: unitCardHtml(w, c) }),
+  ].filter(Boolean);
   return {
-    info,
-    plan: canOrder ? renderPlan(app, c) : '',
-    orders,
-    profile: false,
-    key: `cv:${c.id}:${c.state}:${c.plan.length > 0}:${c.route.length > 0}:${app.settings.orders}:${app.world.rail.enabled}:${editingLegIndex(app, c)}:${c.orderedKn}:${c.zigzag}`,
+    group: 'convoy',
+    title: escapeHtml(t('sheet.convoyTitle', { name: convoyLabel(c) })),
+    summary: escapeHtml(`${stateText} · ${t('unit.shipsShort', { n: c.ships })}${c.state === 'atSea' ? ` · ${t('units.kn', { n: speedKn })}` : ''}`),
+    tabs,
   };
 }
+
+function escortPanel(app, e) {
+  const w = app.world;
+  const es = escortSheet(app, e);
+  const { title, body } = splitTitle(es.info);
+  const member = formationOf(w, e);
+  const orders = member ? `<div class="orders">${formationLine(app, e)}</div>`
+    : es.orders.replace(/<\/div>\s*$/, `${formationLine(app, e)}</div>`);
+  const tabs = [
+    tab('orders', { keyed: orders }),
+    es.planUnit && !member ? tab('route', { pre: pointBlock(app, e) + planList(app, e), keyed: es.legForm ? legForm(app, e) : '', key: editingLegIndex(app, e) }) : null,
+    tab('state', { pre: body }),
+    tab('card', { keyed: unitCardHtml(w, e) }),
+  ].filter(Boolean);
+  return {
+    group: 'escort',
+    title,
+    summary: escapeHtml(`${t(`states.escort.${e.state}`)} · ${t('unit.shipsShort', { n: e.ships })} · ${t('sheet.enduranceDays', { n: formatNumber(Math.max(0, e.endurance) / 86400, 1) })}`),
+    tabs,
+  };
+}
+
+// ---- formations ----
+
+function formationStateText(app, f, leader) {
+  const w = app.world;
+  if (f.kind === 'air') {
+    let text = t(`states.squadron.${leader.state}`);
+    if (leader.holdForWing) {
+      const flying = membersOf(w, f).slice(1).filter((s) => s.follow === leader.id && (isFlying(s) || s.state === 'scrambling'));
+      text += ` · ${t('unit.gathering', { n: flying.filter((s) => s.inFormation).length + 1, of: flying.length + 1 })}`;
+    } else if (leader.intercept) {
+      const c = w.contacts.get(leader.intercept.raidId);
+      text += ` · ${t('sheet.guided', { raid: c ? c.label : '', p: Math.round(leader.intercept.p * 100) })}`;
+    }
+    return text;
+  }
+  let text = t(`states.escort.${leader.state}`);
+  const convoyId = leader.escorting || leader.joinTarget;
+  const c = convoyId ? w.convoys.find((x) => x.id === convoyId) : null;
+  if (c) text += ` · ${c.name}`;
+  return text;
+}
+
+function memberRows(app, f) {
+  const w = app.world;
+  const members = membersOf(w, f);
+  const leader = members[0];
+  const rows = members.map((u, i) => {
+    let state;
+    let extra;
+    if (f.kind === 'air') {
+      state = t(`states.squadron.${u.state}`);
+      if (i > 0 && u.follow === leader.id) state += ` · ${t(u.inFormation ? 'unit.inStation' : 'unit.joiningShort')}`;
+      const fuel = w.settings.fuel === 'unlimited' ? '' : ` · ${t('sheet.minutes', { n: Math.max(0, Math.floor(u.fuel)) })}`;
+      const level = fatigueOn(w) && u.state !== 'lost' ? fatigueLevel(w, u) : 'fresh';
+      extra = `${t('unit.aircraftShort', { n: u.aircraft, total: u.aircraftStart })} · ${t('unit.ammoShort', { n: Math.round(u.ammo * 100) })}${fuel}${level !== 'fresh' ? ` · ${t(`sheet.fatigueLevels.${level}`)}` : ''}`;
+    } else {
+      state = t(`states.escort.${u.state}`);
+      extra = `${t('unit.shipsShort', { n: u.ships })} · ${t('sheet.enduranceDays', { n: formatNumber(Math.max(0, u.endurance) / 86400, 1) })}`;
+    }
+    const kind = f.kind === 'air' ? 'squadron' : 'escort';
+    return `<li class="member${i === 0 ? ' leader' : ''}"><span class="member-name">${i === 0 ? '★ ' : ''}${escapeHtml(u.name)}</span>
+      <span class="member-state">${escapeHtml(state)}</span><span class="member-extra">${escapeHtml(extra)}</span>
+      <span class="member-buttons">${button('select', t('unit.see'), { id: u.id, kind })}${button('formation-remove', t('unit.remove'), { id: u.id, extra: ` data-formation="${escapeHtml(f.id)}"` })}</span></li>`;
+  });
+  const others = w.formations.filter((x) => x !== f && x.kind === f.kind);
+  const merge = others.length ? `<div class="orders"><div class="sub">${escapeHtml(t('unit.mergeTitle'))}</div><div class="order-line">${others.map((x) =>
+    button('formation-merge', t('unit.mergeWith', { name: x.name }), { id: f.id, extra: ` data-from="${escapeHtml(x.id)}"` })).join('')}</div>
+    <p class="hint">${escapeHtml(t('unit.mergeHint'))}</p></div>` : '';
+  return `<ol class="members">${rows.join('')}</ol>${merge}`;
+}
+
+function formationPanel(app, f) {
+  const w = app.world;
+  const members = membersOf(w, f);
+  const leader = members[0];
+  if (!leader) return null;
+  const air = f.kind === 'air';
+  const total = members.reduce((n, u) => n + (air ? u.aircraft : u.ships), 0);
+  const manage = `<div class="order-line">${button('formation-manage', t('unit.manage'), { id: f.id })}${button('formation-dissolve', t('unit.dissolve'), { id: f.id })}</div>`;
+  const headings = app.settings.orders === 'headings';
+  let orders;
+  let route;
+  if (air) {
+    const ready = members.filter((s) => s.state === 'ready').length;
+    const waiting = members.slice(1).filter((s) => s.state === 'ready').length;
+    const up = isFlying(leader) || leader.state === 'scrambling';
+    const grounded = members.filter((s) => s.state === 'ready' || s.state === 'refuelling');
+    const alertLine = fatigueOn(w) && grounded.length ? [
+      `<div class="order-line"><span>${escapeHtml(t('orders.alert'))}</span>`,
+      ...['rest', 'available', 'cockpit'].map((a) => button('formation-alert', t(`orders.alerts.${a}`), {
+        id: f.id, active: grounded.every((s) => s.alert === a), extra: ` data-alert="${a}"`,
+      })),
+      `</div>`,
+    ].join('') : '';
+    orders = [
+      `<div class="orders">`,
+      !up ? button('scramble', t('unit.scrambleWing', { n: ready }), { id: leader.id, disabled: !ready }) : '',
+      up && waiting ? button('formation-launch', t('unit.launchWaiting', { n: waiting }), { id: f.id }) : '',
+      alertLine,
+      leader.state === 'lost' ? '' : flightOrders(app, leader),
+      coverButtons(app, leader),
+      `<p class="hint">${escapeHtml(t(up ? (headings ? 'unit.wingHintAirHeadings' : 'unit.wingHintAir') : (headings ? 'unit.wingHintGroundHeadings' : 'unit.wingHintGround')))}</p>`,
+      manage,
+      `</div>`,
+    ].join('');
+    route = tab('route', {
+      pre: pointBlock(app, leader) + planList(app, leader), keyed: endActionLine(app, leader) + legForm(app, leader), key: editingLegIndex(app, leader), profile: true,
+    });
+  } else {
+    const canMove = leader.state === 'inPort' || leader.state === 'atSea' || leader.state === 'waiting';
+    const aid = w.settings.interceptAid !== 'none';
+    const joinable = w.convoys.filter((c) => c.state === 'atSea' && c.type !== 'coastal');
+    orders = [
+      `<div class="orders">`,
+      leader.state === 'inPort' ? button('sail', t('orders.escortSail'), { id: leader.id, kind: 'escort', disabled: !leader.plan.length && !leader.route.length }) : '',
+      aid && canMove && joinable.length ? `<div class="order-line">${joinable.map((c) => button('join', t('orders.join', { convoy: convoyLabel(c) }), { id: leader.id, kind: 'escort', extra: ` data-convoy="${escapeHtml(c.id)}"` })).join('')}</div>` : '',
+      leader.state === 'escorting' ? button('leave', t('orders.leave'), { id: leader.id, kind: 'escort' }) : '',
+      `<div class="order-line"><span>${escapeHtml(t('orders.behaviour'))}</span>${button('escort-behaviour', t('orders.behaviours.stay'), { id: leader.id, kind: 'escort', active: leader.behaviour !== 'hunt', extra: ' data-behaviour="stay"' })}${button('escort-behaviour', t('orders.behaviours.hunt'), { id: leader.id, kind: 'escort', active: leader.behaviour === 'hunt', extra: ' data-behaviour="hunt"' })}</div>`,
+      `<p class="hint">${escapeHtml(t('orders.behaviourHint'))}</p>`,
+      members.some((e) => e.state === 'atSea' || e.state === 'escorting' || e.state === 'waiting') ? button('escort-home', t('orders.homePort'), { id: leader.id, kind: 'escort' }) : '',
+      `<p class="hint">${escapeHtml(t('unit.groupHint'))}</p>`,
+      manage,
+      `</div>`,
+    ].join('');
+    route = canMove ? tab('route', { pre: pointBlock(app, leader) + planList(app, leader), keyed: legForm(app, leader), key: editingLegIndex(app, leader) }) : null;
+  }
+  return {
+    group: 'formation',
+    title: `${escapeHtml(f.name)} <small>${escapeHtml(t(`unit.kind.${f.kind}`))}</small>`,
+    summary: escapeHtml(t(air ? 'unit.wingSummary' : 'unit.groupSummary', { n: members.length, total, state: formationStateText(app, f, leader) })),
+    tabs: [
+      tab('orders', { keyed: orders, post: air ? interceptBlock(app, leader) : '', profile: air && leader.state !== 'lost' }),
+      route,
+      tab('members', { pre: memberRows(app, f) }),
+    ].filter(Boolean),
+    profileUnit: air ? leader : null,
+  };
+}
+
+// ---- contacts, plots, installations, trains ----
 
 function raidSheet(app, raidId) {
   const w = app.world;
@@ -580,7 +783,7 @@ function raidSheet(app, raidId) {
   const est = contactEstimate(w, contact);
   const plots = visiblePlots(w, contact);
   const last = plots[plots.length - 1];
-  const known = raid.intercepted || raid.engagedBy.size > 0 || w.settings.detection === 'exact';
+  const known = raid.intercepted || raid.engagedBy.size > 0 || w.settings.detection === 'exact' || Boolean(est && est.live);
   const composition = raid.phantom
     ? t('sheet.unknown')
     : known
@@ -589,18 +792,22 @@ function raidSheet(app, raidId) {
   const sigma = altitudeSigmaFt(w, est);
   const alt = est ? ftText(est.altFt) + (sigma ? ` ± ${formatNumber(Math.round(sigma / 500) * 500)}` : '') : '';
   const grid = est ? gridRef(w.grid, est.x, est.y) : null;
-  const info = [
-    `<h3>${escapeHtml(t('sheet.raidTitle', { label: contact.label }))}</h3>`,
+  const body = [
     est ? row(t('sheet.estimate'), escapeHtml(`${countText(est.count, est.approx)} · ${alt}`)) : '',
     est && est.heading !== null ? row(t('sheet.heading'), headingText(est.heading)) : '',
     grid ? row(t('sheet.grid'), escapeHtml(grid)) : '',
-    last ? row(t('sheet.source'), escapeHtml(t(`sheet.${last.source}`))) : '',
+    est && est.live ? row(t('sheet.source'), escapeHtml(t('sheet.visualBy', { by: est.seen.by, time: formatTime(w.startMs + est.seen.since * 1000) })))
+      : last ? row(t('sheet.source'), escapeHtml(t(`sheet.${last.source}`))) : '',
     last ? row(t('sheet.lastPlot'), escapeHtml(formatTime(w.startMs + last.t * 1000))) : '',
     row(t('sheet.composition'), escapeHtml(composition)),
     `<p class="hint">${escapeHtml(t('sheet.detectedAt', { time: formatTime(w.startMs + contact.firstSeen * 1000) }))}</p>`,
   ].join('');
-  const orders = `<div class="orders">${button('centre', t('orders.centre'), { id: raidId, kind: 'raid' })}</div>`;
-  return { info, plan: '', orders, profile: false, key: `rd:${raidId}` };
+  return {
+    group: 'raid',
+    title: escapeHtml(t('sheet.raidTitle', { label: contact.label })),
+    summary: est ? escapeHtml(`${countText(est.count, est.approx)} · ${alt}${est.live ? ` · ${t('map.seenTag', { by: est.seen.by })}` : ''}`) : '',
+    tabs: [tab('state', { pre: body })],
+  };
 }
 
 function uboatPlotSheet(app, id) {
@@ -609,8 +816,7 @@ function uboatPlotSheet(app, id) {
   if (!p) return null;
   const [lon, lat] = unproject(p.x, p.y);
   const reach = reachKm(w, w.t - p.t);
-  const info = [
-    `<h3>${escapeHtml(t('sheet.uplotTitle'))}</h3>`,
+  const body = [
     row(t('sheet.source'), escapeHtml(`${t(`map.uSource.${p.source}`)} · ${p.by}`)),
     row(t('sheet.lastPlot'), escapeHtml(formatTime(w.startMs + p.t * 1000))),
     row(t('sheet.position'), escapeHtml(positionText(lat, lon))),
@@ -618,8 +824,25 @@ function uboatPlotSheet(app, id) {
     row(t('sheet.reachSubmerged'), escapeHtml(kmText(reach.submerged))),
     `<p class="hint">${escapeHtml(t('sheet.uplotHint'))}</p>`,
   ].join('');
-  const orders = `<div class="orders">${button('centre', t('orders.centre'), { id, kind: 'uplot' })}</div>`;
-  return { info, plan: '', orders, profile: false, key: `up:${id}` };
+  return { group: 'uplot', title: escapeHtml(t('sheet.uplotTitle')), summary: escapeHtml(t(`map.uSource.${p.source}`)), tabs: [tab('state', { pre: body })] };
+}
+
+/** A U-boat in direct contact: what the player's unit sees of it. */
+function uboatContactSheet(app, id) {
+  const w = app.world;
+  const u = w.uboats.find((x) => x.id === id);
+  if (!u || !u.seen || u.state === 'sunk' || u.state === 'gone') return null;
+  const [lon, lat] = unproject(u.x, u.y);
+  const under = isSubmerged(w, u);
+  const how = t('sheet.ucontactBy', { how: t(`map.uSource.${u.seen.how}`), by: u.seen.by });
+  const body = [
+    row(t('sheet.source'), escapeHtml(how)),
+    row(t('sheet.ucontactSince'), escapeHtml(formatTime(w.startMs + u.seen.since * 1000))),
+    row(t('sheet.depth'), escapeHtml(t(under ? 'sheet.submerged' : 'sheet.surfaced'))),
+    row(t('sheet.position'), escapeHtml(positionText(lat, lon))),
+    `<p class="hint">${escapeHtml(t('sheet.ucontactHint'))}</p>`,
+  ].join('');
+  return { group: 'ucontact', title: escapeHtml(t('sheet.ucontactTitle')), summary: escapeHtml(how), tabs: [tab('state', { pre: body })] };
 }
 
 function attacksBlock(app, site) {
@@ -629,7 +852,7 @@ function attacksBlock(app, site) {
   return `<div class="sub">${escapeHtml(t('sheet.attacks'))}</div>${lines.length ? `<ul class="attacks">${lines.join('')}</ul>` : `<p class="hint">${escapeHtml(t('sheet.noAttack'))}</p>`}`;
 }
 
-function siteSheet(app, key) {
+function sitePanel(app, key) {
   const w = app.world;
   const site = w.sites.get(key);
   if (!site) return null;
@@ -644,23 +867,16 @@ function siteSheet(app, key) {
   let sub = t(`sites.kinds.${site.kind}`);
   let extra = '';
   let orders = '';
-  if (site.kind === 'factory') sub = t('sheet.factoryType') + ' ' + site.aircraftType;
+  if (site.kind === 'factory') sub = `${t('sheet.factoryType')} ${site.aircraftType}`;
   if (site.kind === 'depot') sub = t('sheet.depotType');
-  let keyExtra = '';
   if (site.kind === 'airfield') {
     sub = site.sector ? t('sheet.sector') : t('sheet.satellite');
     const here = w.squadrons.filter((s) => s.airfield === site.id && !isFlying(s) && s.state !== 'lost');
     extra = `<div class="sub">${escapeHtml(t('sheet.groundSquadrons'))}</div>${here.length
       ? here.map((s) => row(s.name, escapeHtml(t(`states.squadron.${s.state}`)))).join('')
       : `<p class="hint">${escapeHtml(t('sheet.noneHere'))}</p>`}`;
-    orders = [
-      `<div class="orders">`,
-      ...here.map((s) => `<div class="order-line"><span>${escapeHtml(s.name)}</span>${button('scramble', t('orders.scramble'), { id: s.id, disabled: s.state !== 'ready' })}${button('select', t('sheet.select'), { id: s.id, kind: 'squadron' })}</div>`),
-      button('centre', t('orders.centre'), { id: key, kind: 'site' }),
-      here.length ? `<p class="hint">${escapeHtml(t('orders.scrambleHint'))}</p>` : '',
-      `</div>`,
-    ].join('');
-    keyExtra = here.map((s) => s.state).join(',');
+    orders = here.map((s) => `<div class="order-line"><span>${escapeHtml(s.name)}</span>${button('scramble', t('orders.scramble'), { id: s.id, disabled: s.state !== 'ready' })}${button('select', t('sheet.select'), { id: s.id, kind: 'squadron' })}</div>`).join('')
+      + (here.length ? `<p class="hint">${escapeHtml(t('orders.scrambleHint'))}</p>` : '');
   } else {
     if (site.kind === 'radar') {
       rows.push(row(t('sheet.range'), escapeHtml(t('sheet.rangeNow', { n: Math.round(radarRangeFactor(w, site) * 100) }))));
@@ -671,78 +887,138 @@ function siteSheet(app, key) {
       }))));
     }
     if (site.kind === 'port') sub = site.naval ? t('sheet.navalBase') : site.convoys ? t('sheet.convoyPort') : sub;
-    orders = `<div class="orders">${button('centre', t('orders.centre'), { id: key, kind: 'site' })}</div>`;
   }
-  const info = [
-    `<h3>${escapeHtml(siteTitle(site))} <small>${escapeHtml(sub)}</small></h3>`,
-    ...rows,
-    stockBlock(app, site),
-    extra,
-    attacksBlock(app, site),
-  ].join('');
   const logistics = stockOrders(app, site);
-  if (logistics) orders = orders.replace('<div class="orders">', `<div class="orders">${logistics}`);
-  return { info, plan: '', orders, profile: false, key: `st:${key}:${keyExtra}:${app.world.settings.logistics}` };
+  const allOrders = (logistics || '') + orders;
+  const state = [...rows, stockBlock(app, site), extra, attacksBlock(app, site)].join('');
+  return {
+    group: 'site',
+    title: `${escapeHtml(siteTitle(site))} <small>${escapeHtml(sub)}</small>`,
+    summary: escapeHtml(siteStatusText(w, site)),
+    tabs: [tab('state', { pre: state }), allOrders ? tab('orders', { keyed: `<div class="orders">${allOrders}</div>` }) : null].filter(Boolean),
+  };
 }
 
-function renderSheet(app) {
-  const sel = app.selection;
-  const el = app.el;
-  let sheet = null;
-  let squadron = null;
-  if (sel) {
-    if (sel.kind === 'squadron') {
-      squadron = app.world.squadrons.find((x) => x.id === sel.id);
-      if (squadron) sheet = squadronSheet(app, squadron);
-    } else if (sel.kind === 'convoy') {
-      const c = app.world.convoys.find((x) => x.id === sel.id);
-      if (c) sheet = convoySheet(app, c);
-    } else if (sel.kind === 'raid') {
-      sheet = raidSheet(app, sel.id);
-    } else if (sel.kind === 'site') {
-      sheet = siteSheet(app, sel.id);
-    } else if (sel.kind === 'train') {
-      sheet = trainSheet(app, sel.id);
-    } else if (sel.kind === 'uplot') {
-      sheet = uboatPlotSheet(app, sel.id);
-    } else if (sel.kind === 'escort') {
-      const e = app.world.escorts.find((x) => x.id === sel.id);
-      if (e) {
-        const es = escortSheet(app, e);
-        sheet = {
-          info: es.info,
-          plan: es.planUnit ? renderPlan(app, es.planUnit) : '',
-          orders: es.legForm ? es.orders.replace('<p class="hint">', `${legForm(app, e)}<p class="hint">`) : es.orders,
-          profile: false,
-          key: es.key,
-        };
+function trainPanel(app, id) {
+  const sheet = trainSheet(app, id);
+  if (!sheet) return null;
+  const { title, body } = splitTitle(sheet.info);
+  return { group: 'train', title, summary: '', tabs: [tab('state', { pre: body })] };
+}
+
+/** The panel of what is selected, or null. */
+function buildPanel(app, sel) {
+  const w = app.world;
+  switch (sel.kind) {
+    case 'squadron': {
+      const s = w.squadrons.find((x) => x.id === sel.id);
+      return s ? squadronPanel(app, s) : null;
+    }
+    case 'convoy': {
+      const c = w.convoys.find((x) => x.id === sel.id);
+      return c ? convoyPanel(app, c) : null;
+    }
+    case 'escort': {
+      const e = w.escorts.find((x) => x.id === sel.id);
+      return e ? escortPanel(app, e) : null;
+    }
+    case 'formation': {
+      const f = formationById(w, sel.id);
+      return f ? formationPanel(app, f) : null;
+    }
+    case 'raid': return raidSheet(app, sel.id);
+    case 'site': return sitePanel(app, sel.id);
+    case 'train': return trainPanel(app, sel.id);
+    case 'uplot': return uboatPlotSheet(app, sel.id);
+    case 'ucontact': return uboatContactSheet(app, sel.id);
+    default: return null;
+  }
+}
+
+/**
+ * Like setHtml, for the blocks with inputs: what the player has typed and where the cursor
+ * is survive a rebuild (a button becoming available, a value changing). A new unit, tab or
+ * leg being edited (`key`) starts from the values of the page.
+ */
+function setKeyed(el, html, key) {
+  if (el.__html === html && el.__key === key) return;
+  const sameKey = el.__key === key;
+  const typed = new Map();
+  let focus = null;
+  if (sameKey) {
+    for (const input of el.querySelectorAll('input[id]')) {
+      if (input.value !== input.defaultValue) typed.set(input.id, input.value);
+    }
+    const active = document.activeElement;
+    if (active && el.contains(active) && active.id) {
+      let range = null;
+      try {
+        range = [active.selectionStart, active.selectionEnd];
+      } catch {
+        range = null;
+      }
+      focus = { id: active.id, range };
+    }
+  }
+  el.innerHTML = html;
+  el.__html = html;
+  el.__key = key;
+  for (const [id, value] of typed) {
+    const input = el.querySelector(`#${CSS.escape(id)}`);
+    if (input) input.value = value;
+  }
+  if (focus) {
+    const again = el.querySelector(`#${CSS.escape(focus.id)}`);
+    if (again) {
+      again.focus();
+      try {
+        if (focus.range && focus.range[0] !== null) again.setSelectionRange(focus.range[0], focus.range[1]);
+      } catch {
+        // number inputs have no selection
       }
     }
   }
-  if (!sheet) {
-    const hint = app.settings.orders === 'headings' ? t('panel.hintHeadings') : t('panel.hint');
-    setHtml(el.sheetInfo, `<p class="hint">${escapeHtml(hint)}</p>`);
-    setHtml(el.sheetPlan, '');
-    setHtml(el.sheetOrders, '');
-    el.sheetOrders.__key = '';
-    el.sheetProfile.hidden = true;
+}
+
+function renderUnitPanel(app) {
+  const el = app.el;
+  const sel = app.selection;
+  const panel = sel ? buildPanel(app, sel) : null;
+  if (!panel) {
+    // Nothing selected, or what was selected is gone (a plot expired, a contact lost).
+    if (sel) app.selection = null;
+    el.unitPanel.hidden = true;
+    el.table.classList.remove('with-unit');
     return;
   }
-  setHtml(el.sheetInfo, sheet.info);
-  setHtml(el.sheetPlan, sheet.plan);
-  el.sheetProfile.hidden = !sheet.profile;
-  if (sheet.profile && squadron) drawProfile(el.sheetProfile, app, squadron);
-  // The orders block is rebuilt only when its buttons change, so that typing in its inputs
-  // is not interrupted.
-  if (el.sheetOrders.__key !== sheet.key) {
-    setHtml(el.sheetOrders, sheet.orders);
-    el.sheetOrders.__key = sheet.key;
-  }
+  el.unitPanel.hidden = false;
+  el.table.classList.add('with-unit');
+  setHtml(el.unitTitle, panel.title);
+  setHtml(el.unitSummary, panel.summary);
+  app.unitTabs = app.unitTabs || {};
+  let active = app.unitTabs[panel.group] || panel.tabs[0].id;
+  if (!panel.tabs.some((x) => x.id === active)) active = panel.tabs[0].id;
+  setHtml(el.unitTabs, panel.tabs.length > 1 ? panel.tabs.map((x) =>
+    `<button type="button" role="tab" data-unit-tab="${x.id}" data-group="${panel.group}" class="${x.id === active ? 'active' : ''}">${escapeHtml(t(`unit.tabs.${x.id}`))}</button>`).join('') : '');
+  el.unitTabs.hidden = panel.tabs.length < 2;
+  const current = panel.tabs.find((x) => x.id === active);
+  setHtml(el.unitMessage, messageBlock(app));
+  setHtml(el.unitPre, current.pre);
+  setKeyed(el.unitKeyed, current.keyed, `${sel.kind}:${sel.id}:${active}:${current.key ?? ''}`);
+  setHtml(el.unitPost, current.post);
+  el.unitProfile.hidden = !(current.profile && panel.profileUnit);
+  if (current.profile && panel.profileUnit) drawProfile(el.unitProfile, app, panel.profileUnit);
 }
 
 export function renderPanels(app) {
   renderObjectives(app);
   renderTote(app);
-  renderSheet(app);
+  renderUnitPanel(app);
+  // With nothing selected, a word on how to open a sheet.
+  const hint = app.el.panelHint;
+  if (hint) {
+    hint.hidden = Boolean(app.selection);
+    const text = app.settings.orders === 'headings' ? t('panel.hintHeadings') : t('panel.hint');
+    if (hint.textContent !== text) hint.textContent = text;
+  }
 }
-

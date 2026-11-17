@@ -54,6 +54,14 @@ réimporter.
 Trois cartes : Atlantique (touche A), Grande-Bretagne (L) et Angleterre (G). L'aide (?)
 donne les étapes propres au scénario en cours.
 
+**La fiche d'une unité** s'ouvre à droite de la carte, à côté de la colonne (Objectifs,
+Tableau d'état, Journal), quand on clique une unité ou une installation. Elle tient en
+onglets courts : **Ordres**, **Route** (étapes, profil de montée, fin de route), **État** et
+**Fiche technique** ; une formation a un onglet **Membres**. Tant qu'elle est ouverte, tout
+s'adresse à cette unité : la règle, Entrée pour ajouter l'étape mesurée, ↑ ↓ pour l'altitude.
+Un clic sur une autre unité change de fiche ; un clic sur la carte ne ferme plus rien ; la
+croix (ou Échap) ferme la fiche et la sélection. Le bouton ⌖ centre la carte sur l'unité.
+
 1. **Convois.** Tracez leur route, ou cliquez sur « Route de l'Amirauté », jusqu'au chenal du
    nord de l'Irlande ou au canal Saint-Georges : un pilote les conduit au port. La vitesse
    ordonnée garde le convoi groupé ; plus près de sa vitesse maximale, des navires lents
@@ -69,24 +77,44 @@ donne les étapes propres au scénario en cours.
    l'altitude (↑ ↓, par 1 000 ft) pour arriver au-dessus. En Arcade, « Intercepter » laisse
    le contrôleur guider l'escadrille ; sa chance dépend de la couverture radar à l'endroit de
    la rencontre. Les raids très hauts sans bombardiers sont des chasses libres. Plusieurs
-   escadrilles sur le même raid se partagent la pression de l'escorte ; en « Big Wing », une
-   escadrille vole avec un chef (« Voler avec… » dans sa fiche).
+   escadrilles sur le même raid se partagent la pression de l'escorte.
+   **Contact direct** : quand une escadrille, une patrouille, un convoi ou une installation
+   voit le raid, il est montré en direct, à sa vraie position et avec sa composition exacte
+   (« en vue · 19 Sqn »), jusqu'à la perte du visuel ; il redevient alors une suite de plots.
+   De même, un U-Boot vu par une escorte (vigie ou ASDIC) ou par un avion est suivi en direct ;
+   perdu, il laisse un repère à sa dernière position, d'où partent ses cercles. Les
+   observateurs (Observer Corps) restent des plots.
 5. **Tracés.** Cliquez une unité pour voir les carrés de sa route : glissez-les, ajoutez-en
    avec « + », prolongez par l'anneau du bout, double-cliquez pour retirer ; un point choisi
-   prend une altitude (↑ ↓). En fin de tracé, l'escadrille orbite, sauf autre choix dans sa
-   fiche (se poser, rentrer, couvrir un convoi). Maj + glisser mesure avec la règle.
-6. **Pilotes.** La fatigue monte en vol et en combat, baisse au sol. L'état d'alerte règle le
+   prend une altitude (↑ ↓). En fin de tracé, l'escadrille orbite, sauf autre choix dans
+   l'onglet Route de sa fiche (se poser, rentrer, couvrir un convoi). Maj + glisser mesure
+   avec la règle. Une ligne tirée depuis n'importe quelle escadrille d'une big wing (ou depuis
+   son aérodrome) devient la route de toute la formation.
+6. **Formations.** Le bouton « Formations » (ou « Créer une big wing » dans la fiche d'une
+   escadrille) ouvre une page à deux colonnes : à gauche les unités disponibles (filtre par
+   base ou par état), à droite la formation — son nom, son chef ★ et ses membres, avec → ← pour
+   ajouter et retirer, ↑ ↓ pour l'ordre de relève. Il n'y a pas de limite de taille.
+   - **Big wing** (chasse) : une seule unité dans la liste et sur la carte, une fiche, les
+     mêmes ordres pour toutes. Elle décolle ensemble, se rassemble au-dessus du chef (cela
+     prend du temps, 15 min au plus), puis vole à la vitesse de la plus lente. Une escadrille
+     à court d'essence ou de munitions la quitte et rentre ; si c'est le chef, le suivant
+     reprend sa mission. Deux formations se fusionnent (« Prendre… », onglet Membres) : tout
+     dans le même panier.
+   - **Groupe de soutien** (escortes) : les groupes appareillent, rejoignent un convoi,
+     chassent et rentrent ensemble ; en route libre, ils suivent le chef en ligne de file.
+     L'autonomie est celle du plus court : quand il doit rentrer, tous rentrent.
+7. **Pilotes.** La fatigue monte en vol et en combat, baisse au sol. L'état d'alerte règle le
    délai de décollage : au repos (pas de décollage, récupération), disponible (5 min), en
    cockpit (2 min, fatigue). En Réaliste, des pilotes sont tués et remplacés lentement.
-7. **Logistique.** Les convois déchargent carburant et matériel dans les ports ; le dépôt de
+8. **Logistique.** Les convois déchargent carburant et matériel dans les ports ; le dépôt de
    Chilmark fournit les munitions. Envoyez des trains (jusqu'à 100 t, chargement mélangé) ou
    fixez des stocks minimum : les trains partent seuls. Sans carburant, une escadrille ne
    refait pas le plein ; sans munitions, elle repart à moitié armée, ou pas du tout. Les
    usines transforment le matériel en avions.
-8. **Installations.** Aérodromes, radars, ports et usines peuvent être bombardés. Un radar
+9. **Installations.** Aérodromes, radars, ports et usines peuvent être bombardés. Un radar
    hors service ouvre un trou dans la couverture ; à partir d'Adlertag, une station radar
    mobile peut le boucher (onglet Installations, « Déployer »).
-9. **Dollars (hiver 1941).** Avant le prêt-bail, la cargaison des convois se paie comptant :
+10. **Dollars (hiver 1941).** Avant le prêt-bail, la cargaison des convois se paie comptant :
    l'onglet Logistique règle la part achetée de chaque convoi, ou commande des Hudson et des
    Catalina en Amérique.
 
@@ -106,7 +134,7 @@ prochain événement : le joueur doit pouvoir être surpris.
 
 Raccourcis : Espace pause · 1 à 6 vitesse · A Atlantique · L Grande-Bretagne · G Angleterre ·
 R ou Maj + glisser règle (la croix de son encart l'efface) · Entrée ajouter l'étape mesurée ·
-C couverture radar · Échap annuler · ↑ ↓ altitude · Suppr retirer le point choisi ·
+C couverture radar · Échap annuler, puis fermer la fiche · ↑ ↓ altitude · Suppr retirer le point choisi ·
 S décoller · B pleine vitesse · O orbite · P rentrer · Ctrl+Maj+D mode développeur.
 
 ## Mode développeur
@@ -155,12 +183,14 @@ confirmation des vitesses élevées pendant une action ennemie, sons, pause pend
 │   ├── main.js                démarrage et boucle de jeu
 │   ├── core/                  temps, aléatoire à graine, traductions, chargement des données
 │   ├── sim/                   simulation (aucun accès à la page) : convois et navires,
-│   │                          escadrilles, raids, détection, guidage, combat, patrouilles,
+│   │                          escadrilles, formations, raids, détection, contact direct,
+│   │                          guidage, combat, patrouilles,
 │   │                          lutte anti-sous-marine, pilotes, installations, logistique,
 │   │                          radars mobiles, événements datés, convois réguliers et dollars,
 │   │                          rapports, objectifs
 │   ├── render/                caméra, carte, symboles, animations, vue de profil
-│   ├── ui/                    souris, clavier, panneaux, pages, alertes, campagne, tutoriel,
+│   ├── ui/                    souris, clavier, panneaux et fiche d'unité, pages (rapports,
+│   │                          fiches techniques, formations), alertes, campagne, tutoriel,
 │   │                          mode développeur, sons
 │   └── save/                  réglages et parties gardés dans le navigateur
 ├── data/
@@ -189,13 +219,16 @@ facilite les tests et l'équilibrage.
 npm test
 ```
 
-Les 75 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
+Les 88 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
 terre et la mer, les routes, les étapes et leur édition, le pilote à l'entrée des chenaux,
 les interceptions, le guidage du contrôleur et les ratés, les rapports, les installations,
 les trains mélangés, les munitions, la fatigue et les pilotes, les patrouilles, les U-Boote
 (repères, plongée, chasse, traînards, retour de patrouille), la sauvegarde et la reprise à
 l'identique, les nouveaux scénarios, les achats en dollars, la campagne, les alertes, la
-confirmation des vitesses, le mode développeur et une quinzaine complète sans ordres.
+confirmation des vitesses, le mode développeur, le contact direct (raids et U-Boote), les
+formations (rassemblement, vitesse de la plus lente, relève du chef, fusion, guidage d'une
+big wing, groupe de soutien qui suit son chef et rentre ensemble) et une quinzaine complète
+sans ordres.
 
 ## Outils
 

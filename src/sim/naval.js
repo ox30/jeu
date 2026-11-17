@@ -88,6 +88,7 @@ export function createEscortGroup(world, def) {
     destination: null,
     joinTarget: null, // convoy the group is ordered to meet
     escorting: null, // convoy the group is with
+    leftConvoy: null, // convoy it was ordered to leave: it does not take station again by itself
     enduranceMax: def.enduranceDays * 86400,
     endurance: def.enduranceDays * 86400,
     timer: 0,
@@ -95,6 +96,10 @@ export function createEscortGroup(world, def) {
     homeward: false,
     behaviour: def.behaviour || 'stay', // stay with the convoy, or hunt the contacts
     huntFor: null,
+    formation: null, // id of the support group (formation) it belongs to
+    followEscort: null, // a support group's member: the leader it sails with
+    followSlot: 0,
+    waitForGroup: false, // a support group's leader slows down until its groups close up
   };
 }
 
@@ -215,12 +220,38 @@ export function updateEscort(world, e, dt) {
       e.course = sol ? sol.heading : bearing(e.x, e.y, c.x, c.y);
     }
   }
+  // A support group's member sails in station astern of its leader (formations.js).
+  if (e.followEscort && !e.joinTarget && !e.route.length && !e.plan.length) {
+    const leader = world.escorts.find((x) => x.id === e.followEscort);
+    if (leader && leader.state === 'atSea') {
+      const [hx, hy] = headingVector(leader.heading);
+      const tx = leader.x - hx * 2 * e.followSlot;
+      const ty = leader.y - hy * 2 * e.followSlot;
+      if (distance(e.x, e.y, tx, ty) < Math.max(0.5, e.speed * dt * 1.5)) {
+        e.x = tx;
+        e.y = ty;
+        e.heading = leader.heading;
+        e.course = leader.heading;
+        return;
+      }
+      e.course = bearing(e.x, e.y, tx, ty);
+    }
+  }
+  // A support group's leader eases off while its groups close up.
+  const ordered = e.orderedKn;
+  if (e.waitForGroup) e.orderedKn = e.speedKn * world.rules.formations.waitSpeed;
   stepShip(world, e, dt, (port) => enterPort(world, e, port));
+  e.orderedKn = ordered;
   if (e.state !== 'atSea') return;
   // Meeting: within sight of an ocean convoy, the group takes station.
   for (const c of world.convoys) {
     if (c.state !== 'atSea' || c.type === 'coastal') continue;
     if (e.joinTarget && e.joinTarget !== c.id) continue;
+    if (!e.joinTarget && e.leftConvoy === c.id) {
+      // Ordered away from this convoy: it rejoins only when ordered to, or once well clear.
+      if (distance(e.x, e.y, c.x, c.y) > 3 * R.joinKm) e.leftConvoy = null;
+      continue;
+    }
     if (distance(e.x, e.y, c.x, c.y) <= R.joinKm) {
       join(world, e, c);
       return;

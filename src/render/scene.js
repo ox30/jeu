@@ -18,10 +18,11 @@ import {
   COLORS, aerodrome, anchor, balkenkreuz, damageMark, depot, factory, measurePlaque, patrolMark, pencilLine, plaque,
   plotArrow, radarMast, roundel, ship, train, uboatMark, warship,
 } from './symbols.js';
-import { reachKm } from '../sim/asw.js';
+import { isSubmerged, reachKm } from '../sim/asw.js';
 import { isPatrol, sightKm } from '../sim/patrols.js';
 import { fuelDays } from '../sim/logistics.js';
 import { drawDevLayer } from './devLayer.js';
+import { formationById } from '../sim/formations.js';
 
 const DEG = Math.PI / 180;
 
@@ -41,9 +42,25 @@ function isSelected(app, kind, id) {
   return app.selection && app.selection.kind === kind && app.selection.id === id;
 }
 
+/** Formation of each squadron or escort group: id → { f, index } (0: the leader). */
+function formationIndex(world, kind) {
+  const map = new Map();
+  for (const f of world.formations || []) {
+    if (f.kind !== kind) continue;
+    f.members.forEach((id, index) => map.set(id, { f, index }));
+  }
+  return map;
+}
+
 function selectedUnit(app) {
   const sel = app.selection;
   if (!sel) return null;
+  if (sel.kind === 'formation') {
+    const f = formationById(app.world, sel.id);
+    if (!f) return null;
+    const list = f.kind === 'air' ? app.world.squadrons : app.world.escorts;
+    return list.find((u) => u.id === f.members[0]) || null;
+  }
   if (sel.kind === 'squadron') return app.world.squadrons.find((s) => s.id === sel.id) || null;
   if (sel.kind === 'convoy') return app.world.convoys.find((c) => c.id === sel.id) || null;
   if (sel.kind === 'escort') return app.world.escorts.find((e) => e.id === sel.id) || null;
@@ -573,6 +590,24 @@ function drawUboatPlots(ctx, cam, app) {
   ctx.restore();
 }
 
+/** U-boats in direct contact: drawn where they are, until the contact is lost. */
+function drawUboatContacts(ctx, cam, app) {
+  const world = app.world;
+  const now = performance.now();
+  for (const u of world.uboats) {
+    if (!u.seen || u.state === 'sunk' || u.state === 'gone') continue;
+    const [sx, sy] = toScreen(cam, u.x, u.y);
+    if (!onScreen(cam, sx, sy)) continue;
+    const selected = isSelected(app, 'ucontact', u.id);
+    const under = isSubmerged(world, u);
+    liveRing(ctx, sx, sy, now);
+    uboatMark(ctx, sx, sy, selected ? COLORS.select : 'rgba(150, 28, 22, 1)', under);
+    const label = t(under ? 'map.uContactUnder' : 'map.uContact', { how: t(`map.uSource.${u.seen.how}`), by: u.seen.by });
+    const box = placePlaque(ctx, app, sx + 6, sy, [label], { accent: selected ? COLORS.select : '#7a1e18', size: 10 }, 12);
+    app.hits.push({ kind: 'ucontact', id: u.id, x: sx, y: sy, r: 13, priority: 2, box });
+  }
+}
+
 function drawDfZones(ctx, cam, app) {
   const world = app.world;
   if (!world.dfZones.length) return;
@@ -615,9 +650,34 @@ function drawDfZones(ctx, cam, app) {
 
 function drawEscorts(ctx, cam, app, alpha) {
   const world = app.world;
+  const groups = formationIndex(world, 'naval');
   for (const e of world.escorts) {
-    const selected = isSelected(app, 'escort', e.id);
+    const m = groups.get(e.id) || null;
+    const f = m ? m.f : null;
+    const leader = f ? world.escorts.find((x) => x.id === f.members[0]) : null;
+    const selected = isSelected(app, 'escort', e.id) || Boolean(f && m.index === 0 && isSelected(app, 'formation', f.id));
     const [sx, sy] = unitScreen(cam, e, alpha);
+    // A group in station with its support group's leader: a small symbol, no plaque.
+    const inPort = (x) => x.state === 'inPort' || x.state === 'refit';
+    const tucked = m && m.index > 0 && leader && (
+      (e.state === leader.state && (e.state === 'atSea' || e.state === 'escorting') && distance(e.x, e.y, leader.x, leader.y) < 2 * e.followSlot + 4)
+      || (inPort(e) && inPort(leader) && e.portId === leader.portId));
+    if (tucked) {
+      if (!onScreen(cam, sx, sy)) continue;
+      // In port the groups lie beside the quay, a little apart from the leader.
+      const tx = sx + (inPort(e) ? 14 + 6 * m.index : 0);
+      const ty = sy + (inPort(e) ? 18 : 0);
+      warship(ctx, tx, ty, e.heading, 4.5);
+      if (isSelected(app, 'escort', e.id)) {
+        ctx.strokeStyle = COLORS.select;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      app.hits.push({ kind: 'escort', id: e.id, formation: f.id, x: tx, y: ty, r: 8, priority: 1, box: null });
+      continue;
+    }
     if (e.state === 'atSea' || e.state === 'waiting') {
       if (e.route.length) {
         pencilLine(ctx, [[sx, sy], ...e.route.map(([x, y]) => toScreen(cam, x, y))], { color: 'rgba(79, 96, 112, 0.8)', width: 1.4, dash: [6, 5] });
@@ -643,9 +703,16 @@ function drawEscorts(ctx, cam, app, alpha) {
     }
     let box = null;
     if (e.state !== 'escorting' || selected) {
-      box = placePlaque(ctx, app, sx + ox, sy + oy, [`${e.short} · ${e.ships}`], { accent: selected ? COLORS.select : '#4f6070', size: 10 }, 10);
+      let label = `${e.short} · ${e.ships}`;
+      if (f && m.index === 0) {
+        const ships = f.members.reduce((n, id) => n + (world.escorts.find((x) => x.id === id)?.ships || 0), 0);
+        label = t('map.groupPlaque', { name: f.name, n: f.members.length, ships });
+      } else if (f) {
+        label = `${e.short} · ${e.ships} → ${f.name}`;
+      }
+      box = placePlaque(ctx, app, sx + ox, sy + oy, [label], { accent: selected ? COLORS.select : '#4f6070', size: 10 }, 10);
     }
-    app.hits.push({ kind: 'escort', id: e.id, x: sx + ox, y: sy + oy, r: 12, priority: 1, box });
+    app.hits.push({ kind: 'escort', id: e.id, formation: f ? f.id : undefined, x: sx + ox, y: sy + oy, r: 12, priority: 1, box });
   }
 }
 
@@ -806,8 +873,30 @@ function stalk(ctx, sx, sy, h, color) {
   ctx.stroke();
 }
 
+/** A ring that breathes around an enemy followed live (direct contact). */
+function liveRing(ctx, sx, sy, now) {
+  const k = (Math.sin(now / 350) + 1) / 2;
+  ctx.save();
+  ctx.strokeStyle = `rgba(168, 30, 25, ${0.55 + 0.35 * k})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(sx, sy, 13 + 2 * k, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** "18 Do 17 + 30 Bf 110", the force of a raid seen. */
+function forceText(f) {
+  if (!f) return '';
+  const parts = [];
+  if (f.bombers > 0) parts.push(`${f.bombers} ${f.bomberType}`);
+  if (f.escort > 0) parts.push(`${f.escort} ${f.escortType}`);
+  return parts.join(' + ');
+}
+
 function drawContacts(ctx, cam, app, alpha) {
   const world = app.world;
+  const now = performance.now();
   const exact = world.settings.detection === 'exact';
   const lifetime = world.rules.detection.plotLifetimeS;
   const sel = selectedUnit(app);
@@ -828,7 +917,8 @@ function drawContacts(ctx, cam, app, alpha) {
     if (!est) continue;
     let sx;
     let sy;
-    if (exact) {
+    if (exact || est.live) {
+      // Exact detection, or direct contact: the raid itself, moving smoothly.
       const raid = world.raids.find((r) => r.id === contact.raidId);
       [sx, sy] = unitScreen(cam, raid, alpha);
     } else {
@@ -836,6 +926,7 @@ function drawContacts(ctx, cam, app, alpha) {
     }
     const last = plots[plots.length - 1];
     const color = last ? COLORS.clock[last.color] : COLORS.clock[0];
+    if (est.live) liveRing(ctx, sx, sy, now);
     plotArrow(ctx, sx, sy, est.heading, color, 9, est.source === 'observers');
     const h = stalkPx(app, est.altFt);
     let cx = sx + 21;
@@ -847,12 +938,15 @@ function drawContacts(ctx, cam, app, alpha) {
     }
     balkenkreuz(ctx, cx, cy, 6);
     const selected = isSelected(app, 'raid', contact.raidId);
-    const tag = est.source === 'observers' ? ` · ${t('map.observersTag')}` : est.source === 'patrol' ? ` · ${t('map.patrolTag')}` : '';
-    const lines = [`${contact.label}  ${countText(est.count, est.approx)}  ${ftText(est.altFt)}${tag}`];
+    const tag = est.live ? ` · ${t('map.seenTag', { by: est.seen.by })}`
+      : est.source === 'observers' ? ` · ${t('map.observersTag')}` : est.source === 'patrol' ? ` · ${t('map.patrolTag')}` : '';
+    const strength = est.live ? forceText(est.force) : countText(est.count, est.approx);
+    const lines = [`${contact.label}  ${strength}  ${ftText(est.altFt)}${tag}`];
     if (sq) {
       const sqAltM = isFlying(sq) ? sq.alt : sq.targetAlt;
-      // Height of the selected squadron relative to the raid: + above it, − below it.
-      lines.push({ text: `${sq.name} ${relFtText((sqAltM - est.altM) / FOOT_M)}`, color: heightColor(world, sqAltM - est.altM) });
+      const wing = app.selection.kind === 'formation' ? formationById(world, app.selection.id) : null;
+      // Height of the selected squadron (or wing) relative to the raid: + above it, − below it.
+      lines.push({ text: `${wing ? wing.name : sq.name} ${relFtText((sqAltM - est.altM) / FOOT_M)}`, color: heightColor(world, sqAltM - est.altM) });
     }
     const box = placePlaque(ctx, app, cx, cy, lines, { dark: true, accent: selected ? COLORS.select : null }, 10);
     app.hits.push({ kind: 'raid', id: contact.raidId, x: sx, y: sy, r: 14, priority: 3, box });
@@ -882,9 +976,10 @@ function drawTrack(ctx, cam, est) {
 function drawInterceptPoint(ctx, cam, app, alpha) {
   const world = app.world;
   const aid = world.settings.interceptAid;
-  if ((aid !== 'point' && aid !== 'auto') || !app.selection || app.selection.kind !== 'squadron') return;
-  const sq = world.squadrons.find((s) => s.id === app.selection.id);
-  if (!sq || sq.state === 'lost' || sq.state === 'combat' || sq.state === 'refuelling' || sq.state === 'returning') return;
+  if (aid !== 'point' && aid !== 'auto') return;
+  const sq = selectedUnit(app);
+  if (!sq || sq.kind !== 'squadron') return;
+  if (sq.state === 'lost' || sq.state === 'combat' || sq.state === 'refuelling' || sq.state === 'returning') return;
   const speed = squadronSpeed(world, sq);
   let target = null;
   if (sq.intercept) {
@@ -923,8 +1018,27 @@ function drawSquadrons(ctx, cam, app, alpha) {
   const world = app.world;
   const now = performance.now();
   const meleeDone = new Set();
+  const wings = formationIndex(world, 'air');
   for (const sq of world.squadrons) {
-    const selected = isSelected(app, 'squadron', sq.id);
+    const m = wings.get(sq.id) || null;
+    const f = m ? m.f : null;
+    const selected = isSelected(app, 'squadron', sq.id) || Boolean(f && m.index === 0 && isSelected(app, 'formation', f.id));
+    // A squadron in station in its big wing: a small roundel beside the leader, no plaque.
+    if (m && m.index > 0 && sq.state === 'airborne' && sq.inFormation && sq.follow === f.members[0]) {
+      const [sx, sy] = unitScreen(cam, sq, alpha);
+      if (!onScreen(cam, sx, sy)) continue;
+      const top = sy - stalkPx(app, feetOf(lerp(sq.palt ?? sq.alt, sq.alt, alpha)));
+      roundel(ctx, sx, top, 4.5);
+      if (isSelected(app, 'squadron', sq.id)) {
+        ctx.strokeStyle = COLORS.select;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, top, 8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      app.hits.push({ kind: 'squadron', id: sq.id, formation: f.id, x: sx, y: top, r: 8, priority: 0, box: null });
+      continue;
+    }
     if (!isFlying(sq)) {
       // A plan prepared before take-off is drawn from the aerodrome, and so is a route.
       if (selected && sq.plan.length && (sq.state === 'ready' || sq.state === 'scrambling')) drawPlanTrack(ctx, cam, app, sq, true);
@@ -988,10 +1102,20 @@ function drawSquadrons(ctx, cam, app, alpha) {
       roundel(ctx, sx + ox, top, 7);
     }
     const climbing = sq.targetAlt - sq.alt > 30 ? ' ↑' : sq.alt - sq.targetAlt > 30 && sq.state !== 'combat' ? ' ↓' : '';
-    const box = placePlaque(ctx, app, sx + ox, top, [`${sq.name} · ${sq.aircraft} · ${ftText(altFt)}${climbing}`], {
+    let lines = [`${sq.name} · ${sq.aircraft} · ${ftText(altFt)}${climbing}`];
+    if (f && m.index === 0) {
+      // The leader carries the wing's plaque: its name, squadrons and aircraft with it.
+      const flying = f.members.map((id) => world.squadrons.find((x) => x.id === id)).filter((x) => x && (x === sq || (x.follow === sq.id && isFlying(x))));
+      const aircraft = flying.reduce((n, x) => n + x.aircraft, 0);
+      lines = [t('map.wingPlaque', { name: f.name, n: flying.length, aircraft, alt: `${ftText(altFt)}${climbing}` })];
+      if (sq.holdForWing) lines.push(t('map.wingGathering', { n: flying.filter((x) => x === sq || x.inFormation).length, of: flying.length }));
+    } else if (f) {
+      lines = [`${sq.name} · ${sq.aircraft} · ${ftText(altFt)}${climbing} → ${f.name}`];
+    }
+    const box = placePlaque(ctx, app, sx + ox, top, lines, {
       accent: sq.state === 'combat' ? COLORS.rafRed : selected ? COLORS.select : null,
     }, 12);
-    app.hits.push({ kind: 'squadron', id: sq.id, x: sx + ox, y: top, r: 14, priority: 0, box });
+    app.hits.push({ kind: 'squadron', id: sq.id, formation: f ? f.id : undefined, x: sx + ox, y: top, r: 14, priority: 0, box });
   }
 }
 
@@ -1173,8 +1297,9 @@ function rulerTimeLine(app, km) {
   if (v <= 0) return null;
   const seconds = km / v;
   const arrivalMs = world.startMs + (world.t + seconds) * 1000;
+  const f = app.selection && app.selection.kind === 'formation' ? formationById(world, app.selection.id) : null;
   return t('map.measureTime', {
-    unit: u.name,
+    unit: f ? f.name : u.name,
     speed: speedText,
     duration: durationText(seconds),
     time: seconds > 18 * 3600 ? dateTimeText(arrivalMs) : formatTime(arrivalMs),
@@ -1355,6 +1480,7 @@ export function drawScene(ctx, app, alpha) {
   drawRail(ctx, cam, app);
   drawDfZones(ctx, cam, app);
   drawUboatPlots(ctx, cam, app);
+  drawUboatContacts(ctx, cam, app);
   drawPlaces(ctx, cam, app);
   drawPendingMru(ctx, cam, app);
   drawGauges(ctx, cam, app);

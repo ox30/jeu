@@ -13,9 +13,13 @@ import {
   activePoint, addRulerLeg, addTypedLeg, cancelEditLeg, centreOn, changeAltitude, changePointAltitude, clearPointAltitude,
   deletePoint, findUnit, goView, orderAdmiraltyRoute, orderClearPlan, orderCover, orderEndAction, orderEscortHome,
   orderHome, orderJoin, orderLeave, orderMinStock, orderOrbit, orderRemoveLeg, orderSail, orderTrain, orderVector,
-  orderAlert, orderConvoySpeed, orderEscortBehaviour, orderFollow, orderIntercept, orderLeaveFormation, orderOffer, orderPurchase,
-  orderZigzag, scrambleSquadron, select, startEditLeg, toggleBuster,
+  orderAlert, orderConvoySpeed, orderEscortBehaviour, orderIntercept, orderOffer, orderPurchase,
+  orderZigzag, scrambleSquadron, select, selectedUnit, startEditLeg, toggleBuster,
+  orderDissolve, orderFormationAlert, orderLaunchWaiting, orderLeaveFormationOf, orderMerge, orderNewFormation,
 } from './ui/actions.js';
+import { formationById, leaderOf } from './sim/formations.js';
+import { contactEstimate } from './sim/query.js';
+import { openFormations } from './ui/formationsPage.js';
 import { carryFor, loadCampaign, recordResult } from './ui/campaign.js';
 import { attachTutorial, startTutorial, stopTutorial, tutorialEvent, updateTutorial } from './ui/tutorial.js';
 import { fighterShare } from './sim/objectives.js';
@@ -64,6 +68,7 @@ function collectElements() {
     subtitle: $('hud-subtitle'),
     btnReports: $('btn-reports'),
     btnCards: $('btn-cards'),
+    btnFormations: $('btn-formations'),
     btnRuler: $('btn-ruler'),
     btnRadar: $('btn-radar'),
     btnSettings: $('btn-settings'),
@@ -75,10 +80,16 @@ function collectElements() {
     tabSites: $('tab-sites'),
     tabLogistics: $('tab-logistics'),
     tote: $('tote'),
-    sheetInfo: $('sheet-info'),
-    sheetProfile: $('sheet-profile'),
-    sheetPlan: $('sheet-plan'),
-    sheetOrders: $('sheet-orders'),
+    panelHint: $('panel-hint'),
+    unitPanel: $('unit-panel'),
+    unitTitle: $('unit-title'),
+    unitSummary: $('unit-summary'),
+    unitTabs: $('unit-tabs'),
+    unitMessage: $('unit-message'),
+    unitPre: $('unit-pre'),
+    unitProfile: $('unit-profile'),
+    unitKeyed: $('unit-keyed'),
+    unitPost: $('unit-post'),
     log: $('log'),
     logSection: $('log-section'),
     speedConfirm: $('speed-confirm'),
@@ -97,6 +108,7 @@ function collectElements() {
     dlgScenario: $('dlg-scenario'),
     dlgReports: $('dlg-reports'),
     dlgCards: $('dlg-cards'),
+    dlgFormations: $('dlg-formations'),
     dlgEvent: $('dlg-event'),
   };
 }
@@ -125,7 +137,7 @@ function handleEvents(app, events) {
     const report = (e.type === 'raidReport' || e.type === 'combatReport') && app.world.reports.has(e.raidId) ? e.raidId : null;
     if (msg) addLogEntry(app, msg.text, msg.level, e.t, { report });
     addEffectsForEvent(app, e);
-    if (RADIO.has(e.type)) playRadio(app);
+    if (RADIO.has(e.type) || (e.type === 'raidSighted' && e.kind === 'squadron')) playRadio(app);
     else if (e.type === 'combatRound') playGuns(app);
     else if (e.type === 'siteHit' || e.type === 'shipsSunk') playBombs(app);
     // Every event that needs the player raises an alert and slows the game (alertRules.js).
@@ -179,6 +191,13 @@ function onPanelClick(app, e) {
   const tab = e.target.closest('[data-tab]');
   if (tab) {
     app.toteTab = tab.dataset.tab;
+    app.dirtyPanels = true;
+    return;
+  }
+  const unitTab = e.target.closest('[data-unit-tab]');
+  if (unitTab) {
+    // The tab chosen stays open for every unit of the same kind.
+    app.unitTabs = { ...(app.unitTabs || {}), [unitTab.dataset.group]: unitTab.dataset.unitTab };
     app.dirtyPanels = true;
     return;
   }
@@ -285,11 +304,39 @@ function onPanelClick(app, e) {
     case 'escort-behaviour':
       if (unit) orderEscortBehaviour(app, unit, b.dataset.behaviour);
       break;
-    case 'follow':
-      if (sq) orderFollow(app, sq, b.dataset.leader);
+    case 'formation-new': {
+      const f = unit ? orderNewFormation(app, unit) : null;
+      if (f) openFormations(app, { focus: f.id });
       break;
-    case 'leave-formation':
-      if (sq) orderLeaveFormation(app, sq);
+    }
+    case 'formation-manage':
+      openFormations(app, { focus: id });
+      break;
+    case 'formation-launch':
+    case 'formation-alert':
+    case 'formation-dissolve':
+    case 'formation-merge': {
+      const f = formationById(app.world, id);
+      if (!f) break;
+      if (action === 'formation-launch') orderLaunchWaiting(app, f);
+      else if (action === 'formation-alert') orderFormationAlert(app, f, b.dataset.alert);
+      else if (action === 'formation-dissolve') orderDissolve(app, f);
+      else {
+        const from = formationById(app.world, b.dataset.from);
+        if (from) orderMerge(app, f, from);
+      }
+      break;
+    }
+    case 'formation-remove': {
+      const f = formationById(app.world, b.dataset.formation);
+      if (f) orderLeaveFormationOf(app, f, id);
+      break;
+    }
+    case 'centre-selection':
+      centreSelection(app);
+      break;
+    case 'close-unit':
+      select(app, null, null);
       break;
     case 'purchase':
       orderPurchase(app, Number(b.dataset.share));
@@ -338,6 +385,50 @@ function onPanelClick(app, e) {
       return;
   }
   app.dirtyPanels = true;
+}
+
+/** The map centred on what is selected (the ⌖ button of the unit panel). */
+function centreSelection(app) {
+  const sel = app.selection;
+  if (!sel) return;
+  const w = app.world;
+  if (sel.kind === 'raid') {
+    const contact = w.contacts.get(sel.id);
+    const est = contact ? contactEstimate(w, contact) : null;
+    if (est) centreOn(app, est.x, est.y, 1.5);
+    return;
+  }
+  const u = selectedUnit(app) || findUnit(app, sel.kind, sel.id);
+  if (!u || !Number.isFinite(u.x)) return;
+  centreOn(app, u.x, u.y, u.kind === 'convoy' || u.kind === 'escort' || sel.kind === 'uplot' ? 0.6 : 1.5);
+}
+
+function onPanelChange(app, e) {
+  const target = e.target.closest('[data-change]');
+  if (!target) return;
+  if (target.dataset.change === 'end-action') {
+    const sq = app.world.squadrons.find((s) => s.id === target.dataset.id);
+    if (sq) orderEndAction(app, sq, target.value);
+  } else if (target.dataset.change === 'convoy-speed') {
+    const c = app.world.convoys.find((x) => x.id === target.dataset.id);
+    if (c) orderConvoySpeed(app, c, Number(target.value));
+  }
+  app.dirtyPanels = true;
+}
+
+function onPanelKeydown(app, e) {
+  if (e.key !== 'Enter') return;
+  const unit = selectedUnit(app);
+  if (!unit) return;
+  if (e.target.id === 'vector-input' && unit.kind === 'squadron' && e.target.value !== '') {
+    orderVector(app, unit, Number(e.target.value));
+  } else if (['leg-heading', 'leg-end', 'leg-speed', 'leg-alt'].includes(e.target.id)) {
+    e.preventDefault();
+    if (addTypedLeg(app, unit, inputValue('leg-heading'), inputValue('leg-end'), inputValue('leg-speed'), inputValue('leg-alt'))) {
+      clearLegInputs();
+      document.getElementById('leg-heading')?.focus();
+    }
+  }
 }
 
 function resize(app) {
@@ -401,6 +492,14 @@ async function start() {
     dirtyHud: true,
   };
   app.unlockAudio = () => unlockAudio(app);
+  /** Selects a formation and brings its leader into view (from the formations page). */
+  app.selectFormation = (id) => {
+    const f = formationById(app.world, id);
+    if (!f) return;
+    select(app, 'formation', id);
+    const leader = leaderOf(app.world, f);
+    if (leader) centreOn(app, leader.x, leader.y, f.kind === 'air' ? 1.5 : 0.6);
+  };
   app.addMobileRadar = addMobileRadar;
   app.setTool = (tool) => {
     app.tool = tool;
@@ -530,38 +629,17 @@ async function start() {
   initAlert(app);
   attachInput(app);
   attachTutorial(app);
-  el.panel.addEventListener('click', (e) => onPanelClick(app, e));
-  el.panel.addEventListener('change', (e) => {
-    const target = e.target.closest('[data-change]');
-    if (!target) return;
-    if (target.dataset.change === 'end-action') {
-      const sq = app.world.squadrons.find((s) => s.id === target.dataset.id);
-      if (sq) orderEndAction(app, sq, target.value);
-    } else if (target.dataset.change === 'convoy-speed') {
-      const c = app.world.convoys.find((x) => x.id === target.dataset.id);
-      if (c) orderConvoySpeed(app, c, Number(target.value));
-    }
-    app.dirtyPanels = true;
-  });
-  el.panel.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter') return;
-    const sel = app.selection;
-    const unit = sel && (sel.kind === 'squadron' || sel.kind === 'convoy' || sel.kind === 'escort') ? findUnit(app, sel.kind, sel.id) : null;
-    if (!unit) return;
-    if (e.target.id === 'vector-input' && unit.kind === 'squadron' && e.target.value !== '') {
-      orderVector(app, unit, Number(e.target.value));
-    } else if (['leg-heading', 'leg-end', 'leg-speed', 'leg-alt'].includes(e.target.id)) {
-      e.preventDefault();
-      if (addTypedLeg(app, unit, inputValue('leg-heading'), inputValue('leg-end'), inputValue('leg-speed'), inputValue('leg-alt'))) {
-        clearLegInputs();
-        document.getElementById('leg-heading')?.focus();
-      }
-    }
-  });
+  // The side panel and the unit panel beside it answer the same buttons.
+  for (const box of [el.panel, el.unitPanel]) {
+    box.addEventListener('click', (e) => onPanelClick(app, e));
+    box.addEventListener('change', (e) => onPanelChange(app, e));
+    box.addEventListener('keydown', (e) => onPanelKeydown(app, e));
+  }
   el.btnSettings.addEventListener('click', () => openSettings(app));
   el.btnScenario.addEventListener('click', () => openScenarios(app));
   el.btnReports.addEventListener('click', () => openReports(app));
   el.btnCards.addEventListener('click', () => openCards(app));
+  el.btnFormations.addEventListener('click', () => openFormations(app));
   el.btnHelp.addEventListener('click', () => openHelp(app));
 
   handleEvents(app, drainEvents(app.world));

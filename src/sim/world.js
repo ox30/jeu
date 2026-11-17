@@ -11,6 +11,8 @@ import { createSquadron, updateSquadron } from './squadron.js';
 import { createRaid, createPhantom, updateRaid } from './raid.js';
 import { checkEngagements, checkMisses, updateCombat } from './combat.js';
 import { checkAlerts, updateDetection } from './detection.js';
+import { updateContacts } from './contact.js';
+import { createFormations, updateFormations } from './formations.js';
 import { createGrid } from './grid.js';
 import { initSite, repairSites } from './sites.js';
 import { checkDefeat, checkObjectives, createObjectives, finalize } from './objectives.js';
@@ -122,6 +124,7 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
   createMru(world, scenario.mru || null);
   createSchedule(world);
   createShipping(world);
+  createFormations(world);
   world.raids = [
     ...scenario.raids.map((r) => createRaid(world, r)),
     ...(scenario.phantoms || []).map((p) => createPhantom(world, p)),
@@ -172,6 +175,10 @@ export function step(world, dt = 1) {
   checkEngagements(world);
   checkMisses(world);
   updateCombat(world, dt);
+  if (world.t % world.rules.visual.checkEveryS === 0) {
+    updateContacts(world);
+    updateFormations(world);
+  }
   const minute = world.rules.detection.plotIntervalS;
   if (world.t % minute === 0) {
     updateDetection(world);

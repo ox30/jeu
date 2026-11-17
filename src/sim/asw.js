@@ -10,6 +10,7 @@ import { bearing, distance, headingVector, unproject } from './geo.js';
 import { emit } from './events.js';
 import { isPatrol, isDaylight } from './patrols.js';
 import { currentSpeed } from './convoy.js';
+import { seeUboat } from './contact.js';
 
 const NM_KM = 1.852;
 
@@ -143,6 +144,7 @@ export function stepHunt(world, e, dt) {
     dive(world, u, 1);
     const pl = addPlot(world, u, 'asdic', e.name, 0.3);
     if (pl) pl.byId = e.id;
+    seeUboat(world, u, { by: e.name, byId: e.id, kind: 'escort', how: 'asdic' });
     if (attackUboat(world, u, A.pKillHuntPerShip * e.ships, e.name, u.x, u.y)) {
       endHunt(world, e, true);
       return;
@@ -167,6 +169,7 @@ export function updateAsw(world) {
       if (!seen) continue;
       const plot = addPlot(world, u, seen.source, e.name, seen.error);
       if (plot) plot.byId = e.id;
+      seeUboat(world, u, { by: e.name, byId: e.id, kind: 'escort', how: seen.source });
       dive(world, u, A.diveHours);
       emit(world, 'uboatSighted', { by: e.name, byId: e.id, source: seen.source, unitKind: 'escort' });
       // Close enough: an immediate attack with depth charges.
@@ -180,6 +183,7 @@ export function updateAsw(world) {
       const seen = aircraftLooks(world, s, u);
       if (!seen) continue;
       addPlot(world, u, seen.source, s.name, seen.error);
+      seeUboat(world, u, { by: s.name, byId: s.id, kind: 'squadron', how: seen.source });
       dive(world, u, A.diveHours);
       emit(world, 'uboatSighted', { by: s.name, byId: s.id, source: seen.source, unitKind: 'squadron' });
       const spec = world.rules.patrols[s.type];
@@ -255,5 +259,6 @@ export function spotAttacker(world, u, c) {
   if (world.rng.next() >= A.pSpotAttacker * Math.min(1, groups.reduce((n, e) => n + e.ships, 0) / 4)) return false;
   const plot = addPlot(world, u, 'seen', groups[0].name, 0.5);
   if (plot) plot.byId = groups[0].id;
+  seeUboat(world, u, { by: groups[0].name, byId: groups[0].id, kind: 'escort', how: 'seen' });
   return true;
 }

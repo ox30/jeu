@@ -7,14 +7,17 @@
 //  - Shift + drag, anywhere and in every mode: the ruler (from the unit when it starts on one);
 //    it stays on the map until the cross on its box, Escape or a new ruler;
 //  - drag elsewhere: moves the map; wheel or pinch: zooms;
-//  - click: selects; ruler tool: measures a heading and a distance.
+//  - click: selects (a squadron or a group of a formation selects its formation); a click on
+//    the map itself keeps the selection, which the cross of the unit panel or Escape clears;
+//  - ruler tool: measures a heading and a distance.
 
 import { panBy, toWorld, zoomAt } from '../render/camera.js';
 import {
   SPEEDS, activePoint, addRulerLeg, cancelSpeed, changeAltitude, changePointAltitude, confirmSpeed, deletePoint, extendRoute, findUnit,
   finishDrawing, orderMru, goView, headingsMode, insertPoint, movePoint, orderHome, orderOrbit, requestSpeed, scrambleSquadron, select,
-  selectedSquadron, selectedUnit, setActivePoint, toggleBuster, togglePause,
+  selectedFormation, selectedSquadron, selectedUnit, setActivePoint, toggleBuster, togglePause,
 } from './actions.js';
+import { membersOf } from '../sim/formations.js';
 
 const UNIT_KINDS = new Set(['squadron', 'convoy', 'airfield', 'escort']);
 const HANDLE_KINDS = new Set(['routePoint', 'routeMid', 'routeExtend']);
@@ -32,9 +35,15 @@ function selectFromAirfield(app, fieldId) {
   else select(app, 'airfield', fieldId);
 }
 
+/** What a click on a symbol selects: the formation of a squadron or a group in one. */
+function selectClicked(app, hit) {
+  if (hit.formation) select(app, 'formation', hit.formation);
+  else select(app, hit.kind, hit.id);
+}
+
 function selectHit(app, hit) {
   if (hit.kind === 'airfield') selectFromAirfield(app, hit.id);
-  else select(app, hit.kind, hit.id);
+  else selectClicked(app, hit);
 }
 
 function hitTest(app, x, y, pad) {
@@ -189,7 +198,7 @@ export function attachInput(app) {
         const endHit = hitTest(app, q[0], q[1], 8);
         finishDrawing(app, gesture.hit, points, endHit);
       } else if (!gesture.moved) {
-        select(app, gesture.hit.kind, gesture.hit.id);
+        selectClicked(app, gesture.hit);
       }
       app.drawing = null;
     } else if (gesture.type === 'extend') {
@@ -212,12 +221,13 @@ export function attachInput(app) {
       }
       app.routeDrag = null;
     } else if (gesture.type === 'measure') {
-      if (!gesture.moved) select(app, gesture.hit.kind, gesture.hit.id);
+      if (!gesture.moved) selectClicked(app, gesture.hit);
     } else if (gesture.type === 'mru') {
       if (up && app.ruler && Math.hypot(pos(e)[0] - gesture.start[0], pos(e)[1] - gesture.start[1]) > 12) orderMru(app, app.ruler.a, app.ruler.b);
       app.ruler = null;
     } else if (gesture.type === 'pan' && !gesture.moved && up) {
-      select(app, gesture.hit ? gesture.hit.kind : null, gesture.hit ? gesture.hit.id : null);
+      // A click on the map itself no longer clears the selection (the panel's cross does).
+      if (gesture.hit) selectClicked(app, gesture.hit);
     }
     gesture = null;
     canvas.style.cursor = app.tool === 'ruler' ? 'crosshair' : 'grab';
@@ -293,7 +303,9 @@ export function attachInput(app) {
       deletePoint(app, point.u, point.index);
     } else if (key === 'Enter' && unit && app.ruler) {
       addRulerLeg(app, unit);
-    } else if ((key === 's' || key === 'S') && sq && sq.state === 'ready') {
+    } else if ((key === 's' || key === 'S') && sq && (sq.state === 'ready'
+      || (selectedFormation(app) && !(sq.state === 'scrambling' || sq.state === 'airborne' || sq.state === 'combat' || sq.state === 'returning')
+        && membersOf(app.world, selectedFormation(app)).some((s) => s.state === 'ready')))) {
       scrambleSquadron(app, sq);
     } else if ((key === 'b' || key === 'B') && sq) {
       toggleBuster(app, sq);

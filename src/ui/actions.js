@@ -12,6 +12,11 @@ import { currentSpeed, legSpeed } from '../sim/convoy.js';
 import { parseLegEnd } from '../sim/navigation.js';
 import { deployMru } from '../sim/mru.js';
 import { VIEWS, animateTo, toWorld, viewFrame } from '../render/camera.js';
+import {
+  dissolveFormation, formationById, formationOf, interceptFormation, launchWaiting, leaderOf, membersOf, mergeFormations, newFormation,
+  removeMember, scrambleFormation,
+} from '../sim/formations.js';
+import { isFlying } from '../sim/squadron.js';
 import { addLogEntry } from './panels.js';
 
 export const SPEEDS = [1, 10, 60, 600, 3600, 14400];
@@ -26,6 +31,8 @@ export function findUnit(app, kind, id) {
   if (kind === 'escort') return w.escorts.find((e) => e.id === id);
   if (kind === 'train') return w.trains.find((tr) => tr.id === id);
   if (kind === 'uplot') return w.uboatPlots.find((p) => p.id === id);
+  if (kind === 'ucontact') return w.uboats.find((u) => u.id === id && u.seen);
+  if (kind === 'formation') return formationById(w, id);
   return null;
 }
 
@@ -43,14 +50,34 @@ export function select(app, kind, id) {
   app.dirtyPanels = true;
 }
 
+/** The formation selected, or null. */
+export function selectedFormation(app) {
+  const sel = app.selection;
+  return sel && sel.kind === 'formation' ? formationById(app.world, sel.id) : null;
+}
+
+/** The unit the orders go to: the one selected, or the leader of the formation selected. */
 export function selectedUnit(app) {
   const sel = app.selection;
-  if (!sel || (sel.kind !== 'squadron' && sel.kind !== 'convoy' && sel.kind !== 'escort')) return null;
+  if (!sel) return null;
+  if (sel.kind === 'formation') {
+    const f = formationById(app.world, sel.id);
+    return f ? leaderOf(app.world, f) : null;
+  }
+  if (sel.kind !== 'squadron' && sel.kind !== 'convoy' && sel.kind !== 'escort') return null;
   return findUnit(app, sel.kind, sel.id);
 }
 
 export function selectedSquadron(app) {
-  return app.selection && app.selection.kind === 'squadron' ? findUnit(app, 'squadron', app.selection.id) : null;
+  const u = selectedUnit(app);
+  return u && u.kind === 'squadron' ? u : null;
+}
+
+/** Selects a unit, or its formation when it has one. */
+export function selectUnit(app, u) {
+  const f = formationOf(app.world, u);
+  if (f) select(app, 'formation', f.id);
+  else select(app, u.kind, u.id);
 }
 
 export function headingsMode(app) {
@@ -124,9 +151,18 @@ export function goView(app, name) {
 }
 
 /** Centres the map on a unit, zooming in when the map is far out. */
+/** Width of the map hidden by the unit panel (open when something is selected). */
+function unitPanelWidth(app) {
+  if (!app.selection || typeof window === 'undefined' || window.innerWidth <= 820) return 0;
+  const el = app.el && app.el.unitPanel;
+  return el && !el.hidden && el.offsetWidth ? el.offsetWidth : 340;
+}
+
+/** Brings (x, y) to the middle of the part of the map that can be seen. */
 export function centreOn(app, x, y, minScale = 0) {
   const cam = app.camera;
-  animateTo(cam, { cx: x, cy: y, scale: Math.max(cam.scale, minScale) }, 0.6);
+  const scale = Math.max(cam.scale, minScale);
+  animateTo(cam, { cx: x + unitPanelWidth(app) / 2 / scale, cy: y, scale }, 0.6);
 }
 
 /** Speed of a unit in km/s, for the ruler and the legs. */
@@ -157,17 +193,62 @@ function nearestContactHeading(app, x, y) {
  * patrol over the base.
  */
 export function scrambleSquadron(app, sq) {
+  const f = formationOf(app.world, sq);
+  const lead = f ? leaderOf(app.world, f) : sq;
   const input = document.getElementById('vector-input');
   const typed = input && input.value !== '' ? Number(input.value) : null;
   let order;
-  if (sq.plan.length) order = {};
+  if (lead.plan.length) order = {};
   else if (typed !== null && typed >= 0 && typed <= 360) order = { vector: typed % 360 };
   else if (!headingsMode(app)) {
-    const heading = nearestContactHeading(app, sq.x, sq.y);
+    const heading = nearestContactHeading(app, lead.x, lead.y);
     order = heading === null ? { orbit: true } : { vector: heading };
   } else order = { orbit: true };
+  if (f) {
+    // A squadron of a big wing takes off with its wing.
+    if (!scrambleFormation(app.world, f, order)) sheetMessage(app, t('unit.scrambleRefused'));
+    select(app, 'formation', f.id);
+    return;
+  }
   scramble(app.world, sq, order);
   select(app, 'squadron', sq.id);
+}
+
+/** Members of a wing still on the ground take off to join it. */
+export function orderLaunchWaiting(app, f) {
+  launchWaiting(app.world, f);
+  app.dirtyPanels = true;
+}
+
+/** Readiness of every squadron of the wing on the ground. */
+export function orderFormationAlert(app, f, state) {
+  for (const s of membersOf(app.world, f)) if (s.state === 'ready' || s.state === 'refuelling') setAlert(app.world, s, state);
+  app.dirtyPanels = true;
+}
+
+export function orderNewFormation(app, u) {
+  const f = newFormation(app.world, u.kind === 'squadron' ? 'air' : 'naval', u.id);
+  if (f) select(app, 'formation', f.id);
+  app.dirtyPanels = true;
+  return f;
+}
+
+export function orderLeaveFormationOf(app, f, unitId) {
+  removeMember(app.world, f, unitId);
+  app.dirtyPanels = true;
+}
+
+export function orderDissolve(app, f) {
+  const leader = leaderOf(app.world, f);
+  dissolveFormation(app.world, f);
+  if (leader) select(app, leader.kind, leader.id);
+  app.dirtyPanels = true;
+}
+
+export function orderMerge(app, into, from) {
+  mergeFormations(app.world, into, from);
+  select(app, 'formation', into.id);
+  app.dirtyPanels = true;
 }
 
 export function changeAltitude(app, sq, deltaFt) {
@@ -218,7 +299,11 @@ export function orderOffer(app, offerId) {
 }
 
 export function orderHome(app, sq) {
-  returnToBase(app.world, sq);
+  const f = formationOf(app.world, sq);
+  if (f) {
+    // The whole wing goes home, each squadron to its own aerodrome.
+    for (const s of membersOf(app.world, f)) if (s.state === 'airborne' || s.state === 'combat') returnToBase(app.world, s);
+  } else returnToBase(app.world, sq);
   app.dirtyPanels = true;
 }
 
@@ -246,18 +331,24 @@ export function orderSail(app, convoy) {
   app.dirtyPanels = true;
 }
 
+/** The groups an order goes to: the support group of `escort`, or the group alone. */
+function groupsOf(app, escort) {
+  const f = formationOf(app.world, escort);
+  return f ? membersOf(app.world, f) : [escort];
+}
+
 export function orderJoin(app, escort, convoyId) {
-  joinConvoy(app.world, escort, convoyId);
+  for (const e of groupsOf(app, escort)) joinConvoy(app.world, e, convoyId);
   app.dirtyPanels = true;
 }
 
 export function orderLeave(app, escort) {
-  leaveConvoy(app.world, escort);
+  for (const e of groupsOf(app, escort)) leaveConvoy(app.world, e);
   app.dirtyPanels = true;
 }
 
 export function orderEscortHome(app, escort) {
-  escortHome(app.world, escort);
+  for (const e of groupsOf(app, escort)) escortHome(app.world, e);
   app.dirtyPanels = true;
 }
 
@@ -375,13 +466,24 @@ export function finishDrawing(app, hit, screenPoints, endHit = null) {
       return;
     }
   }
+  // A line drawn from a squadron or a group of a formation is the formation's.
+  if ((hit.kind === 'squadron' || hit.kind === 'escort') && hit.formation) {
+    const f = formationById(world, hit.formation);
+    const leader = f ? leaderOf(world, f) : null;
+    if (leader) hit = { ...hit, id: leader.id };
+  }
   const simplified = simplifyPolyline(screenPoints, 3);
   const points = simplified.slice(1).map(([sx, sy]) => toWorld(cam, sx, sy));
   if (!points.length) return;
 
   if (hit.kind === 'squadron') {
     const sq = findUnit(app, 'squadron', hit.id);
-    if (sq && setRoute(world, sq, points)) select(app, 'squadron', sq.id);
+    const f = sq ? formationOf(world, sq) : null;
+    if (sq && f && sq.state === 'ready') {
+      // A wing on the ground takes off along the line.
+      scrambleFormation(world, f, { route: points });
+      select(app, 'formation', f.id);
+    } else if (sq && setRoute(world, sq, points)) selectUnit(app, sq);
   } else if (hit.kind === 'airfield') {
     // The selected squadron if it is on this field, otherwise the first one ready, otherwise
     // one already taking off (it simply gets the new route).
@@ -395,14 +497,27 @@ export function finishDrawing(app, hit, screenPoints, endHit = null) {
       addLogEntry(app, t('log.noReadySquadron', { airfield: field.name }), 'warning');
       return;
     }
-    if (sq.state === 'ready') scramble(world, sq, { route: points });
-    else setRoute(world, sq, points);
-    select(app, 'squadron', sq.id);
+    const f = formationOf(world, sq);
+    if (f) {
+      // A squadron of a big wing goes with its wing: the line is the wing's route.
+      const leader = leaderOf(world, f);
+      if (leader && (isFlying(leader) || leader.state === 'scrambling')) {
+        setRoute(world, leader, points);
+        launchWaiting(world, f);
+      } else {
+        scrambleFormation(world, f, { route: points });
+      }
+      select(app, 'formation', f.id);
+    } else {
+      if (sq.state === 'ready') scramble(world, sq, { route: points });
+      else setRoute(world, sq, points);
+      select(app, 'squadron', sq.id);
+    }
   } else if (hit.kind === 'convoy' || hit.kind === 'escort') {
     const ship = findUnit(app, hit.kind, hit.id);
     const result = routeConvoy(world, ship, points);
     if (!result.ok && result.at) app.flash = { x: result.at[0], y: result.at[1], until: performance.now() + 2500 };
-    select(app, hit.kind, ship.id);
+    selectUnit(app, ship);
   }
   app.dirtyPanels = true;
 }
@@ -507,9 +622,11 @@ export function orderEndAction(app, sq, value) {
 
 /** Arcade: the controller guides the squadron onto the raid. */
 export function orderIntercept(app, sq, raidId) {
-  const p = interceptRaid(app.world, sq, raidId);
+  const f = formationOf(app.world, sq);
+  const p = f ? interceptFormation(app.world, f, raidId) : interceptRaid(app.world, sq, raidId);
   if (p === null) sheetMessage(app, t('orders.errors.intercept'));
-  select(app, 'squadron', sq.id);
+  if (f) select(app, 'formation', f.id);
+  else select(app, 'squadron', sq.id);
   app.dirtyPanels = true;
   return p !== null;
 }
@@ -530,7 +647,7 @@ export function orderZigzag(app, c) {
 }
 
 export function orderEscortBehaviour(app, e, behaviour) {
-  setEscortBehaviour(app.world, e, behaviour);
+  for (const g of groupsOf(app, e)) setEscortBehaviour(app.world, g, behaviour);
   app.dirtyPanels = true;
 }
 

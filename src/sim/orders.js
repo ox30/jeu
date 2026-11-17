@@ -497,8 +497,8 @@ export function setZigzag(world, c, on) {
 
 // ---- escort groups --------------------------------------------------------------------
 
-/** Out of port by the charted channel that leads toward (x, y). */
-function leavePort(world, e, x, y) {
+/** An escort group leaves port through the approach channel nearest to (x, y). */
+export function leavePort(world, e, x, y) {
   const port = world.byId.port.get(e.portId);
   let best = null;
   for (const a of port.approaches || []) {
@@ -525,6 +525,7 @@ export function joinConvoy(world, e, convoyId) {
     e.route = [];
   }
   e.joinTarget = convoyId;
+  e.leftConvoy = null;
   e.homeward = false;
   emit(world, 'escortOrdered', { escort: e.name, escortId: e.id, convoy: c.name });
   return true;
@@ -533,6 +534,7 @@ export function joinConvoy(world, e, convoyId) {
 export function leaveConvoy(world, e) {
   if (e.state !== 'escorting') return false;
   e.state = 'atSea';
+  e.leftConvoy = e.escorting;
   e.escorting = null;
   return true;
 }

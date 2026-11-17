@@ -129,7 +129,8 @@ export function siteLongName(site) {
 }
 
 export function siteTitle(site) {
-  return t(`sheet.${site.kind}Title`, { name: site.name });
+  // "Aérodrome de Aldergrove" → "Aérodrome d'Aldergrove".
+  return t(`sheet.${site.kind}Title`, { name: site.name }).replace(/\b([dD])e ([AEIOUYÉÈÊaeiouyéèê])/g, "$1'$2");
 }
 
 export function siteStatusText(world, site) {
@@ -246,6 +247,7 @@ const LEVELS = {
   interceptRefused: 'warning',
   interceptEnded: 'warning',
   contactLost: 'info',
+  formationHomeward: 'warning',
   tallyHo: 'combat',
   combatRound: 'combat',
   combatReport: 'report',
@@ -305,7 +307,11 @@ export function reportText(world, e) {
 }
 
 /** { text, level } for a simulation event, or null when it is not shown in the journal. */
+// Told once for the whole formation (it takes off, it has gathered): not squadron by squadron.
+const WING_QUIET = new Set(['scrambleOrdered', 'airborne', 'formationJoined']);
+
 export function eventMessage(world, e) {
+  if (WING_QUIET.has(e.type) && e.squadronId && world.squadrons.some((s) => s.id === e.squadronId && s.formation)) return null;
   const p = { ...e };
   let key = `log.${e.type}`;
   let suffix = '';
@@ -380,6 +386,17 @@ export function eventMessage(world, e) {
     case 'uboatSighted':
       p.source = t(`map.uSource.${e.source}`);
       break;
+    case 'raidSighted': {
+      const parts = [];
+      if (e.bombers > 0) parts.push(`${e.bombers} ${e.bomberType}`);
+      if (e.escort > 0) parts.push(`${e.escort} ${e.escortType}`);
+      p.force = parts.join(' + ');
+      p.alt = ftText(e.altFt);
+      break;
+    }
+    case 'uboatContactLost':
+      p.time = formatTime(world.startMs + e.t * 1000);
+      break;
     case 'escortHuntOver':
       if (e.sank) key = 'log.escortHuntOverSank';
       break;
@@ -442,6 +459,15 @@ export function eventMessage(world, e) {
     }
     case 'legDone':
       p.next = headingText(e.next);
+      break;
+    case 'formationCreated':
+      key = e.kind === 'air' ? 'log.formationCreatedAir' : 'log.formationCreatedNaval';
+      break;
+    case 'formationLeftBy':
+      key = `log.formationLeftBy.${e.reason}`;
+      break;
+    case 'formationScrambled':
+      if (e.n <= 1) key = 'log.formationScrambledAlone';
       break;
     case 'legMissed':
       if (e.target) key = 'log.legMissedSquare';

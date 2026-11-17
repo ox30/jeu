@@ -61,7 +61,7 @@ export function openSettings(app) {
     saveSettings(s);
     if (field.name === 'orders' || field.name === 'preset') {
       app.drawing = null;
-      app.el.sheetOrders.__key = '';
+      app.el.unitKeyed.__key = '';
     }
     app.dirtyPanels = true;
     app.dirtyHud = true;

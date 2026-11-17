@@ -11,9 +11,11 @@ import { describeLocation } from './places.js';
 import { radarRangeFactor } from './sites.js';
 import { patrolSeeing } from './patrols.js';
 
-/** 'patrol', 'radar', 'observers' or null. */
+/** 'visual', 'patrol', 'radar', 'observers' or null. */
 export function sense(world, r) {
   const D = world.rules.detection;
+  // Seen by one of the player's units: the raid as it really is (contact.js).
+  if (!r.phantom && r.seen) return 'visual';
   // A patrol in sight of the formation reports what it really is (a false echo shows nothing).
   if (!r.phantom && patrolSeeing(world, r.x, r.y, r.alt)) return 'patrol';
   for (const s of world.radars) {
@@ -36,15 +38,16 @@ function makePlot(world, r, source) {
   const obs = source === 'observers';
   const P = world.rules.patrolRules;
   const seen = source === 'patrol';
-  const sigma = mode.posSigmaKm * (obs ? D.observerPosFactor : seen ? P.plotPos : 1);
+  const visual = source === 'visual';
+  const sigma = visual ? 0 : mode.posSigmaKm * (obs ? D.observerPosFactor : seen ? P.plotPos : 1);
   const total = raidStrength(r);
-  const countError = mode.countError * (seen ? P.plotCount : 1);
+  const countError = visual ? 0 : mode.countError * (seen ? P.plotCount : 1);
   const count = countError
     ? Math.max(1, Math.round(total * (1 + rng.range(-countError, countError / 2))))
     : total;
   const altK = obs ? D.observerAltFactor : seen ? P.plotAlt : 1;
-  const alt = r.alt + (mode.altSigmaM ? rng.gauss() * mode.altSigmaM * altK : 0);
-  const delay = mode.delayS[1] > 0 && !seen ? Math.round(rng.range(mode.delayS[0], mode.delayS[1])) : 0;
+  const alt = r.alt + (mode.altSigmaM && !visual ? rng.gauss() * mode.altSigmaM * altK : 0);
+  const delay = mode.delayS[1] > 0 && !seen && !visual ? Math.round(rng.range(mode.delayS[0], mode.delayS[1])) : 0;
   return {
     t: world.t,
     visibleAt: world.t + delay,

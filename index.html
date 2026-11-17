@@ -31,6 +31,7 @@
         <button type="button" id="btn-ruler" data-i18n="hud.ruler"></button>
         <button type="button" id="btn-radar" data-i18n="hud.radarShort" data-i18n-title="hud.radarCover"></button>
         <button type="button" id="btn-reports" data-i18n="hud.reports"></button>
+        <button type="button" id="btn-formations" data-i18n="hud.formations" data-i18n-title="hud.formationsTitle"></button>
         <button type="button" id="btn-cards" data-i18n="hud.cards"></button>
         <button type="button" id="btn-scenario" data-i18n="hud.scenario"></button>
         <button type="button" id="btn-settings" data-i18n="hud.settings"></button>
@@ -51,6 +52,24 @@
         </span>
       </div>
       <div id="coach" class="coach" hidden role="status" aria-live="polite"></div>
+      <aside id="unit-panel" class="unit-panel" hidden aria-labelledby="unit-title">
+        <header class="unit-head">
+          <h2 id="unit-title"></h2>
+          <span class="unit-head-buttons">
+            <button type="button" data-action="centre-selection" class="icon-button" data-i18n-title="unit.centre" data-i18n-label="unit.centre">⌖</button>
+            <button type="button" data-action="close-unit" class="icon-button close" data-i18n-title="unit.close" data-i18n-label="unit.close">×</button>
+          </span>
+        </header>
+        <p id="unit-summary" class="unit-summary"></p>
+        <nav id="unit-tabs" class="unit-tabs" role="tablist"></nav>
+        <div class="unit-body">
+          <div id="unit-message"></div>
+          <div id="unit-pre"></div>
+          <canvas id="unit-profile" class="profile" hidden></canvas>
+          <div id="unit-keyed"></div>
+          <div id="unit-post"></div>
+        </div>
+      </aside>
       <div id="loading" class="loading"><span class="spinner"></span></div>
     </main>
 
@@ -69,13 +88,7 @@
           </span>
         </h2>
         <div id="tote" class="tote"></div>
-      </section>
-      <section>
-        <h2 data-i18n="panel.sheet"></h2>
-        <div id="sheet-info" class="sheet"></div>
-        <canvas id="sheet-profile" class="profile" hidden></canvas>
-        <div id="sheet-plan" class="plan"></div>
-        <div id="sheet-orders"></div>
+        <p id="panel-hint" class="hint" hidden></p>
       </section>
       <section class="log-section" id="log-section">
         <h2 class="foldable" data-log-section="1"><span class="fold">▾</span> <span data-i18n="panel.log"></span></h2>
@@ -92,6 +105,7 @@
   <dialog id="dlg-scenario"></dialog>
   <dialog id="dlg-reports" class="page-dialog"></dialog>
   <dialog id="dlg-cards" class="page-dialog"></dialog>
+  <dialog id="dlg-formations" class="page-dialog"></dialog>
   <dialog id="dlg-event"></dialog>
 
   <script type="module" src="src/main.js"></script>
