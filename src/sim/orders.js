@@ -4,18 +4,35 @@
 import { FOOT_M } from './geo.js';
 import { emit } from './events.js';
 import { disengage } from './combat.js';
-import { isFlying, squadronSpeed, startReturn } from './squadron.js';
-import { legSpeed, routeConvoy } from './convoy.js';
+import {
+  aircraftSpec, airfieldsAround, applyEndAction, applyPointAltitude, isFlying, squadronSpeed, startReturn,
+} from './squadron.js';
+import { currentSpeed as currentSpeedOf, editShipRoute, editablePoints, legSpeed, routeConvoy } from './convoy.js';
 import { projectPlan, resolveClock } from './navigation.js';
 import { airfieldDelayFactor, isOperational } from './sites.js';
 import { bearing, distance, headingDiff, polylineLength } from './geo.js';
 import { sendEscortHome } from './naval.js';
+import { interceptChance } from './control.js';
+import { ALERT_STATES, scrambleSeconds, strength, tire } from './crews.js';
 import { dispatchTrain } from './logistics.js';
 
-export { routeConvoy };
+export { editShipRoute, routeConvoy };
 
 function copyLegs(legs) {
   return (legs || []).map((leg) => ({ ...leg, end: leg.end ? { ...leg.end } : null }));
+}
+
+/** Route points [x, y, altM or null], copied. */
+function copyRoute(points) {
+  return (points || []).map((p) => [p[0], p[1], p[2] ?? null]);
+}
+
+/** A height in feet kept between the limits (and the ceiling of the type) and rounded to the step. */
+export function clampFeet(world, feet, s = null) {
+  const R = world.rules.squadron;
+  const spec = s ? aircraftSpec(world, s.type) : null;
+  const top = Math.min(R.maxAltitudeFt, spec && spec.ceilingFt ? spec.ceilingFt : R.maxAltitudeFt);
+  return Math.max(R.minAltitudeFt, Math.min(top, Math.round(feet / R.altitudeStepFt) * R.altitudeStepFt));
 }
 
 export function scramble(world, s, { route = null, vector = null, orbit = false, plan = null } = {}) {
@@ -28,15 +45,27 @@ export function scramble(world, s, { route = null, vector = null, orbit = false,
     emit(world, 'scrambleRefused', { squadron: s.name, squadronId: s.id, state: 'airfieldOut' });
     return false;
   }
+  const delay = scrambleSeconds(world, s);
+  if (delay === null) {
+    emit(world, 'scrambleRefused', { squadron: s.name, squadronId: s.id, state: 'resting' });
+    return false;
+  }
+  if (strength(world, s) <= 0) {
+    emit(world, 'scrambleRefused', { squadron: s.name, squadronId: s.id, state: 'noPilots' });
+    return false;
+  }
   s.state = 'scrambling';
-  s.timer = Math.round(world.rules.squadron.scrambleSeconds * airfieldDelayFactor(world, field));
-  s.route = route ? route.map(([x, y]) => [x, y]) : [];
+  s.timer = Math.round(delay * airfieldDelayFactor(world, field));
+  tire(world, s, world.rules.crews.fatiguePerScramble);
+  s.route = copyRoute(route);
+  applyPointAltitude(s);
   if (plan) s.plan = copyLegs(plan);
   s.legState = null;
   s.vector = vector;
   s.cover = null;
   s.orbit = Boolean(orbit) && !route && vector === null && !s.plan.length;
   s.speedMode = 'cruise';
+  checkEndAction(world, s);
   emit(world, 'scrambleOrdered', { squadron: s.name, squadronId: s.id, airfield: field.name });
   return true;
 }
@@ -57,15 +86,162 @@ function prepareNavigation(world, s) {
   }
   s.orbit = false;
   s.cover = null;
+  s.intercept = null;
+  s.follow = null;
+  s.inFormation = false;
+}
+
+/** Big wing: this squadron joins another in the air and flies with it. */
+export function followSquadron(world, s, leaderId) {
+  const leader = world.squadrons.find((x) => x.id === leaderId);
+  if (!leader || leader === s || leader.follow || leader.role !== 'fighter' || s.role !== 'fighter') return false;
+  if (!(leader.state === 'airborne' || leader.state === 'scrambling')) return false;
+  if (!canTakeNavigationOrder(world, s)) return false;
+  prepareNavigation(world, s);
+  s.route = [];
+  s.plan = [];
+  s.legState = null;
+  s.vector = null;
+  s.follow = leader.id;
+  s.inFormation = false;
+  emit(world, 'formationOrdered', { squadron: s.name, squadronId: s.id, leader: leader.name, leaderId: leader.id });
+  return true;
+}
+
+export function leaveFormation(world, s) {
+  if (!s.follow) return false;
+  s.follow = null;
+  s.inFormation = false;
+  s.vector = s.heading;
+  return true;
+}
+
+/**
+ * Arcade: the controller guides the squadron onto a raid (taking off first if needed).
+ * Returns the chance he gives it, or null when the order is refused.
+ */
+export function interceptRaid(world, s, raidId) {
+  if (s.role !== 'fighter') return null;
+  const chance = interceptChance(world, s, raidId);
+  if (!chance || chance.p <= 0) {
+    emit(world, 'interceptRefused', { squadron: s.name, squadronId: s.id, raidId });
+    return null;
+  }
+  if (s.state === 'ready') {
+    if (!scramble(world, s, {})) return null;
+  } else if (!canTakeNavigationOrder(world, s)) {
+    return null;
+  } else {
+    prepareNavigation(world, s);
+  }
+  s.route = [];
+  s.plan = [];
+  s.legState = null;
+  s.vector = null;
+  s.orbit = false;
+  s.cover = null;
+  s.intercept = { raidId, p: chance.p, ok: null };
+  const contact = world.contacts.get(raidId);
+  emit(world, 'interceptOrdered', { squadron: s.name, squadronId: s.id, raid: contact ? contact.label : raidId, raidId, p: chance.p });
+  return chance.p;
 }
 
 export function setRoute(world, s, points) {
   if (!canTakeNavigationOrder(world, s) || !points.length) return false;
   prepareNavigation(world, s);
-  s.route = points.map(([x, y]) => [x, y]);
+  s.route = copyRoute(points);
   s.plan = [];
   s.legState = null;
   s.vector = null;
+  applyPointAltitude(s);
+  checkEndAction(world, s);
+  return true;
+}
+
+/**
+ * Points of a unit's route that the player can move with the mouse ([x, y, altM]), or null
+ * when the unit has no route to edit.
+ */
+export function editableRoute(u) {
+  if (!u) return null;
+  if (u.kind === 'squadron') {
+    const moving = u.state === 'airborne' || u.state === 'scrambling';
+    return moving && u.route.length ? u.route : null;
+  }
+  if ((u.kind === 'convoy' || u.kind === 'escort') && u.state === 'atSea' && u.route.length) {
+    const pts = editablePoints(u);
+    return pts.length ? pts : null;
+  }
+  return null;
+}
+
+/** Ships whose route goes into port keep their channel: no point can be added beyond it. */
+export function routeCanExtend(u) {
+  if (u.kind === 'squadron') return true;
+  return !(u.destination && (u.routeLocked || 0) > 0);
+}
+
+/** Where the current route or legs of a squadron end, or null (no end, or open leg). */
+export function navigationEnd(world, s) {
+  if (s.route.length) {
+    const p = s.route[s.route.length - 1];
+    return { x: p[0], y: p[1] };
+  }
+  if (s.plan.length) {
+    const track = planTrack(world, s);
+    const last = track[track.length - 1];
+    return last.open ? null : { x: last.x, y: last.y };
+  }
+  return null;
+}
+
+/**
+ * End actions open to a squadron: orbit, hold the heading, come home, cover a convoy at
+ * sea, and land at an aerodrome when the route ends in its bubble.
+ */
+export function endChoices(world, s) {
+  const list = [{ kind: 'orbit' }, { kind: 'hold' }, { kind: 'home' }];
+  for (const c of world.convoys) if (c.state === 'atSea') list.push({ kind: 'cover', id: c.id });
+  const end = navigationEnd(world, s);
+  if (end) for (const f of airfieldsAround(world, end.x, end.y)) list.push({ kind: 'land', id: f.id });
+  return list;
+}
+
+function sameAction(a, b) {
+  return a.kind === b.kind && (a.id || null) === (b.id || null);
+}
+
+/** An end action that no longer fits the route (aerodrome left behind, convoy in port) is dropped. */
+function checkEndAction(world, s) {
+  if (!endChoices(world, s).some((c) => sameAction(c, s.endAction))) s.endAction = { kind: 'orbit' };
+}
+
+export function setEndAction(world, s, action) {
+  const choice = endChoices(world, s).find((c) => sameAction(c, action));
+  if (!choice) return false;
+  s.endAction = { ...choice };
+  return true;
+}
+
+/** Altitude written on a point of the route (feet, or null to clear it). */
+export function setPointAltitude(world, s, index, feet) {
+  if (index < 0 || index >= s.route.length) return null;
+  const ft = feet === null ? null : clampFeet(world, feet, s);
+  s.route[index][2] = ft === null ? null : ft * FOOT_M;
+  if (index === 0) applyPointAltitude(s);
+  return ft;
+}
+
+/** Removes a point of a squadron's route; with no point left the end action is done. */
+export function removeRoutePoint(world, s, index) {
+  if (index < 0 || index >= s.route.length) return false;
+  s.route.splice(index, 1);
+  if (!s.route.length) {
+    if (isFlying(s)) applyEndAction(world, s);
+  } else {
+    if (index === 0) applyPointAltitude(s);
+    checkEndAction(world, s);
+  }
   return true;
 }
 
@@ -104,10 +280,16 @@ export function setCover(world, s, convoyId) {
 
 /** Ordered height in feet, kept between the limits and rounded to the altitude step. */
 export function setAltitude(world, s, feet) {
-  const R = world.rules.squadron;
-  const ft = Math.max(R.minAltitudeFt, Math.min(R.maxAltitudeFt, Math.round(feet / R.altitudeStepFt) * R.altitudeStepFt));
+  const ft = clampFeet(world, feet, s);
   s.targetAlt = ft * FOOT_M;
   return ft;
+}
+
+/** State of readiness on the ground: stood down (rest), available, or pilots in the cockpits. */
+export function setAlert(world, s, state) {
+  if (!ALERT_STATES.includes(state)) return false;
+  s.alert = state;
+  return true;
 }
 
 export function setSpeed(world, s, mode) {
@@ -149,7 +331,7 @@ export function planTrack(world, u, legs = u.plan) {
     if (exit) {
       const [gx, gy] = exit.points[0];
       const km = polylineLength(exit.points);
-      start = { x: gx, y: gy, t: world.t + km / u.speed };
+      start = { x: gx, y: gy, t: world.t + km / currentSpeedOf(u) };
     }
   }
   if (u.kind === 'squadron' && (u.state === 'ready' || u.state === 'scrambling')) {
@@ -168,39 +350,30 @@ function canPlan(world, u) {
   return u.state === 'inPort' || u.state === 'atSea' || u.state === 'waiting';
 }
 
-/**
- * Adds a leg { heading, end, speedKn } at the end of a unit's plan.
- * Returns { ok, reason, at }.
- */
-export function addLeg(world, u, leg) {
-  if (!canPlan(world, u)) return { ok: false, reason: 'state' };
+/** A leg as typed by the player, checked and normalised; null when the heading is wrong. */
+function buildLeg(world, u, leg, startT) {
   const heading = Number(leg.heading);
-  if (!Number.isFinite(heading) || heading < 0 || heading > 360) return { ok: false, reason: 'heading' };
-  const last = u.plan[u.plan.length - 1];
-  if (last && !last.end) {
-    emit(world, 'legRefused', { unit: u.name, unitId: u.id, reason: 'open' });
-    return { ok: false, reason: 'open' };
-  }
-  const track = planTrack(world, u);
-  const startT = track[track.length - 1].t;
-  const newLeg = {
+  if (!Number.isFinite(heading) || heading < 0 || heading > 360) return null;
+  return {
     heading: Math.round(heading) % 360,
     end: resolveClock(world, leg.end ? { ...leg.end } : null, startT),
     speedKn: u.kind === 'squadron' || !leg.speedKn ? null : Math.max(1, Math.min(u.speedKn, Number(leg.speedKn))),
+    altFt: u.kind === 'squadron' && leg.altFt ? clampFeet(world, Number(leg.altFt), u) : null,
   };
-  const legs = [...u.plan, newLeg];
+}
 
-  if (u.kind !== 'squadron') {
-    // Ships: the leg must not run aground (a leg without end is checked as it is sailed).
-    const full = planTrack(world, u, legs).filter((p) => !p.open).map((p) => [p.x, p.y]);
-    const margin = u.state === 'inPort' && u.kind !== 'escort' ? world.rules.convoy.harbourMarginKm : 0;
-    const land = full.length > 1 ? world.terrain.findLandOnRoute(full, margin, 0) : null;
-    if (land) {
-      emit(world, 'convoyRouteRejected', { convoy: u.name, convoyId: u.id, x: land[0], y: land[1] });
-      return { ok: false, reason: 'land', at: land };
-    }
-  }
+/** Ships: the legs must not run aground (a leg without end is checked as it is sailed). */
+function groundingPoint(world, u, legs) {
+  if (u.kind === 'squadron') return null;
+  const full = planTrack(world, u, legs).filter((p) => !p.open).map((p) => [p.x, p.y]);
+  const margin = u.state === 'inPort' && u.kind !== 'escort' ? world.rules.convoy.harbourMarginKm : 0;
+  const land = full.length > 1 ? world.terrain.findLandOnRoute(full, margin, 0) : null;
+  if (land) emit(world, 'convoyRouteRejected', { convoy: u.name, convoyId: u.id, x: land[0], y: land[1], unitKind: u.kind });
+  return land;
+}
 
+/** The unit drops its route (and its meeting) to steer by its legs. */
+function takePlan(world, u, legs) {
   if (u.kind === 'squadron') {
     if (u.state !== 'ready') prepareNavigation(world, u);
     if (!u.plan.length) u.legState = null;
@@ -219,7 +392,46 @@ export function addLeg(world, u, leg) {
     }
   }
   u.plan = legs;
+  if (u.kind === 'squadron') checkEndAction(world, u);
+}
+
+/**
+ * Adds a leg { heading, end, speedKn, altFt } at the end of a unit's plan.
+ * Returns { ok, reason, at }.
+ */
+export function addLeg(world, u, leg) {
+  if (!canPlan(world, u)) return { ok: false, reason: 'state' };
+  const last = u.plan[u.plan.length - 1];
+  if (last && !last.end) {
+    emit(world, 'legRefused', { unit: u.name, unitId: u.id, reason: 'open' });
+    return { ok: false, reason: 'open' };
+  }
+  const track = planTrack(world, u);
+  const newLeg = buildLeg(world, u, leg, track[track.length - 1].t);
+  if (!newLeg) return { ok: false, reason: 'heading' };
+  const legs = [...u.plan, newLeg];
+  const land = groundingPoint(world, u, legs);
+  if (land) return { ok: false, reason: 'land', at: land };
+  takePlan(world, u, legs);
   emit(world, 'legAdded', { unit: u.name, unitId: u.id, unitKind: u.kind, index: legs.length - 1, heading: newLeg.heading });
+  return { ok: true };
+}
+
+/** Replaces leg `index` of a plan (the leg being flown starts again). */
+export function updateLeg(world, u, index, leg) {
+  if (!canPlan(world, u)) return { ok: false, reason: 'state' };
+  if (index < 0 || index >= u.plan.length) return { ok: false, reason: 'state' };
+  if (!leg.end && index < u.plan.length - 1) return { ok: false, reason: 'open' };
+  const track = planTrack(world, u);
+  const newLeg = buildLeg(world, u, leg, track[index].t);
+  if (!newLeg) return { ok: false, reason: 'heading' };
+  const legs = u.plan.map((l, i) => (i === index ? newLeg : l));
+  const land = groundingPoint(world, u, legs);
+  if (land) return { ok: false, reason: 'land', at: land };
+  if (index === 0) u.legState = null;
+  u.plan = legs;
+  if (u.kind === 'squadron') checkEndAction(world, u);
+  emit(world, 'legChanged', { unit: u.name, unitId: u.id, unitKind: u.kind, index, heading: newLeg.heading });
   return { ok: true };
 }
 
@@ -227,14 +439,20 @@ export function removeLeg(world, u, index) {
   if (index < 0 || index >= u.plan.length) return false;
   u.plan.splice(index, 1);
   if (index === 0) u.legState = null;
-  if (!u.plan.length && u.kind === 'squadron' && isFlying(u)) u.vector = u.heading;
+  if (u.kind === 'squadron') {
+    if (!u.plan.length && isFlying(u)) u.vector = u.heading;
+    checkEndAction(world, u);
+  }
   return true;
 }
 
 export function clearPlan(world, u) {
   u.plan = [];
   u.legState = null;
-  if (u.kind === 'squadron' && isFlying(u)) u.vector = u.heading;
+  if (u.kind === 'squadron') {
+    if (isFlying(u)) u.vector = u.heading;
+    checkEndAction(world, u);
+  }
   return true;
 }
 
@@ -256,12 +474,25 @@ export function departConvoy(world, c) {
   if (c.kind === 'escort') {
     const exit = exitApproach(world, c, c.plan[0].heading);
     c.route = exit ? exit.points.slice(0, -1).reverse().map(([x, y]) => [x, y]) : [];
+    c.routeLocked = c.route.length;
   }
   c.state = 'atSea';
   c.legState = null;
   c.destination = null;
   emit(world, 'convoySailed', { convoy: c.name, convoyId: c.id, unitKind: c.kind });
   return true;
+}
+
+/** Speed ordered on a convoy's route (null: its best), and zigzag on or off. */
+export function setConvoySpeed(world, c, kn) {
+  c.orderedKn = kn === null || !Number.isFinite(kn) ? null : Math.max(3, Math.min(c.speedKn, Math.round(kn)));
+  return c.orderedKn;
+}
+
+export function setZigzag(world, c, on) {
+  c.zigzag = Boolean(on);
+  c.zigzagFactor = world.rules.asw.zigzagSpeed;
+  return c.zigzag;
 }
 
 // ---- escort groups --------------------------------------------------------------------
@@ -279,6 +510,7 @@ function leavePort(world, e, x, y) {
   e.destination = null;
   e.legState = null;
   e.route = best ? best.a.points.slice(0, -1).reverse().map(([px, py]) => [px, py]) : [];
+  e.routeLocked = e.route.length;
 }
 
 /** The group sails (or turns) to meet a convoy and take station with it. */
@@ -305,6 +537,13 @@ export function leaveConvoy(world, e) {
   return true;
 }
 
+/** Stay with the convoy, or leave it to hunt a fresh U-boat contact. */
+export function setEscortBehaviour(world, e, behaviour) {
+  if (behaviour !== 'stay' && behaviour !== 'hunt') return false;
+  e.behaviour = behaviour;
+  return true;
+}
+
 export function escortHome(world, e) {
   if (e.state !== 'atSea' && e.state !== 'escorting' && e.state !== 'waiting') return false;
   sendEscortHome(world, e);
@@ -313,8 +552,9 @@ export function escortHome(world, e) {
 
 // ---- logistics ------------------------------------------------------------------------
 
-export function sendTrain(world, fromKey, toKey, resource) {
-  return dispatchTrain(world, fromKey, toKey, resource);
+/** A train from one installation to another with `loads` ({ fuel: t, materiel: t }). */
+export function sendTrain(world, fromKey, toKey, loads) {
+  return dispatchTrain(world, fromKey, toKey, loads);
 }
 
 /** Standing order: keep at least `tonnes` of a resource (null: no order). */

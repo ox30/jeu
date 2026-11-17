@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { distance, project } from '../src/sim/geo.js';
 import { gridRef, gridSquare } from '../src/sim/grid.js';
 import { parseLegEnd } from '../src/sim/navigation.js';
-import { addLeg, departConvoy, planTrack, scramble, setAltitude, setVector } from '../src/sim/orders.js';
+import {
+  addLeg, departConvoy, endChoices, planTrack, removeRoutePoint, scramble, setAltitude, setEndAction, setPointAltitude, setRoute,
+  setVector, updateLeg,
+} from '../src/sim/orders.js';
+import { FOOT_M } from '../src/sim/geo.js';
 import { parseGameDate } from '../src/core/time.js';
 import { makeWorld, run, runTo } from './helpers.js';
 
@@ -49,7 +53,53 @@ test('a squadron flies its legs: heading for a duration, then on to a grid squar
   const ended = events.find((e) => e.type === 'planEnded');
   assert.ok(ended, 'plan ended');
   assert.equal(sq.plan.length, 0);
-  assert.equal(sq.vector, 180, 'keeps the last heading');
+  assert.equal(sq.orbit, true, 'orbits at the end by default');
+});
+
+test('end of the legs: hold the heading when asked, and legs carry an altitude', () => {
+  const world = makeWorld('standard');
+  const sq = world.squadrons.find((s) => s.id === '32');
+  addLeg(world, sq, { heading: 90, end: { kind: 'duration', s: 300 }, altFt: 12000 });
+  addLeg(world, sq, { heading: 180, end: { kind: 'duration', s: 300 }, altFt: 20000 });
+  assert.equal(sq.plan[0].altFt, 12000);
+  assert.equal(setEndAction(world, sq, { kind: 'hold' }), true);
+  scramble(world, sq);
+  run(world, 500);
+  assert.ok(Math.abs(sq.targetAlt - 20000 * FOOT_M) < 1, 'second leg altitude');
+  // The second leg is changed in flight.
+  assert.equal(updateLeg(world, sq, 0, { heading: 200, end: { kind: 'duration', s: 120 }, altFt: 18000 }).ok, true);
+  assert.equal(sq.plan[0].heading, 200);
+  run(world, 600, (e) => e.type === 'planEnded');
+  run(world, 2);
+  assert.equal(sq.vector, 200, 'holds the last heading');
+  assert.equal(sq.orbit, false);
+});
+
+test('a route ends by orbiting, or by landing at an aerodrome whose bubble it ends in', () => {
+  const world = makeWorld('standard');
+  const sq = world.squadrons.find((s) => s.id === '32');
+  const field = world.byId.airfield.get(sq.airfield);
+  const other = world.airfields.find((f) => f.id !== field.id && distance(f.x, f.y, field.x, field.y) > 30);
+  scramble(world, sq, { route: [[field.x + 15, field.y, 18000 * FOOT_M], [other.x + 3, other.y + 2, null]] });
+  assert.ok(Math.abs(sq.targetAlt - 18000 * FOOT_M) < 1, 'first point altitude');
+  const choices = endChoices(world, sq);
+  assert.ok(choices.some((c) => c.kind === 'land' && c.id === other.id), 'can land at the other aerodrome');
+  assert.equal(sq.endAction.kind, 'orbit');
+  assert.equal(setEndAction(world, sq, { kind: 'land', id: other.id }), true);
+  assert.equal(setPointAltitude(world, sq, 1, 9000), 9000);
+  const events = run(world, 3 * 3600, (e) => e.type === 'landed');
+  assert.ok(events.some((e) => e.type === 'routeEnded' && e.action === 'land'));
+  assert.equal(sq.airfield, other.id, 'landed at the other aerodrome');
+  // A new route: the landing is no longer offered once the end is moved away.
+  const sq2 = world.squadrons.find((s) => s.id !== sq.id && s.state === 'ready');
+  const f2 = world.byId.airfield.get(sq2.airfield);
+  scramble(world, sq2, { route: [[f2.x + 20, f2.y + 5]] });
+  run(world, 200);
+  setRoute(world, sq2, [[f2.x + 30, f2.y + 10, null], [f2.x + 40, f2.y + 20, null]]);
+  assert.equal(removeRoutePoint(world, sq2, 0), true);
+  assert.equal(sq2.route.length, 1);
+  removeRoutePoint(world, sq2, 0);
+  assert.equal(sq2.orbit, true, 'no point left: the end action is done');
 });
 
 test('a leg that misses its square says by how much', () => {

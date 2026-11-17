@@ -7,7 +7,7 @@ import { distance, project } from './geo.js';
 import { emit } from './events.js';
 import { airfieldDelayFactor, capacityFactor, isOperational } from './sites.js';
 
-export const RESOURCES = ['fuel', 'materiel'];
+export const RESOURCES = ['fuel', 'materiel', 'ammo'];
 
 function nodeOf(world, id) {
   return world.rail.nodes.get(id);
@@ -26,8 +26,8 @@ export function createLogistics(world, def) {
   world.ferries = [];
   world.nextTrainId = 1;
   for (const site of world.sites.values()) {
-    site.stocks = { fuel: 0, materiel: 0, aircraft: 0, ...(site.stocks || {}) };
-    site.minStock = { fuel: null, materiel: null };
+    site.stocks = { fuel: 0, materiel: 0, ammo: 0, aircraft: 0, ...(site.stocks || {}) };
+    site.minStock = { fuel: null, materiel: null, ammo: null };
     site.progress = 0;
     site.starved = false;
     site.dryHours = 0;
@@ -114,8 +114,22 @@ export function trainHours(world, fromKey, toKey) {
 /** Tonnes of a resource on their way to an installation. */
 export function inbound(world, key, resource) {
   let n = 0;
-  for (const tr of world.trains) if (tr.to === key && tr.resource === resource) n += tr.amount;
+  for (const tr of world.trains) if (tr.to === key) n += tr.cargo[resource] || 0;
   return n;
+}
+
+/** Wagons a load needs: tank wagons for fuel, covered wagons for the rest. */
+export function wagonsFor(world, loads) {
+  const W = world.rules.logistics.wagonTonnes;
+  let n = 0;
+  for (const [res, tonnes] of Object.entries(loads)) if (tonnes > 0) n += Math.ceil(tonnes / W[res] - 1e-9);
+  return n;
+}
+
+/** A full train of one resource, in tonnes. */
+export function fullTrain(world, resource) {
+  const R = world.rules.logistics;
+  return R.trainWagons * R.wagonTonnes[resource];
 }
 
 /** Can this installation send trains? Ports, factories and aerodromes in service can. */
@@ -124,10 +138,11 @@ function canLoad(world, site) {
 }
 
 /**
- * Loads a train at `fromKey` for `toKey`. Returns { ok, reason, train }.
- * `amount` defaults to a full train (or what is left in stock).
+ * Loads a train at `fromKey` for `toKey` with `loads` ({ fuel: t, materiel: t, ... }): at
+ * most 20 wagons, at least a few tonnes; less is loaded when the stock is short.
+ * Returns { ok, reason, train }. A small train still takes a path on every line.
  */
-export function dispatchTrain(world, fromKey, toKey, resource, amount = null, auto = false) {
+export function dispatchTrain(world, fromKey, toKey, loads, auto = false) {
   const R = world.rules.logistics;
   const from = world.sites.get(fromKey);
   const to = world.sites.get(toKey);
@@ -135,16 +150,28 @@ export function dispatchTrain(world, fromKey, toKey, resource, amount = null, au
   if (!canLoad(world, from)) return { ok: false, reason: 'out' };
   const path = railPath(world, fromKey, toKey);
   if (!path) return { ok: false, reason: 'noLine' };
-  const stock = from.stocks[resource] || 0;
-  const wanted = amount ?? R.trainTonnes[resource];
-  const load = Math.min(stock, wanted, R.trainTonnes[resource]);
-  if (load < 1) return { ok: false, reason: 'empty' };
-  from.stocks[resource] = stock - load;
+  const cargo = {};
+  let total = 0;
+  for (const res of RESOURCES) {
+    const want = Math.max(0, Number(loads[res]) || 0);
+    if (!want) continue;
+    const load = Math.min(from.stocks[res] || 0, want);
+    if (load <= 0) continue;
+    cargo[res] = load;
+    total += load;
+  }
+  if (total < 1) return { ok: false, reason: 'empty' };
+  if (!auto && total < R.trainMinTonnes) return { ok: false, reason: 'tooLittle' };
+  if (wagonsFor(world, cargo) > R.trainWagons) return { ok: false, reason: 'tooMuch' };
+  for (const [res, load] of Object.entries(cargo)) from.stocks[res] -= load;
+  const kinds = Object.keys(cargo);
   const train = {
     kind: 'train',
     id: `T${world.nextTrainId++}`,
-    resource,
-    amount: load,
+    cargo,
+    resource: kinds.length === 1 ? kinds[0] : 'mixed',
+    amount: total,
+    wagons: wagonsFor(world, cargo),
     from: fromKey,
     to: toKey,
     path: path.nodes,
@@ -163,7 +190,8 @@ export function dispatchTrain(world, fromKey, toKey, resource, amount = null, au
   world.trains.push(train);
   const etaS = world.t + train.timer + (path.km / R.trainKmh + R.unloadHours) * 3600;
   emit(world, 'trainDispatched', {
-    train: train.id, from: from.name, to: to.name, resource, amount: Math.round(load), etaMs: world.startMs + etaS * 1000, auto,
+    train: train.id, from: from.name, to: to.name, cargo: { ...cargo }, resource: train.resource, amount: Math.round(total),
+    etaMs: world.startMs + etaS * 1000, auto,
   });
   return { ok: true, train };
 }
@@ -180,9 +208,11 @@ function updateTrain(world, tr, dt) {
       return false;
     }
     const to = world.sites.get(tr.to);
-    to.stocks[tr.resource] = (to.stocks[tr.resource] || 0) + tr.amount;
-    world.stats.delivered[tr.resource] += tr.amount;
-    emit(world, 'trainArrived', { train: tr.id, to: to.name, toKey: to.key, resource: tr.resource, amount: Math.round(tr.amount) });
+    for (const [res, n] of Object.entries(tr.cargo)) {
+      to.stocks[res] = (to.stocks[res] || 0) + n;
+      world.stats.delivered[res] = (world.stats.delivered[res] || 0) + n;
+    }
+    emit(world, 'trainArrived', { train: tr.id, to: to.name, toKey: to.key, cargo: { ...tr.cargo }, resource: tr.resource, amount: Math.round(tr.amount) });
     return true;
   }
   if (tr.state === 'waiting') {
@@ -223,18 +253,28 @@ export function sortieFuel(world, s) {
   return s.aircraft * world.rules.logistics.fuelPerAircraftSortie;
 }
 
+/** Takes ammunition from an aerodrome's stock: returns the tonnes actually drawn. */
+export function drawAmmo(world, field, tonnes) {
+  if (!world.rail.enabled) return tonnes;
+  const got = Math.min(field.stocks.ammo || 0, tonnes);
+  field.stocks.ammo = (field.stocks.ammo || 0) - got;
+  world.stats.ammoUsed += got;
+  return got;
+}
+
 /** Takes fuel from an aerodrome's stock; false when there is not enough. */
-export function drawFuel(world, field, tonnes) {
-  if (!world.rail.enabled) return true;
+export function drawFuel(world, field, tonnes, role = 'fighter') {
+  if (!world.rail.enabled || role !== 'fighter') return true;
   if (field.stocks.fuel + 1e-9 < tonnes) return false;
   field.stocks.fuel -= tonnes;
   world.stats.fuelUsed += tonnes;
   return true;
 }
 
+/** Aerodromes where fighter squadrons are based (patrols have their own supply). */
 function homeFields(world) {
   const fields = new Set();
-  for (const s of world.squadrons) if (s.state !== 'lost' || s.aircraft > 0) fields.add(s.home);
+  for (const s of world.squadrons) if (s.role === 'fighter' && (s.state !== 'lost' || s.aircraft > 0)) fields.add(s.home);
   return fields;
 }
 
@@ -249,6 +289,8 @@ function consumeDaily(world, dt) {
 }
 
 function produce(world, dt) {
+  // The ammunition depots receive what the ordnance factories make for Fighter Command.
+  for (const d of world.depots || []) d.stocks.ammo += (d.perDay * capacityFactor(world, d) * dt) / 86400;
   for (const f of world.factories) {
     const factor = capacityFactor(world, f);
     if (f.stocks.materiel < f.materielPerAircraft) {
@@ -277,6 +319,7 @@ function deliver(world) {
   const R = world.rules.logistics;
   // Squadrons with the most missing aircraft first.
   const needy = world.squadrons
+    .filter((s) => s.role === 'fighter')
     .map((s) => ({ s, missing: s.aircraftStart - s.aircraft - inTransitTo(world, s) }))
     .filter((x) => x.missing > 0)
     .sort((a, b) => b.missing - a.missing);
@@ -308,7 +351,7 @@ function deliver(world) {
       s.y = home.y;
       s.px = home.x;
       s.py = home.y;
-      s.fuel = world.rules.fighters[s.type].enduranceMin;
+      s.fuel = (world.rules.fighters[s.type] || world.rules.patrols[s.type]).enduranceMin;
       s.ammo = 1;
     }
     world.stats.aircraftDelivered += f.count;
@@ -351,19 +394,20 @@ function standingOrders(world) {
       let min = site.minStock[res];
       if (min === null && auto) {
         if (res === 'fuel' && site.kind === 'airfield' && homes.has(site.id)) min = R.autoMinimum.airfield;
+        if (res === 'ammo' && site.kind === 'airfield' && homes.has(site.id) && world.depots.length) min = R.autoMinimum.airfieldAmmo;
         if (res === 'materiel' && site.kind === 'factory') min = R.autoMinimum.factory;
       }
       if (min === null || min <= 0) continue;
       if (site.stocks[res] + inbound(world, site.key, res) >= min) continue;
-      // The port that can deliver soonest, with enough in stock.
+      // The port (or depot) that can deliver soonest, with enough in stock.
       let best = null;
-      for (const p of world.ports) {
-        if (p.foreign || p.stocks[res] < 10 || !isOperational(world, p)) continue;
+      for (const p of [...world.ports, ...(world.depots || [])]) {
+        if (p.foreign || p.key === site.key || p.stocks[res] < 10 || !isOperational(world, p)) continue;
         const h = trainHours(world, p.key, site.key);
         if (h === null) continue;
         if (!best || h < best.h) best = { p, h };
       }
-      if (best) dispatchTrain(world, best.p.key, site.key, res, null, true);
+      if (best) dispatchTrain(world, best.p.key, site.key, { [res]: fullTrain(world, res) }, true);
     }
   }
 }
@@ -421,7 +465,7 @@ export function bombStocks(world, site, damageAdded) {
 
 /** Days of fuel left at an aerodrome at the usual rate (two sorties a day per squadron). */
 export function fuelDays(world, field) {
-  const based = world.squadrons.filter((s) => s.home === field.id && s.state !== 'lost');
+  const based = world.squadrons.filter((s) => s.home === field.id && s.state !== 'lost' && s.role === 'fighter');
   if (!based.length) return null;
   const perDay = world.rules.logistics.baseDailyFuel + based.reduce((n, s) => n + sortieFuel(world, s) * 2, 0);
   return field.stocks.fuel / perDay;

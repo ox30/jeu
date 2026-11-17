@@ -124,11 +124,14 @@ export function ship(ctx, x, y, heading, size = 9, color = COLORS.convoy) {
   ctx.restore();
 }
 
-/** Plot arrow pointing along `heading` (or a dot when the heading is unknown). */
-export function plotArrow(ctx, x, y, heading, color, size = 7) {
-  ctx.fillStyle = color;
-  ctx.strokeStyle = 'rgba(20, 16, 10, 0.6)';
-  ctx.lineWidth = 0.8;
+/**
+ * Plot arrow pointing along `heading` (or a dot when the heading is unknown). A hollow
+ * arrow is a plot of the Observer Corps.
+ */
+export function plotArrow(ctx, x, y, heading, color, size = 7, hollow = false) {
+  ctx.fillStyle = hollow ? 'rgba(247, 240, 220, 0.92)' : color;
+  ctx.strokeStyle = hollow ? color : 'rgba(20, 16, 10, 0.6)';
+  ctx.lineWidth = hollow ? 1.8 : 0.8;
   if (heading === null || heading === undefined) {
     ctx.beginPath();
     ctx.arc(x, y, size * 0.45, 0, Math.PI * 2);
@@ -286,4 +289,67 @@ export function train(ctx, x, y, angle, color) {
 /** Warship: a narrow hull, in the colour of the Royal Navy. */
 export function warship(ctx, x, y, heading, size = 7) {
   ship(ctx, x, y, heading, size, '#4f6070');
+}
+
+/** Ammunition depot: a small bunker with a shell mark. */
+export function depot(ctx, x, y, color = COLORS.ink) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(247, 240, 220, 0.95)';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(x - 7, y + 4);
+  ctx.lineTo(x - 7, y - 1);
+  ctx.quadraticCurveTo(x, y - 8, x + 7, y - 1);
+  ctx.lineTo(x + 7, y + 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x - 1.5, y + 3);
+  ctx.lineTo(x - 1.5, y - 1);
+  ctx.quadraticCurveTo(x, y - 4, x + 1.5, y - 1);
+  ctx.lineTo(x + 1.5, y + 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Patrol aircraft: the roundel inside a diamond (spotters and Coastal Command). */
+export function patrolMark(ctx, x, y, r, coastal = false) {
+  ctx.save();
+  ctx.fillStyle = coastal ? 'rgba(236, 228, 205, 0.95)' : 'rgba(247, 240, 220, 0.95)';
+  ctx.strokeStyle = coastal ? '#2f4f6f' : '#2c4a7c';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(x, y - r - 4);
+  ctx.lineTo(x + r + 4, y);
+  ctx.lineTo(x, y + r + 4);
+  ctx.lineTo(x - r - 4, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+  roundel(ctx, x, y, r * 0.75);
+}
+
+/** A U-boat on the table: a small hull and conning tower (hollow when it was under water). */
+export function uboatMark(ctx, x, y, color, submerged = false) {
+  ctx.save();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = submerged ? 'rgba(247, 240, 220, 0.9)' : color;
+  ctx.beginPath();
+  ctx.moveTo(x - 9, y + 1);
+  ctx.quadraticCurveTo(x - 6, y + 4, x, y + 4);
+  ctx.quadraticCurveTo(x + 7, y + 4, x + 10, y + 1);
+  ctx.lineTo(x + 3, y + 1);
+  ctx.lineTo(x + 2, y - 3);
+  ctx.lineTo(x - 2, y - 3);
+  ctx.lineTo(x - 3, y + 1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
 }

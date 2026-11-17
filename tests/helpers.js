@@ -23,13 +23,25 @@ export function getTerrain() {
   return terrain;
 }
 
-export function makeWorld(preset = 'standard', overrides = {}, scenario = 'm0') {
-  const settings = { ...data.presets.presets[preset], ...overrides };
+const scenarios = {};
+
+/** A scenario's data by id ('m0' is the training scenario). */
+export function scenarioData(id) {
+  if (id === 'm0') return data.scenario;
+  if (id === 'kanalkampf') return data.kanalkampf;
+  if (!scenarios[id]) scenarios[id] = read(`data/scenarios/${id}.json`);
+  return scenarios[id];
+}
+
+export function makeWorld(preset = 'standard', overrides = {}, scenario = 'm0', carry = null) {
+  // Tests run without pilot fatigue unless they ask for it, so that take-off times stay put.
+  const settings = { ...data.presets.presets[preset], fatigue: 'off', ...overrides };
   return createWorld({
-    scenario: structuredClone(scenario === 'm0' ? data.scenario : data.kanalkampf),
+    scenario: structuredClone(scenarioData(scenario)),
     rules: data.rules,
     settings,
     terrain: getTerrain(),
+    carry,
   });
 }
 

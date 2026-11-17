@@ -23,8 +23,8 @@
     "décembre"
   ],
   "app": {
-    "title": "Prototype M1",
-    "subtitle": "Kanalkampf, juillet 1940",
+    "title": "Prototype M2",
+    "subtitle": "Acte I, 1940-1941",
     "loading": "Chargement de la table de traçage…",
     "error": "Le jeu n'a pas pu démarrer : {message}"
   },
@@ -35,14 +35,17 @@
     "atlantic": "Atlantique",
     "england": "Angleterre",
     "ruler": "Règle",
-    "radarCover": "Couverture radar",
+    "radarCover": "Couverture radar et observateurs (touche C)",
     "settings": "Réglages",
     "help": "Aide",
     "panel": "Panneau",
     "paused": "EN PAUSE",
     "grid": "Grille",
     "britain": "Grande-Bretagne",
-    "scenario": "Scénario"
+    "scenario": "Scénario",
+    "reports": "Rapports",
+    "radarShort": "Radar",
+    "cards": "Fiches"
   },
   "panel": {
     "objectives": "Objectifs",
@@ -53,7 +56,8 @@
     "units": "Unités",
     "sites": "Installations",
     "hintHeadings": "Cliquez sur une unité ou une installation pour voir sa fiche. Glissez depuis une unité pour mesurer un cap avec la règle.",
-    "logistics": "Logistique"
+    "logistics": "Logistique",
+    "logCount": "· {n}"
   },
   "states": {
     "squadron": {
@@ -85,7 +89,13 @@
       "atSea": "En mer",
       "waiting": "En attente d'ordres",
       "escorting": "Escorte",
-      "refit": "Ravitaillement"
+      "refit": "Ravitaillement",
+      "hunting": "En chasse"
+    },
+    "alert": {
+      "rest": "Au repos",
+      "available": "Disponible",
+      "cockpit": "En cockpit"
     }
   },
   "orders": {
@@ -100,13 +110,13 @@
     "admiralty": "Route de l'Amirauté",
     "sail": "Appareiller",
     "centre": "Centrer la carte",
-    "drawHint": "Glissez depuis l'unité sur la carte pour tracer sa route, ou donnez-lui des étapes ci-dessous.",
+    "drawHint": "Glissez depuis l'unité pour tracer sa route. Sur le tracé : glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger. Maj + glisser : la règle.",
     "headingsHint": "Mesurez le cap avec la règle (glissez depuis l'unité), puis ajoutez l'étape mesurée ou tapez-la ci-dessous.",
     "scrambleHint": "Glissez depuis l'aérodrome vers le raid : l'escadrille prête décolle et suit votre tracé.",
     "scrambleHintHeadings": "Préparez un cap direct ou des étapes, puis faites décoller l'escadrille.",
     "sailHint": "Le convoi attend au port : préparez ses étapes, puis donnez l'ordre d'appareiller.",
     "plan": "Étapes",
-    "noLeg": "Aucune étape : l'unité garde son cap.",
+    "noLeg": "Aucune étape.",
     "noLegReady": "Aucune étape préparée.",
     "newLeg": "Nouvelle étape",
     "legHeading": "Cap",
@@ -128,7 +138,9 @@
       "open": "La dernière étape n'a pas de fin : retirez-la ou donnez-lui une fin d'abord.",
       "land": "Étape refusée : la route coupe la côte.",
       "state": "Cette unité ne peut pas recevoir d'étapes maintenant.",
-      "noRuler": "Mesurez d'abord un cap avec la règle (touche R, ou glissez depuis l'unité)."
+      "noRuler": "Mesurez d'abord un cap avec la règle (touche R, ou glissez depuis l'unité).",
+      "lastPoint": "Le tracé doit garder au moins un point : tracez-en un nouveau depuis l'unité.",
+      "intercept": "Interception impossible : pas de contact sûr avec ce raid, ou l'escadrille ne peut pas recevoir d'ordre."
     },
     "join": "Rejoindre {convoy}",
     "leave": "Quitter le convoi",
@@ -137,7 +149,54 @@
     "cover": "Couvrir {convoy}",
     "coverHint": "L'escadrille tourne au-dessus du convoi et le suit.",
     "escortSail": "Appareiller",
-    "escortSailHint": "Préparez des étapes ou une route, puis appareillez."
+    "escortSailHint": "Préparez des étapes ou une route, puis appareillez.",
+    "point": "Point {n} sur {of}",
+    "pointAlt": "Altitude au point",
+    "pointAltNone": "sans altitude",
+    "pointAltClear": "Sans altitude",
+    "pointDelete": "Supprimer ce point",
+    "pointHintAir": "↑ ↓ règlent l'altitude que l'escadrille vise en allant vers ce point. Glissez le carré pour le déplacer, double-cliquez-le (ou Suppr) pour le retirer.",
+    "pointHintSea": "Glissez le carré pour déplacer le point, double-cliquez-le (ou Suppr) pour le retirer. Le chenal d'entrée au port ne se modifie pas.",
+    "followingRoute": "Suit son tracé ({n} points). Glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger.",
+    "editLeg": "Modifier cette étape",
+    "editingLeg": "Modifier l'étape {n}",
+    "applyLeg": "Enregistrer",
+    "cancelEdit": "Annuler",
+    "legAlt": "Altitude (ft)",
+    "endAction": "En fin de tracé",
+    "end": {
+      "orbit": "Orbiter sur place",
+      "hold": "Garder le cap",
+      "home": "Rentrer à la base"
+    },
+    "endLand": "Se poser à {airfield}",
+    "endCover": "Couvrir {convoy}",
+    "intercept": "Intercepter {raid} · {p} %",
+    "interceptNone": "{raid} : hors couverture",
+    "interceptHint": "Le contrôleur guide l'escadrille et la fait monter au-dessus du raid. Sa chance dépend de la couverture au point de rencontre : cœur d'un faisceau radar, bord de portée, observateurs, patrouille. Vous pouvez aussi glisser depuis l'escadrille jusqu'au raid.",
+    "alert": "Au sol",
+    "alerts": {
+      "rest": "Au repos",
+      "available": "Disponible",
+      "cockpit": "En cockpit"
+    },
+    "alertHint": "Décollage en {n} min. Au repos, l'escadrille récupère vite mais ne peut pas décoller ; en cockpit, elle part en 2 min mais se fatigue.",
+    "convoySpeed": "Vitesse",
+    "speedBest": "{n} nœuds (le maximum)",
+    "speedHint": "Au maximum, des navires lents décrochent et deviennent des traînards. À {n} nœuds ou moins, le convoi reste groupé. Le zigzag gêne les U-Boote mais ralentit d'environ 15 %.",
+    "zigzagOn": "Zigzag : oui",
+    "zigzagOff": "Zigzag : non",
+    "behaviour": "Escorte",
+    "behaviours": {
+      "stay": "Rester avec le convoi",
+      "hunt": "Chasser les contacts"
+    },
+    "behaviourHint": "En chasse, le groupe quitte le convoi pour un contact frais pendant 3 h (le convoi est moins protégé), puis le rejoint. Les escorteurs ne contre-attaquent bien qu'un U-Boot qu'ils ont vu.",
+    "formation": "Big Wing",
+    "followLeader": "Voler avec {name}",
+    "leaveFormation": "Quitter la formation",
+    "formationHint": "En formation, l'escadrille suit son chef et attaque avec lui : l'escorte allemande se partage entre elles.",
+    "followRefused": "Impossible de rejoindre cette escadrille."
   },
   "sheet": {
     "type": "Appareil",
@@ -219,7 +278,8 @@
       "airfield": "Aérodromes",
       "radar": "Stations radar",
       "port": "Ports",
-      "factory": "Usines"
+      "factory": "Usines",
+      "depot": "Dépôts de munitions"
     },
     "covering": "couvre le convoi {convoy}",
     "cargo": "Cargaison",
@@ -235,9 +295,35 @@
     "endurance": "Autonomie",
     "enduranceDays": "{n} j",
     "with": "Avec le convoi",
-    "joining": "Rejoint le convoi {convoy}",
+    "joining": "rejoint {name}",
     "factoryType": "Avions",
-    "trainsAt": "Trains"
+    "trainsAt": "Trains",
+    "guided": "guidée vers {raid} ({p} %)",
+    "depotTitle": "Dépôt de {name}",
+    "depotType": "dépôt de munitions de la RAF",
+    "pilots": "Pilotes",
+    "pilotsOf": "{n} ({flyable} avions en état de voler avec un pilote)",
+    "fatigue": "Fatigue",
+    "fatigueText": "{n} % · {level}",
+    "fatigueLevels": {
+      "fresh": "en forme",
+      "tired": "fatiguée",
+      "exhausted": "épuisée"
+    },
+    "patrol": "vu par une patrouille",
+    "sight": "Vue",
+    "sightText": "{n} km autour de la patrouille",
+    "roleHint": {
+      "watch": "Section de guet : elle ne combat pas. Ce qu'elle voit est plotté avec l'effectif et l'altitude exacts, et le guidage y est sûr. Gare à l'escorte allemande.",
+      "coastal": "Coastal Command : patrouille la mer et couvre les convois. Elle voit les U-Boote en surface et les oblige à plonger. Elle ne combat pas les raids."
+    },
+    "uplotTitle": "Contact sous-marin",
+    "reachSurface": "Peut être, en surface, jusqu'à",
+    "reachSubmerged": "En plongée, jusqu'à",
+    "uplotHint": "Les deux cercles grandissent avec l'âge du plot : en tirets, ce que le U-Boot peut avoir parcouru en surface (17 nœuds) ; en pointillé, sous l'eau (5 nœuds, au plus 70 milles avant de devoir refaire surface).",
+    "stragglerHint": "Un navire tombé derrière son convoi : seul, sans escorte, une proie facile. Il suit la même route, plus lentement. Un groupe d'escorte peut le rejoindre.",
+    "huntingUntil": "chasse un contact jusqu'à {time}",
+    "inFormation": "en formation avec {name}"
   },
   "settings": {
     "title": "Réglages",
@@ -259,7 +345,8 @@
     "interceptAidChoices": {
       "point": "Point d'interception affiché",
       "track": "Trajectoire prolongée",
-      "none": "Aucune (règle et rapporteur)"
+      "none": "Aucune (règle et rapporteur)",
+      "auto": "Guidage automatique"
     },
     "fuel": "Carburant",
     "fuelChoices": {
@@ -285,7 +372,20 @@
       "manual": "Répartition manuelle (trains et seuils)"
     },
     "scenarioTitle": "Choisir un scénario",
-    "scenarioNote": "Changer de scénario recommence la partie."
+    "scenarioNote": "Changer de scénario recommence la partie.",
+    "pagesPause": "Mettre en pause pendant les pages (rapports, fiches, aide, réglages)",
+    "fatigue": "Fatigue des pilotes",
+    "fatigueChoices": {
+      "off": "Non",
+      "on": "Oui",
+      "losses": "Oui, avec pilotes tués"
+    },
+    "carry": "Campagne : pertes reportées d'une bataille à la suivante",
+    "carryChoices": {
+      "none": "Aucune",
+      "light": "La moitié",
+      "full": "Toutes"
+    }
   },
   "objectives": {
     "convoyArrived": "Amener le convoi {convoy} dans un port britannique",
@@ -296,7 +396,12 @@
     "fighterStrength": "Garder au moins {share} % des avions de chasse jusqu'à la fin (aujourd'hui {n} %)",
     "stateAfloat": "à flot : {n} %",
     "stateDelivered": "arrivé : {n} %",
-    "stateLost": "perdu"
+    "stateLost": "perdu",
+    "radarsOperational": "Garder au moins {min} des {total} stations radar en service jusqu'à la fin (aujourd'hui {n})",
+    "enemyDown": "Abattre au moins {count} avions ennemis (aujourd'hui {n})",
+    "siteDamageBelow": "Garder {site} sous {max} % de dégâts (aujourd'hui {n} %)",
+    "tonnageDelivered": "Décharger dans les ports au moins {fuel} t de carburant et {materiel} t de matériel (aujourd'hui {nf} t et {nm} t)",
+    "shipLossesBelow": "Perdre moins de {share} % des navires marchands partis (aujourd'hui {n} %, {sunk} sur {sailed})"
   },
   "log": {
     "scenarioStart": "Prise de service. Le convoi {convoy} attend vos ordres à {port} : tracez sa route sur la carte de l'Atlantique, ou donnez-lui des étapes.",
@@ -320,6 +425,7 @@
     "noReadySquadron": "Aucune escadrille prête à {airfield}.",
     "airborne": "{squadron} en l'air.",
     "raidDetected": "Alerte : raid {raid}, {count} appareils vers {alt}, {where}.",
+    "observersTracking": "Raid {raid} : le radar ne le voit plus, l'Observer Corps prend le relais {where}.",
     "tallyHo": "{squadron} : « Tally-ho ! » Engage le raid {raid} ({count} appareils).",
     "tallyHoAbove": "{squadron} : « Tally-ho ! » Engage le raid {raid} ({count} appareils) avec l'avantage de la hauteur.",
     "combatRound": "{squadron} contre {raid} : {bombers} bombardier(s) et {fighters} chasseur(s) abattus, {losses} perte(s).",
@@ -368,9 +474,9 @@
     "allObjectivesDone": "Tous les objectifs sont atteints. Vous pouvez continuer à jouer jusqu'à la fin de la période.",
     "scenarioEnd": "Fin de service : {date}.",
     "scenarioStartK": "Prise de service, 10 juillet 1940. Les convois HX 55 et HX 57 sont en mer, le convoi côtier CW 7 attend dans l'estuaire de la Tamise. Surveillez les stocks de carburant des bases.",
-    "trainDispatched": "Train de {resource} : {amount} t de {from} vers {to}, arrivée vers {eta}.",
-    "trainDispatchedAuto": "Ordre permanent : train de {resource}, {amount} t de {from} vers {to}, arrivée vers {eta}.",
-    "trainArrived": "Train arrivé à {to} : {amount} t de {resource}.",
+    "trainDispatched": "Train {train} : {what} de {from} vers {to}, arrivée vers {eta}.",
+    "trainDispatchedAuto": "Ordre permanent : train {train}, {what} de {from} vers {to}, arrivée vers {eta}.",
+    "trainArrived": "Train {train} arrivé à {to} : {what}.",
     "lowFuel": "{airfield} : moins d'un jour de carburant ({fuel} t).",
     "noFuel": "{squadron} ne peut pas refaire le plein à {airfield} : plus de carburant.",
     "ferrySent": "{count} avion(s) neufs partent de {factory} pour {squadron}.",
@@ -408,7 +514,55 @@
     "convoySailedEscort": "Le {convoy} appareille.",
     "convoyRoutedEscort": "{convoy} : route acceptée vers {destination}.",
     "convoyRoutedOpenEscort": "{convoy} : route acceptée.",
-    "escortOrdered": "Le {escort} part au-devant du convoi {convoy}."
+    "escortOrdered": "Le {escort} part au-devant du convoi {convoy}.",
+    "routeEnded": "{squadron} : fin du tracé, {action}.",
+    "routeEndedActions": {
+      "orbit": "orbite sur place",
+      "hold": "garde son cap",
+      "home": "rentre",
+      "land": "va se poser",
+      "cover": "couvre le convoi"
+    },
+    "legChanged": "{unit} : étape {index} modifiée, cap {heading}.",
+    "interceptOrdered": "{squadron} : le contrôleur la guide vers le raid {raid} ({p} % de chances).",
+    "interceptRefused": "{squadron} : pas de contact assez sûr pour guider l'escadrille.",
+    "interceptEnded": "{squadron} : guidage interrompu.",
+    "interceptEndedReasons": {
+      "lost": "{squadron} : contact perdu avec le raid {raid}, l'escadrille orbite.",
+      "failed": "{squadron} : le guidage vers {raid} a échoué, l'escadrille orbite."
+    },
+    "missedGuided": " Le guidage n'avait que {p} % de chances ici.",
+    "raidReport": "Rapport du raid {raid} : {outcome}, {down} abattu(s) pour {lost} perte(s). Cliquez pour le lire.",
+    "scrambleRefusedResting": "{squadron} est au repos : passez-la « Disponible » pour la faire décoller.",
+    "scrambleRefusedNoPilots": "{squadron} n'a plus de pilote en état de voler.",
+    "noAmmo": "{squadron} à {airfield} : munitions insuffisantes, réarmée à {n} %.",
+    "squadronTired": "{squadron} est fatiguée ({n} %) : elle se bat moins bien. Mettez-la au repos dès que possible.",
+    "squadronExhausted": "{squadron} est épuisée ({n} %) : pertes plus lourdes, efficacité réduite.",
+    "pilotsArrived": "{count} pilote(s) de remplacement rejoignent {squadron}.",
+    "pilotsKilled": " {n} pilote(s) tué(s).",
+    "patrolBounced": "{squadron} surprise par l'escorte du raid {raid} : un appareil abattu ({left} restant(s)).",
+    "uboatSighted": "{by} : U-Boot repéré ({source}), il plonge.",
+    "uboatPlot": "",
+    "escortHunting": "{escort} quitte {convoy} pour chasser un U-Boot.",
+    "escortHuntOver": "{escort} abandonne la chasse et rejoint {convoy}.",
+    "escortHuntOverSank": "{escort} a coulé un U-Boot et rejoint {convoy}.",
+    "straggler": "Un {kind} de {convoy} a décroché : il navigue seul derrière le convoi.",
+    "uboatSunkBy": "{by} coule un U-Boot !",
+    "stragglerTanker": "pétrolier",
+    "stragglerFreighter": "cargo",
+    "gameResumed": "Partie reprise là où vous l'aviez laissée.",
+    "mruOrdered": "{name} : installation en cours, prête vers {time}.",
+    "mruReady": "{name} est en service : portée réduite, mais elle bouche le trou.",
+    "scenarioEndShipping": "Défaite : trop de navires marchands perdus.",
+    "convoyDeparted": "{convoy} appareille : {ships} navires, {fuel} t de carburant, {materiel} t de matériel, payés {cost} millions de dollars.",
+    "convoyDepartedLendLease": "{convoy} appareille : {ships} navires, {fuel} t de carburant, {materiel} t de matériel, au titre du prêt-bail.",
+    "convoyDepartedBallast": "{convoy} appareille sur lest : il n'y a plus de dollars pour acheter sa cargaison.",
+    "formationOrdered": "{squadron} rejoint {leader} pour voler en formation.",
+    "formationJoined": "{squadron} est en formation avec {leader}.",
+    "formationBroken": "{squadron} vole seule : la formation est rompue.",
+    "offerBought": "Commande passée en Amérique : {offer}, pour {cost} millions de dollars. Livraison vers le {date}.",
+    "carryApplied": "Campagne : la chasse commence à {share} % de ses avions, après les pertes de la bataille précédente. Les usines et les convoyeurs combleront les vides.",
+    "scenarioStartAtSea": "Prise de service. Le convoi {convoy} est en mer : tracez sa route sur la carte de l'Atlantique, ou donnez-lui des étapes."
   },
   "reasons": {
     "fuel": "carburant",
@@ -461,7 +615,28 @@
     "now": "maintenant",
     "gateShort": "Pilote",
     "df": "U-Boot ? {time}",
-    "rail": "chemin de fer"
+    "observersTag": "obs.",
+    "rail": "chemin de fer",
+    "end": {
+      "orbit": "⟳ orbite",
+      "hold": "→ garde le cap",
+      "home": "⌂ rentre"
+    },
+    "endLand": "⌂ se pose à {airfield}",
+    "endCover": "⛨ couvre {convoy}",
+    "guided": "guidage : {p} % de chances",
+    "patrolTag": "vu",
+    "zigzag": "zigzag",
+    "uplot": "U ? {time} · {source}",
+    "uSource": {
+      "seen": "vu en surface",
+      "periscope": "périscope",
+      "asdic": "ASDIC",
+      "radar": "radar",
+      "aircraft": "vu d'avion",
+      "asv": "radar ASV",
+      "df": "radiogoniométrie"
+    }
   },
   "help": {
     "title": "Comment jouer",
@@ -470,10 +645,11 @@
       "Convois : les HX 55 et HX 57 sont en mer. Tracez leur route (ou donnez-leur des étapes en Réaliste) jusqu'au chenal du nord de l'Irlande ou au canal Saint-Georges, où un pilote les conduit à Liverpool ou à la Clyde. Les cercles hachurés sont des U-Boote probables, repérés par radiogoniométrie : contournez-les, ou envoyez un groupe d'escorte au-devant du convoi.",
       "Le convoi côtier CW 7 attend dans la Tamise avec du matériel pour Southampton. Faites-le appareiller quand vous pourrez le couvrir : de jour, la Luftwaffe l'attaque dans la Manche. Une escadrille peut « Couvrir » le convoi.",
       "Logistique : les convois déchargent carburant et matériel dans les ports. Envoyez des trains vers les bases (carburant) et les usines (matériel), ou fixez un stock minimum dans la fiche d'une base : les trains partent seuls. Sans carburant, une escadrille ne refait pas le plein. Les usines remplacent les avions perdus.",
-      "Défense : à l'alerte, faites décoller une escadrille vers le raid, réglez son altitude (↑ ↓) pour arriver au-dessus. Le trait pointillé d'un raid manqué donne l'écart, chaque combat finit par un rapport.",
+      "Défense : à l'alerte, faites décoller une escadrille vers le raid, réglez son altitude (↑ ↓) pour arriver au-dessus. En Arcade, « Intercepter » (ou glisser jusqu'au raid) laisse le contrôleur la guider : sa chance dépend de la couverture radar. Le trait pointillé d'un raid manqué donne l'écart ; chaque raid finit par un rapport, rangé dans « Rapports ».",
+      "Tracés : cliquez une unité pour voir les carrés de sa route. Glissez un carré pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. En fin de tracé, l'escadrille orbite, sauf si vous choisissez autre chose dans sa fiche (se poser si le tracé finit dans la bulle d'un aérodrome).",
       "Victoire si les convois livrent l'essentiel de leur cargaison, si 4 bases sur 5 sont en service et si la chasse garde 60 % de ses avions le 24 juillet. Défaite immédiate si toutes les bases restent sans carburant 24 heures."
     ],
-    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R : règle · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler · ↑ ↓ : altitude · S : décoller · B : pleine vitesse · O : orbiter · P : rentrer",
+    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler · ↑ ↓ : altitude (de l'escadrille, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : pleine vitesse · O : orbiter · P : rentrer",
     "close": "Compris",
     "stepsTraining": [
       "Carte de l'Atlantique : glissez depuis le convoi HX (à Halifax) pour tracer sa route jusqu'à Liverpool ou la Clyde, ou cliquez sur « Route de l'Amirauté ». En réglage Réaliste, on navigue au cap : mesurez avec la règle, ajoutez des étapes, puis appareillez. Près de l'entrée d'un chenal, un pilote prend le relais.",
@@ -482,7 +658,30 @@
       "Réglez l'altitude (↑ ↓, par 1 000 ft) pour arriver au-dessus du raid. Les tiges montrent l'altitude de chaque formation, et l'écart s'affiche sur la plaque du raid quand une escadrille est choisie. La vue de profil de sa fiche montre si la montée sera finie à temps.",
       "Un raid manqué est signalé par un trait pointillé : il donne l'écart en distance et en altitude. Chaque combat se termine par un rapport dans le journal.",
       "Les installations bombardées (aérodromes, radars, ports) apparaissent dans l'onglet Installations : un radar hors service ouvre un trou dans la couverture, un aérodrome endommagé fait décoller plus lentement."
-    ]
+    ],
+    "common": [
+      "Tracés : cliquez une unité pour voir les carrés de sa route ; glissez-les, ajoutez-en avec « + », prolongez par l'anneau du bout, double-cliquez pour retirer. Maj + glisser mesure (règle). Les fiches techniques (menu du haut) donnent vitesses, plafonds et autonomies.",
+      "Chaque raid se termine par un rapport, rangé dans « Rapports ». La partie est gardée dans le navigateur ; le menu « Scénario » permet de l'exporter dans un fichier."
+    ],
+    "scenario": {
+      "adlertag": [
+        "Adlertag, 12-18 août 1940. La Luftwaffe vise d'abord les radars de la côte (Dover, Rye, Pevensey, Ventnor), puis les aérodromes. Un radar détruit ouvre un trou dans la couverture : placez la station mobile (onglet Installations, « Déployer ») quand elle arrive.",
+        "Les raids sans bombardiers, très haut et rapides, sont des chasses libres de Bf 109 : elles cherchent à user vos escadrilles. Gardez vos forces pour les bombardiers. L'état d'alerte (repos, disponible, au cockpit) règle la vitesse de décollage et la fatigue.",
+        "Les bases de secteur (Biggin Hill, Kenley, Hornchurch, North Weald, Tangmere, Middle Wallop, Northolt) doivent rester en service. Sans munitions ni carburant, une base ne réarme plus : surveillez les stocks et les trains depuis Chilmark et les ports.",
+        "Victoire si 5 bases de secteur sur 7 et 7 radars sur 9 sont en service le 18 août au soir, si 90 avions ennemis sont abattus, si la chasse garde la moitié de ses avions et si le HX 62 livre 60 % de sa cargaison."
+      ],
+      "quinze-septembre": [
+        "15 septembre 1940, une seule journée. Deux grandes vagues visent les docks de Londres, vers 11 h et vers 14 h, précédées de chasses libres.",
+        "Contre une escorte de cent chasseurs, engagez beaucoup d'escadrilles sur le même raid : la pression de l'escorte se partage entre elles. Les cinq escadrilles de Duxford peuvent voler en « Big Wing » : faites décoller un chef, puis, dans la fiche des autres, « Voler avec » ce chef.",
+        "Victoire si 40 avions ennemis sont abattus, si les docks restent sous 50 % de dégâts et si la chasse garde 70 % de ses avions."
+      ],
+      "hiver-atlantique": [
+        "Hiver 1941, du 10 janvier au 31 mars. Les convois HX (Halifax, tous les cinq jours) et SC (Sydney, tous les huit jours, plus lents) partent seuls sur la route de l'Amirauté. Changez-la pour contourner les U-Boote repérés.",
+        "Envoyez un groupe d'escorte au-devant de chaque convoi qui approche : vos groupes ont sept ou huit jours d'autonomie et rentrent se ravitailler. « Chasser » laisse l'escorte poursuivre un contact frais ; « Rester » la garde serrée autour du convoi. Les nuits d'hiver sont longues : c'est alors que les meutes attaquent.",
+        "Le Coastal Command patrouille de jour au-dessus des convois et oblige les U-Boote à plonger ; le radar ASV des Hudson et des Sunderland voit aussi un sous-marin en surface. Les deux cercles d'un repère U-Boot montrent où il peut être, en surface et en plongée.",
+        "Onglet Logistique : la réserve de dollars paie la cargaison des convois. Réglez la part achetée, ou commandez des Hudson ou des Catalina en Amérique. Après le prêt-bail, tout est gratuit. Victoire si 6 800 t de carburant et 4 400 t de matériel sont déchargées et si moins de 8 % des navires sont perdus ; défaite si les pertes dépassent 20 %."
+      ]
+    }
   },
   "end": {
     "title": "Fin de service",
@@ -507,7 +706,11 @@
     "uboatsSunk": "U-Boote coulés : {n}",
     "unloaded": "Déchargé dans les ports : {fuel} t de carburant, {materiel} t de matériel",
     "aircraftBuilt": "Avions construits : {n}, livrés aux escadrilles : {m}",
-    "fuelUsed": "Carburant consommé : {n} t"
+    "fuelUsed": "Carburant consommé : {n} t",
+    "pilotsKilled": "Pilotes tués : {n}",
+    "ammoUsed": "Munitions consommées : {n} t",
+    "defeatShipping": "Défaite : les pertes de navires marchands sont trop lourdes, l'Amirauté suspend les départs.",
+    "dollars": "Dollars dépensés : {n} millions, sur {m}"
   },
   "success": {
     "title": "Objectifs atteints",
@@ -539,14 +742,20 @@
     "days": "{n} j",
     "ready": "{n} avions prêts",
     "perDay": "{n}/jour",
-    "escortingShort": "avec {convoy}"
+    "escortingShort": "avec {convoy}",
+    "depots": "Dépôts de munitions",
+    "patrols": "Patrouilles",
+    "uboats": "Contacts sous-marins",
+    "uplot": "U-Boot",
+    "agoH": "il y a {n} h"
   },
   "sites": {
     "kinds": {
       "airfield": "Aérodrome",
       "radar": "Station radar",
       "port": "Port",
-      "factory": "Usine"
+      "factory": "Usine",
+      "depot": "Dépôt de munitions"
     },
     "status": {
       "intact": "En service",
@@ -577,7 +786,8 @@
       "airfield": "l'aérodrome {of}",
       "radar": "la station radar {of}",
       "port": "le port {of}",
-      "factory": "l'usine {of}"
+      "factory": "l'usine {of}",
+      "depot": "le dépôt de munitions {of}"
     }
   },
   "units": {
@@ -589,7 +799,8 @@
     "dhmin": "{d} j {h} h",
     "ft": "{n} ft",
     "ftRel": "{sign}{n} ft",
-    "km": "{n} km"
+    "km": "{n} km",
+    "straggler": "{name} · traînard {n}"
   },
   "legs": {
     "duration": "Cap {heading} pendant {d}",
@@ -600,7 +811,8 @@
     "speed": " à {n} nœuds",
     "current": "en cours",
     "left": "reste {d}",
-    "eta": "fin vers {time}"
+    "eta": "fin vers {time}",
+    "alt": " à {alt}"
   },
   "profile": {
     "title": "Vue de profil",
@@ -635,7 +847,9 @@
     "materiel": "matériel",
     "aircraft": "avions",
     "fuelShort": "C",
-    "materielShort": "M"
+    "materielShort": "M",
+    "ammo": "munitions",
+    "ammoShort": "Mu"
   },
   "logistics": {
     "stocks": "Stocks",
@@ -652,7 +866,7 @@
     "resource": "Chargement",
     "to": "Vers",
     "send": "Envoyer",
-    "trainHint": "Un train emporte au plus {fuel} t de carburant ou {materiel} t de matériel. Chaque ligne ne prend qu'un nombre limité de trains par jour.",
+    "trainHint": "Un train compte au plus {wagons} wagons : citernes de {fuel} t pour le carburant, wagons couverts de {materiel} t pour le reste. Au moins {min} t par train. Un petit train prend quand même un des trains de la ligne.",
     "eta": "arrivée vers {time}",
     "production": "Production",
     "productionRate": "{n} {type} par jour",
@@ -660,10 +874,10 @@
     "perAircraft": "{n} t de matériel par avion",
     "unloading": "Déchargement en cours : {convoy}, reste {n} t",
     "inbound": "Trains attendus",
-    "inboundLine": "{amount} t de {resource}, {when}",
+    "inboundLine": "{what}, {when}",
     "none": "aucun",
     "trainTitle": "Train {id}",
-    "trainLine": "{amount} t de {resource} · {from} → {to}",
+    "trainLine": "{what} · {from} → {to}",
     "trainState": {
       "loading": "chargement",
       "waiting": "attend un sillon",
@@ -674,18 +888,321 @@
       "place": "Destination invalide.",
       "out": "Installation hors service : aucun train ne peut partir.",
       "noLine": "Aucune ligne de chemin de fer ne relie ces deux points.",
-      "empty": "Stock vide."
-    }
+      "empty": "Stock vide.",
+      "tooMuch": "Trop lourd : un train compte au plus 20 wagons (citernes de 5 t, wagons couverts de 6 t).",
+      "tooLittle": "Un train emporte au moins 10 t."
+    },
+    "cargoPart": "{n} t de {resource}",
+    "and": "et",
+    "wagons": "Wagons",
+    "wagonsOf": "{n} sur {max}",
+    "ammo": "Munitions",
+    "ammoRate": "{n} t par jour (fabriques de munitions)"
   },
   "scenarios": {
     "kanalkampf": {
       "title": "Kanalkampf, juillet 1940",
-      "text": "Prototype M1. Deux convois HX traversent l'Atlantique, un convoi côtier attend dans l'estuaire de la Tamise. Répartissez le carburant et le matériel par le rail, protégez ports, radars, aérodromes et usines, et gardez la chasse en l'air pendant quinze jours."
+      "text": "10-24 juillet 1940. Deux convois HX traversent l'Atlantique, un convoi côtier attend dans l'estuaire de la Tamise. Répartissez le carburant et le matériel par le rail, protégez ports, radars, aérodromes et usines, et gardez la chasse en l'air pendant quinze jours."
     },
     "m0-july-1940": {
       "title": "Entraînement, juillet 1940",
-      "text": "Le scénario du prototype M0, sans logistique : un convoi à faire traverser, quelques raids à intercepter."
+      "text": "Un scénario simple, sans logistique : un convoi à faire traverser, quelques raids à intercepter. Le tutoriel guidé y explique les gestes de base."
     },
-    "play": "Jouer"
+    "play": "Jouer",
+    "adlertag": {
+      "title": "Adlertag, août 1940",
+      "text": "12-18 août 1940. Göring lance « l'attaque de l'aigle » : la Luftwaffe veut détruire la chasse britannique, au sol et en l'air, avant l'invasion. Elle frappe d'abord les radars de la côte, puis les aérodromes, par vagues venues de Calais, d'Amiens et de Cherbourg. Les chasses libres de Bf 109, très haut, cherchent à attirer vos escadrilles : ne les gaspillez pas. Une station radar mobile arrive en renfort. Tenez les bases de secteur, gardez les radars en service et la chasse en état de se battre."
+    },
+    "quinze-septembre": {
+      "title": "15 septembre 1940",
+      "text": "Dimanche 15 septembre 1940. Depuis le 7, la Luftwaffe bombarde Londres. Aujourd'hui, elle lance deux grands raids de jour sur les docks, précédés de chasses libres. Le 11 Group tient le sud-est ; de Duxford, le 12 Group peut envoyer une « Big Wing » de cinq escadrilles : faites-les voler en formation derrière un chef. Protégez les docks et abattez assez d'avions pour montrer que la RAF n'est pas vaincue, sans épuiser la chasse."
+    },
+    "hiver-atlantique": {
+      "title": "Hiver dans l'Atlantique, 1941",
+      "text": "10 janvier - 31 mars 1941. Les convois HX partent d'Halifax tous les cinq jours, les SC, plus lents, de Sydney tous les huit jours. Les meutes de U-Boote les guettent au sud de l'Islande, la nuit, en surface. Quatre groupes d'escorte et le Coastal Command doivent les ramener. La Grande-Bretagne paie comptant ce qu'elle achète en Amérique : réglez la part de la cargaison que vous achetez, ou commandez des avions de patrouille. À Washington, le Congrès débat du prêt-bail."
+    },
+    "locked": "Se débloque en gagnant le scénario précédent de la campagne."
+  },
+  "reports": {
+    "open": "Ouvrir le rapport",
+    "title": "Rapports de combat",
+    "none": "Aucun raid pour l'instant.",
+    "close": "Fermer",
+    "raid": "Raid {label}",
+    "ongoing": "en cours",
+    "outcome": {
+      "destroyed": "Anéanti",
+      "repelled": "Repoussé",
+      "bombed": "Cible bombardée",
+      "unopposed": "Sans opposition",
+      "gone": "Rentré sans bombarder",
+      "phantom": "Fausse alerte",
+      "ongoing": "En cours"
+    },
+    "composition": "{bombers} {bomberType}, escorte de {escort} {escortType}.",
+    "target": "Objectif : {target}.",
+    "targetConvoy": "le convoi {convoy}",
+    "hitSite": "{site} touché : dégâts {severity}, {n} % au total.",
+    "hitConvoy": "Convoi {convoy} : {n} navire(s) coulé(s).",
+    "groundLosses": "{n} avion(s) détruit(s) au sol.",
+    "noHit": "L'objectif n'a pas été touché.",
+    "squadron": "Escadrille",
+    "result": "Résultat",
+    "down": "Abattus",
+    "losses": "Pertes",
+    "engaged": "au combat",
+    "engagedAbove": "au combat, avec l'avantage de la hauteur",
+    "noContact": "sans contact",
+    "downCell": "{b} bomb. · {f} chass.",
+    "noSquadron": "Aucune escadrille ne l'a approché.",
+    "totals": "Bilan : {down} appareil(s) allemand(s) abattu(s) ({b} bombardiers, {f} chasseurs) pour {lost} avion(s) de la RAF perdu(s).",
+    "dayTotals": "{n} raid(s) · {down} abattus · {lost} pertes",
+    "phantomText": "Écho radar sans avion : fausse alerte.",
+    "miss": {
+      "wide": "manqué : passé à {km} km",
+      "below": "manqué : {ft} trop bas",
+      "above": "manqué : {ft} trop haut",
+      "wideBelow": "manqué : à {km} km et {ft} trop bas",
+      "wideAbove": "manqué : à {km} km et {ft} trop haut",
+      "nothing": "rien vu"
+    },
+    "missGuided": " (guidage à {p} %)"
+  },
+  "reasonsScramble": {},
+  "cards": {
+    "title": "Fiches techniques",
+    "intro": "Les chiffres que le jeu utilise, proches de ceux de l'époque. Le plafond limite l'altitude qu'on peut ordonner.",
+    "open": "Voir la fiche technique",
+    "fighters": "Chasse (Fighter Command)",
+    "patrols": "Patrouilles",
+    "bombers": "Bombardiers allemands",
+    "escorts": "Chasseurs d'escorte allemands",
+    "sea": "En mer",
+    "cruise": "Vitesse de croisière",
+    "max": "Vitesse maximale",
+    "climb": "Montée",
+    "climbText": "{ft} ft par minute",
+    "ceiling": "Plafond",
+    "endurance": "Autonomie",
+    "minutes": "{n} min",
+    "armament": "Armement",
+    "crew": "Équipage",
+    "vsBombers": "Contre les bombardiers",
+    "vsFighters": "Contre les chasseurs",
+    "sight": "Vue (avions)",
+    "sightText": "{day} km de jour, {night} km de nuit",
+    "uboatSight": "U-Boot en surface",
+    "km": "{n} km",
+    "kg": "{n} kg",
+    "bombs": "Charge de bombes",
+    "vulnerability": "Résistance",
+    "range": "Rayon d'action",
+    "threat": "Danger pour la chasse",
+    "speedSea": "Vitesse",
+    "knots": "{n} nœuds",
+    "stragglers": "Traînards",
+    "stragglersText": "au-delà de {p} % de sa vitesse maximale, des navires décrochent",
+    "zigzag": "Zigzag",
+    "zigzagText": "{p} % plus lent, {h} % de coups au but en moins",
+    "asdic": "ASDIC (sous l'eau)",
+    "lookouts": "Vigies (surface)",
+    "lookoutsText": "{day} km de jour, {night} km de nuit",
+    "surface": "En surface",
+    "submerged": "En plongée",
+    "battery": "Batteries",
+    "batteryText": "environ {n} milles à 4 nœuds",
+    "torpedoes": "Torpilles",
+    "word": {
+      "strong": "excellent",
+      "good": "bon",
+      "fair": "un peu en retrait",
+      "weak": "faible",
+      "vulnerable": "fragile",
+      "tough": "robuste",
+      "average": "moyen",
+      "dangerous": "redoutable"
+    },
+    "notes": {
+      "Hurricane": "Le cheval de labour de 1940 : plus nombreux que le Spitfire, robuste, à son meilleur contre les bombardiers.",
+      "Spitfire": "Plus rapide et plus maniable : on l'envoie de préférence contre les chasseurs d'escorte.",
+      "Spitfire guet": "Une section qui patrouille haut au-dessus de la Manche pour signaler les raids, comme la 421 Flight créée en septembre 1940.",
+      "Anson": "Le patrouilleur côtier de 1940 : lent, peu armé, mais il oblige les U-Boote à plonger.",
+      "Hudson": "Plus rapide et mieux armé que l'Anson ; certains reçoivent le premier radar ASV fin 1940.",
+      "Sunderland": "Hydravion à très grande autonomie : il va loin au-dessus de l'Atlantique.",
+      "Do 17": "Le « crayon volant » : rapide pour un bombardier, vulnérable aux attaques de face.",
+      "Ju 87": "Le bombardier en piqué : précis, mais lent et très vulnérable sans escorte.",
+      "He 111": "Le plus gros bombardier de 1940 : robuste, la plus forte charge.",
+      "Bf 109": "Le meilleur chasseur allemand ; son faible rayon d'action limite son temps au-dessus de l'Angleterre.",
+      "Bf 110": "Chasseur lourd biplace : grand rayon d'action, mais pataud face aux Spitfire et Hurricane.",
+      "convoy": "Des dizaines de cargos et de pétroliers, en colonnes, à la vitesse du plus lent.",
+      "escort": "En 1940, quelques navires seulement pour un grand convoi ; l'ASDIC ne voit pas un U-Boot en surface.",
+      "uboat": "En 1940, il attaque surtout de nuit, en surface : presque invisible, plus rapide qu'en plongée.",
+      "Ju 88": "Le plus moderne des bombardiers de 1940 : rapide, capable d'attaquer en piqué.",
+      "Bf 110 Jabo": "Bf 110 armés de bombes, comme l'Erprobungsgruppe 210 : ils frappent vite et bas les radars et les aérodromes.",
+      "Catalina": "Hydravion américain à très grande autonomie : il couvre les convois loin dans l'Atlantique."
+    }
+  },
+  "save": {
+    "title": "Partie en cours",
+    "text": "La partie est enregistrée toute seule dans ce navigateur et reprend où vous l'avez laissée. Vous pouvez aussi l'emporter dans un fichier.",
+    "export": "Exporter la partie (.json)",
+    "import": "Importer une partie…",
+    "restart": "Recommencer ce scénario",
+    "importError": "Ce fichier n'est pas une partie de ce jeu, ou il vient d'une autre version.",
+    "exportError": "L'export n'a pas pu se faire ici. Le jeu reste enregistré dans ce navigateur."
+  },
+  "mru": {
+    "title": "Stations radar mobiles",
+    "available": "{n} disponible(s)",
+    "deploy": "Déployer",
+    "placing": "Glissez sur la carte…",
+    "pending": "{name} en cours d'installation, prête vers {time}",
+    "hint": "Glissez depuis l'emplacement (sur la terre) vers la mer à surveiller.",
+    "errors": {
+      "none": "Aucune station mobile disponible.",
+      "place": "Une station mobile s'installe sur la terre britannique."
+    },
+    "preview": "Station mobile · face au {az}°",
+    "mapPending": "{name} · prête à {time}"
+  },
+  "events": {
+    "ok": "Compris",
+    "adlertag": {
+      "intro": {
+        "title": "Adlertag",
+        "text": "Prise de service, 12 août 1940. Ce matin, des Bf 110 chargés de bombes ont été vus au-dessus de Calais : les stations radar de la côte sont menacées. Le convoi HX 62 approche du nord de l'Irlande : tracez sa route."
+      },
+      "mru": {
+        "title": "Station radar mobile",
+        "text": "Une station radar mobile (MRU) est prête. Onglet Installations, « Déployer », puis glissez sur la carte depuis son emplacement (sur la terre) vers la mer à surveiller : elle peut boucher le trou d'une station détruite. Il lui faut six heures pour se mettre en service, et elle porte moins loin qu'une station fixe."
+      },
+      "adlertag": {
+        "title": "L'attaque de l'aigle",
+        "text": "13 août. Le mauvais temps du matin a désorganisé les premières vagues, mais Göring maintient « l'attaque de l'aigle ». Attendez-vous à des raids sur les aérodromes tout l'après-midi."
+      },
+      "relief": {
+        "title": "Relève",
+        "text": "Le 266 Squadron (Spitfire) arrive à Hornchurch pour relever les escadrilles épuisées du 11 Group."
+      },
+      "blackThursday": {
+        "title": "15 août",
+        "text": "15 août : la Luftwaffe fait son plus grand effort, jusque dans le nord de l'Angleterre. Dans le sud, attendez-vous à des raids toute la journée."
+      },
+      "hardestDay": {
+        "title": "Le jour le plus dur",
+        "text": "18 août. Kenley et Biggin Hill sont visés en même temps. Des Stuka sont annoncés sur les aérodromes du Sussex et sur la station radar de Poling."
+      }
+    },
+    "quinze-septembre": {
+      "intro": {
+        "title": "Dimanche 15 septembre",
+        "text": "Prise de service. Temps clair, quelques nuages. Toutes les escadrilles sont prêtes. Le Premier ministre est venu suivre la bataille au poste de commandement souterrain du 11 Group, à Uxbridge."
+      },
+      "uxbridge": {
+        "title": "Uxbridge, 10 h 30",
+        "text": "Les radars voient des formations se rassembler au-dessus de Calais et de Boulogne. Engagez assez d'escadrilles sur chaque grand raid : quelques-unes ne suffiront pas contre une escorte de cent chasseurs. La Big Wing de Duxford peut décoller."
+      },
+      "afternoon": {
+        "title": "Après-midi",
+        "text": "Début d'après-midi : de nouvelles formations, plus nombreuses que ce matin, se rassemblent au-dessus du Pas-de-Calais."
+      }
+    },
+    "hiver-atlantique": {
+      "intro": {
+        "title": "Western Approaches",
+        "text": "Prise de service, 10 janvier 1941. Le HX 100 appareille d'Halifax. Les convois suivent la route de l'Amirauté ; vous pouvez la changer pour contourner les U-Boote repérés. Envoyez un groupe d'escorte au-devant de chaque convoi qui approche : vos escorteurs n'ont que sept ou huit jours d'autonomie. Les nuits d'hiver sont longues, et c'est la nuit que les U-Boote attaquent."
+      },
+      "packs": {
+        "title": "Nouvelles meutes",
+        "text": "Février : de nouveaux U-Boote quittent Lorient et Saint-Nazaire. L'amiral Dönitz les groupe en meutes plus à l'ouest."
+      },
+      "packs2": {
+        "title": "Encore des U-Boote",
+        "text": "Fin février : d'autres U-Boote prennent la mer. Ceux qui ont tiré leurs torpilles reviennent après une quinzaine de jours au port."
+      },
+      "lendLease": {
+        "title": "Prêt-bail",
+        "text": "11 mars 1941. Le président Roosevelt signe la loi du prêt-bail. La Grande-Bretagne n'a plus à payer comptant : les convois qui partent désormais sont chargés à plein, sans dépense."
+      },
+      "catalina": {
+        "title": "Catalina",
+        "text": "Les Catalina achetés en Amérique sont arrivés à Castle Archdale. Leur autonomie leur permet de couvrir les convois bien plus loin que les autres avions."
+      },
+      "hudson": {
+        "title": "Hudson",
+        "text": "Les Hudson achetés en Amérique sont arrivés à Limavady."
+      }
+    }
+  },
+  "offers": {
+    "title": "Achats en Amérique",
+    "intro": "Avant le prêt-bail, la Grande-Bretagne paie comptant. Les dollars achètent la cargaison des convois, ou des avions de patrouille.",
+    "stock": "Réserve : {n} millions de dollars (sur {m})",
+    "purchase": "Part achetée de chaque convoi qui part",
+    "purchaseHint": "Un convoi complet HX coûte environ {hx} millions, un SC {sc} millions. Ce qui n'est pas acheté part sur lest.",
+    "next": "Prochains départs",
+    "nextLine": "{convoy} : {date}, environ {cost} millions",
+    "lendLease": "Prêt-bail : les convois partent chargés à plein, sans dépense.",
+    "buy": "Commander ({cost} M$)",
+    "bought": "Commandé",
+    "arrives": "livraison {days} jours après la commande",
+    "catalina": "4 Catalina pour Castle Archdale",
+    "hudson": "6 Hudson avec radar ASV pour Limavady",
+    "refused": "Pas assez de dollars pour cette commande."
+  },
+  "campaign": {
+    "title": "Campagne, acte I",
+    "intro": "Les scénarios se suivent : une victoire ouvre le suivant.",
+    "won": "Gagné",
+    "open": "À jouer",
+    "locked": "Verrouillé",
+    "training": "Entraînement",
+    "unlockAll": "Débloquer tous les scénarios",
+    "unlocked": "Victoire : le scénario « {title} » est débloqué.",
+    "tutorial": "Tutoriel guidé",
+    "carryNote": "Pertes reportées : {share} % des avions au départ (réglage « Campagne »)."
+  },
+  "tutorial": {
+    "step": "Étape {n} sur {total}",
+    "next": "Suivant",
+    "finish": "Terminer",
+    "quit": "Quitter le tutoriel",
+    "waiting": "À vous…",
+    "welcome": {
+      "title": "Bienvenue au poste de commandement",
+      "text": "Juillet 1940. Vous commandez le soutien allié : la chasse, les convois et les radars. Ce tutoriel vous guide pas à pas ; le temps est arrêté tant que vous lisez. Chaque étape passe toute seule quand vous avez fait ce qu'elle demande."
+    },
+    "convoy": {
+      "title": "Faire partir le convoi",
+      "text": "Le convoi HX attend à Halifax, dans l'Atlantique. Sa fiche est ouverte à droite : cliquez « Route de l'Amirauté », ou glissez depuis le convoi jusqu'au nord de l'Irlande pour tracer sa route. Un pilote le conduira au port."
+    },
+    "time": {
+      "title": "Lancer le temps",
+      "text": "Le convoi est en route. Lancez le temps (Espace) et accélérez avec les boutons ×1 à ×14 400 en haut, ou les touches 1 à 6. Une alerte radar ralentira le temps toute seule."
+    },
+    "radar": {
+      "title": "Les radars veillent",
+      "text": "Les stations radar de la côte surveillent la Manche. Attendez la première alerte : un raid se rassemble au-dessus de la France vers midi."
+    },
+    "scramble": {
+      "title": "Alerte !",
+      "text": "Un raid est détecté : sa plaque donne son numéro, le nombre d'avions et l'altitude. Faites décoller une escadrille proche (Biggin Hill, Croydon, Hornchurch) : glissez depuis son aérodrome jusqu'au raid, ou choisissez-la dans l'onglet Unités et cliquez « Décoller »."
+    },
+    "altitude": {
+      "title": "Monter au-dessus",
+      "text": "Réglez l'altitude avec ↑ ↓ (par 1 000 ft) pour arriver au-dessus du raid : l'attaque en piqué donne l'avantage. La vue de profil de la fiche montre si la montée sera finie à temps. Corrigez la route si le raid change de cap."
+    },
+    "combat": {
+      "title": "Tally-ho !",
+      "text": "Le combat se règle tout seul, passe après passe. Contre un gros raid, envoyez une deuxième escadrille. Une escadrille à court de munitions ou de carburant rentre d'elle-même."
+    },
+    "reports": {
+      "title": "Le rapport",
+      "text": "Le combat est fini. Chaque raid se termine par un rapport : ouvrez « Rapports » dans le menu du haut pour le lire, ou passez à la suite."
+    },
+    "end": {
+      "title": "À vous de jouer",
+      "text": "Vous connaissez l'essentiel. L'aide (?) résume le reste : stocks et trains, escortes, U-Boote, fiches techniques. La campagne commence avec Kanalkampf, dans le menu « Scénario »."
+    }
   }
 }

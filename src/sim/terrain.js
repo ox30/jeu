@@ -61,6 +61,104 @@ export function createTerrain(coarseData, fineData) {
     return britain !== null && pointInRings([britain], x, y);
   }
 
+  // The land the Observer Corps watched: Great Britain and the islands close to it (Wight,
+  // Sheppey...), not Ireland nor the Channel Islands.
+  let britishRings = null;
+  function getBritishRings(nearKm = 40) {
+    if (britishRings) return britishRings;
+    if (!britain) return (britishRings = []);
+    const p = britain.pts;
+    const gb = britain.box;
+    britishRings = fine.rings.filter((ring) => {
+      if (ring === britain) return true;
+      const b = ring.box;
+      const cx = (b[0] + b[2]) / 2;
+      const cy = (b[1] + b[3]) / 2;
+      if (cx < gb[0] - nearKm || cx > gb[2] + nearKm || cy < gb[1] - nearKm || cy > gb[3] + nearKm) return false;
+      for (let k = 0; k < p.length; k += 2) if (Math.hypot(p[k] - cx, p[k + 1] - cy) < nearKm) return true;
+      return false;
+    });
+    return britishRings;
+  }
+
+  /**
+   * Grid of what the Observer Corps can see: 2 on British land, 1 at sea within
+   * `offshoreKm` of it, 0 elsewhere. Built once per setting.
+   */
+  const masks = new Map();
+  function observerMask(cellKm, offshoreKm) {
+    const key = `${cellKm}:${offshoreKm}`;
+    if (masks.has(key)) return masks.get(key);
+    const rings = getBritishRings();
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const r of rings) {
+      x0 = Math.min(x0, r.box[0]);
+      y0 = Math.min(y0, r.box[1]);
+      x1 = Math.max(x1, r.box[2]);
+      y1 = Math.max(y1, r.box[3]);
+    }
+    const pad = offshoreKm + 2 * cellKm;
+    x0 -= pad;
+    y0 -= pad;
+    x1 += pad;
+    y1 += pad;
+    const cols = Math.max(1, Math.ceil((x1 - x0) / cellKm));
+    const rows = Math.max(1, Math.ceil((y1 - y0) / cellKm));
+    const land = new Uint8Array(cols * rows);
+    // Scanline fill, even-odd over all the rings.
+    for (let row = 0; row < rows; row++) {
+      const y = y0 + (row + 0.5) * cellKm;
+      const xs = [];
+      for (const ring of rings) {
+        if (y < ring.box[1] || y > ring.box[3]) continue;
+        const p = ring.pts;
+        const n = p.length / 2;
+        for (let i = 0, j = n - 1; i < n; j = i++) {
+          const yi = p[2 * i + 1];
+          const yj = p[2 * j + 1];
+          if ((yi > y) !== (yj > y)) xs.push(p[2 * i] + ((p[2 * j] - p[2 * i]) * (y - yi)) / (yj - yi));
+        }
+      }
+      xs.sort((a, b) => a - b);
+      for (let k = 0; k + 1 < xs.length; k += 2) {
+        const c0 = Math.max(0, Math.ceil((xs[k] - x0) / cellKm - 0.5));
+        const c1 = Math.min(cols - 1, Math.floor((xs[k + 1] - x0) / cellKm - 0.5));
+        for (let c = c0; c <= c1; c++) land[row * cols + c] = 2;
+      }
+    }
+    // The posts on the coast see some way out to sea.
+    const data = land.slice();
+    const rc = offshoreKm / cellKm;
+    const r = Math.ceil(rc);
+    const disc = [];
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= rc * rc) disc.push(dy * cols + dx, dx, dy);
+    for (let row = 1; row < rows - 1; row++) {
+      for (let col = 1; col < cols - 1; col++) {
+        const i = row * cols + col;
+        if (land[i] !== 2) continue;
+        if (land[i - 1] && land[i + 1] && land[i - cols] && land[i + cols]) continue;
+        for (let k = 0; k < disc.length; k += 3) {
+          const cc = col + disc[k + 1];
+          const rr = row + disc[k + 2];
+          if (cc < 0 || rr < 0 || cc >= cols || rr >= rows) continue;
+          const j = i + disc[k];
+          if (data[j] === 0) data[j] = 1;
+        }
+      }
+    }
+    const mask = { x0, y0, cellKm, cols, rows, data };
+    masks.set(key, mask);
+    return mask;
+  }
+
+  function isObserved(x, y, cellKm, offshoreKm) {
+    const m = observerMask(cellKm, offshoreKm);
+    const c = Math.floor((x - m.x0) / m.cellKm);
+    const r = Math.floor((y - m.y0) / m.cellKm);
+    if (c < 0 || r < 0 || c >= m.cols || r >= m.rows) return false;
+    return m.data[r * m.cols + c] > 0;
+  }
+
   /**
    * First land point met along a route [[x, y], ...], or null. The first `skipStartKm` and
    * the last `skipEndKm` are ignored (leaving and entering a harbour).
@@ -86,5 +184,5 @@ export function createTerrain(coarseData, fineData) {
     return null;
   }
 
-  return { coarse, fine, isLand, isOverBritain, findLandOnRoute };
+  return { coarse, fine, isLand, isOverBritain, getBritishRings, observerMask, isObserved, findLandOnRoute };
 }

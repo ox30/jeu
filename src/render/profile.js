@@ -7,7 +7,7 @@ import { formatNumber, t } from '../core/i18n.js';
 import { FOOT_M } from '../sim/geo.js';
 import { solveIntercept } from '../sim/intercept.js';
 import { altitudeSigmaFt, nearestContact } from '../sim/query.js';
-import { feetOf, isFlying, squadronSpeed } from '../sim/squadron.js';
+import { aircraftSpec, feetOf, isFlying, squadronSpeed } from '../sim/squadron.js';
 import { airfieldDelayFactor } from '../sim/sites.js';
 import { durationText, ftText } from '../ui/format.js';
 import { FONTS } from './map.js';
@@ -29,7 +29,7 @@ const VERDICT_COLORS = { above: '#2e6b3a', level: '#b07a12', low: '#a8322d', hig
 
 /** Height of the squadron (feet) at `tS` seconds from now, if it keeps its orders. */
 function heightAt(world, s, tS, delayS) {
-  const type = world.rules.fighters[s.type];
+  const type = aircraftSpec(world, s.type);
   const climbFtS = type.climbMpm / FOOT_M / 60;
   const descentFtS = world.rules.squadron.descentMpm / FOOT_M / 60;
   const startFt = isFlying(s) ? feetOf(s.alt) : 0;
@@ -66,7 +66,7 @@ export function drawProfile(canvas, app, s) {
     : s.state === 'scrambling' ? s.timer : 0;
   const targetFt = feetOf(s.targetAlt);
   const startFt = isFlying(s) ? feetOf(s.alt) : 0;
-  const type = world.rules.fighters[s.type];
+  const type = aircraftSpec(world, s.type);
   const climbS = delayS + (Math.abs(targetFt - startFt) / (targetFt >= startFt ? type.climbMpm : R.descentMpm)) * FOOT_M * 60;
 
   // Possible contact with the nearest raid (only with an interception aid).

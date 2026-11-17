@@ -31,6 +31,11 @@ export function updateHud(app, ms) {
   if (el.time.textContent !== time) el.time.textContent = time;
   if (!app.dirtyHud) return;
   app.dirtyHud = false;
+  const subtitle = t(`scenarios.${app.world.scenario.id}.title`);
+  if (el.subtitle && el.subtitle.textContent !== subtitle) {
+    el.subtitle.textContent = subtitle;
+    document.title = `${t('app.title')} · ${subtitle}`;
+  }
   el.pause.textContent = app.paused ? t('hud.play') : t('hud.pause');
   el.pause.classList.toggle('active', app.paused);
   for (const b of el.speeds.querySelectorAll('[data-speed]')) {

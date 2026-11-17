@@ -4,7 +4,7 @@
 // This is dead reckoning: a badly computed heading simply passes beside its goal, and the
 // next leg starts from where the unit really is.
 
-import { distance, headingDiff, headingVector, project } from './geo.js';
+import { FOOT_M, distance, headingDiff, headingVector, project } from './geo.js';
 import { gridSquare, inSquare } from './grid.js';
 import { emit } from './events.js';
 
@@ -26,6 +26,9 @@ export function legTarget(world, leg, domain) {
 
 function startLeg(world, u) {
   u.legState = { startT: world.t, best: Infinity, startX: u.x, startY: u.y };
+  // A leg can carry an altitude: the squadron takes it as it starts the leg.
+  const leg = u.plan[0];
+  if (u.kind === 'squadron' && leg && leg.altFt) u.targetAlt = leg.altFt * FOOT_M;
 }
 
 function legFinished(world, u, leg, domain) {
@@ -67,10 +70,13 @@ export function followPlan(world, u, domain) {
     if (u.plan.length) {
       emit(world, 'legDone', { ...info, next: u.plan[0].heading });
     } else {
-      // End of the plan: aircraft hold the last heading, ships keep their course.
+      // End of the plan: ships keep their course; aircraft do their end action (orbit by
+      // default), which the squadron applies once this step is done.
       emit(world, 'planEnded', info);
-      if (u.kind === 'squadron') u.vector = leg.heading;
-      else u.course = leg.heading;
+      if (u.kind === 'squadron') {
+        u.vector = leg.heading;
+        u.planJustEnded = true;
+      } else u.course = leg.heading;
       return leg.heading;
     }
   }

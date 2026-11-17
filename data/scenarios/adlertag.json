@@ -1,0 +1,1812 @@
+{
+  "grid": {
+    "origin": [
+      -4.5,
+      52.95
+    ],
+    "sizeKm": 25,
+    "cols": 20,
+    "rows": 16
+  },
+  "ports": [
+    {
+      "id": "halifax",
+      "name": "Halifax",
+      "lon": -63.57,
+      "lat": 44.65,
+      "foreign": true
+    },
+    {
+      "id": "liverpool",
+      "name": "Liverpool",
+      "lon": -3.0,
+      "lat": 53.43,
+      "approaches": [
+        {
+          "name": "Nord de l'Irlande",
+          "path": [
+            [
+              -8.3,
+              56.1
+            ],
+            [
+              -7.5,
+              55.62
+            ],
+            [
+              -6.25,
+              55.4
+            ],
+            [
+              -5.97,
+              55.25
+            ],
+            [
+              -5.55,
+              54.85
+            ],
+            [
+              -5.2,
+              54.55
+            ],
+            [
+              -5.0,
+              54.0
+            ],
+            [
+              -3.9,
+              53.6
+            ],
+            [
+              -3.0,
+              53.43
+            ]
+          ]
+        },
+        {
+          "name": "Canal Saint-Georges",
+          "path": [
+            [
+              -7.2,
+              51.2
+            ],
+            [
+              -5.85,
+              52.0
+            ],
+            [
+              -5.35,
+              52.9
+            ],
+            [
+              -4.85,
+              53.55
+            ],
+            [
+              -3.9,
+              53.6
+            ],
+            [
+              -3.0,
+              53.43
+            ]
+          ]
+        }
+      ],
+      "convoys": true,
+      "stocks": {
+        "fuel": 700,
+        "materiel": 200
+      }
+    },
+    {
+      "id": "clyde",
+      "name": "la Clyde",
+      "lon": -4.76,
+      "lat": 55.95,
+      "label": "Clyde",
+      "approaches": [
+        {
+          "name": "Nord de l'Irlande",
+          "path": [
+            [
+              -8.3,
+              56.1
+            ],
+            [
+              -7.5,
+              55.62
+            ],
+            [
+              -6.25,
+              55.4
+            ],
+            [
+              -5.97,
+              55.25
+            ],
+            [
+              -5.45,
+              55.18
+            ],
+            [
+              -4.95,
+              55.45
+            ],
+            [
+              -4.95,
+              55.75
+            ],
+            [
+              -4.76,
+              55.95
+            ]
+          ]
+        }
+      ],
+      "convoys": true,
+      "stocks": {
+        "fuel": 300,
+        "materiel": 120
+      }
+    },
+    {
+      "id": "dover",
+      "name": "Douvres",
+      "longName": "le port de Douvres",
+      "lon": 1.32,
+      "lat": 51.12,
+      "naval": true
+    },
+    {
+      "id": "portland",
+      "name": "Portland",
+      "longName": "la base navale de Portland",
+      "lon": -2.44,
+      "lat": 50.565,
+      "naval": true
+    },
+    {
+      "id": "portsmouth",
+      "name": "Portsmouth",
+      "longName": "la base navale de Portsmouth",
+      "lon": -1.1,
+      "lat": 50.8,
+      "naval": true
+    },
+    {
+      "id": "southampton",
+      "name": "Southampton",
+      "lon": -1.4,
+      "lat": 50.895,
+      "coastal": true,
+      "stocks": {
+        "fuel": 120,
+        "materiel": 60
+      },
+      "approaches": [
+        {
+          "name": "Spithead",
+          "path": [
+            [
+              -0.93,
+              50.66
+            ],
+            [
+              -1.1,
+              50.765
+            ],
+            [
+              -1.22,
+              50.79
+            ],
+            [
+              -1.31,
+              50.825
+            ],
+            [
+              -1.38,
+              50.87
+            ],
+            [
+              -1.4,
+              50.895
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "radars": [
+    {
+      "id": "bawdsey",
+      "name": "Bawdsey",
+      "lon": 1.41,
+      "lat": 51.99,
+      "azimuth": 95
+    },
+    {
+      "id": "canewdon",
+      "name": "Canewdon",
+      "lon": 0.74,
+      "lat": 51.62,
+      "azimuth": 90
+    },
+    {
+      "id": "dunkirk",
+      "name": "Dunkirk",
+      "lon": 0.95,
+      "lat": 51.29,
+      "azimuth": 80
+    },
+    {
+      "id": "dover",
+      "name": "Douvres",
+      "lon": 1.34,
+      "lat": 51.14,
+      "azimuth": 120
+    },
+    {
+      "id": "rye",
+      "name": "Rye",
+      "lon": 0.76,
+      "lat": 50.95,
+      "azimuth": 150
+    },
+    {
+      "id": "pevensey",
+      "name": "Pevensey",
+      "lon": 0.33,
+      "lat": 50.82,
+      "azimuth": 170
+    },
+    {
+      "id": "poling",
+      "name": "Poling",
+      "lon": -0.52,
+      "lat": 50.83,
+      "azimuth": 180
+    },
+    {
+      "id": "ventnor",
+      "name": "Ventnor",
+      "lon": -1.2,
+      "lat": 50.6,
+      "azimuth": 185
+    },
+    {
+      "id": "worth_matravers",
+      "name": "Worth Matravers",
+      "lon": -2.05,
+      "lat": 50.59,
+      "azimuth": 195
+    }
+  ],
+  "factories": [
+    {
+      "id": "woolston",
+      "name": "Woolston",
+      "longName": "l'usine Supermarine de Woolston",
+      "lon": -1.375,
+      "lat": 50.898,
+      "aircraftType": "Spitfire",
+      "perDay": 1.2,
+      "materielPerAircraft": 8,
+      "stocks": {
+        "materiel": 60,
+        "aircraft": 6
+      }
+    },
+    {
+      "id": "kingston",
+      "name": "Kingston",
+      "longName": "l'usine Hawker de Kingston",
+      "lon": -0.3,
+      "lat": 51.41,
+      "aircraftType": "Hurricane",
+      "perDay": 2.0,
+      "materielPerAircraft": 7,
+      "stocks": {
+        "materiel": 60,
+        "aircraft": 10
+      }
+    }
+  ],
+  "depots": [
+    {
+      "id": "chilmark",
+      "name": "Chilmark",
+      "longName": "le dépôt de munitions de Chilmark",
+      "lon": -2.013,
+      "lat": 51.088,
+      "perDay": 5,
+      "stocks": {
+        "ammo": 90
+      }
+    }
+  ],
+  "logistics": {
+    "junctions": [
+      {
+        "id": "glasgow",
+        "name": "Glasgow",
+        "lon": -4.25,
+        "lat": 55.86
+      },
+      {
+        "id": "carlisle",
+        "name": "Carlisle",
+        "lon": -2.93,
+        "lat": 54.89
+      },
+      {
+        "id": "preston",
+        "name": "Preston",
+        "lon": -2.7,
+        "lat": 53.76
+      },
+      {
+        "id": "crewe",
+        "name": "Crewe",
+        "lon": -2.43,
+        "lat": 53.09
+      },
+      {
+        "id": "birmingham",
+        "name": "Birmingham",
+        "lon": -1.9,
+        "lat": 52.48
+      },
+      {
+        "id": "rugby",
+        "name": "Rugby",
+        "lon": -1.26,
+        "lat": 52.37
+      },
+      {
+        "id": "reading",
+        "name": "Reading",
+        "lon": -0.97,
+        "lat": 51.46
+      },
+      {
+        "id": "london",
+        "name": "Londres",
+        "lon": -0.13,
+        "lat": 51.51
+      },
+      {
+        "id": "basingstoke",
+        "name": "Basingstoke",
+        "lon": -1.09,
+        "lat": 51.27
+      },
+      {
+        "id": "chichester",
+        "name": "Chichester",
+        "lon": -0.78,
+        "lat": 50.84
+      },
+      {
+        "id": "ashford",
+        "name": "Ashford",
+        "lon": 0.87,
+        "lat": 51.15
+      },
+      {
+        "id": "bournemouth",
+        "name": "Bournemouth",
+        "lon": -1.88,
+        "lat": 50.72
+      },
+      {
+        "id": "salisbury",
+        "name": "Salisbury",
+        "lon": -1.795,
+        "lat": 51.07
+      }
+    ],
+    "rail": [
+      {
+        "a": "port:clyde",
+        "b": "glasgow",
+        "trainsPerDay": 8
+      },
+      {
+        "a": "glasgow",
+        "b": "carlisle",
+        "trainsPerDay": 8
+      },
+      {
+        "a": "carlisle",
+        "b": "preston",
+        "trainsPerDay": 8
+      },
+      {
+        "a": "preston",
+        "b": "crewe",
+        "trainsPerDay": 8
+      },
+      {
+        "a": "port:liverpool",
+        "b": "preston",
+        "trainsPerDay": 6
+      },
+      {
+        "a": "port:liverpool",
+        "b": "crewe",
+        "trainsPerDay": 8
+      },
+      {
+        "a": "crewe",
+        "b": "birmingham",
+        "trainsPerDay": 8
+      },
+      {
+        "a": "birmingham",
+        "b": "rugby",
+        "trainsPerDay": 8
+      },
+      {
+        "a": "rugby",
+        "b": "london",
+        "trainsPerDay": 8
+      },
+      {
+        "a": "birmingham",
+        "b": "reading",
+        "trainsPerDay": 6
+      },
+      {
+        "a": "reading",
+        "b": "london",
+        "trainsPerDay": 10
+      },
+      {
+        "a": "reading",
+        "b": "basingstoke",
+        "trainsPerDay": 8
+      },
+      {
+        "a": "basingstoke",
+        "b": "port:southampton",
+        "trainsPerDay": 8
+      },
+      {
+        "a": "port:southampton",
+        "b": "factory:woolston",
+        "trainsPerDay": 6
+      },
+      {
+        "a": "london",
+        "b": "factory:kingston",
+        "trainsPerDay": 6
+      },
+      {
+        "a": "london",
+        "b": "airfield:biggin_hill",
+        "trainsPerDay": 4
+      },
+      {
+        "a": "london",
+        "b": "airfield:kenley",
+        "trainsPerDay": 4
+      },
+      {
+        "a": "london",
+        "b": "airfield:croydon",
+        "trainsPerDay": 4
+      },
+      {
+        "a": "london",
+        "b": "airfield:northolt",
+        "trainsPerDay": 4
+      },
+      {
+        "a": "london",
+        "b": "airfield:hornchurch",
+        "trainsPerDay": 4
+      },
+      {
+        "a": "london",
+        "b": "airfield:north_weald",
+        "trainsPerDay": 4
+      },
+      {
+        "a": "london",
+        "b": "airfield:debden",
+        "trainsPerDay": 4
+      },
+      {
+        "a": "london",
+        "b": "chichester",
+        "trainsPerDay": 6
+      },
+      {
+        "a": "port:southampton",
+        "b": "chichester",
+        "trainsPerDay": 6
+      },
+      {
+        "a": "chichester",
+        "b": "airfield:tangmere",
+        "trainsPerDay": 4
+      },
+      {
+        "a": "basingstoke",
+        "b": "airfield:middle_wallop",
+        "trainsPerDay": 4
+      },
+      {
+        "a": "port:southampton",
+        "b": "bournemouth",
+        "trainsPerDay": 6
+      },
+      {
+        "a": "bournemouth",
+        "b": "airfield:warmwell",
+        "trainsPerDay": 4
+      },
+      {
+        "a": "london",
+        "b": "ashford",
+        "trainsPerDay": 6
+      },
+      {
+        "a": "ashford",
+        "b": "airfield:hawkinge",
+        "trainsPerDay": 4
+      },
+      {
+        "a": "ashford",
+        "b": "airfield:manston",
+        "trainsPerDay": 4
+      },
+      {
+        "a": "depot:chilmark",
+        "b": "salisbury",
+        "trainsPerDay": 6
+      },
+      {
+        "a": "salisbury",
+        "b": "basingstoke",
+        "trainsPerDay": 8
+      },
+      {
+        "a": "ashford",
+        "b": "airfield:lympne",
+        "trainsPerDay": 4
+      }
+    ]
+  },
+  "landmarks": [
+    {
+      "name": "Douvres",
+      "lon": 1.32,
+      "lat": 51.12
+    },
+    {
+      "name": "Folkestone",
+      "lon": 1.166,
+      "lat": 51.081
+    },
+    {
+      "name": "Margate",
+      "lon": 1.386,
+      "lat": 51.389
+    },
+    {
+      "name": "Londres",
+      "lon": -0.128,
+      "lat": 51.507
+    },
+    {
+      "name": "Brighton",
+      "lon": -0.137,
+      "lat": 50.822
+    },
+    {
+      "name": "Portsmouth",
+      "lon": -1.1,
+      "lat": 50.8
+    },
+    {
+      "name": "Portland",
+      "lon": -2.44,
+      "lat": 50.565
+    },
+    {
+      "name": "l'île de Wight",
+      "lon": -1.3,
+      "lat": 50.67
+    },
+    {
+      "name": "Beachy Head",
+      "lon": 0.245,
+      "lat": 50.735
+    },
+    {
+      "name": "Harwich",
+      "lon": 1.284,
+      "lat": 51.944
+    },
+    {
+      "name": "Calais",
+      "lon": 1.858,
+      "lat": 50.951
+    },
+    {
+      "name": "Boulogne",
+      "lon": 1.614,
+      "lat": 50.726
+    },
+    {
+      "name": "Dunkerque",
+      "lon": 2.377,
+      "lat": 51.034
+    },
+    {
+      "name": "Saint-Omer",
+      "lon": 2.25,
+      "lat": 50.75
+    },
+    {
+      "name": "Dieppe",
+      "lon": 1.08,
+      "lat": 49.92
+    },
+    {
+      "name": "Le Havre",
+      "lon": 0.107,
+      "lat": 49.494,
+      "of": "du Havre"
+    },
+    {
+      "name": "Cherbourg",
+      "lon": -1.616,
+      "lat": 49.633
+    },
+    {
+      "name": "Ostende",
+      "lon": 2.927,
+      "lat": 51.215,
+      "of": "d'Ostende"
+    },
+    {
+      "name": "Southampton",
+      "lon": -1.4,
+      "lat": 50.9
+    },
+    {
+      "name": "Hastings",
+      "lon": 0.57,
+      "lat": 50.855
+    },
+    {
+      "name": "Dungeness",
+      "lon": 0.97,
+      "lat": 50.91
+    },
+    {
+      "name": "North Foreland",
+      "lon": 1.445,
+      "lat": 51.375
+    },
+    {
+      "name": "Selsey Bill",
+      "lon": -0.79,
+      "lat": 50.72
+    },
+    {
+      "name": "Eastbourne",
+      "lon": 0.29,
+      "lat": 50.77
+    }
+  ],
+  "id": "adlertag",
+  "title": "Adlertag, août 1940",
+  "note": "Inspiré du 12 au 18 août 1940 ; dates, unités et effectifs choisis pour le jeu. La Luftwaffe vise les radars et les aérodromes de la chasse.",
+  "start": "1940-08-12T06:00",
+  "end": "1940-08-18T21:00",
+  "seed": 1308,
+  "airfields": [
+    {
+      "id": "biggin_hill",
+      "name": "Biggin Hill",
+      "lon": 0.033,
+      "lat": 51.331,
+      "stocks": {
+        "fuel": 90,
+        "ammo": 14
+      },
+      "sector": true
+    },
+    {
+      "id": "hornchurch",
+      "name": "Hornchurch",
+      "lon": 0.205,
+      "lat": 51.538,
+      "stocks": {
+        "fuel": 90,
+        "ammo": 14
+      },
+      "sector": true
+    },
+    {
+      "id": "kenley",
+      "name": "Kenley",
+      "lon": -0.095,
+      "lat": 51.305,
+      "stocks": {
+        "fuel": 90,
+        "ammo": 14
+      },
+      "sector": true
+    },
+    {
+      "id": "croydon",
+      "name": "Croydon",
+      "lon": -0.117,
+      "lat": 51.356,
+      "stocks": {
+        "fuel": 60,
+        "ammo": 10
+      }
+    },
+    {
+      "id": "northolt",
+      "name": "Northolt",
+      "lon": -0.418,
+      "lat": 51.553,
+      "stocks": {
+        "fuel": 40,
+        "ammo": 6
+      },
+      "sector": true
+    },
+    {
+      "id": "north_weald",
+      "name": "North Weald",
+      "lon": 0.154,
+      "lat": 51.721,
+      "stocks": {
+        "fuel": 80,
+        "ammo": 12
+      },
+      "sector": true
+    },
+    {
+      "id": "debden",
+      "name": "Debden",
+      "lon": 0.27,
+      "lat": 52.0,
+      "stocks": {
+        "fuel": 40,
+        "ammo": 6
+      },
+      "sector": true
+    },
+    {
+      "id": "tangmere",
+      "name": "Tangmere",
+      "lon": -0.706,
+      "lat": 50.846,
+      "stocks": {
+        "fuel": 90,
+        "ammo": 14
+      },
+      "sector": true
+    },
+    {
+      "id": "middle_wallop",
+      "name": "Middle Wallop",
+      "lon": -1.57,
+      "lat": 51.139,
+      "stocks": {
+        "fuel": 90,
+        "ammo": 14
+      },
+      "sector": true
+    },
+    {
+      "id": "warmwell",
+      "name": "Warmwell",
+      "lon": -2.34,
+      "lat": 50.69,
+      "stocks": {
+        "fuel": 30,
+        "ammo": 4
+      }
+    },
+    {
+      "id": "manston",
+      "name": "Manston",
+      "lon": 1.346,
+      "lat": 51.346,
+      "stocks": {
+        "fuel": 30,
+        "ammo": 4
+      }
+    },
+    {
+      "id": "hawkinge",
+      "name": "Hawkinge",
+      "lon": 1.153,
+      "lat": 51.112,
+      "stocks": {
+        "fuel": 30,
+        "ammo": 4
+      }
+    },
+    {
+      "id": "lympne",
+      "name": "Lympne",
+      "lon": 1.03,
+      "lat": 51.08,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "detling",
+      "name": "Detling",
+      "lon": 0.597,
+      "lat": 51.303,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "eastchurch",
+      "name": "Eastchurch",
+      "lon": 0.84,
+      "lat": 51.39,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "ford",
+      "name": "Ford",
+      "lon": -0.58,
+      "lat": 50.81,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "thorney_island",
+      "name": "Thorney Island",
+      "lon": -0.93,
+      "lat": 50.815,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    }
+  ],
+  "convoys": [
+    {
+      "id": "hx62",
+      "name": "HX 62",
+      "type": "ocean",
+      "at": {
+        "lon": -21.0,
+        "lat": 55.6
+      },
+      "heading": 75,
+      "speedKn": 9,
+      "tankers": 7,
+      "fuelPerTanker": 80,
+      "freighters": 26,
+      "materielPerFreighter": 10,
+      "admiraltyRoute": [
+        [
+          -21.0,
+          55.6
+        ],
+        [
+          -12.0,
+          56.8
+        ],
+        [
+          -7.5,
+          55.62
+        ],
+        [
+          -6.25,
+          55.4
+        ],
+        [
+          -5.97,
+          55.25
+        ],
+        [
+          -5.55,
+          54.85
+        ],
+        [
+          -5.2,
+          54.55
+        ],
+        [
+          -5.0,
+          54.0
+        ],
+        [
+          -3.9,
+          53.6
+        ],
+        [
+          -3.0,
+          53.43
+        ]
+      ]
+    }
+  ],
+  "escorts": [
+    {
+      "id": "eg1",
+      "name": "1er groupe d'escorte",
+      "short": "EG 1",
+      "from": "liverpool",
+      "ships": 4,
+      "composition": "2 destroyers, 2 corvettes",
+      "speedKn": 16,
+      "enduranceDays": 7
+    }
+  ],
+  "uboats": [
+    {
+      "id": "u1",
+      "lon": -15.0,
+      "lat": 56.4,
+      "radiusKm": 110,
+      "torpedoes": 3,
+      "known": true
+    },
+    {
+      "id": "u2",
+      "lon": -11.5,
+      "lat": 57.2,
+      "radiusKm": 90,
+      "torpedoes": 3
+    }
+  ],
+  "squadrons": [
+    {
+      "id": "32",
+      "name": "32 Sqn",
+      "type": "Hurricane",
+      "airfield": "biggin_hill",
+      "aircraft": 12
+    },
+    {
+      "id": "610",
+      "name": "610 Sqn",
+      "type": "Spitfire",
+      "airfield": "biggin_hill",
+      "aircraft": 12
+    },
+    {
+      "id": "54",
+      "name": "54 Sqn",
+      "type": "Spitfire",
+      "airfield": "hornchurch",
+      "aircraft": 12
+    },
+    {
+      "id": "64",
+      "name": "64 Sqn",
+      "type": "Spitfire",
+      "airfield": "kenley",
+      "aircraft": 12
+    },
+    {
+      "id": "615",
+      "name": "615 Sqn",
+      "type": "Hurricane",
+      "airfield": "kenley",
+      "aircraft": 12
+    },
+    {
+      "id": "111",
+      "name": "111 Sqn",
+      "type": "Hurricane",
+      "airfield": "croydon",
+      "aircraft": 12
+    },
+    {
+      "id": "151",
+      "name": "151 Sqn",
+      "type": "Hurricane",
+      "airfield": "north_weald",
+      "aircraft": 12
+    },
+    {
+      "id": "43",
+      "name": "43 Sqn",
+      "type": "Hurricane",
+      "airfield": "tangmere",
+      "aircraft": 12
+    },
+    {
+      "id": "601",
+      "name": "601 Sqn",
+      "type": "Hurricane",
+      "airfield": "tangmere",
+      "aircraft": 12
+    },
+    {
+      "id": "609",
+      "name": "609 Sqn",
+      "type": "Spitfire",
+      "airfield": "middle_wallop",
+      "aircraft": 12
+    },
+    {
+      "id": "1",
+      "name": "1 Sqn",
+      "type": "Hurricane",
+      "airfield": "northolt",
+      "aircraft": 12
+    },
+    {
+      "id": "85",
+      "name": "85 Sqn",
+      "type": "Hurricane",
+      "airfield": "debden",
+      "aircraft": 12
+    },
+    {
+      "id": "guet",
+      "name": "Section de guet",
+      "type": "Spitfire guet",
+      "airfield": "hawkinge",
+      "aircraft": 3,
+      "role": "watch"
+    },
+    {
+      "id": "500",
+      "name": "500 Sqn",
+      "type": "Anson",
+      "airfield": "detling",
+      "aircraft": 6,
+      "role": "coastal"
+    }
+  ],
+  "raids": [
+    {
+      "id": "r01",
+      "label": "H01",
+      "time": "1940-08-12T09:20",
+      "origin": {
+        "lon": 2.0,
+        "lat": 50.95
+      },
+      "assemblyMin": 6,
+      "target": "radar:dover",
+      "bombers": 12,
+      "bomberType": "Bf 110 Jabo",
+      "escort": 12,
+      "escortType": "Bf 109",
+      "altitudeFt": 7000,
+      "speedKmh": 400
+    },
+    {
+      "id": "r02",
+      "label": "H02",
+      "time": "1940-08-12T09:30",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 6,
+      "target": "radar:rye",
+      "bombers": 10,
+      "bomberType": "Bf 110 Jabo",
+      "escort": 10,
+      "escortType": "Bf 109",
+      "altitudeFt": 7000,
+      "speedKmh": 400
+    },
+    {
+      "id": "r03",
+      "label": "H03",
+      "time": "1940-08-12T09:40",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 6,
+      "target": "radar:pevensey",
+      "bombers": 10,
+      "bomberType": "Bf 110 Jabo",
+      "escort": 10,
+      "escortType": "Bf 109",
+      "altitudeFt": 7000,
+      "speedKmh": 400
+    },
+    {
+      "id": "r04",
+      "label": "H04",
+      "time": "1940-08-12T12:05",
+      "origin": {
+        "lon": -1.6,
+        "lat": 49.62
+      },
+      "assemblyMin": 15,
+      "target": "radar:ventnor",
+      "bombers": 30,
+      "bomberType": "Ju 88",
+      "escort": 40,
+      "escortType": "Bf 110",
+      "altitudeFt": 15000,
+      "speedKmh": 360
+    },
+    {
+      "id": "r05",
+      "label": "H05",
+      "time": "1940-08-12T12:15",
+      "origin": {
+        "lon": -1.6,
+        "lat": 49.62
+      },
+      "assemblyMin": 15,
+      "target": "port:portsmouth",
+      "bombers": 40,
+      "bomberType": "Ju 88",
+      "escort": 60,
+      "escortType": "Bf 109",
+      "altitudeFt": 14000,
+      "speedKmh": 360
+    },
+    {
+      "id": "r06",
+      "label": "H06",
+      "time": "1940-08-12T17:10",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 12,
+      "target": "airfield:manston",
+      "bombers": 18,
+      "bomberType": "Do 17",
+      "escort": 30,
+      "escortType": "Bf 109",
+      "altitudeFt": 13000,
+      "speedKmh": 320
+    },
+    {
+      "id": "r07",
+      "label": "H07",
+      "time": "1940-08-12T17:30",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 12,
+      "target": "airfield:hawkinge",
+      "bombers": 20,
+      "bomberType": "Ju 87",
+      "escort": 30,
+      "escortType": "Bf 109",
+      "altitudeFt": 11000,
+      "speedKmh": 300
+    },
+    {
+      "id": "r08",
+      "label": "H08",
+      "time": "1940-08-12T17:45",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 12,
+      "target": "airfield:lympne",
+      "bombers": 20,
+      "bomberType": "Ju 87",
+      "escort": 20,
+      "escortType": "Bf 109",
+      "altitudeFt": 11000,
+      "speedKmh": 300
+    },
+    {
+      "id": "r09",
+      "label": "H09",
+      "time": "1940-08-13T06:30",
+      "origin": {
+        "lon": 2.3,
+        "lat": 49.9
+      },
+      "assemblyMin": 20,
+      "target": "airfield:eastchurch",
+      "bombers": 60,
+      "bomberType": "Do 17",
+      "escort": 0,
+      "escortType": "Bf 110",
+      "altitudeFt": 13000,
+      "speedKmh": 320
+    },
+    {
+      "id": "r10",
+      "label": "H10",
+      "time": "1940-08-13T11:10",
+      "origin": {
+        "lon": -1.6,
+        "lat": 49.62
+      },
+      "assemblyMin": 8,
+      "target": "port:portland",
+      "bombers": 23,
+      "bomberType": "Bf 110 Jabo",
+      "escort": 20,
+      "escortType": "Bf 110",
+      "altitudeFt": 9000,
+      "speedKmh": 400
+    },
+    {
+      "id": "r11",
+      "label": "H11",
+      "time": "1940-08-13T15:40",
+      "origin": {
+        "lon": -1.6,
+        "lat": 49.62
+      },
+      "assemblyMin": 12,
+      "target": "port:southampton",
+      "bombers": 40,
+      "bomberType": "Ju 88",
+      "escort": 30,
+      "escortType": "Bf 109",
+      "altitudeFt": 14000,
+      "speedKmh": 360
+    },
+    {
+      "id": "r12",
+      "label": "H12",
+      "time": "1940-08-13T16:00",
+      "origin": {
+        "lon": -0.35,
+        "lat": 49.3
+      },
+      "assemblyMin": 12,
+      "target": "airfield:middle_wallop",
+      "bombers": 27,
+      "bomberType": "Ju 87",
+      "escort": 30,
+      "escortType": "Bf 109",
+      "altitudeFt": 12000,
+      "speedKmh": 300
+    },
+    {
+      "id": "r13",
+      "label": "H13",
+      "time": "1940-08-13T16:30",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 12,
+      "target": "airfield:detling",
+      "bombers": 40,
+      "bomberType": "Ju 87",
+      "escort": 40,
+      "escortType": "Bf 109",
+      "altitudeFt": 11000,
+      "speedKmh": 300
+    },
+    {
+      "id": "r14",
+      "label": "H14",
+      "time": "1940-08-13T17:00",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 12,
+      "target": "airfield:biggin_hill",
+      "bombers": 30,
+      "bomberType": "Do 17",
+      "escort": 40,
+      "escortType": "Bf 109",
+      "altitudeFt": 15000,
+      "speedKmh": 320
+    },
+    {
+      "id": "r15",
+      "label": "H15",
+      "time": "1940-08-14T12:00",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 8,
+      "target": "airfield:manston",
+      "bombers": 16,
+      "bomberType": "Bf 110 Jabo",
+      "escort": 16,
+      "escortType": "Bf 109",
+      "altitudeFt": 8000,
+      "speedKmh": 400
+    },
+    {
+      "id": "r16",
+      "label": "H16",
+      "time": "1940-08-14T17:00",
+      "origin": {
+        "lon": -1.6,
+        "lat": 49.62
+      },
+      "assemblyMin": 12,
+      "target": "airfield:middle_wallop",
+      "bombers": 12,
+      "bomberType": "He 111",
+      "escort": 10,
+      "escortType": "Bf 110",
+      "altitudeFt": 15000,
+      "speedKmh": 330
+    },
+    {
+      "id": "r17",
+      "label": "H17",
+      "time": "1940-08-15T11:30",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 12,
+      "target": "airfield:hawkinge",
+      "bombers": 40,
+      "bomberType": "Ju 87",
+      "escort": 50,
+      "escortType": "Bf 109",
+      "altitudeFt": 11000,
+      "speedKmh": 300
+    },
+    {
+      "id": "r18",
+      "label": "H18",
+      "time": "1940-08-15T11:40",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 12,
+      "target": "airfield:lympne",
+      "bombers": 20,
+      "bomberType": "Ju 87",
+      "escort": 30,
+      "escortType": "Bf 109",
+      "altitudeFt": 11000,
+      "speedKmh": 300
+    },
+    {
+      "id": "r19",
+      "label": "H19",
+      "time": "1940-08-15T15:00",
+      "origin": {
+        "lon": 2.3,
+        "lat": 49.9
+      },
+      "assemblyMin": 12,
+      "target": "airfield:eastchurch",
+      "bombers": 50,
+      "bomberType": "Do 17",
+      "escort": 60,
+      "escortType": "Bf 109",
+      "altitudeFt": 14000,
+      "speedKmh": 320
+    },
+    {
+      "id": "r20",
+      "label": "H20",
+      "time": "1940-08-15T17:30",
+      "origin": {
+        "lon": -1.6,
+        "lat": 49.62
+      },
+      "assemblyMin": 12,
+      "target": "airfield:middle_wallop",
+      "bombers": 40,
+      "bomberType": "Ju 88",
+      "escort": 40,
+      "escortType": "Bf 110",
+      "altitudeFt": 15000,
+      "speedKmh": 360
+    },
+    {
+      "id": "r21",
+      "label": "H21",
+      "time": "1940-08-15T18:30",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 8,
+      "target": "airfield:croydon",
+      "bombers": 22,
+      "bomberType": "Bf 110 Jabo",
+      "escort": 15,
+      "escortType": "Bf 109",
+      "altitudeFt": 9000,
+      "speedKmh": 400
+    },
+    {
+      "id": "r22",
+      "label": "H22",
+      "time": "1940-08-16T12:30",
+      "origin": {
+        "lon": -0.35,
+        "lat": 49.3
+      },
+      "assemblyMin": 12,
+      "target": "airfield:tangmere",
+      "bombers": 50,
+      "bomberType": "Ju 87",
+      "escort": 40,
+      "escortType": "Bf 109",
+      "altitudeFt": 12000,
+      "speedKmh": 300
+    },
+    {
+      "id": "r23",
+      "label": "H23",
+      "time": "1940-08-16T12:40",
+      "origin": {
+        "lon": -1.6,
+        "lat": 49.62
+      },
+      "assemblyMin": 12,
+      "target": "radar:ventnor",
+      "bombers": 20,
+      "bomberType": "Ju 87",
+      "escort": 20,
+      "escortType": "Bf 109",
+      "altitudeFt": 11000,
+      "speedKmh": 300
+    },
+    {
+      "id": "r24",
+      "label": "H24",
+      "time": "1940-08-16T17:00",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 12,
+      "target": "airfield:kenley",
+      "bombers": 30,
+      "bomberType": "He 111",
+      "escort": 40,
+      "escortType": "Bf 109",
+      "altitudeFt": 16000,
+      "speedKmh": 330
+    },
+    {
+      "id": "r25",
+      "label": "H25",
+      "time": "1940-08-18T13:00",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 15,
+      "target": "airfield:kenley",
+      "bombers": 48,
+      "bomberType": "Do 17",
+      "escort": 60,
+      "escortType": "Bf 109",
+      "altitudeFt": 13000,
+      "speedKmh": 320
+    },
+    {
+      "id": "r26",
+      "label": "H26",
+      "time": "1940-08-18T13:05",
+      "origin": {
+        "lon": 2.0,
+        "lat": 50.95
+      },
+      "assemblyMin": 15,
+      "target": "airfield:biggin_hill",
+      "bombers": 40,
+      "bomberType": "He 111",
+      "escort": 50,
+      "escortType": "Bf 109",
+      "altitudeFt": 16000,
+      "speedKmh": 330
+    },
+    {
+      "id": "r27",
+      "label": "H27",
+      "time": "1940-08-18T14:20",
+      "origin": {
+        "lon": -0.35,
+        "lat": 49.3
+      },
+      "assemblyMin": 12,
+      "target": "airfield:ford",
+      "bombers": 30,
+      "bomberType": "Ju 87",
+      "escort": 30,
+      "escortType": "Bf 109",
+      "altitudeFt": 12000,
+      "speedKmh": 300
+    },
+    {
+      "id": "r28",
+      "label": "H28",
+      "time": "1940-08-18T14:25",
+      "origin": {
+        "lon": -0.35,
+        "lat": 49.3
+      },
+      "assemblyMin": 12,
+      "target": "airfield:thorney_island",
+      "bombers": 28,
+      "bomberType": "Ju 87",
+      "escort": 25,
+      "escortType": "Bf 109",
+      "altitudeFt": 12000,
+      "speedKmh": 300
+    },
+    {
+      "id": "r29",
+      "label": "H29",
+      "time": "1940-08-18T14:30",
+      "origin": {
+        "lon": -0.35,
+        "lat": 49.3
+      },
+      "assemblyMin": 12,
+      "target": "radar:poling",
+      "bombers": 30,
+      "bomberType": "Ju 87",
+      "escort": 25,
+      "escortType": "Bf 109",
+      "altitudeFt": 12000,
+      "speedKmh": 300
+    },
+    {
+      "id": "r30",
+      "label": "H30",
+      "time": "1940-08-18T17:30",
+      "origin": {
+        "lon": 2.3,
+        "lat": 49.9
+      },
+      "assemblyMin": 15,
+      "target": "airfield:hornchurch",
+      "bombers": 50,
+      "bomberType": "Do 17",
+      "escort": 50,
+      "escortType": "Bf 110",
+      "altitudeFt": 14000,
+      "speedKmh": 320
+    },
+    {
+      "id": "r31",
+      "label": "H31",
+      "time": "1940-08-18T17:40",
+      "origin": {
+        "lon": 2.3,
+        "lat": 49.9
+      },
+      "assemblyMin": 15,
+      "target": "airfield:north_weald",
+      "bombers": 50,
+      "bomberType": "He 111",
+      "escort": 40,
+      "escortType": "Bf 110",
+      "altitudeFt": 15000,
+      "speedKmh": 330
+    },
+    {
+      "id": "r32",
+      "label": "H32",
+      "time": "1940-08-13T10:20",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 5,
+      "target": "airfield:biggin_hill",
+      "bombers": 0,
+      "bomberType": "Do 17",
+      "escort": 40,
+      "escortType": "Bf 109",
+      "altitudeFt": 24000,
+      "speedKmh": 450
+    },
+    {
+      "id": "r33",
+      "label": "H33",
+      "time": "1940-08-15T10:40",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 5,
+      "target": "airfield:kenley",
+      "bombers": 0,
+      "bomberType": "Do 17",
+      "escort": 50,
+      "escortType": "Bf 109",
+      "altitudeFt": 25000,
+      "speedKmh": 450
+    },
+    {
+      "id": "r34",
+      "label": "H34",
+      "time": "1940-08-17T15:00",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 5,
+      "target": "airfield:hornchurch",
+      "bombers": 0,
+      "bomberType": "Do 17",
+      "escort": 40,
+      "escortType": "Bf 109",
+      "altitudeFt": 25000,
+      "speedKmh": 450
+    },
+    {
+      "id": "r35",
+      "label": "H35",
+      "time": "1940-08-18T12:30",
+      "origin": {
+        "lon": 1.75,
+        "lat": 50.85
+      },
+      "assemblyMin": 5,
+      "target": "airfield:biggin_hill",
+      "bombers": 0,
+      "bomberType": "Do 17",
+      "escort": 60,
+      "escortType": "Bf 109",
+      "altitudeFt": 25000,
+      "speedKmh": 450
+    }
+  ],
+  "phantoms": [
+    {
+      "id": "x01",
+      "label": "H36",
+      "time": "1940-08-14T09:10",
+      "origin": {
+        "lon": 1.2,
+        "lat": 50.5
+      },
+      "heading": 330,
+      "durationMin": 14,
+      "aircraft": 9,
+      "altitudeFt": 9000,
+      "speedKmh": 300
+    },
+    {
+      "id": "x02",
+      "label": "H37",
+      "time": "1940-08-17T11:20",
+      "origin": {
+        "lon": 0.2,
+        "lat": 50.2
+      },
+      "heading": 10,
+      "durationMin": 16,
+      "aircraft": 12,
+      "altitudeFt": 12000,
+      "speedKmh": 300
+    }
+  ],
+  "objectives": [
+    {
+      "type": "basesOperational",
+      "min": 5,
+      "airfields": [
+        "biggin_hill",
+        "kenley",
+        "hornchurch",
+        "north_weald",
+        "tangmere",
+        "middle_wallop",
+        "northolt"
+      ]
+    },
+    {
+      "type": "radarsOperational",
+      "min": 7,
+      "radars": [
+        "bawdsey",
+        "canewdon",
+        "dunkirk",
+        "dover",
+        "rye",
+        "pevensey",
+        "poling",
+        "ventnor",
+        "worth_matravers"
+      ]
+    },
+    {
+      "type": "enemyDown",
+      "count": 90
+    },
+    {
+      "type": "fighterStrength",
+      "share": 0.5
+    },
+    {
+      "type": "convoyDelivered",
+      "convoy": "hx62",
+      "share": 0.6
+    }
+  ],
+  "defeat": {
+    "fuelOutageHours": 24,
+    "fighterShare": 0.3
+  },
+  "pilots": {
+    "pool": 10,
+    "perDay": 4
+  },
+  "mru": {
+    "available": 0
+  },
+  "events": [
+    {
+      "at": "1940-08-12T06:01",
+      "key": "intro",
+      "important": true
+    },
+    {
+      "at": "1940-08-12T13:30",
+      "key": "mru",
+      "important": true,
+      "effects": [
+        {
+          "type": "mru",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "at": "1940-08-13T05:30",
+      "key": "adlertag",
+      "important": true
+    },
+    {
+      "at": "1940-08-14T18:00",
+      "key": "relief",
+      "important": true,
+      "effects": [
+        {
+          "type": "squadron",
+          "def": {
+            "id": "266",
+            "name": "266 Sqn",
+            "type": "Spitfire",
+            "airfield": "hornchurch",
+            "aircraft": 12
+          }
+        }
+      ]
+    },
+    {
+      "at": "1940-08-15T10:00",
+      "key": "blackThursday"
+    },
+    {
+      "at": "1940-08-18T11:30",
+      "key": "hardestDay",
+      "important": true
+    }
+  ]
+}

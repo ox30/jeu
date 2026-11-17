@@ -12,7 +12,7 @@
     <header id="hud">
       <div class="hud-title">
         <strong data-i18n="app.title"></strong>
-        <span data-i18n="app.subtitle"></span>
+        <span id="hud-subtitle" data-i18n="app.subtitle"></span>
       </div>
       <canvas id="clock" aria-hidden="true"></canvas>
       <div class="hud-date"><div id="date"></div><div id="time"></div></div>
@@ -27,7 +27,9 @@
       </div>
       <div class="hud-group">
         <button type="button" id="btn-ruler" data-i18n="hud.ruler"></button>
-        <button type="button" id="btn-radar" data-i18n="hud.radarCover"></button>
+        <button type="button" id="btn-radar" data-i18n="hud.radarShort" data-i18n-title="hud.radarCover"></button>
+        <button type="button" id="btn-reports" data-i18n="hud.reports"></button>
+        <button type="button" id="btn-cards" data-i18n="hud.cards"></button>
         <button type="button" id="btn-scenario" data-i18n="hud.scenario"></button>
         <button type="button" id="btn-settings" data-i18n="hud.settings"></button>
         <button type="button" id="btn-help" data-i18n="hud.help"></button>
@@ -45,6 +47,7 @@
           <button type="button" id="alert-close" class="close" data-i18n-label="alert.close">×</button>
         </span>
       </div>
+      <div id="coach" class="coach" hidden role="status" aria-live="polite"></div>
       <div id="loading" class="loading"><span class="spinner"></span></div>
     </main>
 
@@ -70,8 +73,8 @@
         <div id="sheet-plan" class="plan"></div>
         <div id="sheet-orders"></div>
       </section>
-      <section class="log-section">
-        <h2 data-i18n="panel.log"></h2>
+      <section class="log-section" id="log-section">
+        <h2 class="foldable" data-log-section="1"><span class="fold">▾</span> <span data-i18n="panel.log"></span></h2>
         <ol id="log" class="log"></ol>
       </section>
     </aside>
@@ -83,6 +86,9 @@
   <dialog id="dlg-end"></dialog>
   <dialog id="dlg-desktop"></dialog>
   <dialog id="dlg-scenario"></dialog>
+  <dialog id="dlg-reports" class="page-dialog"></dialog>
+  <dialog id="dlg-cards" class="page-dialog"></dialog>
+  <dialog id="dlg-event"></dialog>
 
   <script type="module" src="src/main.js"></script>
 </body>

@@ -6,11 +6,12 @@ import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatTime } from '../core/time.js';
 import { unproject } from '../sim/geo.js';
 import { cargoShare } from '../sim/convoy.js';
-import { fuelDays, inbound, trainHours } from '../sim/logistics.js';
+import { RESOURCES, fuelDays, fullTrain, inbound, trainHours, wagonsFor } from '../sim/logistics.js';
 import { escortStrength } from '../sim/naval.js';
 import { capacityFactor, isOperational } from '../sim/sites.js';
+import { lineCost, offerCost, offers } from '../sim/shipping.js';
 import { button, options, row } from './html.js';
-import { dateTimeText, positionText, resourceName, tonnesText } from './format.js';
+import { cargoText, dateTimeText, positionText, resourceName, tonnesText } from './format.js';
 
 function isSel(app, kind, id) {
   return app.selection && app.selection.kind === kind && app.selection.id === id;
@@ -18,6 +19,11 @@ function isSel(app, kind, id) {
 
 function homeFieldIds(world) {
   return [...new Set(world.squadrons.map((s) => s.home))];
+}
+
+/** "C 50 · M 60" */
+function cargoShort(cargo) {
+  return Object.entries(cargo).map(([res, n]) => `${t(`resources.${res}Short`)} ${formatNumber(Math.round(n))}`).join(' · ') + ' t';
 }
 
 function stockLamp(level) {
@@ -31,10 +37,55 @@ function fuelLevel(days) {
   return 'ok';
 }
 
+const SHARES = [1, 0.75, 0.5, 0.25, 0];
+
+/** Atlantic 1941: the dollar reserve, the share of the cargo bought, aircraft to order. */
+function currencyBlock(app) {
+  const w = app.world;
+  const cur = w.currency;
+  if (!cur) return '';
+  const lend = Boolean(w.flags.lendLease);
+  const parts = [`<div class="tote-group">${escapeHtml(t('offers.title'))}</div><div class="currency">`];
+  parts.push(`<p>${escapeHtml(t('offers.stock', { n: formatNumber(Math.round(cur.stock)), m: formatNumber(cur.start) }))}</p>`);
+  if (lend) {
+    parts.push(`<p class="hint">${escapeHtml(t('offers.lendLease'))}</p>`);
+  } else {
+    parts.push(`<p class="hint">${escapeHtml(t('offers.intro'))}</p>`);
+    parts.push(`<div class="order-line"><span>${escapeHtml(t('offers.purchase'))}</span></div><div class="order-line">`);
+    for (const k of SHARES) parts.push(button('purchase', `${Math.round(k * 100)} %`, { active: Math.abs(cur.purchase - k) < 0.01, extra: ` data-share="${k}"` }));
+    parts.push('</div>');
+    const cost = (prefix) => {
+      const line = w.shipping.lines.find((l) => l.prefix === prefix);
+      return line ? formatNumber(Math.round(lineCost(w, line))) : '—';
+    };
+    parts.push(`<p class="hint">${escapeHtml(t('offers.purchaseHint', { hx: cost('HX'), sc: cost('SC') }))}</p>`);
+  }
+  const next = w.shipping.lines
+    .filter((l) => l.sent < l.count)
+    .map((l) => ({ name: `${l.prefix} ${l.firstNumber + l.sent}`, at: l.nextS, cost: lend ? 0 : Math.min(lineCost(w, l) * cur.purchase, cur.stock) }))
+    .sort((a, b) => a.at - b.at)
+    .slice(0, 3);
+  if (next.length) {
+    parts.push(`<div class="sub">${escapeHtml(t('offers.next'))}</div><ul class="next-sailings">`);
+    for (const n of next) {
+      parts.push(`<li>${escapeHtml(t('offers.nextLine', { convoy: n.name, date: dateTimeText(w.startMs + n.at * 1000), cost: formatNumber(Math.round(n.cost)) }))}</li>`);
+    }
+    parts.push('</ul>');
+  }
+  for (const o of offers(w)) {
+    const bought = cur.bought.includes(o.id);
+    const c = offerCost(w, o);
+    parts.push(`<div class="order-line offer"><span class="grow">${escapeHtml(t(`offers.${o.id}`))} <small>(${escapeHtml(t('offers.arrives', { days: o.days }))})</small></span>
+      ${button('offer', bought ? t('offers.bought') : t('offers.buy', { cost: formatNumber(c) }), { disabled: bought || cur.stock < c, extra: ` data-offer="${escapeHtml(o.id)}"` })}</div>`);
+  }
+  parts.push('</div>');
+  return parts.join('');
+}
+
 export function renderLogistics(app) {
   const w = app.world;
   if (!w.rail.enabled) return `<div class="tote-empty">${escapeHtml(t('logistics.none'))}</div>`;
-  const parts = [];
+  const parts = [currencyBlock(app)];
   parts.push(`<div class="tote-group">${escapeHtml(t('tote.ports'))}</div>`);
   for (const p of w.ports) {
     if (!(p.convoys || p.coastal)) continue;
@@ -50,7 +101,7 @@ export function renderLogistics(app) {
     const coming = inbound(w, f.key, 'fuel');
     parts.push(`<div class="tote-row stock${isSel(app, 'site', f.key) ? ' sel' : ''}" data-action="select" data-kind="site" data-id="${escapeHtml(f.key)}">
       ${stockLamp(fuelLevel(days))}<span class="name">${escapeHtml(f.name)}</span>
-      <span class="state">${escapeHtml(t('resources.fuelShort'))} ${formatNumber(Math.round(f.stocks.fuel))} t${coming ? ` (+${formatNumber(Math.round(coming))})` : ''}</span>
+      <span class="state">${escapeHtml(t('resources.fuelShort'))} ${formatNumber(Math.round(f.stocks.fuel))} t${coming ? ` (+${formatNumber(Math.round(coming))})` : ''}${w.depots.length ? ` · ${escapeHtml(t('resources.ammoShort'))} ${formatNumber(Math.round(f.stocks.ammo))}` : ''}</span>
       <span class="extra">${days === null ? '' : escapeHtml(t('tote.days', { n: formatNumber(days, 1) }))}</span></div>`);
   }
   parts.push(`<div class="tote-group">${escapeHtml(t('tote.factories'))}</div>`);
@@ -61,13 +112,22 @@ export function renderLogistics(app) {
       <span class="state">${escapeHtml(t('resources.materielShort'))} ${formatNumber(Math.round(f.stocks.materiel))} t · ${escapeHtml(t('tote.ready', { n: Math.floor(f.stocks.aircraft) }))}</span>
       <span class="extra">${escapeHtml(t('tote.perDay', { n: formatNumber(rate, 1) }))}</span></div>`);
   }
+  if (w.depots.length) {
+    parts.push(`<div class="tote-group">${escapeHtml(t('tote.depots'))}</div>`);
+    for (const d of w.depots) {
+      parts.push(`<div class="tote-row stock${isSel(app, 'site', d.key) ? ' sel' : ''}" data-action="select" data-kind="site" data-id="${escapeHtml(d.key)}">
+        ${stockLamp(isOperational(w, d) ? 'ok' : 'low')}<span class="name">${escapeHtml(d.name)}</span>
+        <span class="state">${escapeHtml(t('resources.ammoShort'))} ${formatNumber(Math.round(d.stocks.ammo))} t</span>
+        <span class="extra">${escapeHtml(t('tote.perDay', { n: formatNumber(d.perDay * capacityFactor(w, d), 1) }))}</span></div>`);
+    }
+  }
   parts.push(`<div class="tote-group">${escapeHtml(t('tote.trains'))}</div>`);
   if (!w.trains.length) parts.push(`<div class="tote-empty">${escapeHtml(t('tote.noTrain'))}</div>`);
   for (const tr of w.trains) {
     const to = w.sites.get(tr.to);
     parts.push(`<div class="tote-row stock${isSel(app, 'train', tr.id) ? ' sel' : ''}" data-action="select" data-kind="train" data-id="${escapeHtml(tr.id)}">
       <span class="lamp train-${tr.resource}"></span><span class="name">${escapeHtml(tr.id)}</span>
-      <span class="state">${formatNumber(Math.round(tr.amount))} t ${escapeHtml(resourceName(tr.resource))} → ${escapeHtml(to.name)}</span>
+      <span class="state">${escapeHtml(cargoShort(tr.cargo))} → ${escapeHtml(to.name)}</span>
       <span class="extra">${escapeHtml(t(`logistics.trainState.${tr.state}`))}</span></div>`);
   }
   return parts.join('');
@@ -85,8 +145,7 @@ function inboundBlock(app, site) {
     const etaS = w.t + (tr.state === 'loading' ? tr.timer : 0) + (leftKm / R.trainKmh + (tr.state === 'unloading' ? 0 : R.unloadHours)) * 3600
       + (tr.state === 'unloading' ? tr.timer : 0);
     return `<li>${escapeHtml(t('logistics.inboundLine', {
-      amount: formatNumber(Math.round(tr.amount)),
-      resource: resourceName(tr.resource),
+      what: cargoText(tr.cargo),
       when: t('logistics.eta', { time: dateTimeText(w.startMs + etaS * 1000) }),
     }))}</li>`;
   });
@@ -103,9 +162,14 @@ export function stockBlock(app, site) {
     rows.push(row(t('logistics.fuel'), escapeHtml(days === null
       ? tonnesText(site.stocks.fuel)
       : t('logistics.fuelDays', { t: formatNumber(Math.round(site.stocks.fuel)), d: formatNumber(days, 1) }))));
+    if (w.depots.length) rows.push(row(t('logistics.ammo'), escapeHtml(tonnesText(site.stocks.ammo))));
+  } else if (site.kind === 'depot') {
+    rows.push(row(t('logistics.ammo'), escapeHtml(tonnesText(site.stocks.ammo))));
+    rows.push(row(t('logistics.production'), escapeHtml(t('logistics.ammoRate', { n: formatNumber(site.perDay * capacityFactor(w, site), 1) }))));
   } else if (site.kind === 'port') {
     rows.push(row(t('logistics.fuel'), escapeHtml(tonnesText(site.stocks.fuel))));
     rows.push(row(t('logistics.materiel'), escapeHtml(tonnesText(site.stocks.materiel))));
+    if (site.stocks.ammo >= 1) rows.push(row(t('logistics.ammo'), escapeHtml(tonnesText(site.stocks.ammo))));
     for (const c of w.convoys) {
       if (c.state === 'arrived' && c.unloading && c.portId === site.id) {
         rows.push(`<p class="hint">${escapeHtml(t('logistics.unloading', { convoy: c.name, n: formatNumber(Math.round(c.cargo.fuel + c.cargo.materiel)) }))}</p>`);
@@ -130,18 +194,25 @@ function trainForm(app, site) {
   const targets = [];
   for (const id of homeFieldIds(w)) {
     const f = w.byId.airfield.get(id);
-    targets.push({ value: f.key, label: `${f.name} (${t('sites.kinds.airfield').toLowerCase()})` });
+    if (f.key !== site.key) targets.push({ value: f.key, label: `${f.name} (${t('sites.kinds.airfield').toLowerCase()})` });
   }
-  for (const f of w.factories) targets.push({ value: f.key, label: `${f.name} (${t('sites.kinds.factory').toLowerCase()})` });
+  for (const f of w.factories) if (f.key !== site.key) targets.push({ value: f.key, label: `${f.name} (${t('sites.kinds.factory').toLowerCase()})` });
   for (const p of w.ports) if ((p.convoys || p.coastal) && p.key !== site.key) targets.push({ value: p.key, label: `${p.label || p.name} (${t('sites.kinds.port').toLowerCase()})` });
-  const resources = [{ value: 'fuel', label: resourceName('fuel') }, { value: 'materiel', label: resourceName('materiel') }];
+  const carried = site.kind === 'depot' ? ['ammo']
+    : RESOURCES.filter((res) => res in site.stocks && (site.stocks[res] >= 1 || res === 'fuel' || res === 'materiel'));
+  const last = app.lastTrainLoads || {};
+  const inputs = carried.map((res) => {
+    const max = Math.min(fullTrain(w, res), Math.floor(site.stocks[res] || 0));
+    const value = last[res] !== undefined ? Math.min(last[res], max) : '';
+    return `<label>${escapeHtml(t(`logistics.${res}`))} <input type="number" min="0" max="${fullTrain(w, res)}" step="${R.wagonTonnes[res]}" id="train-${res}" placeholder="0"${value !== '' ? ` value="${value}"` : ''}> t</label>`;
+  });
   return [
     `<div class="leg-form"><div class="sub">${escapeHtml(t('logistics.sendTrain'))}</div>`,
-    `<div class="order-line"><label>${escapeHtml(t('logistics.resource'))} <select id="train-resource">${options(resources, app.lastTrainResource || 'fuel')}</select></label></div>`,
+    `<div class="order-line">${inputs.join('')}</div>`,
     `<div class="order-line"><label class="grow">${escapeHtml(t('logistics.to'))} <select id="train-to">${options(targets, app.lastTrainTo || null)}</select></label>`,
     button('send-train', t('logistics.send'), { id: site.key, kind: 'site' }),
     `</div>`,
-    `<p class="hint">${escapeHtml(t('logistics.trainHint', { fuel: R.trainTonnes.fuel, materiel: R.trainTonnes.materiel }))}</p>`,
+    `<p class="hint">${escapeHtml(t('logistics.trainHint', { wagons: R.trainWagons, fuel: R.wagonTonnes.fuel, materiel: R.wagonTonnes.materiel, min: R.trainMinTonnes }))}</p>`,
     `</div>`,
   ].join('');
 }
@@ -152,12 +223,18 @@ function minStockForm(app, site, resource) {
   const value = site.minStock[resource];
   return [
     `<div class="leg-form"><div class="sub">${escapeHtml(t('logistics.minStock'))} (${escapeHtml(resourceName(resource))})</div>`,
-    `<div class="order-line"><label>${escapeHtml(t('logistics.minStock'))} <input type="number" min="0" step="10" id="min-stock" value="${value === null ? '' : value}" placeholder="${auto ? w.rules.logistics.autoMinimum[site.kind] : '—'}"> t</label>`,
+    `<div class="order-line"><label>${escapeHtml(t('logistics.minStock'))} <input type="number" min="0" step="${resource === 'ammo' ? 2 : 10}" id="min-stock-${resource}" value="${value === null ? '' : value}" placeholder="${auto ? autoMin(w, site, resource) : '—'}"> t</label>`,
     button('set-min', t('logistics.apply'), { id: site.key, kind: 'site', extra: ` data-resource="${resource}"` }),
     `</div>`,
-    `<p class="hint">${escapeHtml(t('logistics.minHint'))}${auto ? ` ${escapeHtml(t('logistics.minAuto', { n: w.rules.logistics.autoMinimum[site.kind] }))}` : ''}</p>`,
+    `<p class="hint">${escapeHtml(t('logistics.minHint'))}${auto ? ` ${escapeHtml(t('logistics.minAuto', { n: autoMin(w, site, resource) }))}` : ''}</p>`,
     `</div>`,
   ].join('');
+}
+
+function autoMin(w, site, resource) {
+  const A = w.rules.logistics.autoMinimum;
+  if (site.kind === 'airfield') return resource === 'ammo' ? A.airfieldAmmo : A.airfield;
+  return A[site.kind];
 }
 
 /** Orders block of an installation's sheet (logistics part). */
@@ -165,7 +242,10 @@ export function stockOrders(app, site) {
   const w = app.world;
   if (!w.rail.enabled) return '';
   if (site.kind === 'port' && (site.convoys || site.coastal)) return trainForm(app, site);
-  if (site.kind === 'airfield' && homeFieldIds(w).includes(site.id)) return minStockForm(app, site, 'fuel');
+  if (site.kind === 'depot') return trainForm(app, site);
+  if (site.kind === 'airfield' && homeFieldIds(w).includes(site.id)) {
+    return minStockForm(app, site, 'fuel') + (w.depots.length ? minStockForm(app, site, 'ammo') : '');
+  }
   if (site.kind === 'factory') return minStockForm(app, site, 'materiel');
   return '';
 }
@@ -183,7 +263,7 @@ export function convoyCargoRows(app, c) {
       fuel: formatNumber(Math.round(c.cargo.fuel)),
       materiel: formatNumber(Math.round(c.cargo.materiel)),
     }))));
-    rows.push(row(t('sheet.cargoAfloat'), escapeHtml(`${Math.round(cargoShare(c) * 100)} %`)));
+    rows.push(row(t('sheet.cargoAfloat'), escapeHtml(`${Math.round(cargoShare(c, w) * 100)} %`)));
   }
   if (w.escorts.length && c.type !== 'coastal') {
     const groups = w.escorts.filter((e) => e.state === 'escorting' && e.escorting === c.id);
@@ -207,6 +287,7 @@ export function escortSheet(app, e) {
     if (c) state += ` · ${t('sheet.joining', { convoy: c.name })}`;
   }
   if (e.state === 'refit') state += ` · ${t('sheet.readyIn', { n: Math.ceil(e.timer / 60) })}`;
+  if (e.state === 'hunting') state += ` · ${t('sheet.huntingUntil', { time: formatTime(w.startMs + e.huntUntil * 1000) })}`;
   const info = [
     `<h3>${escapeHtml(e.name)} <small>${escapeHtml(e.short)}</small></h3>`,
     row(t('sheet.state'), escapeHtml(state)),
@@ -223,18 +304,20 @@ export function escortSheet(app, e) {
   const orders = [
     `<div class="orders">`,
     e.state === 'inPort' ? button('sail', t('orders.escortSail'), { id: e.id, kind: 'escort', disabled: !e.plan.length && !e.route.length }) : '',
-    aid && canMove ? `<div class="order-line">${joinable.map((c) => button('join', t('orders.join', { convoy: c.name }), { id: e.id, kind: 'escort', extra: ` data-convoy="${escapeHtml(c.id)}"` })).join('')}</div>` : '',
+    aid && canMove ? `<div class="order-line">${joinable.map((c) => button('join', t('orders.join', { convoy: c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name }), { id: e.id, kind: 'escort', extra: ` data-convoy="${escapeHtml(c.id)}"` })).join('')}</div>` : '',
     e.state === 'escorting' ? button('leave', t('orders.leave'), { id: e.id, kind: 'escort' }) : '',
+    `<div class="order-line"><span>${escapeHtml(t('orders.behaviour'))}</span>${button('escort-behaviour', t('orders.behaviours.stay'), { id: e.id, kind: 'escort', active: e.behaviour !== 'hunt', extra: ' data-behaviour="stay"' })}${button('escort-behaviour', t('orders.behaviours.hunt'), { id: e.id, kind: 'escort', active: e.behaviour === 'hunt', extra: ' data-behaviour="hunt"' })}</div>`,
+    `<p class="hint">${escapeHtml(t('orders.behaviourHint'))}</p>`,
     e.state === 'atSea' || e.state === 'escorting' || e.state === 'waiting' ? button('escort-home', t('orders.homePort'), { id: e.id, kind: 'escort' }) : '',
     `<p class="hint">${escapeHtml(t('orders.joinHint'))}</p>`,
     `</div>`,
   ].join('');
   return {
     info,
-    planUnit: canMove && !e.route.length ? e : null,
+    planUnit: canMove ? e : null,
     orders,
     legForm: canMove,
-    key: `eg:${e.id}:${e.state}:${e.plan.length > 0}:${e.route.length > 0}:${joinable.map((c) => c.id).join(',')}:${app.settings.orders}:${aid}`,
+    key: `eg:${e.id}:${e.state}:${e.plan.length > 0}:${e.route.length > 0}:${joinable.map((c) => c.id).join(',')}:${app.settings.orders}:${aid}:${app.editingLeg ? app.editingLeg.index : ''}:${e.behaviour}`,
   };
 }
 
@@ -249,7 +332,8 @@ export function trainSheet(app, id) {
   const etaS = w.t + (tr.state === 'loading' || tr.state === 'unloading' ? tr.timer : 0) + (leftKm / R.trainKmh + (tr.state === 'unloading' ? 0 : R.unloadHours)) * 3600;
   const info = [
     `<h3>${escapeHtml(t('logistics.trainTitle', { id: tr.id }))}</h3>`,
-    `<p>${escapeHtml(t('logistics.trainLine', { amount: formatNumber(Math.round(tr.amount)), resource: resourceName(tr.resource), from: from.name, to: to.name }))}</p>`,
+    `<p>${escapeHtml(t('logistics.trainLine', { what: cargoText(tr.cargo), from: from.name, to: to.name }))}</p>`,
+    row(t('logistics.wagons'), escapeHtml(t('logistics.wagonsOf', { n: tr.wagons, max: R.trainWagons }))),
     row(t('sheet.state'), escapeHtml(t(`logistics.trainState.${tr.state}`))),
     row(t('sheet.eta'), escapeHtml(dateTimeText(w.startMs + etaS * 1000))),
   ].join('');
@@ -260,7 +344,9 @@ export function trainSheet(app, id) {
 export function coverButtons(app, s) {
   const w = app.world;
   if (!(s.state === 'airborne' || s.state === 'combat' || s.state === 'returning')) return '';
-  const list = w.convoys.filter((c) => c.type === 'coastal' && c.state === 'atSea');
+  if (s.role === 'watch') return '';
+  // Fighters cover the coastal convoys; Coastal Command covers any convoy at sea.
+  const list = w.convoys.filter((c) => c.state === 'atSea' && (s.role === 'coastal' || c.type === 'coastal'));
   if (!list.length) return '';
   return `<div class="order-line">${list.map((c) => button('cover', t('orders.cover', { convoy: c.name }), { id: s.id, kind: 'squadron', active: s.cover === c.id, extra: ` data-convoy="${escapeHtml(c.id)}"` })).join('')}</div><p class="hint">${escapeHtml(t('orders.coverHint'))}</p>`;
 }

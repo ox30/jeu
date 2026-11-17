@@ -6,6 +6,7 @@ import { KNOT_KMH, bearing, distance, headingVector, project, unproject } from '
 import { emit } from './events.js';
 import { solveIntercept } from './intercept.js';
 import { acceptingPorts, currentSpeed, stepShip } from './convoy.js';
+import { dive, isSubmerged, spotAttacker, stepHunt } from './asw.js';
 
 // ---- ships lost -------------------------------------------------------------------
 
@@ -79,6 +80,7 @@ export function createEscortGroup(world, def) {
     heading: 270,
     course: 270,
     route: [],
+    routeLocked: 0,
     plan: [],
     legState: null,
     state: 'inPort', // inPort | atSea | waiting | escorting | refit
@@ -91,10 +93,12 @@ export function createEscortGroup(world, def) {
     timer: 0,
     lowWarned: false,
     homeward: false,
+    behaviour: def.behaviour || 'stay', // stay with the convoy, or hunt the contacts
+    huntFor: null,
   };
 }
 
-/** Number of escort ships with a convoy. */
+/** Number of escort ships with a convoy (a group away hunting does not count). */
 export function escortStrength(world, c) {
   let n = 0;
   for (const e of world.escorts) if (e.state === 'escorting' && e.escorting === c.id) n += e.ships;
@@ -148,6 +152,7 @@ export function sendEscortHome(world, e) {
   e.homeward = true;
   if (best) {
     e.route = [[best.a.points[0][0], best.a.points[0][1]], ...best.a.points.slice(1)];
+    e.routeLocked = e.route.length;
     e.destination = best.port.id;
   }
 }
@@ -168,6 +173,10 @@ export function updateEscort(world, e, dt) {
   }
   if (e.state === 'inPort') return;
   e.endurance -= dt;
+  if (e.state === 'hunting') {
+    stepHunt(world, e, dt);
+    return;
+  }
   if (!e.lowWarned && e.endurance < R.lowEnduranceDays * 86400) {
     e.lowWarned = true;
     emit(world, 'escortLowFuel', { escort: e.name, escortId: e.id });
@@ -231,8 +240,11 @@ export function createUboat(world, def) {
     wx: x,
     wy: y,
     state: 'patrol', // patrol | closing | shadow | leaving | gone | sunk
+    submergedUntil: 0,
     target: null,
     torpedoes: def.torpedoes ?? 3,
+    torpedoesFull: def.torpedoes ?? 3,
+    goneAt: null,
     lastAttack: -Infinity,
     lastReport: -Infinity,
     known: Boolean(def.known),
@@ -246,6 +258,9 @@ function hourOf(world) {
 export function isNight(world) {
   const U = world.rules.uboats;
   const h = hourOf(world);
+  const day = world.scenario.daylightH;
+  // A winter scenario: night from the end of the day until an hour before dawn.
+  if (day) return h >= day[1] || h < day[0] - 1;
   return h >= U.nightFromH || h < U.nightToH;
 }
 
@@ -274,23 +289,27 @@ function dfFix(world, u) {
 
 function attack(world, u, c) {
   const U = world.rules.uboats;
+  const A = world.rules.asw;
   const rng = world.rng;
   const escorts = escortStrength(world, c);
   u.lastAttack = world.t;
   u.torpedoes--;
-  const pHit = U.pHit / (1 + escorts * U.escortFactor);
+  const pHit = (U.pHit / (1 + escorts * U.escortFactor)) * (c.zigzag ? A.zigzagHit : 1);
   const n = rng.next() < pHit ? 1 + (rng.next() < U.secondShipP ? 1 : 0) : 0;
   emit(world, 'uboatAttack', { convoy: c.name, convoyId: c.id, sunk: n, escorts, x: c.x, y: c.y });
   if (n) sinkShips(world, c, n, 'uboat');
   if (escorts > 0) {
-    if (rng.next() < U.pKillPerEscort * escorts) {
+    // The escort counter-attacks well only a U-boat it has seen.
+    const k = spotAttacker(world, u, c) ? 1 : A.unseenFactor;
+    if (rng.next() < U.pKillPerEscort * escorts * k) {
       u.state = 'sunk';
       world.stats.uboatsSunk++;
       emit(world, 'uboatSunk', { convoy: c.name, convoyId: c.id, x: u.x, y: u.y });
       return;
     }
-    if (rng.next() < U.pDriveOffPerEscort * escorts) {
+    if (rng.next() < U.pDriveOffPerEscort * escorts * k) {
       u.state = 'leaving';
+      dive(world, u, A.diveHours);
       emit(world, 'uboatDrivenOff', { convoy: c.name, convoyId: c.id });
       return;
     }
@@ -300,13 +319,24 @@ function attack(world, u, c) {
 
 export function updateUboat(world, u, dt) {
   const U = world.rules.uboats;
-  if (u.state === 'sunk' || u.state === 'gone') return;
-  const patrolV = (U.patrolKn * KNOT_KMH) / 3600;
-  const shadowV = (U.shadowKn * KNOT_KMH) / 3600;
+  const A = world.rules.asw;
+  if (u.state === 'sunk') return;
+  if (u.state === 'gone') {
+    if (world.scenario.uboatRotation && world.t % 60 === 0) returnFromBase(world, u);
+    return;
+  }
+  // Under water a U-boat crawls: it cannot keep up with a convoy.
+  const down = isSubmerged(world, u);
+  const slowV = (A.submergedKn * KNOT_KMH) / 3600;
+  const patrolV = down ? slowV : (U.patrolKn * KNOT_KMH) / 3600;
+  const shadowV = down ? slowV : (U.shadowKn * KNOT_KMH) / 3600;
   if (u.state === 'leaving') {
     // Back to the bases in France, out of the game.
     moveTo(u, u.x - 1, u.y - 2, shadowV, dt);
-    if (distance(u.x, u.y, u.hx, u.hy) > 400) u.state = 'gone';
+    if (distance(u.x, u.y, u.hx, u.hy) > 400) {
+      u.state = 'gone';
+      u.goneAt = world.t;
+    }
     return;
   }
   if (u.state === 'patrol') {
@@ -317,7 +347,7 @@ export function updateUboat(world, u, dt) {
       u.wy = u.hy + Math.sin(a) * r;
     }
     if (world.t % 60 !== 0) return;
-    const sight = isNight(world) ? U.sightKmNight : U.sightKmDay;
+    const sight = down ? (isNight(world) ? 0 : A.periscopeSightKm) : isNight(world) ? U.sightKmNight : U.sightKmDay;
     for (const c of world.convoys) {
       if (c.state !== 'atSea' || c.type === 'coastal') continue;
       if (distance(u.x, u.y, c.x, c.y) > sight) continue;
@@ -326,12 +356,17 @@ export function updateUboat(world, u, dt) {
       u.lastReport = world.t;
       emit(world, 'convoySighted', { convoy: c.name, convoyId: c.id });
       dfFix(world, u);
-      // The U-boat command sends the nearest boats toward the reported convoy.
-      for (const other of world.uboats) {
-        if (other === u || other.state !== 'patrol') continue;
-        if (distance(other.x, other.y, c.x, c.y) > U.callKm) continue;
+      // The U-boat command sends the nearest boats toward the reported convoy, a few at most
+      // (the others keep their patrol line for the next one).
+      let pack = world.uboats.filter((o) => o.target === c.id && (o.state === 'shadow' || o.state === 'closing')).length;
+      const near = world.uboats
+        .filter((o) => o !== u && o.state === 'patrol' && distance(o.x, o.y, c.x, c.y) <= U.callKm)
+        .sort((a, b) => distance(a.x, a.y, c.x, c.y) - distance(b.x, b.y, c.x, c.y));
+      for (const other of near) {
+        if (pack >= (U.maxPack ?? Infinity)) break;
         other.state = 'closing';
         other.target = c.id;
+        pack++;
       }
       return;
     }
@@ -349,7 +384,7 @@ export function updateUboat(world, u, dt) {
     moveTo(u, c.x, c.y, shadowV, dt);
     if (world.t % 60 === 0) {
       const d = distance(u.x, u.y, c.x, c.y);
-      if (d <= (isNight(world) ? U.sightKmNight : U.sightKmDay)) u.state = 'shadow';
+      if (!down && d <= (isNight(world) ? U.sightKmNight : U.sightKmDay)) u.state = 'shadow';
       else if (d > U.callKm * 1.5) {
         u.state = 'patrol';
         u.target = null;
@@ -368,6 +403,7 @@ export function updateUboat(world, u, dt) {
     u.target = null;
     return;
   }
+  if (down) return; // no report and no attack from under water
   if (world.t - u.lastReport >= U.reportEveryH * 3600) {
     u.lastReport = world.t;
     dfFix(world, u);
@@ -375,10 +411,33 @@ export function updateUboat(world, u, dt) {
   if (isNight(world) && d < U.shadowDistanceKm + 8 && world.t - u.lastAttack >= U.attackGapH * 3600) attack(world, u, c);
 }
 
-/** Old direction-finding fixes fade away. */
+/**
+ * A long scenario: a U-boat that went home for torpedoes and a refit sails again from
+ * the Biscay bases and makes for its patrol area.
+ */
+function returnFromBase(world, u) {
+  const U = world.rules.uboats;
+  if (u.goneAt === null || world.t - u.goneAt < U.refitDays * 86400) return;
+  const [x, y] = project(U.reentry.lon, U.reentry.lat);
+  u.x = x;
+  u.y = y;
+  u.wx = u.hx;
+  u.wy = u.hy;
+  u.state = 'patrol';
+  u.target = null;
+  u.torpedoes = u.torpedoesFull;
+  u.goneAt = null;
+  u.submergedUntil = 0;
+}
+
+/** Old direction-finding fixes fade away; new orders acknowledged by radio give fresh ones. */
 export function ageDfZones(world) {
   const life = world.rules.uboats.dfLifetimeH * 3600;
   world.dfZones = world.dfZones.filter((z) => world.t - z.t < life);
+  while (world.dfPending.length) {
+    const u = world.uboats.find((x) => x.id === world.dfPending.shift());
+    if (u && u.state !== 'sunk' && u.state !== 'gone') dfFix(world, u);
+  }
 }
 
 /** Fixes known at the start of the scenario, from the days before. */

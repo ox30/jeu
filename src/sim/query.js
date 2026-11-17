@@ -28,6 +28,7 @@ export function contactEstimate(world, contact) {
       altM: raid.alt,
       heading: raid.heading,
       exact: true,
+      source: contact.plots.length ? contact.plots[contact.plots.length - 1].source : null,
     };
   }
   const plots = visiblePlots(world, contact);
@@ -69,7 +70,7 @@ export function altitudeSigmaFt(world, est) {
   if (!est || est.exact) return 0;
   const D = world.rules.detection;
   const mode = D.modes[world.settings.detection] || D.modes.approximate;
-  const k = est.source === 'observers' ? D.observerAccuracy : 1;
+  const k = est.source === 'observers' ? D.observerAltFactor : 1;
   return (mode.altSigmaM * k) / 0.3048;
 }
 

@@ -1,10 +1,10 @@
-// Installations: aerodromes, radar stations, ports and factories. Bombs damage them (0 to
+// Installations: aerodromes, radar stations, ports, factories and ammunition depots. Bombs damage them (0 to
 // 100 %); a damaged installation works more slowly, a badly damaged one is out of service,
 // and repair crews bring it back over the hours that follow.
 
 import { emit } from './events.js';
 
-export const SITE_KINDS = ['airfield', 'radar', 'port', 'factory'];
+export const SITE_KINDS = ['airfield', 'radar', 'port', 'factory', 'depot'];
 
 export function siteKey(kind, id) {
   return `${kind}:${id}`;
@@ -49,7 +49,7 @@ export function airfieldDelayFactor(world, field) {
 /** A damaged radar sees less far. */
 export function radarRangeFactor(world, radar) {
   if (!isOperational(world, radar)) return 0;
-  return 1 - radar.damage / 120;
+  return (1 - radar.damage / 120) * (radar.rangeFactor ?? 1);
 }
 
 export function severityOf(points) {

@@ -14,7 +14,7 @@ const at = (world, text) => (parseGameDate(text) - world.startMs) / 1000;
 test('the railway links every port to every base and factory', () => {
   const world = makeKanalkampf();
   for (const port of ['port:liverpool', 'port:clyde', 'port:southampton']) {
-    for (const s of world.squadrons) assert.ok(railPath(world, port, `airfield:${s.home}`), `${port} → ${s.home}`);
+    for (const s of world.squadrons.filter((q) => q.role === 'fighter')) assert.ok(railPath(world, port, `airfield:${s.home}`), `${port} → ${s.home}`);
     for (const f of world.factories) assert.ok(railPath(world, port, f.key), `${port} → ${f.key}`);
   }
 });
@@ -25,9 +25,10 @@ test('a train carries fuel from Liverpool to Biggin Hill; a busy line spaces the
   const bh = world.sites.get('airfield:biggin_hill');
   const fuel0 = lpool.stocks.fuel;
   const base0 = bh.stocks.fuel;
-  const a = dispatchTrain(world, 'port:liverpool', 'airfield:biggin_hill', 'fuel');
-  const b = dispatchTrain(world, 'port:liverpool', 'airfield:biggin_hill', 'fuel');
+  const a = dispatchTrain(world, 'port:liverpool', 'airfield:biggin_hill', { fuel: 100 });
+  const b = dispatchTrain(world, 'port:liverpool', 'airfield:biggin_hill', { fuel: 20 });
   assert.ok(a.ok && b.ok);
+  assert.equal(b.train.amount, 20, 'a small train');
   assert.equal(lpool.stocks.fuel, fuel0 - a.train.amount - b.train.amount);
   const events = run(world, 3 * 86400, (e) => e.type === 'trainArrived' && e.train === b.train.id);
   const arrivals = events.filter((e) => e.type === 'trainArrived');
@@ -36,6 +37,22 @@ test('a train carries fuel from Liverpool to Biggin Hill; a busy line spaces the
   assert.ok(hours > 10 && hours < 30, `${hours.toFixed(1)} h`);
   assert.ok(arrivals[1].t - arrivals[0].t >= 86400 / 8 - 60, 'second train waits for a path');
   assert.ok(bh.stocks.fuel > base0 + a.train.amount + b.train.amount - 30);
+});
+
+test('a mixed train carries fuel and matériel, within 20 wagons', () => {
+  const world = makeKanalkampf();
+  const clyde = world.sites.get('port:clyde');
+  const soton = world.sites.get('port:southampton');
+  const m0 = soton.stocks.materiel;
+  assert.equal(dispatchTrain(world, 'port:clyde', 'port:southampton', { fuel: 60, materiel: 72 }).reason, 'tooMuch');
+  assert.equal(dispatchTrain(world, 'port:clyde', 'port:southampton', { fuel: 5 }).reason, 'tooLittle');
+  const r = dispatchTrain(world, 'port:clyde', 'port:southampton', { fuel: 50, materiel: 60 });
+  assert.ok(r.ok, r.reason);
+  assert.equal(r.train.wagons, 20);
+  assert.equal(r.train.resource, 'mixed');
+  assert.equal(clyde.stocks.fuel, 50);
+  run(world, 3 * 86400, (e) => e.type === 'trainArrived');
+  assert.ok(Math.abs(soton.stocks.materiel - (m0 + 60)) < 1);
 });
 
 test('a squadron cannot refuel at a dry aerodrome', () => {

@@ -3,11 +3,14 @@
   "presets": {
     "arcade": {
       "detection": "exact",
-      "interceptAid": "point",
+      "interceptAid": "auto",
       "fuel": "unlimited",
       "falseAlarms": false,
       "orders": "draw",
-      "logistics": "auto"
+      "logistics": "auto",
+      "pagesPause": true,
+      "fatigue": "off",
+      "carry": "none"
     },
     "standard": {
       "detection": "approximate",
@@ -15,7 +18,10 @@
       "fuel": "simple",
       "falseAlarms": false,
       "orders": "draw",
-      "logistics": "manual"
+      "logistics": "manual",
+      "pagesPause": true,
+      "fatigue": "on",
+      "carry": "light"
     },
     "realistic": {
       "detection": "delayed",
@@ -23,7 +29,10 @@
       "fuel": "realistic",
       "falseAlarms": true,
       "orders": "headings",
-      "logistics": "manual"
+      "logistics": "manual",
+      "pagesPause": false,
+      "fatigue": "losses",
+      "carry": "full"
     }
   },
   "choices": {
@@ -33,6 +42,7 @@
       "delayed"
     ],
     "interceptAid": [
+      "auto",
       "point",
       "track",
       "none"
@@ -49,6 +59,16 @@
     "logistics": [
       "auto",
       "manual"
+    ],
+    "fatigue": [
+      "off",
+      "on",
+      "losses"
+    ],
+    "carry": [
+      "none",
+      "light",
+      "full"
     ]
   },
   "options": {

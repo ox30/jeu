@@ -5,11 +5,19 @@ import { FOOT_M, bearing, distance, headingVector, turnToward } from './geo.js';
 import { emit } from './events.js';
 import { followPlan } from './navigation.js';
 import { airfieldDelayFactor, isOperational, nearestOperationalAirfield } from './sites.js';
-import { drawFuel, sortieFuel } from './logistics.js';
+import { drawAmmo, drawFuel, sortieFuel } from './logistics.js';
+import { guidanceHeading } from './control.js';
+import { pilotsKilled } from './crews.js';
+
+/** Characteristics of an aircraft type: a fighter, or a patrol aircraft. */
+export function aircraftSpec(world, type) {
+  return world.rules.fighters[type] || (world.rules.patrols && world.rules.patrols[type]) || null;
+}
 
 export function createSquadron(world, def) {
   const field = world.byId.airfield.get(def.airfield);
-  const type = world.rules.fighters[def.type];
+  const type = aircraftSpec(world, def.type);
+  if (!type) throw new Error(`squadron ${def.id}: unknown aircraft ${def.type}`);
   const altFt = def.altitudeFt ?? world.rules.squadron.defaultAltitudeFt;
   return {
     kind: 'squadron',
@@ -19,8 +27,13 @@ export function createSquadron(world, def) {
     typeName: type.name,
     airfield: field.id,
     home: field.id,
+    role: def.role || type.role || 'fighter', // fighter | watch (spotters) | coastal (Coastal Command)
+    asv: Boolean(def.asv), // air-to-surface radar (patrol aircraft)
     aircraft: def.aircraft,
     aircraftStart: def.aircraft,
+    pilots: def.pilots ?? def.aircraft,
+    fatigue: def.fatigue ?? 10, // 0 (fresh) to 100 (exhausted)
+    alert: def.alert || 'available', // on the ground: rest | available | cockpit
     x: field.x,
     y: field.y,
     px: field.x,
@@ -30,11 +43,15 @@ export function createSquadron(world, def) {
     targetAlt: altFt * FOOT_M,
     heading: 90,
     vector: null, // heading ordered by the controller
-    route: [], // waypoints drawn by the player
+    route: [], // waypoints drawn by the player: [x, y, altM or null]
     plan: [], // legs: heading until a duration, a time, a square or a position
+    endAction: { kind: 'orbit' }, // what to do at the end of the route or of the legs
     legState: null,
     orbit: false,
     cover: null, // id of a convoy to patrol over
+    intercept: null, // guided onto a raid by the controller (Arcade): { raidId, p, ok }
+    follow: null, // big wing: id of the squadron it flies with
+    inFormation: false,
     speedMode: 'cruise', // cruise | max
     state: 'ready', // ready | scrambling | airborne | combat | returning | refuelling | lost
     timer: 0,
@@ -62,7 +79,7 @@ export function feetOf(altM) {
 
 /** Cruise or full speed of a squadron, in km/s. */
 export function squadronSpeed(world, s) {
-  const type = world.rules.fighters[s.type];
+  const type = aircraftSpec(world, s.type);
   return (s.speedMode === 'max' && s.state !== 'returning' ? type.maxKmh : type.cruiseKmh) / 3600;
 }
 
@@ -86,6 +103,105 @@ function clearNavigation(s) {
   s.vector = null;
   s.orbit = false;
   s.cover = null;
+  s.intercept = null;
+  s.follow = null;
+  s.inFormation = false;
+}
+
+/** The leader of a squadron in a big wing, or null when the formation is broken. */
+function wingLeader(world, s) {
+  const leader = world.squadrons.find((x) => x.id === s.follow);
+  if (leader && (leader.state === 'airborne' || leader.state === 'combat') && !leader.follow) return leader;
+  s.follow = null;
+  s.inFormation = false;
+  s.orbit = true;
+  emit(world, 'formationBroken', { squadron: s.name, squadronId: s.id });
+  return null;
+}
+
+/** Station of a squadron in its leader's formation: behind and to the side, one slot each. */
+function formationSlot(world, s, leader) {
+  const slot = 1 + world.squadrons.filter((x) => x.follow === leader.id && x.id < s.id).length;
+  const [hx, hy] = headingVector(leader.heading);
+  const side = slot % 2 ? 1 : -1;
+  const k = Math.ceil(slot / 2);
+  return [leader.x - hx * 1.5 * k + hy * side * 1.2 * k, leader.y - hy * 1.5 * k - hx * side * 1.2 * k];
+}
+
+/**
+ * Big wing: a squadron flies to its leader at full speed, then keeps station beside it, at
+ * its height. Returns the heading to steer while joining, or null.
+ */
+function joiningHeading(world, s, R) {
+  const leader = wingLeader(world, s);
+  if (!leader) return null;
+  const [tx, ty] = formationSlot(world, s, leader);
+  s.targetAlt = leader.targetAlt;
+  s.speedMode = 'max';
+  if (distance(s.x, s.y, tx, ty) < R.formationKm) {
+    s.inFormation = true;
+    emit(world, 'formationJoined', { squadron: s.name, squadronId: s.id, leader: leader.name, leaderId: leader.id });
+  }
+  return bearing(s.x, s.y, tx, ty);
+}
+
+/** Rearming after a sortie draws on the aerodrome's ammunition (when logistics are played). */
+function rearm(world, s, field) {
+  if (!world.rail.enabled || s.role !== 'fighter') {
+    s.ammo = 1;
+    return;
+  }
+  const per = world.rules.logistics.ammoPerAircraft;
+  const need = Math.max(0, s.aircraft * (1 - s.ammo) * per);
+  if (need <= 1e-6) {
+    s.ammo = 1;
+    return;
+  }
+  const got = drawAmmo(world, field, need);
+  s.ammo = Math.min(1, s.ammo + got / Math.max(1e-6, s.aircraft * per));
+  if (got + 1e-6 < need) emit(world, 'noAmmo', { squadron: s.name, squadronId: s.id, airfield: field.name, n: Math.round(s.ammo * 100) });
+}
+
+/** The squadron takes the altitude written on the next point of its route, if any. */
+export function applyPointAltitude(s) {
+  const p = s.route[0];
+  if (p && p[2] !== null && p[2] !== undefined) s.targetAlt = p[2];
+}
+
+/** Aerodromes whose bubble contains (x, y): a route ending there can end with a landing. */
+export function airfieldsAround(world, x, y) {
+  const r = world.rules.squadron.landBubbleKm;
+  return world.airfields.filter((f) => distance(f.x, f.y, x, y) <= r);
+}
+
+/**
+ * At the end of its route or of its legs the squadron orbits (by default), holds its
+ * heading, comes home, lands at an aerodrome or covers a convoy.
+ */
+export function applyEndAction(world, s) {
+  const a = s.endAction || { kind: 'orbit' };
+  s.vector = null;
+  s.orbit = false;
+  s.cover = null;
+  let done = a.kind;
+  if (a.kind === 'hold') {
+    s.vector = s.heading;
+  } else if (a.kind === 'home' || a.kind === 'land') {
+    const field = a.kind === 'land' ? world.byId.airfield.get(a.id) : null;
+    startReturn(world, s, 'order', field ? field.id : s.home);
+    emit(world, 'returning', { squadron: s.name, squadronId: s.id, airfield: world.byId.airfield.get(s.airfield).name });
+  } else if (a.kind === 'cover') {
+    const c = world.convoys.find((x) => x.id === a.id);
+    if (c && c.state === 'atSea') s.cover = c.id;
+    else {
+      s.orbit = true;
+      done = 'orbit';
+    }
+  } else {
+    s.orbit = true;
+  }
+  s.endAction = { kind: 'orbit' };
+  emit(world, 'routeEnded', { squadron: s.name, squadronId: s.id, action: done });
 }
 
 /** Sends a flying squadron home (or to `fieldId`). */
@@ -126,7 +242,7 @@ function updateFuel(world, s, dt) {
   const mode = world.settings.fuel;
   if (mode === 'unlimited') return;
   const R = world.rules.squadron;
-  const type = world.rules.fighters[s.type];
+  const type = aircraftSpec(world, s.type);
   const burn = (s.speedMode === 'max' && s.state !== 'returning' ? R.maxSpeedBurn : 1) * (s.state === 'combat' ? R.combatBurn : 1);
   s.fuel -= (burn * dt) / 60;
 
@@ -148,6 +264,7 @@ function updateFuel(world, s, dt) {
     const lost = Math.min(s.aircraft, Math.ceil(s.aircraft / 3));
     s.aircraft -= lost;
     world.stats.rafLost += lost;
+    pilotsKilled(world, s, lost, s.x, s.y);
     const field = nearestOperationalAirfield(world, s.x, s.y) || nearestAirfield(world, s.x, s.y);
     s.airfield = field.id;
     emit(world, 'fuelExhausted', { squadron: s.name, squadronId: s.id, lost, airfield: field.name });
@@ -185,7 +302,7 @@ export function updateSquadron(world, s, dt) {
   s.py = s.y;
   s.palt = s.alt;
   const R = world.rules.squadron;
-  const type = world.rules.fighters[s.type];
+  const type = aircraftSpec(world, s.type);
 
   switch (s.state) {
     case 'ready':
@@ -197,7 +314,7 @@ export function updateSquadron(world, s, dt) {
         // Refuelling draws on the aerodrome's stock: without fuel the squadron stays down.
         if (s.waitingFuel && world.t % 60 !== 0) return;
         const field = world.byId.airfield.get(s.airfield);
-        if (!drawFuel(world, field, sortieFuel(world, s))) {
+        if (!drawFuel(world, field, sortieFuel(world, s), s.role)) {
           if (!s.waitingFuel) emit(world, 'noFuel', { squadron: s.name, squadronId: s.id, airfield: field.name });
           s.waitingFuel = true;
           s.timer = 0;
@@ -206,7 +323,7 @@ export function updateSquadron(world, s, dt) {
         s.waitingFuel = false;
         s.state = 'ready';
         s.fuel = type.enduranceMin;
-        s.ammo = 1;
+        rearm(world, s, field);
         s.nothingSeen.clear();
         s.watch.clear();
         emit(world, 'ready', { squadron: s.name, squadronId: s.id, airfield: world.byId.airfield.get(s.airfield).name });
@@ -239,11 +356,18 @@ export function updateSquadron(world, s, dt) {
   if (s.alt < wantAlt) s.alt = Math.min(wantAlt, s.alt + (type.climbMpm / 60) * dt);
   else s.alt = Math.max(wantAlt, s.alt - (R.descentMpm / 60) * dt);
 
+  const leader = !raid && s.follow && s.inFormation && s.state === 'airborne' ? wingLeader(world, s) : null;
   if (raid) {
     // In combat the squadron stays with the raid.
     s.x = raid.x;
     s.y = raid.y;
     s.heading = raid.heading;
+  } else if (leader) {
+    // In formation: the squadron keeps its station with the leader.
+    [s.x, s.y] = formationSlot(world, s, leader);
+    s.heading = leader.heading;
+    s.targetAlt = leader.targetAlt;
+    s.speedMode = leader.speedMode;
   } else {
     const v = squadronSpeed(world, s);
     let desired = s.heading;
@@ -254,11 +378,23 @@ export function updateSquadron(world, s, dt) {
       const [wx, wy] = s.route[0];
       if (distance(s.x, s.y, wx, wy) < Math.max(R.waypointReachedKm, v * dt * 2)) {
         s.route.shift();
-        if (!s.route.length) s.vector = s.heading; // end of the line: keep flying straight
+        if (s.route.length) applyPointAltitude(s);
+        else applyEndAction(world, s);
       }
       if (s.route.length) desired = bearing(s.x, s.y, s.route[0][0], s.route[0][1]);
+      else if (s.state === 'returning') desired = bearing(s.x, s.y, field.x, field.y);
     } else if (s.plan.length) {
       desired = followPlan(world, s, 'air') ?? s.heading;
+      if (s.planJustEnded) {
+        s.planJustEnded = false;
+        applyEndAction(world, s);
+      }
+    } else if (s.follow) {
+      const h = joiningHeading(world, s, R);
+      if (h !== null) desired = h;
+    } else if (s.intercept) {
+      const h = guidanceHeading(world, s, v);
+      if (h !== null) desired = h;
     } else if (s.cover) {
       const c = coverHeading(world, s, R);
       if (c) {

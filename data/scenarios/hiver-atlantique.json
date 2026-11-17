@@ -1,0 +1,650 @@
+{
+  "id": "hiver-atlantique",
+  "title": "Hiver dans l'Atlantique, 1941",
+  "note": "Inspiré de janvier à mars 1941 ; convois, effectifs et chiffres choisis pour le jeu. Avant le prêt-bail, la Grande-Bretagne paie comptant ce qu'elle achète en Amérique.",
+  "start": "1941-01-10T06:00",
+  "end": "1941-03-31T18:00",
+  "seed": 1941,
+  "grid": {
+    "origin": [
+      -4.5,
+      52.95
+    ],
+    "sizeKm": 25,
+    "cols": 20,
+    "rows": 16
+  },
+  "ports": [
+    {
+      "id": "halifax",
+      "name": "Halifax",
+      "lon": -63.57,
+      "lat": 44.65,
+      "foreign": true
+    },
+    {
+      "id": "liverpool",
+      "name": "Liverpool",
+      "lon": -3.0,
+      "lat": 53.43,
+      "approaches": [
+        {
+          "name": "Nord de l'Irlande",
+          "path": [
+            [
+              -8.3,
+              56.1
+            ],
+            [
+              -7.5,
+              55.62
+            ],
+            [
+              -6.25,
+              55.4
+            ],
+            [
+              -5.97,
+              55.25
+            ],
+            [
+              -5.55,
+              54.85
+            ],
+            [
+              -5.2,
+              54.55
+            ],
+            [
+              -5.0,
+              54.0
+            ],
+            [
+              -3.9,
+              53.6
+            ],
+            [
+              -3.0,
+              53.43
+            ]
+          ]
+        },
+        {
+          "name": "Canal Saint-Georges",
+          "path": [
+            [
+              -7.2,
+              51.2
+            ],
+            [
+              -5.85,
+              52.0
+            ],
+            [
+              -5.35,
+              52.9
+            ],
+            [
+              -4.85,
+              53.55
+            ],
+            [
+              -3.9,
+              53.6
+            ],
+            [
+              -3.0,
+              53.43
+            ]
+          ]
+        }
+      ],
+      "convoys": true,
+      "stocks": {
+        "fuel": 300,
+        "materiel": 200
+      }
+    },
+    {
+      "id": "clyde",
+      "name": "la Clyde",
+      "lon": -4.76,
+      "lat": 55.95,
+      "label": "Clyde",
+      "approaches": [
+        {
+          "name": "Nord de l'Irlande",
+          "path": [
+            [
+              -8.3,
+              56.1
+            ],
+            [
+              -7.5,
+              55.62
+            ],
+            [
+              -6.25,
+              55.4
+            ],
+            [
+              -5.97,
+              55.25
+            ],
+            [
+              -5.45,
+              55.18
+            ],
+            [
+              -4.95,
+              55.45
+            ],
+            [
+              -4.95,
+              55.75
+            ],
+            [
+              -4.76,
+              55.95
+            ]
+          ]
+        }
+      ],
+      "convoys": true,
+      "stocks": {
+        "fuel": 150,
+        "materiel": 100
+      }
+    },
+    {
+      "id": "sydney",
+      "name": "Sydney (Cap-Breton)",
+      "lon": -60.19,
+      "lat": 46.14,
+      "foreign": true
+    }
+  ],
+  "airfields": [
+    {
+      "id": "aldergrove",
+      "name": "Aldergrove",
+      "lon": -6.216,
+      "lat": 54.658,
+      "stocks": {
+        "fuel": 40,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "limavady",
+      "name": "Limavady",
+      "lon": -6.97,
+      "lat": 55.07,
+      "stocks": {
+        "fuel": 40,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "castle_archdale",
+      "name": "Castle Archdale",
+      "lon": -7.72,
+      "lat": 54.47,
+      "stocks": {
+        "fuel": 40,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "oban",
+      "name": "Oban",
+      "lon": -5.47,
+      "lat": 56.415,
+      "stocks": {
+        "fuel": 40,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "pembroke_dock",
+      "name": "Pembroke Dock",
+      "lon": -4.94,
+      "lat": 51.69,
+      "stocks": {
+        "fuel": 40,
+        "ammo": 0
+      }
+    }
+  ],
+  "radars": [],
+  "factories": [],
+  "depots": [],
+  "logistics": {
+    "junctions": [],
+    "rail": []
+  },
+  "landmarks": [],
+  "convoys": [],
+  "escorts": [
+    {
+      "id": "eg1",
+      "name": "1er groupe d'escorte",
+      "short": "EG 1",
+      "from": "liverpool",
+      "ships": 4,
+      "composition": "2 destroyers, 2 corvettes",
+      "speedKn": 16,
+      "enduranceDays": 8
+    },
+    {
+      "id": "eg2",
+      "name": "2e groupe d'escorte",
+      "short": "EG 2",
+      "from": "clyde",
+      "ships": 3,
+      "composition": "1 destroyer, 2 corvettes",
+      "speedKn": 16,
+      "enduranceDays": 7
+    },
+    {
+      "id": "eg3",
+      "name": "3e groupe d'escorte",
+      "short": "EG 3",
+      "from": "liverpool",
+      "ships": 4,
+      "composition": "2 destroyers, 2 corvettes",
+      "speedKn": 16,
+      "enduranceDays": 8
+    },
+    {
+      "id": "eg4",
+      "name": "4e groupe d'escorte",
+      "short": "EG 4",
+      "from": "clyde",
+      "ships": 3,
+      "composition": "1 destroyer, 1 corvette, 1 aviso",
+      "speedKn": 16,
+      "enduranceDays": 7
+    }
+  ],
+  "uboats": [
+    {
+      "id": "u1",
+      "lon": -18.0,
+      "lat": 58.5,
+      "radiusKm": 140,
+      "torpedoes": 4,
+      "known": true
+    },
+    {
+      "id": "u2",
+      "lon": -22.0,
+      "lat": 57.0,
+      "radiusKm": 150,
+      "torpedoes": 4
+    },
+    {
+      "id": "u3",
+      "lon": -15.0,
+      "lat": 56.0,
+      "radiusKm": 120,
+      "torpedoes": 4
+    },
+    {
+      "id": "u4",
+      "lon": -25.0,
+      "lat": 59.0,
+      "radiusKm": 150,
+      "torpedoes": 4,
+      "known": true
+    },
+    {
+      "id": "u5",
+      "lon": -20.0,
+      "lat": 55.0,
+      "radiusKm": 140,
+      "torpedoes": 4
+    },
+    {
+      "id": "u6",
+      "lon": -12.5,
+      "lat": 57.5,
+      "radiusKm": 100,
+      "torpedoes": 4
+    }
+  ],
+  "squadrons": [
+    {
+      "id": "502",
+      "name": "502 Sqn",
+      "type": "Anson",
+      "airfield": "aldergrove",
+      "aircraft": 6,
+      "role": "coastal"
+    },
+    {
+      "id": "233",
+      "name": "233 Sqn",
+      "type": "Hudson",
+      "airfield": "aldergrove",
+      "aircraft": 6,
+      "role": "coastal",
+      "asv": true
+    },
+    {
+      "id": "210",
+      "name": "210 Sqn",
+      "type": "Sunderland",
+      "airfield": "oban",
+      "aircraft": 4,
+      "role": "coastal",
+      "asv": true
+    },
+    {
+      "id": "10 RAAF",
+      "name": "10 Sqn RAAF",
+      "type": "Sunderland",
+      "airfield": "pembroke_dock",
+      "aircraft": 4,
+      "role": "coastal"
+    }
+  ],
+  "raids": [],
+  "convoySchedule": [
+    {
+      "prefix": "HX",
+      "firstNumber": 100,
+      "first": "1941-01-10T12:00",
+      "everyHours": 120,
+      "count": 14,
+      "speedKn": 9,
+      "heading": 75,
+      "tankers": 8,
+      "fuelPerTanker": 80,
+      "freighters": 30,
+      "materielPerFreighter": 12,
+      "admiraltyRoute": [
+        [
+          -63.0,
+          44.3
+        ],
+        [
+          -58.0,
+          44.4
+        ],
+        [
+          -50.0,
+          46.8
+        ],
+        [
+          -40.0,
+          50.5
+        ],
+        [
+          -30.0,
+          54.0
+        ],
+        [
+          -20.0,
+          56.2
+        ],
+        [
+          -12.0,
+          56.8
+        ],
+        [
+          -7.5,
+          55.62
+        ],
+        [
+          -6.25,
+          55.4
+        ],
+        [
+          -5.97,
+          55.25
+        ],
+        [
+          -5.55,
+          54.85
+        ],
+        [
+          -5.2,
+          54.55
+        ],
+        [
+          -5.0,
+          54.0
+        ],
+        [
+          -3.9,
+          53.6
+        ],
+        [
+          -3.0,
+          53.43
+        ]
+      ]
+    },
+    {
+      "prefix": "SC",
+      "firstNumber": 19,
+      "first": "1941-01-12T12:00",
+      "everyHours": 192,
+      "count": 8,
+      "speedKn": 7,
+      "heading": 70,
+      "tankers": 4,
+      "fuelPerTanker": 70,
+      "freighters": 32,
+      "materielPerFreighter": 10,
+      "admiraltyRoute": [
+        [
+          -59.6,
+          46.4
+        ],
+        [
+          -57.5,
+          45.9
+        ],
+        [
+          -53.0,
+          45.6
+        ],
+        [
+          -48.0,
+          47.0
+        ],
+        [
+          -40.0,
+          51.0
+        ],
+        [
+          -30.0,
+          55.0
+        ],
+        [
+          -20.0,
+          57.0
+        ],
+        [
+          -12.0,
+          56.8
+        ],
+        [
+          -7.5,
+          55.62
+        ],
+        [
+          -6.25,
+          55.4
+        ],
+        [
+          -5.97,
+          55.25
+        ],
+        [
+          -5.55,
+          54.85
+        ],
+        [
+          -5.2,
+          54.55
+        ],
+        [
+          -5.0,
+          54.0
+        ],
+        [
+          -3.9,
+          53.6
+        ],
+        [
+          -3.0,
+          53.43
+        ]
+      ]
+    }
+  ],
+  "uboatRotation": true,
+  "daylightH": [
+    8,
+    18
+  ],
+  "currency": {
+    "stock": 520,
+    "costFuel": 0.04,
+    "costMateriel": 0.045,
+    "offers": [
+      {
+        "id": "hudson",
+        "cost": 45,
+        "days": 12,
+        "event": "hudson",
+        "squadron": {
+          "id": "224",
+          "name": "224 Sqn",
+          "type": "Hudson",
+          "airfield": "limavady",
+          "aircraft": 6,
+          "role": "coastal",
+          "asv": true
+        }
+      },
+      {
+        "id": "catalina",
+        "cost": 70,
+        "days": 18,
+        "event": "catalina",
+        "squadron": {
+          "id": "240",
+          "name": "240 Sqn",
+          "type": "Catalina",
+          "airfield": "castle_archdale",
+          "aircraft": 4,
+          "role": "coastal",
+          "asv": true
+        }
+      }
+    ]
+  },
+  "objectives": [
+    {
+      "type": "tonnageDelivered",
+      "fuel": 6800,
+      "materiel": 4400
+    },
+    {
+      "type": "shipLossesBelow",
+      "share": 0.08
+    }
+  ],
+  "defeat": {
+    "shipLosses": {
+      "share": 0.2,
+      "afterDays": 20
+    }
+  },
+  "events": [
+    {
+      "at": "1941-01-10T06:01",
+      "key": "intro",
+      "important": true
+    },
+    {
+      "at": "1941-02-01T06:00",
+      "key": "packs",
+      "effects": [
+        {
+          "type": "uboats",
+          "boats": [
+            {
+              "id": "u7",
+              "lon": -19.0,
+              "lat": 60.0,
+              "radiusKm": 150,
+              "torpedoes": 4
+            },
+            {
+              "id": "u8",
+              "lon": -24.0,
+              "lat": 56.5,
+              "radiusKm": 150,
+              "torpedoes": 4
+            },
+            {
+              "id": "u9",
+              "lon": -16.0,
+              "lat": 54.5,
+              "radiusKm": 130,
+              "torpedoes": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "at": "1941-02-20T06:00",
+      "key": "packs2",
+      "effects": [
+        {
+          "type": "uboats",
+          "boats": [
+            {
+              "id": "u10",
+              "lon": -21.0,
+              "lat": 58.0,
+              "radiusKm": 150,
+              "torpedoes": 4
+            },
+            {
+              "id": "u11",
+              "lon": -27.0,
+              "lat": 57.5,
+              "radiusKm": 160,
+              "torpedoes": 4
+            },
+            {
+              "id": "u12",
+              "lon": -14.0,
+              "lat": 57.0,
+              "radiusKm": 120,
+              "torpedoes": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "at": "1941-03-11T06:00",
+      "key": "lendLease",
+      "important": true,
+      "effects": [
+        {
+          "type": "flag",
+          "name": "lendLease"
+        }
+      ]
+    }
+  ]
+}

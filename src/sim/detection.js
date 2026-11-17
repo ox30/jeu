@@ -9,10 +9,13 @@ import { emit } from './events.js';
 import { isActive, raidStrength } from './raid.js';
 import { describeLocation } from './places.js';
 import { radarRangeFactor } from './sites.js';
+import { patrolSeeing } from './patrols.js';
 
-/** 'radar', 'observers' or null. */
+/** 'patrol', 'radar', 'observers' or null. */
 export function sense(world, r) {
   const D = world.rules.detection;
+  // A patrol in sight of the formation reports what it really is (a false echo shows nothing).
+  if (!r.phantom && patrolSeeing(world, r.x, r.y, r.alt)) return 'patrol';
   for (const s of world.radars) {
     const factor = radarRangeFactor(world, s);
     if (factor <= 0) continue;
@@ -21,7 +24,7 @@ export function sense(world, r) {
     if (Math.abs(headingDiff(s.azimuth, bearing(s.x, s.y, r.x, r.y))) > D.radarHalfArcDeg) continue;
     return 'radar';
   }
-  if (r.alt <= D.observerMaxAltM && world.terrain.isOverBritain(r.x, r.y)) return 'observers';
+  if (r.alt <= D.observerMaxAltM && world.terrain.isObserved(r.x, r.y, D.observerCellKm, D.observerOffshoreKm)) return 'observers';
   return null;
 }
 
@@ -29,21 +32,26 @@ function makePlot(world, r, source) {
   const D = world.rules.detection;
   const mode = D.modes[world.settings.detection] || D.modes.approximate;
   const rng = world.rng;
-  const k = source === 'observers' ? D.observerAccuracy : 1;
-  const sigma = mode.posSigmaKm * k;
+  // The observers place a raid well but judge its height by eye; a patrol sees it as it is.
+  const obs = source === 'observers';
+  const P = world.rules.patrolRules;
+  const seen = source === 'patrol';
+  const sigma = mode.posSigmaKm * (obs ? D.observerPosFactor : seen ? P.plotPos : 1);
   const total = raidStrength(r);
-  const count = mode.countError
-    ? Math.max(1, Math.round(total * (1 + rng.range(-mode.countError, mode.countError / 2))))
+  const countError = mode.countError * (seen ? P.plotCount : 1);
+  const count = countError
+    ? Math.max(1, Math.round(total * (1 + rng.range(-countError, countError / 2))))
     : total;
-  const alt = r.alt + (mode.altSigmaM ? rng.gauss() * mode.altSigmaM * k : 0);
-  const delay = mode.delayS[1] > 0 ? Math.round(rng.range(mode.delayS[0], mode.delayS[1])) : 0;
+  const altK = obs ? D.observerAltFactor : seen ? P.plotAlt : 1;
+  const alt = r.alt + (mode.altSigmaM ? rng.gauss() * mode.altSigmaM * altK : 0);
+  const delay = mode.delayS[1] > 0 && !seen ? Math.round(rng.range(mode.delayS[0], mode.delayS[1])) : 0;
   return {
     t: world.t,
     visibleAt: world.t + delay,
     x: r.x + (sigma ? rng.gauss() * sigma : 0),
     y: r.y + (sigma ? rng.gauss() * sigma : 0),
     count,
-    approx: mode.countError > 0,
+    approx: countError > 0,
     altFt: Math.max(500, Math.round(alt / FOOT_M / 500) * 500),
     source,
     color: clockColorIndex(world.startMs + world.t * 1000),
@@ -67,7 +75,13 @@ export function updateDetection(world) {
       contact = { raidId: r.id, label: r.label, plots: [], firstSeen: world.t, lastSeen: world.t, lost: false, alerted: false };
       world.contacts.set(r.id, contact);
     }
+    const previous = contact.plots[contact.plots.length - 1];
     contact.plots.push(makePlot(world, r, source));
+    if (source === 'observers' && previous && previous.source === 'radar' && !contact.observersTold) {
+      // Over the coast the radar loses the raid: the Observer Corps takes over the plot.
+      contact.observersTold = true;
+      emit(world, 'observersTracking', { raid: contact.label, raidId: r.id, location: describeLocation(world, r.x, r.y) });
+    }
     contact.lastSeen = world.t;
     contact.lost = false;
     while (contact.plots.length && world.t - contact.plots[0].t > D.plotLifetimeS) contact.plots.shift();

@@ -8,7 +8,10 @@
       "climbMpm": 760,
       "enduranceMin": 90,
       "vsBombers": 1.0,
-      "vsFighters": 0.9
+      "vsFighters": 0.9,
+      "ceilingFt": 34000,
+      "armament": "8 mitrailleuses Browning de 7,7 mm",
+      "crew": 1
     },
     "Spitfire": {
       "name": "Spitfire Mk I",
@@ -17,34 +20,82 @@
       "climbMpm": 840,
       "enduranceMin": 85,
       "vsBombers": 0.95,
-      "vsFighters": 1.15
+      "vsFighters": 1.15,
+      "ceilingFt": 34000,
+      "armament": "8 mitrailleuses Browning de 7,7 mm",
+      "crew": 1
     }
   },
   "bombers": {
     "Do 17": {
-      "name": "Dornier Do 17",
+      "name": "Dornier Do 17 Z",
       "vulnerability": 1.0,
-      "accuracy": 1.0
+      "accuracy": 1.0,
+      "cruiseKmh": 320,
+      "maxKmh": 410,
+      "ceilingFt": 26000,
+      "bombKg": 1000,
+      "crew": 4
     },
     "Ju 87": {
-      "name": "Junkers Ju 87",
+      "name": "Junkers Ju 87 B « Stuka »",
       "vulnerability": 1.3,
-      "accuracy": 1.5
+      "accuracy": 1.5,
+      "cruiseKmh": 300,
+      "maxKmh": 390,
+      "ceilingFt": 26000,
+      "bombKg": 500,
+      "crew": 2
     },
     "He 111": {
-      "name": "Heinkel He 111",
+      "name": "Heinkel He 111 H",
       "vulnerability": 0.85,
-      "accuracy": 0.85
+      "accuracy": 0.85,
+      "cruiseKmh": 330,
+      "maxKmh": 405,
+      "ceilingFt": 27000,
+      "bombKg": 2000,
+      "crew": 5
+    },
+    "Ju 88": {
+      "name": "Junkers Ju 88 A",
+      "vulnerability": 0.85,
+      "accuracy": 1.3,
+      "cruiseKmh": 370,
+      "maxKmh": 470,
+      "ceilingFt": 27000,
+      "bombKg": 1400,
+      "crew": 4
+    },
+    "Bf 110 Jabo": {
+      "name": "Messerschmitt Bf 110 (chasseur-bombardier)",
+      "vulnerability": 0.9,
+      "accuracy": 1.2,
+      "cruiseKmh": 400,
+      "maxKmh": 540,
+      "ceilingFt": 32000,
+      "bombKg": 500,
+      "crew": 2
     }
   },
   "escorts": {
     "Bf 109": {
-      "name": "Messerschmitt Bf 109",
-      "threat": 1.25
+      "name": "Messerschmitt Bf 109 E",
+      "threat": 1.25,
+      "maxKmh": 560,
+      "ceilingFt": 34000,
+      "rangeKm": 660,
+      "armament": "2 mitrailleuses, 2 canons de 20 mm",
+      "crew": 1
     },
     "Bf 110": {
-      "name": "Messerschmitt Bf 110",
-      "threat": 0.8
+      "name": "Messerschmitt Bf 110 C",
+      "threat": 0.8,
+      "maxKmh": 540,
+      "ceilingFt": 32000,
+      "rangeKm": 1000,
+      "armament": "4 mitrailleuses, 2 canons de 20 mm, 1 mitrailleuse arrière",
+      "crew": 2
     }
   },
   "squadron": {
@@ -72,7 +123,9 @@
     "altitudeStepFt": 1000,
     "watchKm": 35,
     "missHysteresisKm": 1.0,
-    "coverRadiusKm": 8
+    "coverRadiusKm": 8,
+    "landBubbleKm": 12,
+    "formationKm": 4
   },
   "combat": {
     "roundSeconds": 60,
@@ -114,6 +167,12 @@
       "damagePerBomber": 2.0,
       "outAt": 80,
       "repairPerHour": 0.6
+    },
+    "depot": {
+      "damagePerBomber": 2.2,
+      "outAt": 80,
+      "repairPerHour": 0.8,
+      "groundLossPerDamage": 0
     }
   },
   "navigation": {
@@ -146,7 +205,10 @@
     "radarMaxRangeKm": 190,
     "radarHalfArcDeg": 60,
     "observerMaxAltM": 6500,
-    "observerAccuracy": 0.5,
+    "observerOffshoreKm": 15,
+    "observerCellKm": 2,
+    "observerPosFactor": 0.6,
+    "observerAltFactor": 1.8,
     "modes": {
       "exact": {
         "posSigmaKm": 0,
@@ -194,8 +256,17 @@
     "stockLossPerDamage": 0.004,
     "autoMinimum": {
       "airfield": 40,
-      "factory": 30
-    }
+      "factory": 30,
+      "airfieldAmmo": 8
+    },
+    "trainWagons": 20,
+    "wagonTonnes": {
+      "fuel": 5,
+      "materiel": 6,
+      "ammo": 6
+    },
+    "trainMinTonnes": 10,
+    "ammoPerAircraft": 0.06
   },
   "uboats": {
     "patrolKn": 8,
@@ -217,7 +288,13 @@
     "nightToH": 4,
     "giveUpH": 48,
     "lostKm": 60,
-    "callKm": 250
+    "callKm": 250,
+    "refitDays": 14,
+    "reentry": {
+      "lon": -11.5,
+      "lat": 48.2
+    },
+    "maxPack": 4
   },
   "escortGroups": {
     "joinKm": 15,
@@ -226,5 +303,222 @@
   },
   "convoyAir": {
     "pSinkPerBomber": 0.09
+  },
+  "control": {
+    "note": "Guidage automatique (Arcade) : chance de placer l'escadrille selon la couverture au point de rencontre.",
+    "radarEdgeFrom": 0.7,
+    "radarEdgeLoss": 0.25,
+    "damagedRadar": 0.75,
+    "secondRadarBonus": 0.1,
+    "observers": 0.7,
+    "rollKm": 20,
+    "guideAboveFt": 2000,
+    "missLowM": 1800,
+    "missWideKm": 11,
+    "giveUpS": 600
+  },
+  "crews": {
+    "note": "Pilotes, fatigue et alerte au sol. Réglage « fatigue » : off (Arcade), on (Standard), losses (Réaliste, pilotes tués).",
+    "alert": {
+      "rest": {
+        "scrambleS": null,
+        "fatiguePerHour": -8
+      },
+      "available": {
+        "scrambleS": 300,
+        "fatiguePerHour": -2
+      },
+      "cockpit": {
+        "scrambleS": 120,
+        "fatiguePerHour": 3
+      }
+    },
+    "fatiguePerFlightHour": 7,
+    "fatiguePerCombatRound": 2.5,
+    "fatiguePerScramble": 2,
+    "tiredAt": 60,
+    "exhaustedAt": 85,
+    "effectAtMax": 0.45,
+    "lossesAtMax": 0.5,
+    "pilotKilledOverLand": 0.3,
+    "pilotKilledOverSea": 0.65,
+    "replacementHours": 18
+  },
+  "patrols": {
+    "Spitfire guet": {
+      "name": "Spitfire Mk I (section de guet)",
+      "role": "watch",
+      "cruiseKmh": 430,
+      "maxKmh": 565,
+      "climbMpm": 840,
+      "enduranceMin": 100,
+      "ceilingFt": 34000,
+      "sightDayKm": 28,
+      "sightNightKm": 3,
+      "uboatSightKm": 12,
+      "evasion": 0.6,
+      "vsBombers": 0,
+      "vsFighters": 0,
+      "armament": "8 mitrailleuses (ne cherche pas le combat)",
+      "crew": 1
+    },
+    "Anson": {
+      "name": "Avro Anson Mk I",
+      "role": "coastal",
+      "cruiseKmh": 240,
+      "maxKmh": 300,
+      "climbMpm": 230,
+      "enduranceMin": 300,
+      "ceilingFt": 19000,
+      "sightDayKm": 15,
+      "sightNightKm": 2,
+      "uboatSightKm": 15,
+      "asvKm": 0,
+      "attackKill": 0.02,
+      "evasion": 1.3,
+      "vsBombers": 0,
+      "vsFighters": 0,
+      "armament": "2 mitrailleuses, bombes légères de 45 kg",
+      "crew": 4
+    },
+    "Hudson": {
+      "name": "Lockheed Hudson Mk I",
+      "role": "coastal",
+      "cruiseKmh": 300,
+      "maxKmh": 395,
+      "climbMpm": 340,
+      "enduranceMin": 360,
+      "ceilingFt": 24000,
+      "sightDayKm": 18,
+      "sightNightKm": 2,
+      "uboatSightKm": 18,
+      "asvKm": 6,
+      "attackKill": 0.07,
+      "evasion": 1.0,
+      "vsBombers": 0,
+      "vsFighters": 0,
+      "armament": "mitrailleuses, grenades sous-marines",
+      "crew": 4
+    },
+    "Sunderland": {
+      "name": "Short Sunderland Mk I",
+      "role": "coastal",
+      "cruiseKmh": 260,
+      "maxKmh": 335,
+      "climbMpm": 220,
+      "enduranceMin": 780,
+      "ceilingFt": 16000,
+      "sightDayKm": 20,
+      "sightNightKm": 2,
+      "uboatSightKm": 20,
+      "asvKm": 6,
+      "attackKill": 0.08,
+      "evasion": 0.9,
+      "vsBombers": 0,
+      "vsFighters": 0,
+      "armament": "mitrailleuses, grenades sous-marines",
+      "crew": 10
+    },
+    "Catalina": {
+      "name": "Consolidated Catalina Mk I",
+      "role": "coastal",
+      "cruiseKmh": 200,
+      "maxKmh": 290,
+      "climbMpm": 200,
+      "enduranceMin": 1080,
+      "ceilingFt": 15000,
+      "sightDayKm": 20,
+      "sightNightKm": 2,
+      "uboatSightKm": 20,
+      "asvKm": 6,
+      "attackKill": 0.08,
+      "evasion": 0.9,
+      "vsBombers": 0,
+      "vsFighters": 0,
+      "armament": "mitrailleuses, grenades sous-marines",
+      "crew": 9
+    }
+  },
+  "patrolRules": {
+    "note": "Patrouilles de guet et Coastal Command : vue, risque d'être surpris par l'escorte allemande.",
+    "dayFromH": 5,
+    "dayToH": 21,
+    "heightGapM": 3000,
+    "bounceKm": 10,
+    "bounceHeightM": 2500,
+    "bouncePerMinute": 0.06,
+    "plotPos": 0.25,
+    "plotAlt": 0.3,
+    "plotCount": 0.2
+  },
+  "asw": {
+    "note": "Chasse aux U-Boote en 1940 : vigies, périscope, ASDIC ; le radar des escorteurs vient en 1941 (option du scénario).",
+    "surfaceKn": 17,
+    "submergedKn": 5,
+    "batteryNm": 70,
+    "lookoutDayKm": 8,
+    "lookoutNightKm": 1.5,
+    "pLookout": 0.25,
+    "asdicKm": 2.0,
+    "pAsdic": 0.3,
+    "periscopeKm": 1.0,
+    "pPeriscope": 0.15,
+    "periscopeSightKm": 8,
+    "radar": {
+      "surfaceKm": 4.8,
+      "periscopeKm": 0.8,
+      "p": 0.5
+    },
+    "pAircraft": 0.35,
+    "pAsv": 0.3,
+    "aircraftAttackKm": 4,
+    "diveHours": 2,
+    "counterKm": 3,
+    "pKillCounterPerShip": 0.02,
+    "pKillHuntPerShip": 0.012,
+    "huntHours": 3,
+    "huntKm": 30,
+    "plotEveryS": 600,
+    "plotLifetimeH": 12,
+    "counterWindowS": 1800,
+    "pSpotAttacker": 0.35,
+    "unseenFactor": 0.3,
+    "repositionEveryH": 12,
+    "predictHours": 18,
+    "repositionMaxKm": 700,
+    "repositionErrorKm": 40,
+    "repositionRadiusKm": 90,
+    "repositionDfP": 0.4,
+    "zigzagSpeed": 0.85,
+    "zigzagHit": 0.75,
+    "stragglerFrom": 0.9,
+    "stragglerPerHour": 0.012,
+    "stragglerMax": 3,
+    "stragglerKn": 6
+  },
+  "ships": {
+    "convoy": {
+      "name": "Convoi marchand",
+      "speedKn": "7 à 10",
+      "note": "avance à la vitesse de son navire le plus lent"
+    },
+    "escort": {
+      "name": "Groupe d'escorte",
+      "speedKn": 16,
+      "note": "destroyers, corvettes, avisos ; ASDIC, grenades sous-marines ; radar à partir de 1941"
+    },
+    "uboat": {
+      "name": "U-Boot type VII",
+      "surfaceKn": 17,
+      "submergedKn": 7.6,
+      "batteryNm": 70,
+      "torpedoes": 14,
+      "crew": 44
+    }
+  },
+  "mru": {
+    "note": "Station radar mobile : portée réduite, installation de quelques heures.",
+    "rangeFactor": 0.75,
+    "deployHours": 6
   }
 }

@@ -5,7 +5,7 @@ import { formatDate, formatShortDate, formatTime } from '../core/time.js';
 import { FOOT_M } from '../sim/geo.js';
 import { siteRules, siteStatus } from '../sim/sites.js';
 import { cargoShare } from '../sim/convoy.js';
-import { basesInService, fighterShare } from '../sim/objectives.js';
+import { basesInService, enemyDown, fighterShare, radarsInService, shipLosses, tonnesDelivered } from '../sim/objectives.js';
 
 /** "30+" for an estimated count (rounded down to 5), the exact number otherwise. */
 export function countText(n, approx) {
@@ -92,7 +92,33 @@ export function legText(world, leg) {
   else if (end.kind === 'square') text = t('legs.square', { heading, ref: end.ref });
   else text = t('legs.position', { heading, pos: positionText(end.lat, end.lon) });
   if (leg.speedKn) text += t('legs.speed', { n: leg.speedKn });
+  if (leg.altFt) text += t('legs.alt', { alt: ftText(leg.altFt) });
   return text;
+}
+
+/** The end of a leg written back as the player would type it (to change the leg). */
+export function legEndInput(world, leg, sea) {
+  const end = leg.end;
+  if (!end) return '';
+  if (end.kind === 'duration') {
+    if (sea) return end.s % 3600 === 0 ? String(end.s / 3600) : `${Math.round(end.s / 60)} min`;
+    return end.s % 60 === 0 ? String(end.s / 60) : `${formatNumber(end.s / 60, 1)}`;
+  }
+  if (end.kind === 'time') {
+    const d = new Date(world.startMs + end.t * 1000);
+    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  }
+  if (end.kind === 'square') return end.ref;
+  const lat = `${Math.abs(end.lat).toFixed(2).replace(/\.?0+$/, '')}${end.lat >= 0 ? 'N' : 'S'}`;
+  const lon = `${Math.abs(end.lon).toFixed(2).replace(/\.?0+$/, '')}${end.lon >= 0 ? 'E' : 'O'}`;
+  return `${lat} ${lon}`;
+}
+
+/** Name of an end action for the menu of the sheet. */
+export function endActionText(world, a) {
+  if (a.kind === 'land') return t('orders.endLand', { airfield: world.byId.airfield.get(a.id)?.name || '' });
+  if (a.kind === 'cover') return t('orders.endCover', { convoy: world.convoys.find((c) => c.id === a.id)?.name || '' });
+  return t(`orders.end.${a.kind}`);
 }
 
 // ---- installations ----------------------------------------------------------------
@@ -147,6 +173,14 @@ export function resourceName(res) {
   return t(`resources.${res}`);
 }
 
+/** "50 t de carburant et 60 t de matériel" */
+export function cargoText(cargo) {
+  const parts = Object.entries(cargo || {}).filter(([, n]) => n >= 0.5)
+    .map(([res, n]) => t('logistics.cargoPart', { n: formatNumber(Math.round(n)), resource: resourceName(res) }));
+  if (parts.length <= 1) return parts[0] || '';
+  return `${parts.slice(0, -1).join(', ')} ${t('logistics.and')} ${parts[parts.length - 1]}`;
+}
+
 export function objectiveText(world, o) {
   const c = o.convoy ? world.convoys.find((convoy) => convoy.id === o.convoy) : null;
   switch (o.type) {
@@ -155,7 +189,7 @@ export function objectiveText(world, o) {
     case 'raidsIntercepted':
       return t('objectives.raidsIntercepted', { count: o.count });
     case 'convoyDelivered': {
-      const share = Math.round(cargoShare(c) * 100);
+      const share = Math.round(cargoShare(c, world) * 100);
       const state = c.state === 'lost'
         ? t('objectives.stateLost')
         : c.state === 'arrived' ? t('objectives.stateDelivered', { n: share }) : t('objectives.stateAfloat', { n: share });
@@ -166,6 +200,24 @@ export function objectiveText(world, o) {
       return t('objectives.basesOperational', { min: o.min, total: o.airfields.length, n: basesInService(world, o) });
     case 'fighterStrength':
       return t('objectives.fighterStrength', { share: Math.round(o.share * 100), n: Math.round(fighterShare(world) * 100) });
+    case 'radarsOperational':
+      return t('objectives.radarsOperational', { min: o.min, total: o.radars.length, n: radarsInService(world, o) });
+    case 'enemyDown':
+      return t('objectives.enemyDown', { count: o.count, n: enemyDown(world) });
+    case 'siteDamageBelow': {
+      const site = world.sites.get(o.site);
+      return t('objectives.siteDamageBelow', { site: site ? site.longName || site.name : o.site, max: o.max, n: site ? Math.round(site.damage) : 0 });
+    }
+    case 'tonnageDelivered': {
+      const d = tonnesDelivered(world);
+      return t('objectives.tonnageDelivered', {
+        fuel: formatNumber(o.fuel || 0), materiel: formatNumber(o.materiel || 0), nf: formatNumber(Math.round(d.fuel)), nm: formatNumber(Math.round(d.materiel)),
+      });
+    }
+    case 'shipLossesBelow': {
+      const l = shipLosses(world);
+      return t('objectives.shipLossesBelow', { share: Math.round(o.share * 100), n: Math.round(l.share * 1000) / 10, sunk: l.sunk, sailed: l.sailed });
+    }
     default:
       return t(`objectives.${o.type}`, o);
   }
@@ -191,10 +243,13 @@ const LEVELS = {
   divertOut: 'warning',
   outOfAmmo: 'warning',
   missed: 'warning',
+  interceptRefused: 'warning',
+  interceptEnded: 'warning',
   contactLost: 'info',
   tallyHo: 'combat',
   combatRound: 'combat',
   combatReport: 'report',
+  raidReport: 'report',
   raidRepelled: 'success',
   raidDestroyed: 'success',
   convoyArrived: 'success',
@@ -204,12 +259,19 @@ const LEVELS = {
   objectiveFailed: 'alert',
   lowFuel: 'warning',
   noFuel: 'alert',
+  noAmmo: 'warning',
+  squadronTired: 'warning',
+  squadronExhausted: 'alert',
   stocksLost: 'warning',
   shipsSunk: 'alert',
   convoyLost: 'alert',
   convoyBombed: 'alert',
   uboatAttack: 'alert',
   uboatSunk: 'success',
+  uboatSighted: 'warning',
+  scenarioEvent: 'alert',
+  mruReady: 'success',
+  straggler: 'warning',
   uboatDrivenOff: 'success',
   convoySighted: 'warning',
   dfFix: 'info',
@@ -246,18 +308,20 @@ export function reportText(world, e) {
 export function eventMessage(world, e) {
   const p = { ...e };
   let key = `log.${e.type}`;
+  let suffix = '';
   switch (e.type) {
     case 'scenarioStart':
       if (e.scenario === 'kanalkampf') key = 'log.scenarioStartK';
       else if (!e.convoy) key = 'log.scenarioStartNoConvoy';
+      else if (!e.port) key = 'log.scenarioStartAtSea';
       break;
     case 'trainDispatched':
       if (e.auto) key = 'log.trainDispatchedAuto';
-      p.resource = resourceName(e.resource);
+      p.what = cargoText(e.cargo);
       p.eta = dateTimeText(e.etaMs);
       break;
     case 'trainArrived':
-      p.resource = resourceName(e.resource);
+      p.what = cargoText(e.cargo);
       break;
     case 'stocksLost': {
       const parts = [];
@@ -295,12 +359,11 @@ export function eventMessage(world, e) {
       p.where = placeText(e.location);
       p.alt = ftText(e.altFt);
       break;
+    case 'observersTracking':
+      p.where = placeText(e.location);
+      break;
     case 'tallyHo':
       if (e.above) key = 'log.tallyHoAbove';
-      break;
-    case 'combatRound':
-      p.bombers = e.bombersDown;
-      p.fighters = e.fightersDown;
       break;
     case 'combatReport':
       return { text: reportText(world, e), level: 'report' };
@@ -309,10 +372,57 @@ export function eventMessage(world, e) {
       p.km = formatNumber(Math.max(1, Math.round(e.km)));
       p.dir = t('place.directions')[e.dir];
       p.ft = ftText(Math.round(Math.abs(e.dzM / FOOT_M) / 500) * 500);
+      if (e.guided !== null && e.guided !== undefined) suffix = t('log.missedGuided', { p: Math.round(e.guided * 100) });
+      break;
+    case 'uboatSunk':
+      if (e.by) key = 'log.uboatSunkBy';
+      break;
+    case 'uboatSighted':
+      p.source = t(`map.uSource.${e.source}`);
+      break;
+    case 'escortHuntOver':
+      if (e.sank) key = 'log.escortHuntOverSank';
+      break;
+    case 'straggler':
+      p.kind = e.tanker ? t('log.stragglerTanker') : t('log.stragglerFreighter');
+      break;
+    case 'scenarioEvent':
+      // An important event opens a page with its text: the journal keeps the title.
+      key = `events.${e.scenario}.${e.key}.${e.important ? 'title' : 'text'}`;
+      break;
+    case 'convoyDeparted':
+      if (e.lendLease) key = 'log.convoyDepartedLendLease';
+      else if (e.share <= 0) key = 'log.convoyDepartedBallast';
+      p.fuel = formatNumber(e.fuel);
+      p.materiel = formatNumber(e.materiel);
+      break;
+    case 'offerBought':
+      p.offer = t(`offers.${e.offerId}`);
+      p.date = formatShortDate(world.startMs + e.readyAt * 1000, t('months'));
+      break;
+    case 'mruOrdered':
+    case 'mruReady':
+      p.time = dateTimeText(world.startMs + (e.readyAt ?? e.t) * 1000);
+      break;
+    case 'raidReport':
+      p.outcome = t(`reports.outcome.${e.outcome}`).toLowerCase();
+      break;
+    case 'interceptOrdered':
+      p.p = Math.round(e.p * 100);
+      break;
+    case 'interceptEnded':
+      key = `log.interceptEndedReasons.${e.reason}`;
       break;
     case 'scrambleRefused':
       if (e.state === 'airfieldOut') key = 'log.scrambleRefusedOut';
+      else if (e.state === 'resting') key = 'log.scrambleRefusedResting';
+      else if (e.state === 'noPilots') key = 'log.scrambleRefusedNoPilots';
       else p.state = t(`states.squadron.${e.state}`).toLowerCase();
+      break;
+    case 'combatRound':
+      p.bombers = e.bombersDown;
+      p.fighters = e.fightersDown;
+      if (e.killed) suffix = t('log.pilotsKilled', { n: e.killed });
       break;
     case 'orderRefused':
       p.reason = t(`reasons.${e.reason}`);
@@ -337,6 +447,14 @@ export function eventMessage(world, e) {
       if (e.target) key = 'log.legMissedSquare';
       break;
     case 'planEnded':
+      if (e.unitKind === 'squadron') return null; // the end of the route says what it does next
+      p.heading = headingText(e.heading);
+      break;
+    case 'routeEnded':
+      p.action = t(`log.routeEndedActions.${e.action}`);
+      break;
+    case 'legChanged':
+      p.index = e.index + 1;
       p.heading = headingText(e.heading);
       break;
     case 'objectiveDone':
@@ -346,6 +464,7 @@ export function eventMessage(world, e) {
       p.date = formatDate(world.startMs + e.t * 1000, t('days'), t('months'));
       if (e.reason === 'fuel') key = 'log.scenarioEndFuel';
       else if (e.reason === 'fighters') key = 'log.scenarioEndFighters';
+      else if (e.reason === 'shipping') key = 'log.scenarioEndShipping';
       else if (world.scenario.defeat) key = e.outcome === 'victory' ? 'log.scenarioEndVictory' : 'log.scenarioEndDefeat';
       break;
     default:
@@ -353,5 +472,5 @@ export function eventMessage(world, e) {
   if (e.unitKind === 'escort' && t(`${key}Escort`) !== `${key}Escort`) key = `${key}Escort`;
   const text = t(key, p);
   if (text === key || !text) return null;
-  return { text, level: LEVELS[e.type] || 'info' };
+  return { text: text + suffix, level: LEVELS[e.type] || 'info' };
 }

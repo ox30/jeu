@@ -7,6 +7,9 @@ import { bearing, distance, octant } from './geo.js';
 import { emit } from './events.js';
 import { abortRaid, isActive, raidStrength } from './raid.js';
 import { startReturn } from './squadron.js';
+import { endGuidance } from './control.js';
+import { formFactor, lossFactor, pilotsKilled, strength, tire } from './crews.js';
+import { aircraftSpec } from './squadron.js';
 
 /** Why a squadron cannot engage a raid at this distance and height difference, or null. */
 export function engageProblem(world, km, dzM) {
@@ -25,10 +28,12 @@ export function engageProblem(world, km, dzM) {
 export function checkEngagements(world) {
   const R = world.rules.squadron;
   for (const s of world.squadrons) {
-    if (s.state !== 'airborne' || s.ammo <= 0.05) continue;
+    if (s.state !== 'airborne' || s.ammo <= 0.05 || s.role !== 'fighter') continue;
     for (const r of world.raids) {
-      // A raid heading home is not chased automatically: that is the player's choice.
-      if (!isActive(r) || r.phase === 'outbound') continue;
+      // A raid heading home is not chased automatically: that is the player's choice (an
+      // interception ordered on it counts as one).
+      const guidedOnto = s.intercept && s.intercept.raidId === r.id;
+      if (!isActive(r) || (r.phase === 'outbound' && !guidedOnto)) continue;
       if (distance(s.x, s.y, r.x, r.y) > R.engageRangeKm) continue;
       if (r.phantom) {
         if (!s.nothingSeen.has(r.id)) {
@@ -78,7 +83,10 @@ export function checkMisses(world) {
       } else if (d > w.best + R.missHysteresisKm) {
         w.reported = true;
         const dz = w.salt - w.ralt;
+        const guided = s.intercept && s.intercept.raidId === r.id ? s.intercept : null;
+        if (guided) endGuidance(world, s);
         emit(world, 'missed', {
+          guided: guided ? guided.p : null,
           squadron: s.name,
           squadronId: s.id,
           raid: r.label,
@@ -110,6 +118,7 @@ function engage(world, s, r, dz) {
   s.legState = null;
   s.vector = null;
   s.orbit = false;
+  s.intercept = null;
   s.watch.delete(r.id);
   r.engagedBy.add(s.id);
   s.engagement = {
@@ -211,32 +220,41 @@ export function updateCombat(world, dt) {
 export function combatRound(world, s, r) {
   const C = world.rules.combat;
   const rng = world.rng;
-  const type = world.rules.fighters[s.type];
+  const type = aircraftSpec(world, s.type);
   const bomberType = world.rules.bombers[r.bomberType] || { vulnerability: 1 };
   const escortType = world.rules.escorts[r.escortType] || { threat: 1 };
+  const form = formFactor(world, s);
+  const risk = lossFactor(world, s);
 
-  const ours = s.aircraft;
-  const pressure = r.escort > 0 ? Math.min(C.escortPressureMax, r.escort / (ours + r.escort)) : 0;
-  const onBombers = Math.round(ours * (1 - pressure * C.escortPressureWeight));
+  const ours = strength(world, s);
+  // The escort is shared out among all the squadrons on the raid: a big formation spreads it.
+  let together = 0;
+  for (const other of world.squadrons) if (other.engagedRaid === r.id) together += strength(world, other);
+  together = Math.max(ours, together);
+  const pressure = r.escort > 0 ? Math.min(C.escortPressureMax, r.escort / (together + r.escort)) : 0;
+  const sweep = r.bombersStart === 0;
+  const onBombers = sweep ? 0 : Math.round(ours * (1 - pressure * C.escortPressureWeight));
   const onEscort = ours - onBombers;
   const bonus = s.heightAdvantage && s.firstPass ? C.heightBonus : 1;
   s.firstPass = false;
 
   const bombersDown = Math.min(
     r.bombers,
-    rng.binomial(onBombers, C.pKillBomber * bonus * type.vsBombers * bomberType.vulnerability),
+    rng.binomial(onBombers, C.pKillBomber * bonus * form * type.vsBombers * bomberType.vulnerability),
   );
-  const fightersDown = Math.min(r.escort, rng.binomial(onEscort, C.pKillEscort * bonus * type.vsFighters));
+  const fightersDown = Math.min(r.escort, rng.binomial(onEscort, C.pKillEscort * bonus * form * type.vsFighters));
   const engagedEscort = Math.min(r.escort, ours);
   const losses = Math.min(
     ours,
-    rng.binomial(engagedEscort, (C.pLossVsEscort * escortType.threat) / type.vsFighters) +
-      rng.binomial(onBombers, C.pLossVsGunners),
+    rng.binomial(engagedEscort, (C.pLossVsEscort * escortType.threat * risk) / type.vsFighters) +
+      rng.binomial(onBombers, C.pLossVsGunners * risk),
   );
 
   r.bombers -= bombersDown;
   r.escort -= fightersDown;
   s.aircraft -= losses;
+  const killed = pilotsKilled(world, s, losses, r.x, r.y);
+  tire(world, s, world.rules.crews.fatiguePerCombatRound);
   s.ammo = Math.max(0, s.ammo - C.ammoPerRound);
   world.stats.bombersDown += bombersDown;
   world.stats.fightersDown += fightersDown;
@@ -255,6 +273,7 @@ export function combatRound(world, s, r) {
     bombersDown,
     fightersDown,
     losses,
+    killed,
     bomberType: r.bomberType,
     escortType: r.escortType,
     aircraftType: s.type,
@@ -269,12 +288,13 @@ export function combatRound(world, s, r) {
     emit(world, 'raidDestroyed', { raid: r.label, raidId: r.id, x: r.x, y: r.y });
     for (const other of world.squadrons) if (other.engagedRaid === r.id) disengage(world, other, false, 'destroyed');
   } else if (r.phase !== 'outbound') {
-    const lossFraction = 1 - r.bombers / Math.max(1, r.bombersStart);
+    // A fighter sweep breaks off on its losses; a bomber raid on its bombers' losses.
+    const lossFraction = sweep ? 1 - r.escort / Math.max(1, r.escortStart) : 1 - r.bombers / Math.max(1, r.bombersStart);
     const pAbort = C.abortBase + C.abortPerLoss * lossFraction + C.abortPerExtraSquadron * (r.engagedBy.size - 1);
-    if (r.bombers <= 0 || rng.next() < pAbort) abortRaid(world, r);
+    if ((!sweep && r.bombers <= 0) || rng.next() < pAbort) abortRaid(world, r);
   }
 
-  if (s.aircraft <= 0) {
+  if (s.aircraft <= 0 || strength(world, s) <= 0) {
     r.engagedBy.delete(s.id);
     s.engagedRaid = null;
     report(world, s, r, 'lost');

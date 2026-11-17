@@ -1,11 +1,11 @@
 // Draws one frame of the plotting table and records where the clickable things are.
 
 import { formatNumber, t } from '../core/i18n.js';
-import { formatTime } from '../core/time.js';
-import { FOOT_M, distance, headingOf } from '../sim/geo.js';
+import { clockColorIndex, formatTime } from '../core/time.js';
+import { FOOT_M, distance, headingOf, project } from '../sim/geo.js';
 import { columnLetter } from '../sim/grid.js';
 import { solveIntercept } from '../sim/intercept.js';
-import { planTrack } from '../sim/orders.js';
+import { editableRoute, navigationEnd, planTrack, routeCanExtend } from '../sim/orders.js';
 import { contactEstimate, nearestContact, visiblePlots } from '../sim/query.js';
 import { feetOf, isFlying, squadronSpeed } from '../sim/squadron.js';
 import { currentSpeed } from '../sim/convoy.js';
@@ -15,9 +15,11 @@ import { toScreen } from './camera.js';
 import { drawEffects, drawMelee, stalkPx } from './fx.js';
 import { FONTS, PALETTE, drawMap, labelVisible } from './map.js';
 import {
-  COLORS, aerodrome, anchor, balkenkreuz, damageMark, factory, measurePlaque, pencilLine, plaque, plotArrow, radarMast,
-  roundel, ship, train, warship,
+  COLORS, aerodrome, anchor, balkenkreuz, damageMark, depot, factory, measurePlaque, patrolMark, pencilLine, plaque,
+  plotArrow, radarMast, roundel, ship, train, uboatMark, warship,
 } from './symbols.js';
+import { reachKm } from '../sim/asw.js';
+import { isPatrol, sightKm } from '../sim/patrols.js';
 import { fuelDays } from '../sim/logistics.js';
 
 const DEG = Math.PI / 180;
@@ -144,8 +146,40 @@ function drawGrid(ctx, cam, grid) {
   }
 }
 
+/** The sea watched by the Observer Corps from the coast, as a light band. */
+function drawObserverZone(ctx, cam, world) {
+  const D = world.rules.detection;
+  const m = world.terrain.observerMask(D.observerCellKm, D.observerOffshoreKm);
+  if (!m.canvas) {
+    const canvas = document.createElement('canvas');
+    canvas.width = m.cols;
+    canvas.height = m.rows;
+    const g = canvas.getContext('2d');
+    const img = g.createImageData(m.cols, m.rows);
+    for (let row = 0; row < m.rows; row++) {
+      for (let col = 0; col < m.cols; col++) {
+        if (m.data[row * m.cols + col] !== 1) continue;
+        const i = ((m.rows - 1 - row) * m.cols + col) * 4;
+        img.data[i] = 64;
+        img.data[i + 1] = 92;
+        img.data[i + 2] = 52;
+        img.data[i + 3] = 70;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    m.canvas = canvas;
+  }
+  const [x0, y0] = toScreen(cam, m.x0, m.y0 + m.rows * m.cellKm);
+  const size = m.cellKm * cam.scale;
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(m.canvas, x0, y0, m.cols * size, m.rows * size);
+  ctx.restore();
+}
+
 function drawCoverage(ctx, cam, world) {
   const D = world.rules.detection;
+  drawObserverZone(ctx, cam, world);
   const base = Math.min(D.radarMaxRangeKm, D.radarMinRangeKm + D.radarRangePerM * 4000);
   ctx.save();
   for (const s of world.radars) {
@@ -278,6 +312,16 @@ function drawPlaces(ctx, cam, app) {
       app.hits.push({ kind: 'site', id: f.key, x: sx, y: sy, r: 10, priority: 4 });
       marks.push([sx, sy, status, f.damage]);
     }
+    for (const d of world.depots || []) {
+      const [sx, sy] = toScreen(cam, d.x, d.y);
+      if (!onScreen(cam, sx, sy)) continue;
+      const status = siteStatus(world, d);
+      depot(ctx, sx, sy, siteColor(status, PALETTE.ink));
+      occupied.push(box(sx, sy, 8));
+      factories.push({ f: d, sx, sy, status });
+      app.hits.push({ kind: 'site', id: d.key, x: sx, y: sy, r: 10, priority: 4 });
+      marks.push([sx, sy, status, d.damage]);
+    }
   }
   const grounded = new Map();
   for (const sq of world.squadrons) {
@@ -397,7 +441,7 @@ function drawRail(ctx, cam, app) {
   ctx.restore();
 }
 
-const TRAIN_COLORS = { fuel: '#c47a1d', materiel: '#6a6a74' };
+const TRAIN_COLORS = { fuel: '#c47a1d', materiel: '#6a6a74', ammo: '#7a4a2a', mixed: '#8a5f3a' };
 
 function drawTrains(ctx, cam, app, alpha) {
   const world = app.world;
@@ -454,6 +498,78 @@ function drawGauges(ctx, cam, app) {
     if (!onScreen(cam, sx, sy)) continue;
     bars.forEach(([k, color], i) => bar(sx - 20 - i * 7, sy, k, color));
   }
+}
+
+/**
+ * U-boats seen on the table: the mark where it was seen, and two circles that grow with
+ * the age of the plot: how far it may have gone on the surface (dashed) and under water.
+ */
+/** Mobile radars being installed: a mast and the time they will be ready. */
+function drawPendingMru(ctx, cam, app) {
+  const world = app.world;
+  if (!world.mru || !world.mru.pending.length || cam.scale < 0.35) return;
+  for (const def of world.mru.pending) {
+    const [x, y] = project(def.lon, def.lat);
+    const [sx, sy] = toScreen(cam, x, y);
+    if (!onScreen(cam, sx, sy)) continue;
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    radarMast(ctx, sx, sy);
+    ctx.restore();
+    ctx.font = `italic 11px ${FONTS.serif}`;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(107, 45, 31, 0.95)';
+    ctx.fillText(t('mru.mapPending', { name: def.name, time: formatTime(world.startMs + def.readyAt * 1000) }), sx + 10, sy + 4);
+  }
+}
+
+function drawUboatPlots(ctx, cam, app) {
+  const world = app.world;
+  const A = world.rules.asw;
+  const life = A.plotLifetimeH * 3600;
+  ctx.save();
+  for (const p of world.uboatPlots) {
+    const age = world.t - p.t;
+    const [sx, sy] = toScreen(cam, p.x, p.y);
+    const reach = reachKm(world, age);
+    const rs = reach.surface * cam.scale;
+    const rd = reach.submerged * cam.scale;
+    if (sx + rs < 0 || sy + rs < 0 || sx - rs > cam.width || sy - rs > cam.height) continue;
+    const selected = isSelected(app, 'uplot', p.id);
+    ctx.globalAlpha = selected ? 1 : Math.max(0.35, 1 - age / life);
+    if (rs > 4) {
+      ctx.setLineDash([7, 5]);
+      ctx.strokeStyle = 'rgba(120, 30, 25, 0.55)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, rs, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (rd > 3) {
+      ctx.setLineDash([2, 3]);
+      ctx.fillStyle = 'rgba(120, 30, 25, 0.07)';
+      ctx.strokeStyle = 'rgba(120, 30, 25, 0.8)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, rd, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    const color = COLORS.clock[clockColorIndex(world.startMs + p.t * 1000)];
+    uboatMark(ctx, sx, sy, selected ? COLORS.select : color, p.submerged);
+    ctx.font = `bold 10px ${FONTS.mono}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const label = t('map.uplot', { time: formatTime(world.startMs + p.t * 1000), source: t(`map.uSource.${p.source}`) });
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(247, 240, 220, 0.9)';
+    ctx.strokeText(label, sx + 12, sy - 8);
+    ctx.fillStyle = 'rgba(120, 30, 25, 1)';
+    ctx.fillText(label, sx + 12, sy - 8);
+    app.hits.push({ kind: 'uplot', id: p.id, x: sx, y: sy, r: 11, priority: 3 });
+  }
+  ctx.restore();
 }
 
 function drawDfZones(ctx, cam, app) {
@@ -642,10 +758,15 @@ function drawConvoys(ctx, cam, app, alpha) {
       ctx.arc(sx, sy, 15 + 3 * pulse, 0, Math.PI * 2);
       ctx.stroke();
     }
-    ship(ctx, sx - 4, sy + 2, c.heading, 8);
-    ship(ctx, sx + 4, sy - 2, c.heading, 8);
+    if (c.straggler) ship(ctx, sx, sy, c.heading, 8);
+    else {
+      ship(ctx, sx - 4, sy + 2, c.heading, 8);
+      ship(ctx, sx + 4, sy - 2, c.heading, 8);
+    }
     const kn = Math.round((currentSpeed(c) * 3600) / 1.852);
-    const box = placePlaque(ctx, app, sx, sy, [`${c.name} · ${c.ships} · ${c.state === 'atSea' ? kn : c.speedKn} nd`], {
+    const name = c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name;
+    const zz = c.zigzag ? ` · ${t('map.zigzag')}` : '';
+    const box = placePlaque(ctx, app, sx, sy, [`${name} · ${c.ships} · ${c.state === 'atSea' ? kn : c.speedKn} nd${zz}`], {
       accent: selected ? COLORS.select : null,
     }, 14);
     app.hits.push({ kind: 'convoy', id: c.id, x: sx, y: sy, r: 16, priority: 1, box });
@@ -699,7 +820,7 @@ function drawContacts(ctx, cam, app, alpha) {
       const [px, py] = toScreen(cam, p.x, p.y);
       if (!onScreen(cam, px, py)) return;
       ctx.globalAlpha = Math.max(0.25, 1 - ((world.t - p.t) / lifetime) * 0.75);
-      plotArrow(ctx, px, py, plotHeading(plots, i), COLORS.clock[p.color], 6);
+      plotArrow(ctx, px, py, plotHeading(plots, i), COLORS.clock[p.color], 6, p.source === 'observers');
       ctx.globalAlpha = 1;
     });
     const est = contactEstimate(world, contact);
@@ -714,7 +835,7 @@ function drawContacts(ctx, cam, app, alpha) {
     }
     const last = plots[plots.length - 1];
     const color = last ? COLORS.clock[last.color] : COLORS.clock[0];
-    plotArrow(ctx, sx, sy, est.heading, color, 9);
+    plotArrow(ctx, sx, sy, est.heading, color, 9, est.source === 'observers');
     const h = stalkPx(app, est.altFt);
     let cx = sx + 21;
     let cy = sy;
@@ -725,7 +846,8 @@ function drawContacts(ctx, cam, app, alpha) {
     }
     balkenkreuz(ctx, cx, cy, 6);
     const selected = isSelected(app, 'raid', contact.raidId);
-    const lines = [`${contact.label}  ${countText(est.count, est.approx)}  ${ftText(est.altFt)}`];
+    const tag = est.source === 'observers' ? ` · ${t('map.observersTag')}` : est.source === 'patrol' ? ` · ${t('map.patrolTag')}` : '';
+    const lines = [`${contact.label}  ${countText(est.count, est.approx)}  ${ftText(est.altFt)}${tag}`];
     if (sq) {
       const sqAltM = isFlying(sq) ? sq.alt : sq.targetAlt;
       // Height of the selected squadron relative to the raid: + above it, − below it.
@@ -755,14 +877,21 @@ function drawTrack(ctx, cam, est) {
   }
 }
 
-/** Arcade aid: where and when the selected squadron can meet the nearest raid. */
+/** Arcade aid: where and when the selected squadron can meet the nearest (or its guided) raid. */
 function drawInterceptPoint(ctx, cam, app, alpha) {
   const world = app.world;
-  if (world.settings.interceptAid !== 'point' || !app.selection || app.selection.kind !== 'squadron') return;
+  const aid = world.settings.interceptAid;
+  if ((aid !== 'point' && aid !== 'auto') || !app.selection || app.selection.kind !== 'squadron') return;
   const sq = world.squadrons.find((s) => s.id === app.selection.id);
   if (!sq || sq.state === 'lost' || sq.state === 'combat' || sq.state === 'refuelling' || sq.state === 'returning') return;
   const speed = squadronSpeed(world, sq);
-  const target = nearestContact(world, sq.x, sq.y);
+  let target = null;
+  if (sq.intercept) {
+    const contact = world.contacts.get(sq.intercept.raidId);
+    const est = contact ? contactEstimate(world, contact) : null;
+    if (est) target = { est, contact };
+  }
+  if (!target) target = nearestContact(world, sq.x, sq.y);
   if (!target) return;
   const delay = sq.state === 'ready' ? world.rules.squadron.scrambleSeconds : sq.state === 'scrambling' ? sq.timer : 0;
   const { est } = target;
@@ -779,10 +908,12 @@ function drawInterceptPoint(ctx, cam, app, alpha) {
   ctx.moveTo(bx - 6, by + 6);
   ctx.lineTo(bx + 6, by - 6);
   ctx.stroke();
-  plaque(ctx, bx + 10, by + 30, [t('map.intercept', {
+  const lines = [t('map.intercept', {
     heading: String(Math.round(sol.heading) % 360).padStart(3, '0'),
     min: Math.max(1, Math.round((sol.time + delay) / 60)),
-  })], { accent: COLORS.intercept, size: 10 });
+  })];
+  if (sq.intercept) lines.push(t('map.guided', { p: Math.round(sq.intercept.p * 100) }));
+  plaque(ctx, bx + 10, by + 30, lines, { accent: COLORS.intercept, size: 10 });
 }
 
 // ---- squadrons ---------------------------------------------------------------------
@@ -794,8 +925,12 @@ function drawSquadrons(ctx, cam, app, alpha) {
   for (const sq of world.squadrons) {
     const selected = isSelected(app, 'squadron', sq.id);
     if (!isFlying(sq)) {
-      // A plan prepared before take-off is drawn from the aerodrome.
+      // A plan prepared before take-off is drawn from the aerodrome, and so is a route.
       if (selected && sq.plan.length && (sq.state === 'ready' || sq.state === 'scrambling')) drawPlanTrack(ctx, cam, app, sq, true);
+      if (sq.state === 'scrambling' && sq.route.length) {
+        const f = world.byId.airfield.get(sq.airfield);
+        pencilLine(ctx, [toScreen(cam, f.x, f.y), ...sq.route.map(([x, y]) => toScreen(cam, x, y))], { color: COLORS.pencil, width: 1.8 });
+      }
       continue;
     }
     const [sx, sy] = unitScreen(cam, sq, alpha);
@@ -832,12 +967,190 @@ function drawSquadrons(ctx, cam, app, alpha) {
       ctx.arc(sx + ox, top, 13, 0, Math.PI * 2);
       ctx.stroke();
     }
-    roundel(ctx, sx + ox, top, 7);
+    if (isPatrol(sq)) {
+      if (selected || sq.state === 'airborne') {
+        // What the patrol can see from where it is.
+        const r = sightKm(world, sq) * cam.scale;
+        if (r > 8) {
+          ctx.save();
+          ctx.setLineDash([2, 4]);
+          ctx.strokeStyle = selected ? 'rgba(44, 74, 124, 0.7)' : 'rgba(44, 74, 124, 0.35)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(sx, sy, r, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+      patrolMark(ctx, sx + ox, top, 7, sq.role === 'coastal');
+    } else {
+      roundel(ctx, sx + ox, top, 7);
+    }
     const climbing = sq.targetAlt - sq.alt > 30 ? ' ↑' : sq.alt - sq.targetAlt > 30 && sq.state !== 'combat' ? ' ↓' : '';
     const box = placePlaque(ctx, app, sx + ox, top, [`${sq.name} · ${sq.aircraft} · ${ftText(altFt)}${climbing}`], {
       accent: sq.state === 'combat' ? COLORS.rafRed : selected ? COLORS.select : null,
     }, 12);
     app.hits.push({ kind: 'squadron', id: sq.id, x: sx + ox, y: top, r: 14, priority: 0, box });
+  }
+}
+
+
+// ---- route editing -----------------------------------------------------------------
+
+/** End of the route of a squadron: a short note of what it does there. */
+function endActionLabel(world, s) {
+  const a = s.endAction || { kind: 'orbit' };
+  if (a.kind === 'land') {
+    const f = world.byId.airfield.get(a.id);
+    return t('map.endLand', { airfield: f ? f.name : '' });
+  }
+  if (a.kind === 'cover') {
+    const c = world.convoys.find((x) => x.id === a.id);
+    return t('map.endCover', { convoy: c ? c.name : '' });
+  }
+  return t(`map.end.${a.kind}`);
+}
+
+/** Dashed bubbles around the aerodromes: a route that ends in one can end with a landing. */
+function drawAirfieldBubbles(ctx, cam, app) {
+  const world = app.world;
+  const r = world.rules.squadron.landBubbleKm * cam.scale;
+  if (r < 7) return;
+  ctx.save();
+  ctx.setLineDash([3, 5]);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(44, 74, 124, 0.35)';
+  for (const f of world.airfields) {
+    const [sx, sy] = toScreen(cam, f.x, f.y);
+    if (!onScreen(cam, sx, sy, r)) continue;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
+ * Handles on the route of the selected unit (tracé mode): a square per point to move it,
+ * a "+" in the middle of each leg to add one, a ring at the end to draw it longer. Points
+ * of a squadron can carry an altitude.
+ */
+function drawRouteEditor(ctx, cam, app, alpha) {
+  const world = app.world;
+  const u = selectedUnit(app);
+  if (!u) return;
+  if (u.kind === 'squadron' && u.state !== 'lost') {
+    const drawingFromAir = app.drawing && (app.drawing.kind === 'squadron' || app.drawing.kind === 'airfield');
+    if (drawingFromAir || isFlying(u) || u.state === 'ready' || u.state === 'scrambling') drawAirfieldBubbles(ctx, cam, app);
+    const end = navigationEnd(world, u);
+    if (end && (u.route.length || u.plan.length)) {
+      let [ex, ey] = toScreen(cam, end.x, end.y);
+      ex += 9;
+      ey += 13;
+      if (u.route.length && app.settings.orders !== 'headings') {
+        // Beside the ring that lengthens the route.
+        const pts = u.route;
+        const [lx, ly] = toScreen(cam, pts[pts.length - 1][0], pts[pts.length - 1][1]);
+        const [px, py] = pts.length > 1 ? toScreen(cam, pts[pts.length - 2][0], pts[pts.length - 2][1]) : unitScreen(cam, u, alpha);
+        const len = Math.hypot(lx - px, ly - py) || 1;
+        ex = lx + ((lx - px) / len) * 20 + 10;
+        ey = ly + ((ly - py) / len) * 20;
+      }
+      ctx.font = `italic 11px ${FONTS.serif}`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(247, 240, 220, 0.9)';
+      const label = endActionLabel(world, u);
+      ctx.strokeText(label, ex, ey);
+      ctx.fillStyle = 'rgba(44, 74, 124, 0.95)';
+      ctx.fillText(label, ex, ey);
+    }
+  }
+  if (app.settings.orders === 'headings') return;
+  const pts = editableRoute(u);
+  if (!pts) return;
+  const [ux, uy] = unitScreen(cam, u, alpha);
+  const drag = app.routeDrag && app.routeDrag.id === u.id && app.routeDrag.kind === u.kind ? app.routeDrag : null;
+  const screen = pts.map((p) => toScreen(cam, p[0], p[1]));
+  if (drag) {
+    // Ghost of the route as it will be once the point is dropped.
+    const ghost = screen.map((p) => [...p]);
+    const at = toScreen(cam, drag.at[0], drag.at[1]);
+    if (drag.mode === 'move') ghost[drag.index] = at;
+    else ghost.splice(drag.index, 0, at);
+    pencilLine(ctx, [[ux, uy], ...ghost], { color: 'rgba(168, 50, 45, 0.85)', width: 1.6, dash: [5, 4], arrow: false });
+  }
+  const active = app.activePoint && app.activePoint.id === u.id && app.activePoint.kind === u.kind ? app.activePoint.index : -1;
+  // "+" in the middle of each leg, when it is long enough on the screen.
+  let prev = [ux, uy];
+  screen.forEach(([x, y], i) => {
+    const mx = (prev[0] + x) / 2;
+    const my = (prev[1] + y) / 2;
+    if (Math.hypot(x - prev[0], y - prev[1]) > 46) {
+      ctx.fillStyle = 'rgba(247, 240, 220, 0.95)';
+      ctx.strokeStyle = 'rgba(44, 74, 124, 0.8)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(mx, my, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(mx - 3, my);
+      ctx.lineTo(mx + 3, my);
+      ctx.moveTo(mx, my - 3);
+      ctx.lineTo(mx, my + 3);
+      ctx.stroke();
+      app.hits.push({ kind: 'routeMid', unitKind: u.kind, id: u.id, index: i, x: mx, y: my, wx: (pts[i][0] + (i ? pts[i - 1][0] : u.x)) / 2, wy: (pts[i][1] + (i ? pts[i - 1][1] : u.y)) / 2, r: 7, priority: -1 });
+    }
+    prev = [x, y];
+  });
+  // Squares on the points, with the altitude written on squadron points.
+  let altBefore = u.kind === 'squadron' ? u.targetAlt : null;
+  screen.forEach(([x, y], i) => {
+    const on = i === active;
+    ctx.fillStyle = on ? COLORS.select : 'rgba(247, 240, 220, 0.95)';
+    ctx.strokeStyle = on ? 'rgba(30, 26, 20, 0.9)' : 'rgba(44, 74, 124, 0.9)';
+    ctx.lineWidth = 1.4;
+    ctx.fillRect(x - 4, y - 4, 8, 8);
+    ctx.strokeRect(x - 4, y - 4, 8, 8);
+    app.hits.push({ kind: 'routePoint', unitKind: u.kind, id: u.id, index: i, x, y, r: 8, priority: -2 });
+    const altM = pts[i][2];
+    if (u.kind === 'squadron' && altM !== null && altM !== undefined) {
+      const arrow = i === 0 || altBefore === null ? '' : altM > altBefore + 1 ? '↑ ' : altM < altBefore - 1 ? '↓ ' : '';
+      const label = `${arrow}${ftText(feetOf(altM))}`;
+      ctx.font = `bold 10px ${FONTS.mono}`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(247, 240, 220, 0.9)';
+      ctx.strokeText(label, x + 8, y - 9);
+      ctx.fillStyle = 'rgba(44, 74, 124, 1)';
+      ctx.fillText(label, x + 8, y - 9);
+      altBefore = altM;
+    }
+  });
+  // Ring beyond the last point: drag from it to draw the route longer.
+  if (routeCanExtend(u)) {
+    const [lx, ly] = screen[screen.length - 1];
+    const [px, py] = screen.length > 1 ? screen[screen.length - 2] : [ux, uy];
+    const len = Math.hypot(lx - px, ly - py) || 1;
+    const kx = lx + ((lx - px) / len) * 20;
+    const ky = ly + ((ly - py) / len) * 20;
+    ctx.strokeStyle = 'rgba(44, 74, 124, 0.9)';
+    ctx.fillStyle = 'rgba(247, 240, 220, 0.85)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(kx, ky, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(kx - 3.5, ky);
+    ctx.lineTo(kx + 3.5, ky);
+    ctx.moveTo(kx, ky - 3.5);
+    ctx.lineTo(kx, ky + 3.5);
+    ctx.stroke();
+    app.hits.push({ kind: 'routeExtend', unitKind: u.kind, id: u.id, x: kx, y: ky, r: 8, priority: -1 });
   }
 }
 
@@ -871,7 +1184,27 @@ function drawOverlays(ctx, cam, app) {
   if (app.drawing && app.drawing.points.length > 1) {
     pencilLine(ctx, app.drawing.points, { color: 'rgba(30, 26, 20, 0.9)', width: 2.4 });
   }
-  if (app.ruler) {
+  if (app.ruler && app.ruler.mru) {
+    // Preview of a mobile radar: its beam, facing the way the drag goes.
+    const world = app.world;
+    const D = world.rules.detection;
+    const [ax, ay] = toScreen(cam, app.ruler.a[0], app.ruler.a[1]);
+    const az = headingOf(app.ruler.b[0] - app.ruler.a[0], app.ruler.b[1] - app.ruler.a[1]);
+    const r = Math.min(D.radarMaxRangeKm, D.radarMinRangeKm + D.radarRangePerM * 4000) * world.rules.mru.rangeFactor * cam.scale;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.arc(ax, ay, r, (az - D.radarHalfArcDeg - 90) * DEG, (az + D.radarHalfArcDeg - 90) * DEG);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(168, 50, 45, 0.08)';
+    ctx.fill();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(168, 50, 45, 0.7)';
+    ctx.stroke();
+    ctx.restore();
+    radarMast(ctx, ax, ay);
+    plaque(ctx, ax + 12, ay - 14, [t('mru.preview', { az: String(Math.round(az) % 360).padStart(3, '0') })], { accent: '#6b2d1f', size: 10 });
+  } else if (app.ruler) {
     const [ax, ay] = toScreen(cam, app.ruler.a[0], app.ruler.a[1]);
     const [bx, by] = toScreen(cam, app.ruler.b[0], app.ruler.b[1]);
     pencilLine(ctx, [[ax, ay], [bx, by]], { color: '#6b2d1f', width: 1.6, dash: [10, 4], arrow: true });
@@ -1000,7 +1333,9 @@ export function drawScene(ctx, app, alpha) {
   if (app.settings.radarCover && cam.scale > 0.35) drawCoverage(ctx, cam, app.world);
   drawRail(ctx, cam, app);
   drawDfZones(ctx, cam, app);
+  drawUboatPlots(ctx, cam, app);
   drawPlaces(ctx, cam, app);
+  drawPendingMru(ctx, cam, app);
   drawGauges(ctx, cam, app);
   drawGates(ctx, cam, app);
   drawTrains(ctx, cam, app, alpha);
@@ -1009,6 +1344,7 @@ export function drawScene(ctx, app, alpha) {
   drawContacts(ctx, cam, app, alpha);
   drawInterceptPoint(ctx, cam, app, alpha);
   drawSquadrons(ctx, cam, app, alpha);
+  drawRouteEditor(ctx, cam, app, alpha);
   drawEffects(ctx, app, FX_LABELS);
   drawOverlays(ctx, cam, app);
   drawScaleBar(ctx, cam);

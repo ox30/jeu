@@ -19,6 +19,13 @@ import {
   ageDfZones, createEscortGroup, createUboat, initialIntelligence, updateEscort, updateUboat,
 } from './naval.js';
 import { updateConvoyRaids } from './scheduler.js';
+import { recordReports } from './reports.js';
+import { createCrews, updateCrews } from './crews.js';
+import { updatePatrols } from './patrols.js';
+import { updateAsw } from './asw.js';
+import { createMru, updateMru } from './mru.js';
+import { createSchedule, updateSchedule } from './schedule.js';
+import { createShipping, updateShipping } from './shipping.js';
 
 function placed(item) {
   const [x, y] = project(item.lon, item.lat);
@@ -29,7 +36,7 @@ function placedPath(path) {
   return path.map(([lon, lat]) => project(lon, lat));
 }
 
-export function createWorld({ scenario, rules, settings, terrain }) {
+export function createWorld({ scenario, rules, settings, terrain, carry = null }) {
   const startMs = parseGameDate(scenario.start);
   const ports = scenario.ports.map((p) => initSite({
     ...placed(p),
@@ -38,8 +45,9 @@ export function createWorld({ scenario, rules, settings, terrain }) {
   const airfields = scenario.airfields.map((a) => initSite(placed(a), 'airfield'));
   const radars = scenario.radars.map((r) => initSite(placed(r), 'radar'));
   const factories = (scenario.factories || []).map((f) => initSite(placed(f), 'factory'));
+  const depots = (scenario.depots || []).map((f) => initSite(placed(f), 'depot'));
   const sites = new Map();
-  for (const site of [...airfields, ...radars, ...ports, ...factories]) sites.set(site.key, site);
+  for (const site of [...airfields, ...radars, ...ports, ...factories, ...depots]) sites.set(site.key, site);
 
   const world = {
     t: 0,
@@ -55,6 +63,7 @@ export function createWorld({ scenario, rules, settings, terrain }) {
     airfields,
     radars,
     factories,
+    depots,
     sites,
     landmarks: (scenario.landmarks || []).map(placed),
     byId: {
@@ -62,14 +71,19 @@ export function createWorld({ scenario, rules, settings, terrain }) {
       airfield: new Map(airfields.map((a) => [a.id, a])),
       radar: new Map(radars.map((r) => [r.id, r])),
       factory: new Map(factories.map((f) => [f.id, f])),
+      depot: new Map(depots.map((f) => [f.id, f])),
     },
     convoys: [],
     escorts: [],
     uboats: [],
     dfZones: [],
+    dfPending: [],
+    uboatPlots: [],
+    nextPlotId: 1,
     squadrons: [],
     raids: [],
     contacts: new Map(),
+    reports: new Map(),
     events: [],
     stats: {
       bombersDown: 0,
@@ -86,10 +100,13 @@ export function createWorld({ scenario, rules, settings, terrain }) {
       aircraftBuilt: 0,
       aircraftDelivered: 0,
       fuelUsed: 0,
-      unloaded: { fuel: 0, materiel: 0 },
-      delivered: { fuel: 0, materiel: 0 },
+      unloaded: { fuel: 0, materiel: 0, ammo: 0 },
+      delivered: { fuel: 0, materiel: 0, ammo: 0 },
+      ammoUsed: 0,
+      pilotsKilled: 0,
     },
     objectives: [],
+    flags: {},
     allDone: false,
     ended: false,
     outcome: null,
@@ -100,6 +117,11 @@ export function createWorld({ scenario, rules, settings, terrain }) {
   world.escorts = (scenario.escorts || []).map((e) => createEscortGroup(world, e));
   world.uboats = (scenario.uboats || []).map((u) => createUboat(world, u));
   world.squadrons = scenario.squadrons.map((s) => createSquadron(world, s));
+  if (carry && carry.fighterShare < 1) applyCarry(world, carry);
+  createCrews(world, scenario.pilots || null);
+  createMru(world, scenario.mru || null);
+  createSchedule(world);
+  createShipping(world);
   world.raids = [
     ...scenario.raids.map((r) => createRaid(world, r)),
     ...(scenario.phantoms || []).map((p) => createPhantom(world, p)),
@@ -112,7 +134,22 @@ export function createWorld({ scenario, rules, settings, terrain }) {
     convoy: first ? first.name : null,
     port: first && first.portId ? world.byId.port.get(first.portId).name : null,
   });
+  if (world.carry) emit(world, 'carryApplied', { share: Math.round(world.carry.fighterShare * 100), from: world.carry.from });
   return world;
+}
+
+/**
+ * Campaign: the fighter squadrons start short of the aircraft lost in the battle before.
+ * Their establishment does not change: the factories and the ferry pilots fill the gaps.
+ */
+function applyCarry(world, carry) {
+  for (const s of world.squadrons) {
+    if (s.role !== 'fighter') continue;
+    const n = Math.max(1, Math.round(s.aircraft * carry.fighterShare));
+    s.aircraft = n;
+    s.pilots = Math.min(s.pilots, n);
+  }
+  world.carry = { ...carry };
 }
 
 function end(world, reason = null) {
@@ -124,6 +161,7 @@ function end(world, reason = null) {
 /** Advances the world by `dt` whole seconds (default 1). */
 export function step(world, dt = 1) {
   if (world.ended) return;
+  const first = world.events.length;
   world.t += dt;
   for (const c of world.convoys) updateConvoy(world, c, dt);
   for (const e of world.escorts) updateEscort(world, e, dt);
@@ -139,11 +177,18 @@ export function step(world, dt = 1) {
     updateDetection(world);
     repairSites(world, minute);
     updateLogistics(world, minute);
+    updateCrews(world, minute);
+    updatePatrols(world);
+    updateAsw(world);
+    updateMru(world);
+    updateSchedule(world);
+    updateShipping(world);
     updateConvoyRaids(world);
     ageDfZones(world);
   }
   checkAlerts(world);
   checkObjectives(world);
+  recordReports(world, first);
   if (world.t % minute === 0) {
     const reason = checkDefeat(world);
     if (reason) {

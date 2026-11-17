@@ -28,5 +28,8 @@ export function createRandom(seed = 1) {
     get state() {
       return state;
     },
+    setState(v) {
+      state = v >>> 0;
+    },
   };
 }

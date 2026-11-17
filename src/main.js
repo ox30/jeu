@@ -10,10 +10,15 @@ import { createMapRenderer } from './render/map.js';
 import { drawScene } from './render/scene.js';
 import { helpSeen, loadSettings, saveSettings } from './save/settings.js';
 import {
-  addRulerLeg, addTypedLeg, centreOn, changeAltitude, findUnit, goView, orderAdmiraltyRoute, orderClearPlan, orderCover,
-  orderEscortHome, orderHome, orderJoin, orderLeave, orderMinStock, orderOrbit, orderRemoveLeg, orderSail, orderTrain,
-  orderVector, scrambleSquadron, select, toggleBuster,
+  activePoint, addRulerLeg, addTypedLeg, cancelEditLeg, centreOn, changeAltitude, changePointAltitude, clearPointAltitude,
+  deletePoint, findUnit, goView, orderAdmiraltyRoute, orderClearPlan, orderCover, orderEndAction, orderEscortHome,
+  orderHome, orderJoin, orderLeave, orderMinStock, orderOrbit, orderRemoveLeg, orderSail, orderTrain, orderVector,
+  orderAlert, orderConvoySpeed, orderEscortBehaviour, orderFollow, orderIntercept, orderLeaveFormation, orderOffer, orderPurchase,
+  orderZigzag, scrambleSquadron, select, startEditLeg, toggleBuster,
 } from './ui/actions.js';
+import { carryFor, loadCampaign, recordResult } from './ui/campaign.js';
+import { attachTutorial, startTutorial, stopTutorial, tutorialEvent, updateTutorial } from './ui/tutorial.js';
+import { fighterShare } from './sim/objectives.js';
 import { initAlert, showAlert } from './ui/alerts.js';
 import { openDesktopNotice, openEnd, openHelp, openScenarios, openSettings, openSuccess } from './ui/dialogs.js';
 import { playBombs, playGuns, playRadio, unlockAudio } from './ui/sound.js';
@@ -21,16 +26,20 @@ import { addEffectsForEvent } from './render/fx.js';
 import { eventMessage } from './ui/format.js';
 import { initHud, updateHud } from './ui/hud.js';
 import { attachInput } from './ui/input.js';
-import { addLogEntry, renderPanels } from './ui/panels.js';
+import { addLogEntry, clearLog, renderPanels } from './ui/panels.js';
+import { openCards, openReports } from './ui/pages.js';
+import { clearBrowserSave, exportText, loadFromBrowser, parseExport, restore, saveToBrowser } from './save/game.js';
+import { addMobileRadar } from './sim/mru.js';
+import { openEvent } from './ui/dialogs.js';
 import { setSpeed } from './sim/orders.js';
 
 const MAX_STEPS_PER_FRAME = 6000;
 const INTERRUPTING = new Set([
   'raidDetected', 'scenarioEnd', 'allObjectivesDone', 'convoyArrived', 'convoyStopped', 'siteOut', 'uboatAttack',
-  'convoySighted', 'noFuel', 'pilotAboard',
+  'convoySighted', 'noFuel', 'pilotAboard', 'uboatSighted', 'straggler', 'scenarioEvent', 'mruReady',
 ]);
-const RADIO = new Set(['tallyHo', 'missed', 'nothingSeen', 'bingo', 'outOfAmmo', 'divert', 'divertOut', 'legMissed', 'convoySighted']);
-const SCENARIOS = ['kanalkampf', 'm0-july-1940'];
+const RADIO = new Set(['tallyHo', 'missed', 'nothingSeen', 'bingo', 'outOfAmmo', 'divert', 'divertOut', 'legMissed', 'convoySighted', 'interceptOrdered', 'uboatSighted']);
+const SCENARIOS = ['kanalkampf', 'adlertag', 'quinze-septembre', 'hiver-atlantique', 'm0-july-1940'];
 
 const $ = (id) => document.getElementById(id);
 
@@ -47,6 +56,10 @@ function collectElements() {
     btnEngland: $('btn-england'),
     btnBritain: $('btn-britain'),
     btnScenario: $('btn-scenario'),
+    coach: $('coach'),
+    subtitle: $('hud-subtitle'),
+    btnReports: $('btn-reports'),
+    btnCards: $('btn-cards'),
     btnRuler: $('btn-ruler'),
     btnRadar: $('btn-radar'),
     btnSettings: $('btn-settings'),
@@ -63,6 +76,7 @@ function collectElements() {
     sheetPlan: $('sheet-plan'),
     sheetOrders: $('sheet-orders'),
     log: $('log'),
+    logSection: $('log-section'),
     alert: $('alert'),
     alertText: $('alert-text'),
     alertShow: $('alert-show'),
@@ -74,6 +88,9 @@ function collectElements() {
     dlgSuccess: $('dlg-success'),
     dlgDesktop: $('dlg-desktop'),
     dlgScenario: $('dlg-scenario'),
+    dlgReports: $('dlg-reports'),
+    dlgCards: $('dlg-cards'),
+    dlgEvent: $('dlg-event'),
   };
 }
 
@@ -96,8 +113,10 @@ function scenarioById(data, id) {
 
 function handleEvents(app, events) {
   for (const e of events) {
+    tutorialEvent(app, e);
     const msg = eventMessage(app.world, e);
-    if (msg) addLogEntry(app, msg.text, msg.level, e.t);
+    const report = (e.type === 'raidReport' || e.type === 'combatReport') && app.world.reports.has(e.raidId) ? e.raidId : null;
+    if (msg) addLogEntry(app, msg.text, msg.level, e.t, { report });
     addEffectsForEvent(app, e);
     if (RADIO.has(e.type)) playRadio(app);
     else if (e.type === 'combatRound') playGuns(app);
@@ -109,11 +128,15 @@ function handleEvents(app, events) {
         app.dirtyHud = true;
       }
       if (app.settings.autoZoom && app.camera.scale < 0.6) goView(app, 'england');
+    } else if (e.type === 'scenarioEvent' && e.important) {
+      setTimeout(() => openEvent(app, e), 200);
     } else if (e.type === 'allObjectivesDone') {
       if (!app.world.ended) setTimeout(() => openSuccess(app), 400);
     } else if (e.type === 'scenarioEnd') {
       app.paused = true;
       app.dirtyHud = true;
+      clearBrowserSave();
+      app.unlocked = recordResult(app.campaign, app.world, fighterShare(app.world));
       openEnd(app);
     }
   }
@@ -126,13 +149,28 @@ function inputValue(id) {
 }
 
 function clearLegInputs() {
-  for (const id of ['leg-heading', 'leg-end', 'leg-speed']) {
+  for (const id of ['leg-heading', 'leg-end', 'leg-speed', 'leg-alt']) {
     const input = document.getElementById(id);
     if (input) input.value = '';
   }
 }
 
 function onPanelClick(app, e) {
+  const reportLine = e.target.closest('[data-report]');
+  if (reportLine) {
+    openReports(app, reportLine.dataset.report);
+    return;
+  }
+  const fold = e.target.closest('[data-log-toggle]');
+  if (fold) {
+    fold.parentElement.classList.toggle('collapsed');
+    return;
+  }
+  const section = e.target.closest('[data-log-section]');
+  if (section) {
+    app.el.logSection.classList.toggle('collapsed');
+    return;
+  }
   const tab = e.target.closest('[data-tab]');
   if (tab) {
     app.toteTab = tab.dataset.tab;
@@ -147,6 +185,13 @@ function onPanelClick(app, e) {
   switch (action) {
     case 'select':
       select(app, kind, id);
+      break;
+    case 'cards':
+      openCards(app, b.dataset.type);
+      break;
+    case 'mru-deploy':
+      app.setTool(app.tool === 'mru' ? null : 'mru');
+      app.dirtyPanels = true;
       break;
     case 'scramble':
       if (sq) scrambleSquadron(app, sq);
@@ -175,8 +220,30 @@ function onPanelClick(app, e) {
       if (sq) orderHome(app, sq);
       break;
     case 'add-leg':
-      if (unit && addTypedLeg(app, unit, inputValue('leg-heading'), inputValue('leg-end'), inputValue('leg-speed'))) clearLegInputs();
+      if (unit && addTypedLeg(app, unit, inputValue('leg-heading'), inputValue('leg-end'), inputValue('leg-speed'), inputValue('leg-alt'))) clearLegInputs();
       break;
+    case 'edit-leg':
+      if (unit) startEditLeg(app, unit, Number(b.dataset.index));
+      break;
+    case 'cancel-edit-leg':
+      cancelEditLeg(app);
+      break;
+    case 'point-alt-up':
+    case 'point-alt-down': {
+      const ap = activePoint(app);
+      if (ap) changePointAltitude(app, ap.u, ap.index, action === 'point-alt-up' ? 1000 : -1000);
+      break;
+    }
+    case 'point-alt-clear': {
+      const ap = activePoint(app);
+      if (ap) clearPointAltitude(app, ap.u, ap.index);
+      break;
+    }
+    case 'point-delete': {
+      const ap = activePoint(app);
+      if (ap) deletePoint(app, ap.u, ap.index);
+      break;
+    }
     case 'add-ruler-leg':
       if (unit) addRulerLeg(app, unit);
       break;
@@ -201,15 +268,43 @@ function onPanelClick(app, e) {
     case 'cover':
       if (sq) orderCover(app, sq, b.dataset.convoy);
       break;
+    case 'intercept':
+      if (sq) orderIntercept(app, sq, b.dataset.raid);
+      break;
+    case 'alert':
+      if (sq) orderAlert(app, sq, b.dataset.alert);
+      break;
+    case 'zigzag':
+      if (unit) orderZigzag(app, unit);
+      break;
+    case 'escort-behaviour':
+      if (unit) orderEscortBehaviour(app, unit, b.dataset.behaviour);
+      break;
+    case 'follow':
+      if (sq) orderFollow(app, sq, b.dataset.leader);
+      break;
+    case 'leave-formation':
+      if (sq) orderLeaveFormation(app, sq);
+      break;
+    case 'purchase':
+      orderPurchase(app, Number(b.dataset.share));
+      break;
+    case 'offer':
+      orderOffer(app, b.dataset.offer);
+      break;
     case 'send-train': {
       const to = document.getElementById('train-to');
-      const res = document.getElementById('train-resource');
-      if (to && res && to.value) orderTrain(app, id, to.value, res.value);
+      const loads = {};
+      for (const res of ['fuel', 'materiel', 'ammo']) {
+        const v = Number(inputValue(`train-${res}`));
+        if (v > 0) loads[res] = v;
+      }
+      if (to && to.value) orderTrain(app, id, to.value, loads);
       break;
     }
     case 'set-min': {
       const site = app.world.sites.get(id);
-      if (site) orderMinStock(app, site, b.dataset.resource, inputValue('min-stock'));
+      if (site) orderMinStock(app, site, b.dataset.resource, inputValue(`min-stock-${b.dataset.resource}`));
       break;
     }
     case 'admiralty': {
@@ -218,7 +313,10 @@ function onPanelClick(app, e) {
       break;
     }
     case 'centre': {
-      if (kind === 'raid') {
+      if (kind === 'uplot') {
+        const plot = app.world.uboatPlots.find((p) => p.id === id);
+        if (plot) centreOn(app, plot.x, plot.y, 0.6);
+      } else if (kind === 'raid') {
         const contact = app.world.contacts.get(id);
         const plots = contact ? contact.plots.filter((p) => p.visibleAt <= app.world.t) : [];
         const last = plots[plots.length - 1];
@@ -259,13 +357,18 @@ async function start() {
 
   const settings = loadSettings(data.presets);
   const terrain = createTerrain(data.atlantic, data.channel);
+  const campaign = loadCampaign();
   data.scenario = scenarioById(data, settings.scenario);
-  const world = createWorld({ scenario: data.scenario, rules: data.rules, settings, terrain });
+  const newWorld = (scenario) => createWorld({
+    scenario, rules: data.rules, settings, terrain, carry: carryFor(campaign, scenario.id, settings.carry),
+  });
+  const world = newWorld(data.scenario);
 
   const app = {
     el,
     data,
     settings,
+    campaign,
     world,
     canvas: el.canvas,
     ctx: el.canvas.getContext('2d'),
@@ -289,6 +392,7 @@ async function start() {
     dirtyHud: true,
   };
   app.unlockAudio = () => unlockAudio(app);
+  app.addMobileRadar = addMobileRadar;
   app.setTool = (tool) => {
     app.tool = tool;
     if (!tool) app.ruler = null;
@@ -301,20 +405,99 @@ async function start() {
     app.dirtyHud = true;
   };
 
-  app.restart = (scenarioId = null) => {
+  /** Keeps the game (and its journal) in the browser. */
+  app.save = () => {
+    if (app.world.ended) return false;
+    app.lastSaveT = app.world.t;
+    app.lastSaveReal = performance.now();
+    const ok = saveToBrowser(app.world);
+    try {
+      localStorage.setItem('jeu-1940.journal.v1', JSON.stringify(app.logEntries || []));
+    } catch {
+      // ignore
+    }
+    return ok;
+  };
+
+  /** A saved game (from the browser or a file) replaces the current one. */
+  app.resume = (saved) => {
+    const sc = scenarioById(data, saved.snap.scenario);
+    if (!sc || sc.id !== saved.snap.scenario) throw new Error('save: unknown scenario');
+    data.scenario = sc;
+    settings.scenario = sc.id;
+    saveSettings(settings);
+    stopTutorial(app);
+    const w = createWorld({ scenario: sc, rules: data.rules, settings, terrain });
+    drainEvents(w);
+    restore(w, saved.snap, (world, def) => app.addMobileRadar && app.addMobileRadar(world, def));
+    app.world = w;
+    Object.assign(app, { selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0 });
+    clearLog(app);
+    for (const entry of saved.journal || []) addLogEntry(app, entry.text, entry.level, entry.t, { report: entry.report, replay: true });
+    app.logEntries = [...(saved.journal || [])];
+    addLogEntry(app, t('log.gameResumed'), 'info', w.t);
+    el.alert.hidden = true;
+    app.lastSaveT = w.t;
+    app.dirtyPanels = true;
+    app.dirtyHud = true;
+  };
+
+  /**
+   * The game as a .json file. Published on claude.ai, the page asks the viewer through the
+   * downloads capability; elsewhere (the file on disk, a web server) a plain download.
+   */
+  app.exportGame = async () => {
+    const text = exportText(app.world);
+    const d = new Date(app.world.startMs + app.world.t * 1000);
+    const filename = `partie-${app.world.scenario.id}-${d.toISOString().slice(0, 13).replace(/[-T:]/g, '')}.json`;
+    let downloads = null;
+    try {
+      if (window.claude && typeof window.claude.use === 'function') downloads = await window.claude.use('downloads');
+    } catch {
+      downloads = null;
+    }
+    if (downloads) {
+      try {
+        await downloads.save({ filename, data: text });
+        return 'saved';
+      } catch (err) {
+        if (err && err.code === 'declined') return 'declined';
+        console.warn('export', err);
+        return 'failed';
+      }
+    }
+    const blob = new Blob([text], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    return 'saved';
+  };
+
+  app.importGame = (text) => {
+    const parsed = parseExport(text);
+    app.resume({ snap: parsed.snap, journal: [] });
+    app.save();
+  };
+
+  app.restart = (scenarioId = null, { tutorial = false } = {}) => {
     if (scenarioId) {
       data.scenario = scenarioById(data, scenarioId);
       settings.scenario = data.scenario.id;
       saveSettings(settings);
     }
-    app.world = createWorld({ scenario: data.scenario, rules: data.rules, settings, terrain });
-    Object.assign(app, { selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, speed: 60, accumulator: 0 });
-    el.log.innerHTML = '';
-    app.logDay = null;
-    app.logDaySep = null;
+    stopTutorial(app);
+    app.world = newWorld(data.scenario);
+    // A page closed after this must not set the new game going.
+    Object.assign(app, { selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0, unlocked: null });
+    clearLog(app);
     el.alert.hidden = true;
     setFrame(app.camera, viewFrame(app.camera, VIEWS.atlantic));
     handleEvents(app, drainEvents(app.world));
+    if (tutorial) startTutorial(app);
     app.dirtyPanels = true;
     app.dirtyHud = true;
   };
@@ -325,17 +508,30 @@ async function start() {
   initHud(app);
   initAlert(app);
   attachInput(app);
+  attachTutorial(app);
   el.panel.addEventListener('click', (e) => onPanelClick(app, e));
+  el.panel.addEventListener('change', (e) => {
+    const target = e.target.closest('[data-change]');
+    if (!target) return;
+    if (target.dataset.change === 'end-action') {
+      const sq = app.world.squadrons.find((s) => s.id === target.dataset.id);
+      if (sq) orderEndAction(app, sq, target.value);
+    } else if (target.dataset.change === 'convoy-speed') {
+      const c = app.world.convoys.find((x) => x.id === target.dataset.id);
+      if (c) orderConvoySpeed(app, c, Number(target.value));
+    }
+    app.dirtyPanels = true;
+  });
   el.panel.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     const sel = app.selection;
-    const unit = sel && (sel.kind === 'squadron' || sel.kind === 'convoy') ? findUnit(app, sel.kind, sel.id) : null;
+    const unit = sel && (sel.kind === 'squadron' || sel.kind === 'convoy' || sel.kind === 'escort') ? findUnit(app, sel.kind, sel.id) : null;
     if (!unit) return;
     if (e.target.id === 'vector-input' && unit.kind === 'squadron' && e.target.value !== '') {
       orderVector(app, unit, Number(e.target.value));
-    } else if (['leg-heading', 'leg-end', 'leg-speed'].includes(e.target.id)) {
+    } else if (['leg-heading', 'leg-end', 'leg-speed', 'leg-alt'].includes(e.target.id)) {
       e.preventDefault();
-      if (addTypedLeg(app, unit, inputValue('leg-heading'), inputValue('leg-end'), inputValue('leg-speed'))) {
+      if (addTypedLeg(app, unit, inputValue('leg-heading'), inputValue('leg-end'), inputValue('leg-speed'), inputValue('leg-alt'))) {
         clearLegInputs();
         document.getElementById('leg-heading')?.focus();
       }
@@ -343,9 +539,33 @@ async function start() {
   });
   el.btnSettings.addEventListener('click', () => openSettings(app));
   el.btnScenario.addEventListener('click', () => openScenarios(app));
+  el.btnReports.addEventListener('click', () => openReports(app));
+  el.btnCards.addEventListener('click', () => openCards(app));
   el.btnHelp.addEventListener('click', () => openHelp(app));
 
   handleEvents(app, drainEvents(app.world));
+  // A game left in the browser goes on where it was.
+  const saved = loadFromBrowser();
+  if (saved && !saved.snap.ended && SCENARIOS.includes(saved.snap.scenario)) {
+    try {
+      let journal = [];
+      try {
+        journal = JSON.parse(localStorage.getItem('jeu-1940.journal.v1') || '[]');
+      } catch {
+        journal = [];
+      }
+      app.resume({ snap: saved.snap, journal });
+    } catch (err) {
+      console.warn('saved game not restored', err);
+      clearBrowserSave();
+    }
+  }
+  app.lastSaveT = app.world.t;
+  app.lastSaveReal = performance.now();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') app.save();
+  });
+  window.addEventListener('pagehide', () => app.save());
   el.loading.hidden = true;
   const smallScreen = window.innerWidth < 900 || (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches);
   if (smallScreen) openDesktopNotice(app);
@@ -382,6 +602,8 @@ async function start() {
     }
 
     handleEvents(app, drainEvents(world));
+    updateTutorial(app);
+    if (!world.ended && world.t - (app.lastSaveT ?? 0) >= 900 && now - (app.lastSaveReal ?? 0) > 4000) app.save();
     drawScene(app.ctx, app, app.paused ? 1 : Math.max(0, Math.min(1, app.accumulator)));
     updateHud(app, world.startMs + world.t * 1000);
     if (app.dirtyPanels || now - lastPanels > 250) {
