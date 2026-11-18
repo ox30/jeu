@@ -6,7 +6,7 @@ import { createTerrain } from './sim/terrain.js';
 import { warmPortField } from './sim/searoute.js';
 import { createWorld, step } from './sim/world.js';
 import { drainEvents } from './sim/events.js';
-import { createCamera, clampCentre, setFrame, updateCamera, viewFrame, VIEWS } from './render/camera.js';
+import { createCamera, clampCentre, setFrame, toScreen, updateCamera, viewFrame, VIEWS } from './render/camera.js';
 import { createMapRenderer } from './render/map.js';
 import { drawScene } from './render/scene.js';
 import { loadSettings, saveSettings } from './save/settings.js';
@@ -44,6 +44,7 @@ import { attachInput } from './ui/input.js';
 import { addLogEntry, clearLog, renderPanels } from './ui/panels.js';
 import { openCards, openReports } from './ui/pages.js';
 import { clearBrowserSave, exportText, loadFromBrowser, parseExport, restore, saveToBrowser } from './save/game.js';
+import { reportCrash } from './ui/crash.js';
 import { addMobileRadar } from './sim/mru.js';
 import { openEvent } from './ui/dialogs.js';
 import { setSpeed } from './sim/orders.js';
@@ -135,6 +136,7 @@ function collectElements() {
     dlgMenu: $('dlg-menu'),
     btnRoster: $('btn-roster'),
     dlgEvent: $('dlg-event'),
+    dlgCrash: $('dlg-crash'),
   };
 }
 
@@ -729,7 +731,8 @@ async function start() {
 
   /** Keeps the game (and its journal) in the browser. */
   app.save = () => {
-    if (app.world.ended) return false;
+    // After an error the last good save is kept as it is.
+    if (app.world.ended || app.crash) return false;
     app.lastSaveT = app.world.t;
     app.lastSaveReal = performance.now();
     const ok = saveToBrowser(app.world);
@@ -754,6 +757,7 @@ async function start() {
     drainEvents(w);
     restore(w, saved.snap, (world, def) => app.addMobileRadar && app.addMobileRadar(world, def));
     app.world = w;
+    app.crash = null;
     app.resumed = true;
     Object.assign(app, { selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0 });
     clearLog(app);
@@ -771,8 +775,8 @@ async function start() {
    * The game as a .json file. Published on claude.ai, the page asks the viewer through the
    * downloads capability; elsewhere (the file on disk, a web server) a plain download.
    */
-  app.exportGame = async () => {
-    const text = exportText(app.world);
+  app.exportGame = async (extra = null) => {
+    const text = exportText(app.world, extra);
     const d = new Date(app.world.startMs + app.world.t * 1000);
     const filename = `partie-${app.world.scenario.id}-${d.toISOString().slice(0, 13).replace(/[-T:]/g, '')}.json`;
     let downloads = null;
@@ -830,6 +834,7 @@ async function start() {
     stopTutorial(app);
     resetAlerts(app);
     app.lastNavalAttack = null;
+    app.crash = null;
     app.world = newWorld(data.scenario);
     // A page closed after this must not set the new game going.
     Object.assign(app, { selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0, unlocked: null });
@@ -910,35 +915,46 @@ async function start() {
     el.table.style.setProperty('--sheet-h', `${Math.round(settings.sheetH || 300)}px`);
   };
   app.applySheet();
+  // For the smoke test (tools/smoke) and for a look from the console: the same helpers in the
+  // development version and in the single file.
+  app.stepWorld = (n = 1) => {
+    for (let i = 0; i < n && !app.world.ended; i++) step(app.world, 1);
+  };
+  app.toScreen = (x, y) => toScreen(app.camera, x, y);
+  app.estimateOf = (raidId) => {
+    const contact = app.world.contacts.get(raidId);
+    return contact ? contactEstimate(app.world, contact) : null;
+  };
   window.__game = app;
 
   let last = performance.now();
   let lastPanels = 0;
-  function frame(now) {
-    const dtReal = Math.min(0.25, (now - last) / 1000);
-    last = now;
-    updateCamera(app.camera, dtReal);
-    clampCentre(app.camera, app.mapRenderer.coarse.box);
+  let displayFailures = 0;
 
+  /** The steps of simulation this frame owes, at the chosen speed. */
+  function advance(dtReal) {
     const world = app.world;
-    if (!app.paused && !world.ended) {
-      app.accumulator += dtReal * app.speed;
-      const wanted = Math.min(Math.floor(app.accumulator), MAX_STEPS_PER_FRAME);
-      let done = 0;
-      let interrupted = false;
-      while (done < wanted) {
-        const before = world.events.length;
-        step(world, 1);
-        done++;
-        for (let i = before; i < world.events.length; i++) {
-          if (INTERRUPTING.has(world.events[i].type)) interrupted = true;
-        }
-        if (interrupted) break;
+    if (app.paused || world.ended || app.crash) return;
+    app.accumulator += dtReal * app.speed;
+    const wanted = Math.min(Math.floor(app.accumulator), MAX_STEPS_PER_FRAME);
+    let done = 0;
+    let interrupted = false;
+    while (done < wanted) {
+      const before = world.events.length;
+      step(world, 1);
+      done++;
+      for (let i = before; i < world.events.length; i++) {
+        if (INTERRUPTING.has(world.events[i].type)) interrupted = true;
       }
-      app.accumulator -= done;
-      if (interrupted || app.accumulator > 1) app.accumulator = Math.min(app.accumulator, 0.999);
+      if (interrupted) break;
     }
+    app.accumulator -= done;
+    if (interrupted || app.accumulator > 1) app.accumulator = Math.min(app.accumulator, 0.999);
+  }
 
+  /** What the player sees and hears of it. */
+  function display(now) {
+    const world = app.world;
     handleEvents(app, drainEvents(world));
     updateAlerts(app);
     renderQuestion(app);
@@ -954,7 +970,29 @@ async function start() {
       app.dirtyPanels = false;
       app.panelsStale = false;
     }
+  }
+
+  // The loop never dies: an error pauses the game and says so (crash.js). A display that
+  // fails three frames running is left alone, with the dialog open.
+  function frame(now) {
     requestAnimationFrame(frame);
+    const dtReal = Math.min(0.25, (now - last) / 1000);
+    last = now;
+    if (app.crash && app.crash.fatal) return;
+    try {
+      updateCamera(app.camera, dtReal);
+      clampCentre(app.camera, app.mapRenderer.coarse.box);
+      advance(dtReal);
+    } catch (err) {
+      reportCrash(app, err, 'simulation');
+    }
+    try {
+      display(now);
+      displayFailures = 0;
+    } catch (err) {
+      displayFailures++;
+      reportCrash(app, err, 'display', displayFailures >= 3);
+    }
   }
   requestAnimationFrame(frame);
 }

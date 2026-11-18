@@ -159,11 +159,22 @@ export function togglePause(app) {
   app.dirtyHud = true;
 }
 
-export function goView(app, name) {
-  animateTo(app.camera, viewFrame(app.camera, VIEWS[name]));
+/** What the open unit sheet hides of the map, in pixels on each side (null: nothing). */
+export function sheetInset(app) {
+  if (!app.selection || typeof window === 'undefined' || window.innerWidth <= 820) return null;
+  const el = app.el && app.el.unitPanel;
+  if (!el || el.hidden) return null;
+  const pos = app.settings.sheetPos || 'right';
+  if (pos === 'bottom') return { bottom: el.offsetHeight || app.settings.sheetH || 300 };
+  const w = el.offsetWidth || app.settings.sheetW || 400;
+  return pos === 'left' ? { left: w } : { right: w };
 }
 
-/** Centres the map on a unit, zooming in when the map is far out. */
+/** The three views (keys A, L, G) are framed in the part of the map the sheet leaves free. */
+export function goView(app, name) {
+  animateTo(app.camera, viewFrame(app.camera, VIEWS[name], 30, sheetInset(app)));
+}
+
 /** Width of the map hidden by the unit panel (open when something is selected). */
 function unitPanelWidth(app) {
   if (!app.selection || typeof window === 'undefined' || window.innerWidth <= 820) return 0;
@@ -216,7 +227,7 @@ export function revealSelection(app) {
   const m = 30;
   let x0 = m;
   let x1 = cam.width - m;
-  let y0 = m;
+  const y0 = m;
   let y1 = cam.height - m;
   if (window.innerWidth > 820) {
     const where = app.settings.sheetPos || 'right';

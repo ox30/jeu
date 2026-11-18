@@ -17,7 +17,7 @@ import { createQuestions, updateQuestions } from './engagement.js';
 import { createTimetable, updateTimetable } from './timetable.js';
 import { updateRallies } from './rally.js';
 import { createGrid } from './grid.js';
-import { initSite, repairSites } from './sites.js';
+import { createSite, repairSites } from './sites.js';
 import { checkDefeat, checkObjectives, createObjectives, finalize } from './objectives.js';
 import { createLogistics, updateLogistics, updateTrains } from './logistics.js';
 import {
@@ -44,16 +44,15 @@ function placedPath(path) {
 
 export function createWorld({ scenario, rules, settings, terrain, carry = null }) {
   const startMs = parseGameDate(scenario.start);
-  const ports = scenario.ports.map((p) => initSite({
+  const ports = scenario.ports.map((p) => ({
     ...placed(p),
     approaches: (p.approaches || []).map((a) => ({ name: a.name, points: placedPath(a.path) })),
-  }, 'port'));
-  const airfields = scenario.airfields.map((a) => initSite(placed(a), 'airfield'));
-  const radars = scenario.radars.map((r) => initSite(placed(r), 'radar'));
-  const factories = (scenario.factories || []).map((f) => initSite(placed(f), 'factory'));
-  const depots = (scenario.depots || []).map((f) => initSite(placed(f), 'depot'));
+  }));
+  const airfields = scenario.airfields.map(placed);
+  const radars = scenario.radars.map(placed);
+  const factories = (scenario.factories || []).map(placed);
+  const depots = (scenario.depots || []).map(placed);
   const sites = new Map();
-  for (const site of [...airfields, ...radars, ...ports, ...factories, ...depots]) sites.set(site.key, site);
 
   const world = {
     t: 0,
@@ -119,6 +118,12 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
     outcome: null,
     dryHours: 0,
   };
+  for (const [list, kind] of [[airfields, 'airfield'], [radars, 'radar'], [ports, 'port'], [factories, 'factory'], [depots, 'depot']]) {
+    for (const item of list) {
+      const site = createSite(world, item, kind);
+      sites.set(site.key, site);
+    }
+  }
   createLogistics(world, scenario.logistics || null);
   world.convoys = scenario.convoys.map((c) => createConvoy(world, c));
   world.escorts = (scenario.escorts || []).map((e) => createEscortGroup(world, e));

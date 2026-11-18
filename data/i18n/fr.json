@@ -1975,5 +1975,19 @@
     "settings": "Réglages",
     "help": "Aide",
     "note": "La partie en cours est gardée dans ce navigateur. Le jeu est arrêté tant que ce menu est ouvert ; Échap ou « Continuer » le reprend."
+  },
+  "crash": {
+    "title": "Le jeu s'est arrêté sur une erreur",
+    "text": "La partie est en pause et la dernière sauvegarde automatique est intacte. Exportez la partie pour la garder ou pour signaler le problème, puis reprenez la dernière sauvegarde.",
+    "where": {
+      "simulation": "Erreur dans la simulation, à {time} (heure du jeu) :",
+      "display": "Erreur dans l'affichage, à {time} (heure du jeu) :"
+    },
+    "export": "Exporter la partie",
+    "resume": "Reprendre la dernière sauvegarde",
+    "close": "Fermer",
+    "exported": "Partie exportée, avec le détail de l'erreur.",
+    "exportFailed": "L'export n'a pas abouti.",
+    "resumeFailed": "La sauvegarde n'a pas pu être reprise : {message}"
   }
 }

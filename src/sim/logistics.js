@@ -6,8 +6,19 @@
 import { distance, project } from './geo.js';
 import { emit } from './events.js';
 import { airfieldDelayFactor, capacityFactor, isOperational } from './sites.js';
+import { declareFields } from './entities.js';
 
 export const RESOURCES = ['fuel', 'materiel', 'ammo'];
+
+// What logistics keeps on every installation, a mobile radar station included.
+declareFields('site', (site) => {
+  site.stocks = { fuel: 0, materiel: 0, ammo: 0, aircraft: 0, ...(site.stocks || {}) };
+  site.minStock = { fuel: null, materiel: null, ammo: null };
+  site.progress = 0;
+  site.starved = false;
+  site.dryHours = 0;
+  site.lowWarned = false;
+});
 
 function nodeOf(world, id) {
   return world.rail.nodes.get(id);
@@ -25,13 +36,6 @@ export function createLogistics(world, def) {
   world.trains = [];
   world.ferries = [];
   world.nextTrainId = 1;
-  for (const site of world.sites.values()) {
-    site.stocks = { fuel: 0, materiel: 0, ammo: 0, aircraft: 0, ...(site.stocks || {}) };
-    site.minStock = { fuel: null, materiel: null, ammo: null };
-    site.progress = 0;
-    site.starved = false;
-    site.dryHours = 0;
-  }
   if (!def) return;
   for (const j of def.junctions || []) {
     const [x, y] = project(j.lon, j.lat);

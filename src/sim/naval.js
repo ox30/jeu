@@ -10,6 +10,12 @@ import { acceptingPorts, currentSpeed, stepShip } from './convoy.js';
 import { dive, endHunt, engage, isSubmerged, spotAttacker, startHunt, stepHunt } from './asw.js';
 import { callBoats, noteConvoy } from './bdu.js';
 import { inClosedWaters, moveTo, openForUboat, steerUboat, uboatSpot } from './uboatnav.js';
+import { declareFields } from './entities.js';
+
+// Whether the player was told that the convoy came within reach of the escorts.
+declareFields('convoy', (c) => {
+  c.rangeAlerted = false;
+});
 
 // ---- ships lost -------------------------------------------------------------------
 

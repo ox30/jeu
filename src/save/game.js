@@ -62,7 +62,6 @@ function decode(v) {
 export function snapshot(world) {
   const sites = [];
   for (const s of world.sites.values()) {
-    if (s.mobile) continue;
     const st = {};
     for (const f of SITE_FIELDS) if (f in s) st[f] = encode(s[f]);
     sites.push([s.key, st]);
@@ -90,6 +89,9 @@ export function snapshot(world) {
 export function restore(world, snap, addMobileRadar = null) {
   if (!snap || snap.version !== VERSION || snap.scenario !== world.scenario.id) throw new Error('save: wrong game');
   world.rng.setState(snap.rng);
+  // The mobile stations first: their state is restored with that of the other installations.
+  world.mobileRadars = [];
+  if (addMobileRadar) for (const def of decode(snap.mobileRadars || [])) addMobileRadar(world, def);
   for (const [key, st] of snap.sites) {
     const site = world.sites.get(key);
     if (site) Object.assign(site, decode(st));
@@ -121,8 +123,6 @@ export function restore(world, snap, addMobileRadar = null) {
   snap.railFree.forEach((v, i) => {
     if (world.rail.links[i]) world.rail.links[i].nextFree = v;
   });
-  world.mobileRadars = [];
-  if (addMobileRadar) for (const def of decode(snap.mobileRadars || [])) addMobileRadar(world, def);
   fillDefaults(world, WORLD_DEFAULTS());
   for (const s of world.squadrons) {
     fillDefaults(s, SQUADRON_DEFAULTS());
@@ -170,8 +170,8 @@ export function clearBrowserSave() {
 }
 
 /** The game as a JSON file to download. */
-export function exportText(world) {
-  return JSON.stringify({ game: 'jeu-1940', savedAt: Date.now(), snap: snapshot(world) });
+export function exportText(world, extra = null) {
+  return JSON.stringify({ game: 'jeu-1940', savedAt: Date.now(), snap: snapshot(world), ...(extra || {}) });
 }
 
 export function parseExport(text) {
