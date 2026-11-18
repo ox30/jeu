@@ -248,7 +248,11 @@ export function objectiveText(world, o) {
     }
     case 'shipLossesBelow': {
       const l = shipLosses(world);
-      return t('objectives.shipLossesBelow', { share: Math.round(o.share * 100), n: Math.round(l.share * 1000) / 10, sunk: l.sunk, sailed: l.sailed });
+      // The threshold as it is set: 8 %, or 7,5 %.
+      const pct = Math.round(o.share * 1000) / 10;
+      return t('objectives.shipLossesBelow', {
+        share: formatNumber(pct, Number.isInteger(pct) ? 0 : 1), n: Math.round(l.share * 1000) / 10, sunk: l.sunk, sailed: l.sailed,
+      });
     }
     default:
       return t(`objectives.${o.type}`, o);

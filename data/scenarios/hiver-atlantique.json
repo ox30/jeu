@@ -620,7 +620,7 @@
     },
     {
       "type": "shipLossesBelow",
-      "share": 0.08
+      "share": 0.075
     }
   ],
   "defeat": {

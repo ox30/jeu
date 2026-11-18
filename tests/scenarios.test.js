@@ -226,3 +226,18 @@ test('campaign: a victory opens the next scenario, losses carry into the next ai
   c.unlockAll = true;
   assert.equal(scenarioStatus(c, 'hiver-atlantique'), 'open');
 });
+
+test('the Atlantic is won with fewer than 7.5 % of the ships lost, and the objective says so', async () => {
+  const { objectiveText } = await import('../src/ui/format.js');
+  const { setDictionary } = await import('../src/core/i18n.js');
+  const { data: all } = await import('./helpers.js');
+  setDictionary(all.fr);
+  const w = makeWorld('standard', {}, 'hiver-atlantique');
+  const o = w.objectives.find((x) => x.type === 'shipLossesBelow');
+  assert.equal(o.share, 0.075);
+  const text = objectiveText(w, o);
+  assert.ok(text.includes('7,5 %'), text);
+  // A whole number of per cent is written without a decimal.
+  assert.ok(objectiveText(w, { ...o, share: 0.08 }).includes('de 8 %'), objectiveText(w, { ...o, share: 0.08 }));
+  assert.ok(objectiveText(w, { ...o, share: 0.2 }).includes('de 20 %'));
+});
