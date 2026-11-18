@@ -6,6 +6,7 @@ import { createBdu } from '../sim/bdu.js';
 import { bringToSea } from '../sim/uboatnav.js';
 import { normalizeRoster } from '../sim/roster.js';
 import { fillMissingFields } from '../sim/entities.js';
+import { LONG_AGO } from '../sim/naval.js';
 
 const VERSION = 1;
 const KEY = 'jeu-1940.game.v1';
@@ -156,7 +157,10 @@ export function restore(world, snap, addMobileRadar = null) {
     for (const s of world.squadrons) if (s.role === 'fighter' && !initialSquadrons.has(s.id)) world.fightersAtStart += s.aircraftStart;
   }
   for (const u of world.uboats) {
-    fillDefaults(u, { way: null, wanderAt: 0 });
+    fillDefaults(u, { way: null, wanderAt: 0, deepUntil: 0, sunkAt: null, boat: 1 });
+    // "Never yet" was an infinity until 2.8, which a save turned into nothing.
+    if (!Number.isFinite(u.lastAttack)) u.lastAttack = LONG_AGO;
+    if (!Number.isFinite(u.lastReport)) u.lastReport = LONG_AGO;
     bringToSea(world, u); // a boat an earlier version left ashore
   }
   world.events = [];

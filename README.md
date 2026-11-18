@@ -8,9 +8,42 @@ avec un menu principal, un tutoriel guidé et une aide illustrée.
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.7.0** (lot M2.7, corrections et filet de sécurité). Les décisions qui guident les
+**Version 2.8.0** (lot M2.8, la mer au rythme des quarts). Les décisions qui guident les
 lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md` (fichier du projet) ; le journal des
 travaux est dans `docs/journal-m2.7-m2.10.md`.
+
+## Nouveautés du M2.8
+
+Tout se passe dans « Hiver dans l'Atlantique » ; Kanalkampf, Adlertag et le 15 septembre ne
+changent que par le jour et la nuit au soleil.
+
+- **Le rythme des quarts.** La mer n'appelle plus le joueur événement par événement. À chaque
+  relève (0, 4, 8, 12, 16 et 20 h) un rapport s'écrit, onglet « Signaux » du journal : convois,
+  groupes d'escorte, air, renseignement, signaux du quart et décisions en attente, chacune
+  avec le bouton qui y répond. Le jeu ne s'arrête que pour une décision nouvelle (réglable :
+  aussi matin et soir, ou à chaque relève) et, entre deux relèves, pour la première attaque
+  d'un convoi dans la nuit. Un arrêt est une pause : « Reprendre » repart à la vitesse d'avant.
+- **Silence radio** (Standard et Réaliste, réglable). En haute mer, convois et groupes ne
+  sont vus que par estimation : repère en tirets marqué « ? », cercle de doute qui grandit
+  depuis le dernier point sûr. Un ordre part par radio à la relève suivante, au projecteur
+  d'un avion en vue, ou confié à un groupe qui rejoint le convoi. Les eaux fermées, les
+  approches des ports et la couverture des radars de Downhill et de Glenarm (nouveaux, avec
+  Castlerock) restent suivies en direct.
+- **Grenades.** 40 par navire, refaites au port ; grenadage plein ou économe ; à vide, des
+  passes à blanc qui font encore plonger. La chasse s'arrête seule ; la durée de chasse
+  réglable disparaît.
+- **Avions.** L'attaque d'une patrouille sur un U-Boot se voit, coulé ou non, une fois par
+  sortie ; son repère peut lancer la chasse d'un groupe. Le 502 Sqn a son radar ASV.
+- **Radar d'escorte** : daté et par groupe (EG 1 le 1er mars 1941, EG 3 le 15), à courte portée.
+- **Achats en Amérique** : chaque offre d'avions dit son prix en dollars et en tonnes de
+  cargaison, son délai et sa date d'arrivée ; prévision de tonnage face à l'objectif ; les
+  convois partent chargés à plein tant que la réserve paie (plus de part achetée à régler).
+- **Jour et nuit au soleil**, à la date, à l'heure et à la position de chaque unité (seize
+  heures de nuit en janvier à 56° N, onze fin mars), et **ombre de la nuit** sur la carte
+  (réglage d'affichage). Les U-Boote attaquent à leur heure dans la nuit, plus tous ensemble
+  à heure fixe.
+- **Sous le capot** : calcul de route sans à-coups (plus aucun pas de simulation de plus de
+  20 ms dans l'Atlantique), grilles construites à la création du monde.
 
 ## Nouveautés du M2.7
 
@@ -128,25 +161,32 @@ autonomie 1,6 fois plus vite.
    nord, vers l'orthodromie, est donc plus courte qu'il n'y paraît, une route par le sud plus
    longue. Un convoi choisi montre en pointillé le plus court chemin sur le globe jusqu'aux
    entrées des chenaux, et la longueur de la route suivie.
-2. **U-Boote.** Ils attaquent de nuit, en surface. Les zones hachurées viennent de la
+2. **U-Boote.** Ils attaquent de nuit, en surface, chacun à son heure (de jour presque
+   jamais, sauf contre un traînard). Le jour et la nuit suivent le soleil, à la date, à l'heure
+   et à la position de chaque unité ; l'ombre de la nuit se voit sur la carte. Les zones hachurées viennent de la
    radiogoniométrie ; un repère U-Boot (vu par une vigie, un avion, l'ASDIC ou le radar)
    porte deux cercles : où il peut être en surface, et en plongée. La table garde un seul
    repère par U-Boot : un nouveau relèvement le déplace (au lieu d'empiler des cercles toutes
    les dix minutes d'une chasse), et un U-Boot coulé la quitte. Un groupe d'escorte
    « Rejoint » un convoi et, « Face aux U-Boote », « Reste » avec lui (il n'attaque que ce
-   qui s'approche, 30 min et 15 km au plus) ou « Chasse » un contact frais pendant la durée
-   choisie (3 h par défaut, de 1 à 12 h) ; « Stop » ou tout autre ordre l'arrête, et un
-   repère frais à moins de 80 km peut être chassé d'un clic. Un U-Boot vu par un avion ou
-   par une escorte, où qu'il soit, lève l'alerte « U-Boot en vue » et ramène le jeu à ×1
-   (une fois par heure et par U-Boot ; une attaque a sa propre alerte). Un U-Boot tenu
+   qui s'approche, 30 min et 15 km au plus) ou « Chasse » un contact frais : la chasse
+   s'arrête seule (U-Boot coulé ou touché, contact perdu après 45 minutes de recherche, ou
+   grenades tombées au tiers gardé pour le convoi) ; « Stop » ou tout autre ordre l'arrête, et un
+   repère frais à moins de 80 km peut être chassé d'un clic. **Grenades** : 40 par navire
+   (120 ou 160 par groupe), refaites au port avec le mazout ; grenadage plein (dix par passe)
+   ou économe (cinq, moins de chances de couler) ; à vide, les passes sont à blanc : le
+   U-Boot reste en plongée, sans rien risquer. Hors de l'Atlantique (alertes en direct), un U-Boot vu par un avion ou
+   par une escorte lève l'alerte « U-Boot en vue » et ramène le jeu à ×1
+   (une fois par heure et par U-Boot ; une attaque a sa propre alerte) ; dans l'Atlantique,
+   la mer vit au rythme des quarts (voir plus bas). Un U-Boot tenu
    (ASDIC, ou vu tout près) reçoit une passe de grenades toutes les 10 minutes : coulé,
-   touché (il rentre), perdu ou rien de visible ; chaque attaque a son rapport. « Au port »
+   touché (il rentre et n'est plus attaqué), perdu ou rien de visible ; chaque attaque a son rapport, avec les grenades lancées. « Au port »
    rentre au port choisi dans la section « Retour au port », du plus proche par mer au plus
    loin, avec distance et durée (tirées d'un champ de distances par mer calculé une fois par
    port : la fiche ne coûte plus rien, même à ×14 400) ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un
    port (15 km, montrée quand un navire est choisi) y entre. Comme pour les avions, la section
-   « Route et étapes » dit que faire à la fin du tracé ou des étapes : s'arrêter et attendre, garder le cap, chasser
-   sur place, rejoindre un convoi ou entrer au port. Un groupe qui attend ses ordres garde
+   « Route et étapes » dit que faire à la fin du tracé ou des étapes : s'arrêter et attendre, garder le cap, chercher
+   un U-Boot sur place, rejoindre un convoi ou entrer au port. Un groupe qui attend ses ordres garde
    la veille ; un groupe attaqué en rentrant reprend ensuite sa route vers le port, sans
    s'arrêter auprès des convois qu'il croise. Un U-Boot tenu à l'ASDIC est annoncé avec sa
    profondeur et son cap estimés.
@@ -260,8 +300,24 @@ autonomie 1,6 fois plus vite.
    hors service ouvre un trou dans la couverture ; à partir d'Adlertag, une station radar
    mobile peut le boucher (onglet Installations, « Déployer »).
 11. **Dollars (hiver 1941).** Avant le prêt-bail, la cargaison des convois se paie comptant :
-   l'onglet Logistique règle la part achetée de chaque convoi, ou commande des Hudson et des
-   Catalina en Amérique.
+   ils partent chargés à plein tant que la réserve le permet, puis sur lest. L'onglet
+   Logistique donne la prévision de tonnage face à l'objectif et les offres d'avions (Hudson,
+   Catalina), chacune avec son prix en dollars et en tonnes de cargaison, son délai et sa date
+   d'arrivée : chaque dollar dépensé là manquera aux cargaisons.
+12. **Quarts (hiver 1941).** Dans l'Atlantique vous commandez depuis un QG à terre. À chaque
+   relève (0, 4, 8, 12, 16 et 20 h) un rapport s'écrit, onglet « Signaux » du journal :
+   convois, groupes d'escorte (mazout, grenades, consigne), air, renseignement, signaux du
+   quart, et « À décider » avec le bouton qui répond. Le jeu s'arrête à une relève quand une
+   décision nouvelle attend (réglage « Arrêt aux relèves » : aussi à 8 h et 20 h, ou à chaque
+   relève) et, entre deux relèves, seulement pour la première attaque d'un convoi dans la
+   nuit. Un arrêt est une pause : « Reprendre » repart à la vitesse d'avant.
+13. **Silence radio (hiver 1941, Standard et Réaliste).** Hors des eaux suivies (eaux fermées
+   aux U-Boote, approches des ports, couverture des radars de Downhill et de Glenarm), un
+   convoi ou un groupe est dessiné à sa position estimée : contour en tirets, « ? » sur la
+   plaque, cercle de doute qui grandit depuis le dernier point sûr. Un point sûr vient d'un
+   avion en vue, d'une attaque, ou de « Demander la position » (qui donne un relèvement à
+   l'ennemi). Un ordre part par radio à la relève suivante, au projecteur si un avion est en
+   vue, ou confié à un groupe qui part rejoindre le convoi.
 
 Chaque raid se termine par un rapport, rangé dans « Rapports », qui ne dit que ce que la RAF
 sait : le premier plot (« 15+ à 8 500 ft »), la composition une fois le raid vu (« vu par
@@ -334,7 +390,10 @@ par un :
 
 Le réglage **B-Dienst** (Partie) dit quelle part des messages de routage des convois la
 marine allemande lit : 0 % en Arcade, 25 % en Standard, 50 % en Réaliste (0, 10, 25, 50, 75
-ou 100 %).
+ou 100 %). **Communications en mer** (Partie) : directes en Arcade, silence radio en Standard
+et en Réaliste (il ne joue que dans l'Atlantique). **Arrêt aux relèves** (Temps et alertes) :
+sur décision seulement, matin et soir aussi, ou à chaque relève. **Ombre de la nuit** (Carte
+et fiche).
 
 Options : pause pendant les pages et durée du plan d'exception des Effectifs (Partie) ;
 ralenti à l'alerte avec une vitesse pour chaque alerte, confirmation des vitesses élevées
@@ -396,10 +455,10 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 205 tests, environ deux minutes
+npm test          # les 268 tests, environ trois minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
-npm run smoke     # le jeu dans Chrome sans écran : tutoriel, pages, fiches, corrections
+npm run smoke     # le jeu dans Chrome sans écran : tutoriel, pages, fiches, corrections, quarts
 npm run build     # reconstruit dist/index.html
 ```
 

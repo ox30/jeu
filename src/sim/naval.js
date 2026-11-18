@@ -529,6 +529,12 @@ export function setShipEndAction(world, e, action) {
 
 // ---- U-boats ----------------------------------------------------------------------
 
+/**
+ * "Never yet", as a game time, for the hour of a boat's last attack or last report: a number
+ * a save can keep (JSON has no infinity: it came back as 0, the first second of the game).
+ */
+export const LONG_AGO = -1e9;
+
 export function createUboat(world, def) {
   const [x, y] = project(def.lon, def.lat);
   return {
@@ -544,12 +550,14 @@ export function createUboat(world, def) {
     state: 'patrol', // patrol | closing | shadow | leaving | gone | sunk
     submergedUntil: 0,
     deepUntil: 0, // gone deep after shaking off a hunt: no ASDIC holds it until then
+    sunkAt: null,
+    boat: 1,
     target: null,
     torpedoes: def.torpedoes ?? 3,
     torpedoesFull: def.torpedoes ?? 3,
     goneAt: null,
-    lastAttack: -Infinity,
-    lastReport: -Infinity,
+    lastAttack: LONG_AGO,
+    lastReport: LONG_AGO,
     known: Boolean(def.known),
     way: null, // its way round the land to where it is going (uboatnav.js)
     wanderAt: 0,
@@ -604,7 +612,10 @@ function attack(world, u, c) {
 export function updateUboat(world, u, dt) {
   const U = world.rules.uboats;
   const A = world.rules.asw;
-  if (u.state === 'sunk') return;
+  if (u.state === 'sunk') {
+    if (world.scenario.uboatRotation && world.t % 60 === 0) replaceSunk(world, u);
+    return;
+  }
   if (u.state === 'gone') {
     if (world.scenario.uboatRotation && world.t % 60 === 0) returnFromBase(world, u);
     return;
@@ -733,6 +744,31 @@ function breakOff(u) {
 function returnFromBase(world, u) {
   const U = world.rules.uboats;
   if (u.goneAt === null || world.t - u.goneAt < U.refitDays * 86400) return;
+  sailFromBase(world, u);
+}
+
+/**
+ * A long scenario: the U-boat command fills the gap left by a boat that was sunk. Another
+ * one sails from the Biscay bases, replaceDays later, for the same patrol area. The player
+ * is told nothing: a new boat is one more unknown on the table.
+ */
+function replaceSunk(world, u) {
+  const U = world.rules.uboats;
+  if (!U.replaceDays) return;
+  // A game saved before the hour of the sinking was kept: counted from now.
+  if (u.sunkAt === null || u.sunkAt === undefined) u.sunkAt = world.t;
+  if (world.t - u.sunkAt < U.replaceDays * 86400) return;
+  u.sunkAt = null;
+  u.known = false;
+  u.boat = (u.boat || 1) + 1; // the second, third... boat to hold this patrol area
+  u.lastAttack = LONG_AGO;
+  u.lastReport = LONG_AGO;
+  sailFromBase(world, u);
+}
+
+/** The boat (back from its refit, or a new one) leaves the Biscay bases for its patrol area. */
+function sailFromBase(world, u) {
+  const U = world.rules.uboats;
   const [x, y] = project(U.reentry.lon, U.reentry.lat);
   u.x = x;
   u.y = y;

@@ -289,6 +289,8 @@
     "lostKm": 60,
     "callKm": 250,
     "refitDays": 14,
+    "replaceDays": 21,
+    "replaceNote": "Dans un long scénario (uboatRotation), le BdU comble le vide laissé par un U-Boot coulé : un autre appareille des bases de Gascogne replaceDays jours plus tard pour la même zone de patrouille. Début 1941, les bateaux neufs arrivaient chaque mois en opérations. Couler un U-Boot soulage donc le joueur trois semaines (plus le transit), contre deux pour un bateau endommagé ou chassé (refitDays) ; cela ne vide plus la mer pour le reste de la partie.",
     "reentry": {
       "lon": -3.4,
       "lat": 47.6

@@ -545,3 +545,75 @@ projecteur d'un avion en vue, radio à la relève suivante, ou confié à un gro
 État : 264 tests verts. Reste : interface du silence radio (repères estimés sur la carte,
 fiches, ordres par `sendOrder`), ASV du 502 Sqn, joueur automatique, réglage, mesures,
 test de fumée des nouveautés, README, relecture, livraison.
+
+### 18 novembre, 19 h 07 à 19 h 20 — interface du silence radio, joueur automatique, aide
+
+- **N1, interface** (`5159fe0`). Sur la carte, un navire en haute mer est dessiné à sa position
+  estimée : contour en tirets, « ? », cercle d'incertitude. La fiche dit « Dernier point :
+  14 h, Sunderland du 10 Sqn RAAF », la voie de chaque ordre (radio à la relève, projecteur,
+  groupe porteur), les ordres en attente (annulables) et « Demander la position ». Tous les
+  ordres de mer de l'interface passent par `sendOrder`.
+- **502 Sqn** : radar ASV (`asv: true`), qui donne un point sûr de nuit à 25 km.
+- **Joueur automatique** : il lit `shownPosition` et ordonne par `sendOrder` ; conduites
+  `rester-econome`, `chasser-econome`, `soigne` (chasse, couverture aérienne, réarmement).
+- **Aide** de l'Atlantique réécrite ; test de fumée `watches` (rapport de quart, arrêt,
+  « Reprendre », onglet Signaux, fiche d'un navire estimé) ; quatre tests de l'onglet Signaux.
+
+### 18 novembre, 19 h 20 à 21 h 30 — réglage de la mer : pourquoi Chasser gagnait toujours
+
+**Mesure après toutes les mécaniques** (`m2.8-a`, 10 graines) : arrêts 39 à 62 par partie ;
+Standard : Rester 8/10 (6,8 % de pertes), Chasser **10/10** (4,9 %), soigné **10/10** ;
+Réaliste : Rester 7/10, Chasser 8/10, soigné 8/10. La porte n'est pas franchie : en Standard,
+Chasser gagne à coup sûr, comme avant le lot.
+
+**Ce que les mesures ont montré**, dans l'ordre où je l'ai compris :
+
+1. *Le contact perdu n'existait pas.* Après une passe « contact perdu », le groupe cherchait
+   sur place, et la recherche retrouvait le U-Boot à la minute suivante, à coup sûr (il était
+   dessous). Toutes les chasses finissaient donc par un U-Boot coulé ou endommagé. Corrigé
+   (`d4bfa6c`) : le bateau descend profond ; la recherche de 45 minutes ne le retrouve qu'une
+   fois sur trois (`pRegain` 0,35, après `regainS` 15 minutes). C'est la règle du document
+   (« la chasse s'arrête seule : contact perdu… ») enfin appliquée.
+2. *Un groupe en « Rester » courait pour rien.* Les U-Boote suivent un convoi à 14 km sur
+   l'arrière et attaquent de là. Un groupe en Rester qui voyait l'attaquant partait, était
+   rappelé à 15 km de son convoi (lequel s'éloigne) avant d'arriver, puis mettait plus d'une
+   heure à rattraper : 99 contre-attaques sur 130 par partie finissaient « trop loin », et le
+   convoi restait sans escorte pendant ce temps. Mesure révélatrice : en repérant *moins*
+   souvent l'attaquant (0,20 au lieu de 0,35), Rester perdait *moins* de navires (6,0 % contre
+   6,6 %). Corrigé (`d4bfa6c`) : un groupe en Rester ne part que sur un U-Boot qu'il peut
+   atteindre avant d'être rappelé (`willCounter` : temps de route, position future du
+   convoi) ; l'attaquant aperçu plus loin est seulement forcé à plonger. Conséquence à
+   signaler : en Rester, un groupe ne coule presque plus rien (0,2 U-Boot par partie) et ne
+   consomme presque pas de grenades ; il protège par sa présence (tirs moins précis, U-Boote
+   repoussés).
+3. *Essais sans effet net* (10 graines, Standard, Chasser puis Rester) : chances de couler et
+   d'endommager abaissées d'un tiers (5,9 % / 7,2 % avant le point 2, 5,2 % / 6,2 % après) ;
+   contact perdu deux fois plus fréquent (4,6 % / 6,9 %) ; U-Boote qui réattaquent plus vite un
+   convoi découvert (5,3 %, retiré). Chasser restait à 9 ou 10 sur 10. Avec 10 graines,
+   l'écart-type de la moyenne est d'environ 0,5 point : des effets de cette taille ne se
+   voient pas.
+4. *La vraie cause : un U-Boot coulé ne revenait jamais.* Le scénario a six U-Boote pour
+   80 jours. Compte par partie (3 graines) : Chasser 63 attaques (dont 14 sur convoi sans
+   escorte), 3,3 U-Boote coulés, 6,4 endommagés, 7 repoussés ; Rester 97 attaques (dont 26
+   sans escorte : la partie de la traversée où aucun groupe n'a encore rejoint), aucun coulé,
+   17,7 repoussés. Les deux conduites renvoient autant de bateaux à leur base (17 par partie),
+   mais ceux que Chasser coule ne reviennent pas : à mi-partie, la moitié de la flotte ennemie
+   a disparu pour de bon. Aucun réglage des grenades ne pouvait compenser cela.
+
+**Décision : le BdU remplace ses pertes** (`uboats.replaceDays`, 21 jours). Un bateau coulé
+est remplacé par un autre, qui appareille des bases de Gascogne trois semaines plus tard pour
+la même zone ; un bateau endommagé ou repoussé revient déjà après 14 jours de remise en état.
+Couler soulage donc le joueur un peu plus longtemps qu'endommager, sans vider la mer. C'est
+un ajout au document (il ne parle pas des remplacements), fait pour tenir sa cible « ni Rester
+ni Chasser ne gagne à coup sûr » ; il est aussi plus juste : début 1941, les bateaux neufs
+arrivaient chaque mois. Le joueur n'en est pas averti (un bateau neuf est un inconnu de plus),
+mais l'aide le dit. Six tests (`tests/uboatreplace.test.js`).
+
+Au passage : l'heure de la dernière attaque d'un U-Boot valait « moins l'infini », qu'une
+sauvegarde transformait en zéro ; remplacé par un nombre (`LONG_AGO`), et réparé au
+chargement des anciennes parties.
+
+**Refonte prévue par le document, faite ici** (`7deb844`) : `eventMessage`, un `switch` de
+84 cas, devient `src/ui/messages.js`, une table par famille, les mêmes familles que les
+rapports de quart. Vérifié identique à l'ancien sur 15 000 événements de parties réelles
+(115 types) et 246 cas construits.

@@ -132,13 +132,19 @@ function aircraftLooks(world, s, u) {
   return null;
 }
 
-/** Bombs from an aircraft on a U-boat: returns true when it is sunk. */
-function attackUboat(world, u, p, by, x, y) {
-  if (world.rng.next() >= p) return false;
+/** The boat is sunk (the hour is kept: in a long scenario another one comes to take its place). */
+function sinkUboat(world, u, by, x, y) {
   u.state = 'sunk';
+  u.sunkAt = world.t;
   world.stats.uboatsSunk++;
   forgetUboat(world, u);
   emit(world, 'uboatSunk', { by, x, y });
+}
+
+/** Bombs from an aircraft on a U-boat: returns true when it is sunk. */
+function attackUboat(world, u, p, by, x, y) {
+  if (world.rng.next() >= p) return false;
+  sinkUboat(world, u, by, x, y);
   return true;
 }
 
@@ -367,10 +373,7 @@ function depthChargePass(world, e, u) {
     emit(world, 'escortChargesOut', { escort: e.name, escortId: e.id, convoy: convoy ? convoy.name : '', convoyId: convoy ? convoy.id : null, x: e.x, y: e.y });
   }
   if (result === 'sunk') {
-    u.state = 'sunk';
-    world.stats.uboatsSunk++;
-    forgetUboat(world, u);
-    emit(world, 'uboatSunk', { by: e.name, x: u.x, y: u.y });
+    sinkUboat(world, u, e.name, u.x, u.y);
     if (rep) rep.result = 'sunk';
     endHunt(world, e, true, 'sunk');
     return;
