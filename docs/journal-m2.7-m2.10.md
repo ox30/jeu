@@ -189,7 +189,7 @@ M2.10.
   Atlantique : 32 à 43 pas de plus de 20 ms par partie, le plus long 192 à 331 ms ;
   59,5 et 59,9 images/s à ×14 400.
 
-### 18 novembre, 15 h 55 — plan du M2.8, écrit pendant la mesure du M2.7
+### 18 novembre, 15 h 52 — plan du M2.8, écrit pendant la mesure du M2.7
 
 Ordre de travail prévu, du plus indépendant au plus transversal :
 
@@ -233,7 +233,7 @@ Choix déjà arrêtés (à confirmer par les mesures) :
   appliqués sans nouvel ordre ; les changer en haute mer demande une transmission, comme tout
   ordre.
 
-### 18 novembre, 16 h 05 — vérifications historiques pour le M2.8 (N4, H1)
+### 18 novembre, 15 h 56 — vérifications historiques pour le M2.8 (N4, H1)
 
 **Radars d'Irlande du Nord (N4), station par station.** Sources : Frontline Ulster, « Radar in
 Northern Ireland 1939-1945 » (d'après Colin Dobinson, *Building Radar*) ; liste des stations
