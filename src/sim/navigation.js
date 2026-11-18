@@ -128,7 +128,8 @@ export function projectPlan(world, u, legs, speedOf, domain, openKm, start = nul
     const v = speedOf(leg);
     let km;
     let open = false;
-    const current = index === 0 && u.legState && legs === u.plan;
+    // The leg being sailed (also in a plan being checked with a new leg after it): what is left of it.
+    const current = index === 0 && u.legState && leg === u.plan[0];
     const end = leg.end;
     if (!end) {
       km = openKm;

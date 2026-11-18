@@ -364,7 +364,7 @@ facilite les tests et l'équilibrage.
 npm test
 ```
 
-Les 155 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
+Les 156 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
 terre et la mer, les routes, les étapes et leur édition, le pilote à l'entrée des chenaux,
 les interceptions, le guidage du contrôleur et les ratés, les rapports, les installations,
 les trains mélangés, les munitions, la fatigue et les pilotes, les patrouilles, les U-Boote
@@ -391,7 +391,8 @@ ports (celle de la route qui sera prise, à peu de frais), les U-Boote qui conto
 l'Irlande et restent hors de la mer d'Irlande, le B-Dienst qui ne place jamais un U-Boot à
 terre, le pisteur qui lâche un convoi entré dans le canal du Nord, une sauvegarde avec un
 U-Boot à terre remis en mer, la fin des étapes d'un groupe, le retour au port avant la panne
-sèche et la panne sèche elle-même, et une quinzaine complète sans ordres.
+sèche et la panne sèche elle-même, au M2.6.1 une nouvelle étape vérifiée depuis la fin de
+l'étape en cours (et non depuis son début), et une quinzaine complète sans ordres.
 
 ## Outils
 

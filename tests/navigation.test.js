@@ -188,3 +188,22 @@ test('a squadron passing under a raid is told it missed, and by how much', () =>
   assert.ok(missed.problem === 'below' || missed.problem === 'wideBelow');
   assert.ok(!events.some((e) => e.type === 'tallyHo'));
 });
+
+test('a new leg after a leg under way is checked from where that leg will end, not from its whole length', () => {
+  // Florian's HX 100: 070° for 8 days 17 h, 28 h left; the whole leg from here would run into
+  // the Hebrides, what is left of it stays at sea.
+  const w = makeWorld('standard', {}, 'hiver-atlantique');
+  run(w, 7 * 3600);
+  const c = w.convoys.find((x) => x.state === 'atSea' && x.type !== 'coastal');
+  [c.x, c.y] = project(-23.0, 53.6);
+  c.route = [];
+  c.destination = null;
+  c.plan = [{ heading: 70, end: { kind: 'duration', s: (8 * 24 + 17) * 3600 } }];
+  c.legState = { startT: w.t - (8 * 24 + 17 - 28) * 3600, best: Infinity, startX: c.x, startY: c.y };
+  const r = addLeg(w, c, { heading: 84, end: { kind: 'duration', s: 25 * 3600 } });
+  assert.ok(r.ok, `accepted (${r.reason || ''})`);
+  assert.equal(c.plan.length, 2);
+  // Edited, the leg under way starts again: then all of it counts, and it would run aground.
+  const edit = updateLeg(w, c, 0, { heading: 70, end: { kind: 'duration', s: (8 * 24 + 17) * 3600 } });
+  assert.equal(edit.reason, 'land');
+});
