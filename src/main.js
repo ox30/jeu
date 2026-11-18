@@ -44,7 +44,7 @@ import { attachInput } from './ui/input.js';
 import { addLogEntry, clearLog, renderPanels } from './ui/panels.js';
 import { openCards, openReports } from './ui/pages.js';
 import { clearBrowserSave, exportText, loadFromBrowser, parseExport, restore, saveToBrowser } from './save/game.js';
-import { reportCrash } from './ui/crash.js';
+import { openCrash, reportCrash } from './ui/crash.js';
 import { createPlayClock, newGameId, tickPlayClock } from './ui/summary.js';
 import { addMobileRadar } from './sim/mru.js';
 import { openEvent } from './ui/dialogs.js';
@@ -700,6 +700,7 @@ async function start() {
     gameId: newGameId(), // tells this game from another one of the same scenario (its saves)
   };
   app.unlockAudio = () => unlockAudio(app);
+  app.showCrash = () => openCrash(app);
   // The ports' distance fields (a tenth of a second each), worked out in quiet moments rather
   // than on the first look at « Rentrer au port ».
   setInterval(() => {
@@ -756,7 +757,10 @@ async function start() {
     settings.scenario = sc.id;
     saveSettings(settings);
     stopTutorial(app);
-    const w = createWorld({ scenario: sc, rules: data.rules, settings, terrain });
+    // Built as a new game of this scenario would be, with what the campaign carries over: a
+    // save made before 2.7 does not say how many fighters its game began with, and takes it
+    // from here; a later save says it itself.
+    const w = createWorld({ scenario: sc, rules: data.rules, settings, terrain, carry: carryFor(campaign, sc.id, settings.carry) });
     drainEvents(w);
     restore(w, saved.snap, (world, def) => app.addMobileRadar && app.addMobileRadar(world, def));
     app.world = w;
@@ -987,6 +991,11 @@ async function start() {
     const dtReal = Math.min(0.25, elapsedMs / 1000);
     last = now;
     if (app.crash && app.crash.fatal) return;
+    // Stopped on an error, the game is paused whatever closed a page or a menu meanwhile.
+    if (app.crash && !app.paused) {
+      app.paused = true;
+      app.dirtyHud = true;
+    }
     // The clock of the game: real time, pauses included, until the scenario ends.
     if (!app.world.ended) tickPlayClock(app.playClock, elapsedMs, app.paused);
     try {

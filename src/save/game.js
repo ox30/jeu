@@ -5,6 +5,7 @@
 import { createBdu } from '../sim/bdu.js';
 import { bringToSea } from '../sim/uboatnav.js';
 import { normalizeRoster } from '../sim/roster.js';
+import { fillMissingFields } from '../sim/entities.js';
 
 const VERSION = 1;
 const KEY = 'jeu-1940.game.v1';
@@ -88,6 +89,8 @@ export function snapshot(world) {
  */
 export function restore(world, snap, addMobileRadar = null) {
   if (!snap || snap.version !== VERSION || snap.scenario !== world.scenario.id) throw new Error('save: wrong game');
+  // The squadrons a new game of this scenario begins with (the others arrived as reliefs).
+  const initialSquadrons = new Set(world.squadrons.map((s) => s.id));
   world.rng.setState(snap.rng);
   // The mobile stations first: their state is restored with that of the other installations.
   world.mobileRadars = [];
@@ -132,7 +135,14 @@ export function restore(world, snap, addMobileRadar = null) {
     fillDefaults(e, SHIP_DEFAULTS());
     if (e.berthed === undefined) e.berthed = e.state === 'inPort' || e.state === 'refit';
   }
-  for (const c of world.convoys) if (c.schedule === undefined) c.schedule = null;
+  // Convoys and installations saved by an earlier version get the fields added since.
+  for (const c of world.convoys) fillMissingFields('convoy', c, world);
+  for (const site of world.sites.values()) fillMissingFields('site', site, world);
+  // A save made before 2.7 does not say how many fighters its game began with: those of a new
+  // game of the scenario (the world it is restored onto), and the reliefs arrived since.
+  if (!('fightersAtStart' in snap)) {
+    for (const s of world.squadrons) if (s.role === 'fighter' && !initialSquadrons.has(s.id)) world.fightersAtStart += s.aircraftStart;
+  }
   for (const u of world.uboats) {
     fillDefaults(u, { way: null, wanderAt: 0 });
     bringToSea(world, u); // a boat an earlier version left ashore

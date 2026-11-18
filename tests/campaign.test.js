@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeWorld } from './helpers.js';
+import { step } from '../src/sim/world.js';
 import { restore, snapshot } from '../src/save/game.js';
 import { checkDefeat, fighterCount, fighterEstablishmentShare, fighterShare, finalize } from '../src/sim/objectives.js';
 import { carryFor, recordResult } from '../src/ui/campaign.js';
@@ -94,4 +95,35 @@ test('15 September can be won in Réaliste with the losses of the campaign (gate
     assert.ok(r.objectives.some((o) => o.type === 'fighterStrength'), 'the objective is still asked');
   }
   assert.ok(outcomes.includes('victory'), `no victory in ${outcomes.length} games: ${outcomes.join(', ')}`);
+});
+
+test('a relief squadron arriving during the scenario joins the fighters the objective is measured on', () => {
+  // Adlertag: 266 Sqn arrives on the third day with twelve Spitfires.
+  const w = makeWorld('standard', {}, 'adlertag');
+  const before = w.fightersAtStart;
+  assert.equal(fighterShare(w), fighterEstablishmentShare(w));
+  for (let i = 0; i < 2 * 86400 + 12.5 * 3600; i++) step(w, 1);
+  const relief = w.squadrons.find((s) => s.id === '266');
+  assert.ok(relief && relief.role === 'fighter', 'the relief has arrived');
+  assert.equal(w.fightersAtStart, before + relief.aircraftStart);
+  // Without a campaign the measure stays the one of 2.6.1 all along: the establishment.
+  assert.equal(w.fightersAtStart, fighterCount(w).establishment);
+  assert.equal(fighterShare(w), fighterEstablishmentShare(w));
+  // With the campaign's losses the relief counts the same way, on top of the fighters of the morning.
+  const c = makeWorld('realistic', {}, 'adlertag', { fighterShare: 0.6, from: 'kanalkampf' });
+  const morning = c.fightersAtStart;
+  for (let i = 0; i < 2 * 86400 + 12.5 * 3600; i++) step(c, 1);
+  assert.equal(c.fightersAtStart, morning + 12);
+});
+
+test('a save made before 2.7 takes the fighters of the start from the world it is restored onto', () => {
+  // The same game saved without the two new values, as 2.6.1 did.
+  const w = makeWorld('standard', {}, 'adlertag');
+  for (let i = 0; i < 2 * 86400 + 12.5 * 3600; i++) step(w, 1);
+  const old = JSON.parse(JSON.stringify(snapshot(w)));
+  delete old.fightersAtStart;
+  delete old.carry;
+  const back = restore(makeWorld('standard', {}, 'adlertag'), old);
+  assert.equal(back.fightersAtStart, w.fightersAtStart, 'the relief arrived since is counted');
+  assert.equal(fighterShare(back), fighterShare(w));
 });

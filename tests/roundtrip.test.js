@@ -1,6 +1,7 @@
 // Save and restore, scenario by scenario, with every optional entity a game can hold: a
-// mobile radar station, a formation with its rendezvous, an aircraft bought in America, a
-// straggler. The restored game must be the saved one, and must go on exactly like it.
+// mobile radar station, a formation with its rendezvous, a support group, a train sent by hand,
+// an aircraft bought in America, a straggler. Each of them must really be there when the game
+// is saved; the restored game must be the saved one, and must go on exactly like it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getTerrain, data, orders as O, sim } from '../tools/bot/game.mjs';
@@ -49,6 +50,21 @@ function navalFormation(world) {
   return f;
 }
 
+/** A train sent by hand: whatever a port, a depot or a factory can spare, to a place that takes it. */
+function train(world) {
+  const before = world.trains.length;
+  const sites = [...world.sites.values()];
+  for (const res of ['fuel', 'ammo', 'materiel']) {
+    const from = sites.filter((s) => s.kind !== 'airfield' && s.stocks[res] >= 30).sort((a, b) => b.stocks[res] - a.stocks[res])[0];
+    if (!from) continue;
+    for (const to of sites.filter((s) => s !== from && s.kind === (res === 'materiel' ? 'factory' : 'airfield'))) {
+      O.sendTrain(world, from.key, to.key, { [res]: 20 });
+      if (world.trains.length > before) return true;
+    }
+  }
+  return false;
+}
+
 function station(world) {
   if (!world.mru || world.mru.available <= 0) return false;
   const field = world.byId.airfield.get('tangmere') || world.airfields[0];
@@ -66,9 +82,10 @@ const CASES = [
   {
     scenario: 'kanalkampf',
     play: () => runAir({ scenario: 'kanalkampf', seed: 3, days: 4, returnWorld: true }),
-    extras: (w) => ({ formation: Boolean(airFormation(w, false)), group: Boolean(navalFormation(w)), train: O.sendTrain(w, 'port:liverpool', 'airfield:biggin_hill', { fuel: 40 }) !== null }),
+    extras: (w) => ({ formation: Boolean(airFormation(w, false)), train: train(w) }),
     settle: 5 * HOUR,
-    expect: ['formation'],
+    expect: ['formation', 'train'],
+    check: (w) => assert.ok(w.escorts.some((e) => e.state !== 'inPort'), 'an escort group is at sea'),
   },
   {
     scenario: 'adlertag',
@@ -93,10 +110,12 @@ const CASES = [
     play: () => runSea({ seed: 3, days: 14, boost: true, buy: [{ id: 'hudson', day: 0 }], returnWorld: true }),
     extras: (w) => ({ group: Boolean(navalFormation(w)) }),
     settle: 6 * HOUR,
-    expect: [],
+    expect: ['group'],
     check: (w) => {
       assert.ok(w.squadrons.some((s) => s.type === 'Hudson'), 'the Hudson squadron has arrived');
       assert.ok(w.convoys.some((c) => c.straggler), 'a straggler is at sea');
+      assert.ok(w.formations.some((f) => f.kind === 'naval' && f.members.length === 2), 'the support group holds');
+      assert.ok(w.currency.bought.includes('hudson') && w.currency.spent > 0, 'dollars were spent');
     },
   },
 ];

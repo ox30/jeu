@@ -24,6 +24,11 @@ test('other keys are left alone', () => {
   assert.equal(speedIndexOfKey(press('a', 'KeyQ'), 6), -1);
   assert.equal(speedIndexOfKey(press('1', 'Digit1', { ctrlKey: true }), 6), -1, 'Ctrl+1 belongs to the browser');
   assert.equal(speedIndexOfKey(press('2', 'Digit2', { metaKey: true }), 6), -1);
+  // The keypad with Num Lock off types arrows and keeps them: ↓ lowers the altitude asked.
+  assert.equal(speedIndexOfKey(press('ArrowDown', 'Numpad2'), 6), -1);
+  assert.equal(speedIndexOfKey(press('ArrowRight', 'Numpad6'), 6), -1);
+  assert.equal(speedIndexOfKey(press('End', 'Numpad1'), 6), -1);
+  assert.equal(speedIndexOfKey(press('Clear', 'Numpad5'), 6), -1);
   // A keyboard that gives no place (some virtual keyboards): the character decides.
   assert.equal(speedIndexOfKey(press('5', ''), 6), 4);
   assert.equal(speedIndexOfKey(press('&', ''), 6), -1);

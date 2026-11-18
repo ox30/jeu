@@ -30,7 +30,7 @@ export default [
     languageOptions: { globals: { performance: 'readonly' } },
   },
   {
-    files: ['tests/**/*.js', 'tools/**/*.mjs', 'tools/**/*.js'],
+    files: ['tests/**/*.js', 'tests/**/*.mjs', 'tools/**/*.mjs', 'tools/**/*.js'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
 ];

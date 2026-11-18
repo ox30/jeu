@@ -106,6 +106,11 @@ export function sheetMessage(app, text, level = 'warning') {
 
 export function setSpeedIndex(app, index) {
   app.speed = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, index))];
+  if (app.crash) {
+    // Stopped on an error: a speed key does not set the clock going, the message comes back.
+    togglePause(app);
+    return;
+  }
   app.paused = false;
   app.speedConfirm = null;
   app.dirtyHud = true;
@@ -155,6 +160,13 @@ export function cancelSpeed(app) {
 }
 
 export function togglePause(app) {
+  // Stopped on an error (crash.js): the clock stays stopped, and the message comes back.
+  if (app.crash) {
+    app.paused = true;
+    if (app.showCrash) app.showCrash();
+    app.dirtyHud = true;
+    return;
+  }
   app.paused = !app.paused;
   app.accumulator = 0;
   app.dirtyHud = true;

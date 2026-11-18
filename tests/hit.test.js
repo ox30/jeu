@@ -23,8 +23,11 @@ test('the unit in hand wins over its neighbours when it is under the pointer', (
   // Right on 601, within reach of the symbol of 615: with 615 in hand, the drag starts from 615.
   assert.equal(pickHit(hits, 101, 100, 6, selected('squadron', '615')).id, '615');
   assert.equal(pickHit(hits, 101, 100, 6).id, '601', 'and from 601 with nothing in hand');
-  // An aerodrome in hand wins over the squadrons flying over it.
+  // For a drag, the aerodrome stands for the squadron in hand on its ground (the caller says
+  // so: input.js): it wins over the squadrons flying over it.
   assert.equal(pickHit(hits, 112, 108, 6, selected('airfield', 'kenley')).kind, 'airfield');
+  // For a plain click the caller does not say so, and the squadron above is picked.
+  assert.equal(pickHit(hits, 112, 108, 6, null).kind, 'squadron');
 });
 
 test('the unit in hand does not win where it is not', () => {

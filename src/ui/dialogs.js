@@ -520,11 +520,13 @@ export function openEvent(app, e) {
 /** Campaign: what the battle before cost, said in the briefing of this one. */
 function carryNote(world) {
   if (!world.carry) return '';
-  const { establishment } = fighterCount(world);
+  // The share really present: the carry is applied squadron by squadron, and rounded there.
+  const n = world.carry.aircraft ?? world.fightersAtStart;
+  const total = world.carry.establishment ?? fighterCount(world).establishment;
   return `<p class="dialog-note">${escapeHtml(t('events.carry', {
     from: t(`scenarios.${world.carry.from}.title`),
-    share: Math.round(world.carry.fighterShare * 100),
-    n: world.fightersAtStart,
-    total: establishment,
+    share: total ? Math.round((100 * n) / total) : 100,
+    n,
+    total,
   }))}</p>`;
 }

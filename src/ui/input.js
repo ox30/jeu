@@ -68,19 +68,26 @@ function selectHit(app, hit) {
   else selectClicked(app, hit);
 }
 
-/** Does this target belong to what is selected (the unit, its formation, its aerodrome)? */
-function isSelectedHit(app, h) {
+/**
+ * Does this target belong to what is in hand? The unit itself or its formation, always. For a
+ * drag (`proxy`), the aerodrome too when the squadron in hand stands on it or when its own
+ * sheet is open: on the map a squadron on the ground is its aerodrome, and the line drawn
+ * from there is its route. A plain click does not take that short cut: clicking a squadron
+ * that flies over the aerodrome selects that squadron.
+ */
+function isSelectedHit(app, h, proxy) {
   const sel = app.selection;
   // Units only: a raid or an installation in hand must not hide the squadron flying over it.
   if (!sel || !UNIT_KINDS.has(h.kind)) return false;
   if (sel.kind === 'formation' && (h.formation === sel.id || (h.kind === 'rally' && h.id === sel.id))) return true;
   if (h.kind === sel.kind && h.id === sel.id) return true;
-  // A squadron on the ground is its aerodrome on the map.
-  return h.kind === 'airfield' && Boolean(inHandOnField(app, h.id));
+  if (!proxy || h.kind !== 'airfield') return false;
+  return (sel.kind === 'site' && sel.id === `airfield:${h.id}`) || Boolean(inHandOnField(app, h.id));
 }
 
-function hitTest(app, x, y, pad) {
-  return pickHit(app.hits, x, y, pad, (h) => isSelectedHit(app, h));
+/** What is under the pointer: for a drag that starts there (`proxy`), or for a plain click. */
+function hitTest(app, x, y, pad, proxy = true) {
+  return pickHit(app.hits, x, y, pad, (h) => isSelectedHit(app, h, proxy));
 }
 
 export function attachInput(app) {
@@ -135,7 +142,7 @@ export function attachInput(app) {
       // if that one is there, and on the map itself otherwise.
       let unitHit = hit && UNIT_KINDS.has(hit.kind) ? hit : null;
       if (unitHit && unitsUnder(app.hits, p[0], p[1], pad, UNIT_KINDS) > 1) {
-        if (!isSelectedHit(app, unitHit)) unitHit = null;
+        if (!isSelectedHit(app, unitHit, true)) unitHit = null;
       } else if (unitHit) {
         selectHit(app, unitHit);
       }
@@ -153,18 +160,20 @@ export function attachInput(app) {
       }
       return;
     }
+    // What the gesture selects if it turns out to be a plain click.
+    const clickHit = hitTest(app, p[0], p[1], pad, false);
     if (hit && UNIT_KINDS.has(hit.kind)) {
       if (headingsMode(app)) {
         // Orders by heading: the drag lays the ruler from the unit.
         const a = unitOrigin(app, hit);
-        gesture = { type: 'measure', hit, start: p, moved: false, a };
+        gesture = { type: 'measure', hit, clickHit, start: p, moved: false, a };
         return;
       }
-      gesture = { type: 'draw', hit, start: p, moved: false };
+      gesture = { type: 'draw', hit, clickHit, start: p, moved: false };
       app.drawing = { kind: hit.kind, id: hit.id, points: [[hit.x, hit.y]] };
       return;
     }
-    gesture = { type: 'pan', last: p, start: p, hit, moved: false };
+    gesture = { type: 'pan', last: p, start: p, hit: clickHit, moved: false };
   });
 
   canvas.addEventListener('pointermove', (e) => {
@@ -236,7 +245,7 @@ export function attachInput(app) {
         const endHit = hitTest(app, q[0], q[1], 8);
         finishDrawing(app, gesture.hit, points, endHit);
       } else if (!gesture.moved) {
-        clickSelect(app, gesture.hit);
+        clickSelect(app, gesture.clickHit || gesture.hit);
       }
       app.drawing = null;
     } else if (gesture.type === 'extend') {
@@ -259,7 +268,7 @@ export function attachInput(app) {
       }
       app.routeDrag = null;
     } else if (gesture.type === 'measure') {
-      if (!gesture.moved) clickSelect(app, gesture.hit);
+      if (!gesture.moved) clickSelect(app, gesture.clickHit || gesture.hit);
     } else if (gesture.type === 'mru') {
       if (up && app.ruler && Math.hypot(pos(e)[0] - gesture.start[0], pos(e)[1] - gesture.start[1]) > 12) orderMru(app, app.ruler.a, app.ruler.b);
       app.ruler = null;

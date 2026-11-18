@@ -156,9 +156,10 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
     port: first && first.portId ? world.byId.port.get(first.portId).name : null,
   });
   if (world.carry) {
+    const total = fighterCount(world).establishment;
     emit(world, 'carryApplied', {
-      share: Math.round(world.carry.fighterShare * 100), from: world.carry.from,
-      n: world.fightersAtStart, total: fighterCount(world).establishment,
+      share: total ? Math.round((100 * world.fightersAtStart) / total) : 100, from: world.carry.from,
+      n: world.fightersAtStart, total,
     });
   }
   return world;
@@ -175,7 +176,8 @@ function applyCarry(world, carry) {
     s.aircraft = n;
     s.pilots = Math.min(s.pilots, n);
   }
-  world.carry = { ...carry };
+  const { now, establishment } = fighterCount(world);
+  world.carry = { ...carry, aircraft: now, establishment };
 }
 
 function end(world, reason = null) {
