@@ -302,6 +302,15 @@
       { "name": "Canal de Bristol", "area": [[-4.53, 51.02], [-4.95, 51.58], [-4.0, 51.75], [-2.6, 51.6], [-3.0, 51.05]] }
     ]
   },
+  "seaComms": {
+    "note": "Silence radio (réglage « Communications en mer ») : hors des eaux suivies (eaux fermées aux U-Boote, approches des ports à moins de portKm, couverture de surface des radars côtiers), la position d'un convoi ou d'un groupe est une estimation. Son incertitude vaut driftKm fois la racine du nombre d'heures depuis le dernier point sûr ; le cercle dessiné fait deux fois cela, plus le chemin parcouru depuis la dernière relève. Un avion du joueur voit un navire à aircraftDayKm de jour, aircraftAsvKm de nuit au radar ASV, aircraftNightKm sinon. Une position demandée par radio donne un relèvement à l'ennemi : les U-Boote en patrouille à moins de bearingCallKm se rapprochent.",
+    "portKm": 80,
+    "aircraftDayKm": 25,
+    "aircraftAsvKm": 25,
+    "aircraftNightKm": 4,
+    "driftKm": 5,
+    "bearingCallKm": 150
+  },
   "watches": {
     "note": "La mer au rythme des quarts (scénario : seaRhythm « watches ») : six relèves par jour, à 0, 4, 8, 12, 16 et 20 h. Un repère U-Boot compte comme une décision quand il est à moins de plotKm de la route d'un convoi dans les routeAheadH heures ; un relèvement radio, quand sa zone coupe cette route.",
     "routeAheadH": 24,

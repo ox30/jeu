@@ -14,6 +14,8 @@ import { distance } from './geo.js';
 import { emit } from './events.js';
 import { currentSpeed } from './convoy.js';
 import { isPatrol } from './patrols.js';
+import { inClosedWaters } from './uboatnav.js';
+import { shownPosition } from './comms.js';
 
 export const WATCH_S = 4 * 3600;
 
@@ -29,6 +31,11 @@ export function createWatch(world) {
 /** Seconds on the game's clock (the one the player reads) since 1970: negative in 1941. */
 function clockS(world, t = world.t) {
   return Math.round(world.startMs / 1000) + t;
+}
+
+/** Is this second the relief of a watch (0, 4, 8... by the clock)? */
+export function isRelief(world) {
+  return clockS(world) % WATCH_S === 0;
 }
 
 /** The hour of the clock (0 to 23) at game time `t`. */
@@ -115,10 +122,11 @@ export function freeGroups(world) {
   return world.escorts.filter((e) => e.state === 'inPort' && !e.dry);
 }
 
-/** The way a ship follows over the next `hours`: [[x, y], ...] from where it is. */
-function wayAhead(u, hours) {
+/** The way a ship follows over the next `hours`: [[x, y], ...] from where the table shows it. */
+function wayAhead(world, u, hours) {
   let left = currentSpeed(u) * 3600 * hours;
-  const way = [[u.x, u.y]];
+  const p = shownPosition(world, u);
+  const way = [[p.x, p.y]];
   for (const p of u.route) {
     const [ax, ay] = way[way.length - 1];
     const d = distance(ax, ay, p[0], p[1]);
@@ -155,7 +163,7 @@ function distanceToWay(way, x, y) {
  */
 export function markersOnWay(world, c) {
   const R = world.rules.watches;
-  const way = wayAhead(c, R.routeAheadH);
+  const way = wayAhead(world, c, R.routeAheadH);
   const out = [];
   for (const p of world.uboatPlots) {
     if (distanceToWay(way, p.x, p.y) > R.plotKm) continue;
@@ -188,11 +196,13 @@ export function pendingDecisions(world) {
       continue;
     }
     if (c.state !== 'atSea') continue;
-    if (!c.straggler && bases.length && !groupsOf(world, c.id).length) {
-      const near = Math.min(...bases.map((p) => distance(c.x, c.y, p.x, p.y)));
+    // (Once in the waters closed to the U-boats, a convoy needs no escort any more.)
+    const at = shownPosition(world, c); // the headquarters decides on what its table shows
+    if (!c.straggler && bases.length && !groupsOf(world, c.id).length && !inClosedWaters(world, at.x, at.y)) {
+      const near = Math.min(...bases.map((p) => distance(at.x, at.y, p.x, p.y)));
       if (near <= E.alertKm) {
         // The groups that could go, the nearest first.
-        const groups = [...free].sort((a, b) => distance(a.x, a.y, c.x, c.y) - distance(b.x, b.y, c.x, c.y)).map((e) => e.id);
+        const groups = [...free].sort((a, b) => distance(a.x, a.y, at.x, at.y) - distance(b.x, b.y, at.x, at.y)).map((e) => e.id);
         out.push({ kind: 'reach', key: `reach:${c.id}`, unitKind: 'convoy', unitId: c.id, groups, km: Math.round(near) });
       }
     }
@@ -236,19 +246,20 @@ function convoyRow(world, c, notes) {
   const mine = notes.filter((n) => ids.has(n.convoyId));
   const attacks = mine.filter((n) => n.type === 'uboatAttack' || n.type === 'condorAttack' || n.type === 'convoyBombed');
   const stragglers = (c.children || []).map((id) => world.convoys.find((x) => x.id === id)).filter((s) => s && s.state === 'atSea').length;
+  const at = shownPosition(world, c);
   return lean({
     id: c.id,
     state: c.state === 'atSea' ? null : c.state, // at sea unless said otherwise
     ships: c.ships,
-    x: Math.round(c.x),
-    y: Math.round(c.y),
+    x: Math.round(at.x),
+    y: Math.round(at.y),
     lost: sum(attacks, (n) => n.sunk || 0),
     attacks: attacks.length,
     stragglers,
     escorts: world.escorts.filter((e) => e.escorting === c.id || e.huntFor === c.id).map((e) => e.id),
     joining: world.escorts.filter((e) => e.joinTarget === c.id).map((e) => e.id),
     markers: c.state === 'atSea' ? markersOnWay(world, c).length : 0,
-    est: false, // true when the place is an estimate (radio silence)
+    est: at.est, // the place is an estimate (radio silence)
   });
 }
 
@@ -271,6 +282,11 @@ function escortRow(world, e) {
     dry: Boolean(e.dry),
     port: e.state === 'inPort' || e.state === 'refit' ? e.portId : e.homeward ? e.destination : null,
   });
+}
+
+/** Has this report nothing to say (no event, no new decision)? Such a report is not « unread ». */
+export function isQuiet(r) {
+  return !(r.notes && r.notes.length) && !(r.fresh && r.fresh.length);
 }
 
 /** The two or three things a folded line says: [{ key, ...params }], the gravest first. */
@@ -389,7 +405,7 @@ export function fullReport(world, r) {
 
 /** Every second: at the relief of the watch (0, 4, 8... by the clock), the report is written. */
 export function updateWatch(world) {
-  if (!world.watch || clockS(world) % WATCH_S !== 0) return;
+  if (!world.watch || !isRelief(world)) return;
   writeReport(world);
 }
 

@@ -76,6 +76,8 @@ export function openSettings(app) {
         ${checkbox('slowOnAlert', s.slowOnAlert, t('settings.slowOnAlert'))}
         ${checkbox('confirmSpeed', s.confirmSpeed !== false, t('settings.confirmSpeed'))}
         ${checkbox('questions', s.questions !== false, t('settings.questions'))}
+        <label>${escapeHtml(t('settings.watchStops'))} ${select('watchStops', s.watchStops || 'decision', presets.choices.watchStops, 'settings.watchStopsChoices')}</label>
+        <p class="hint">${escapeHtml(t('settings.watchStopsHint'))}</p>
       </fieldset>
       <p class="hint">${escapeHtml(t('settings.alertSpeedsHint'))}</p>
       <table class="alert-speeds">${alertSpeedTable(app)}</table>`)}

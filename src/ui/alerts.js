@@ -21,7 +21,8 @@ export function alertForEvent(app, e) {
 }
 
 export function raiseAlert(app, a) {
-  const max = alertSpeed(app.settings, a.type, a.level);
+  // An alert that pauses the game (a stop of the watches) leaves its speed alone.
+  const max = a.pause ? 0 : alertSpeed(app.settings, a.type, a.level);
   if (app.settings.slowOnAlert && max > 0 && app.speed > max) {
     app.speed = max;
     app.dirtyHud = true;

@@ -248,7 +248,32 @@
       }
     }
   ],
-  "radars": [],
+  "radarsNote": "Irlande du Nord, janvier 1941 (N4). Castlerock : Chain Home avancé, en service fin 1940, ne voit que les avions. Downhill : Chain Home Low, bâtie en novembre 1940. Glenarm : Chain Home Low avancé de 1939-1940. Les deux stations basses voient aussi les navires (surfaceKm) : leurs eaux sont suivies en direct sous silence radio. Positions approchées ; Ballymartin, Kilkeel, Islay et les Hébrides n'ouvrent qu'au printemps ou à l'été 1941.",
+  "radars": [
+    {
+      "id": "castlerock",
+      "name": "Castlerock",
+      "lon": -6.75,
+      "lat": 55.15,
+      "azimuth": 330
+    },
+    {
+      "id": "downhill",
+      "name": "Downhill",
+      "lon": -6.83,
+      "lat": 55.16,
+      "azimuth": 330,
+      "surfaceKm": 50
+    },
+    {
+      "id": "glenarm",
+      "name": "Glenarm",
+      "lon": -5.92,
+      "lat": 54.95,
+      "azimuth": 60,
+      "surfaceKm": 50
+    }
+  ],
   "factories": [],
   "depots": [],
   "logistics": {

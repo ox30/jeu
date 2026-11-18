@@ -19,7 +19,8 @@ function convoyAt(w, lon, lat) {
   runTo(w, 6 * H + 60); // HX 102 has sailed (12:00)
   const c = w.convoys.find((x) => x.type === 'ocean');
   const [x, y] = project(lon, lat);
-  Object.assign(c, { x, y, px: x, py: y, route: [[x + 900, y]], routeLocked: 0, plan: [] });
+  // (Put there by the test: the table knows it there, as from a sure point.)
+  Object.assign(c, { x, y, px: x, py: y, route: [[x + 900, y]], routeLocked: 0, plan: [], est: null, fix: null });
   for (const u of w.uboats) Object.assign(u, { state: 'gone', goneAt: w.t });
   return c;
 }

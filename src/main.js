@@ -29,7 +29,8 @@ import { openFormations } from './ui/formationsPage.js';
 import { carryFor, loadCampaign, recordResult } from './ui/campaign.js';
 import { attachTutorial, startTutorial, stopTutorial, tutorialEvent, updateTutorial } from './ui/tutorial.js';
 import { fighterEstablishmentShare } from './sim/objectives.js';
-import { alertForEvent, initAlert, resetAlerts, updateAlerts } from './ui/alerts.js';
+import { alertForEvent, initAlert, raiseAlert, resetAlerts, updateAlerts } from './ui/alerts.js';
+import { createSignals, onWatchClick, openWatch, updateSignalsChrome } from './ui/watchPanel.js';
 import { initQuestions, questionAsked, renderQuestion } from './ui/questions.js';
 import { ALERT_TYPES } from './ui/alertRules.js';
 import { loadDev, saveDev } from './ui/dev.js';
@@ -106,6 +107,10 @@ function collectElements() {
     unitPost: $('unit-post'),
     log: $('log'),
     logSection: $('log-section'),
+    logTabs: $('log-tabs'),
+    signals: $('signals'),
+    signalsCount: $('signals-count'),
+    dlgWatch: $('dlg-watch'),
     speedConfirm: $('speed-confirm'),
     alert: $('alert'),
     alertTitle: $('alert-title'),
@@ -156,6 +161,11 @@ async function loadData() {
   return { fr, rules, presets, dev, helpImages, atlantic, channel, labels, scenarios };
 }
 
+/** What belongs to the game without being the simulation: the clock of real time, the reports read. */
+function gameMeta(app) {
+  return { playClock: app.playClock, gameId: app.gameId, signalsRead: [...app.signals.read] };
+}
+
 function scenarioById(data, id) {
   return data.scenarios.find((s) => s.id === id) || data.scenarios[0];
 }
@@ -177,6 +187,11 @@ function handleEvents(app, events) {
     if (e.type === 'uboatAttack' || e.type === 'convoyBombed' || e.type === 'escortEngaged') app.lastNavalAttack = e.t;
     if (e.type === 'raidDetected') {
       if (alert && app.settings.autoZoom && app.camera.scale < 0.6) goView(app, 'england');
+    } else if (e.type === 'seaStop') {
+      seaStop(app, e);
+    } else if (e.type === 'watchReport') {
+      app.signals.key = '';
+      app.dirtyHud = true;
     } else if (e.type === 'question') {
       questionAsked(app);
     } else if (e.type === 'scenarioEvent' && e.important) {
@@ -192,6 +207,31 @@ function handleEvents(app, events) {
     }
   }
   if (events.length) app.panelsStale = true;
+}
+
+/**
+ * The sea at the rhythm of the watches stops the game: a pause, never a slower speed, so
+ * that « Reprendre » goes on at the speed of before. At a relief the report of the watch
+ * opens with what waits for a decision; between two reliefs, the first attack on a convoy
+ * in the night raises its alert.
+ */
+function seaStop(app, e) {
+  if (app.world.ended) return;
+  app.paused = true;
+  app.pausedByPage = false; // a page closed after this must not set the game going again
+  app.accumulator = 0;
+  app.dirtyHud = true;
+  app.dirtyPanels = true;
+  if (e.reason === 'relief') {
+    setTimeout(() => openWatch(app, e.reportId), 150);
+    return;
+  }
+  const c = app.world.convoys.find((x) => x.id === e.convoyId);
+  raiseAlert(app, {
+    type: 'seaStop', t: app.world.t, level: 'danger', pause: true, variant: e.sunk > 0 ? 'text' : 'missed',
+    params: { convoy: e.convoy, n: e.sunk },
+    focus: c ? { x: c.x, y: c.y, kind: 'convoy', id: c.id } : { x: e.x, y: e.y },
+  });
 }
 
 /** Dragging the edge of the unit sheet makes it wider (or higher at the bottom); remembered. */
@@ -246,6 +286,15 @@ function clearLegInputs() {
 }
 
 function onPanelClick(app, e) {
+  if (onWatchClick(app, e)) return;
+  const logTab = e.target.closest('[data-log-tab]');
+  if (logTab) {
+    app.signals.tab = logTab.dataset.logTab;
+    app.signals.key = '';
+    app.el.logSection.classList.remove('collapsed');
+    app.dirtyHud = true;
+    return;
+  }
   const reportLine = e.target.closest('[data-report]');
   if (reportLine) {
     openReports(app, reportLine.dataset.report);
@@ -693,6 +742,7 @@ async function start() {
     audio: null,
     dirtyPanels: true,
     dirtyHud: true,
+    signals: createSignals(), // the watch reports: tab, filters, what was read (watchPanel.js)
     playClock: createPlayClock(), // real time spent on this game (summary.js)
     gameId: newGameId(), // tells this game from another one of the same scenario (its saves)
   };
@@ -736,7 +786,7 @@ async function start() {
     if (app.world.ended || app.crash) return false;
     app.lastSaveT = app.world.t;
     app.lastSaveReal = performance.now();
-    const ok = saveToBrowser(app.world, { playClock: app.playClock, gameId: app.gameId });
+    const ok = saveToBrowser(app.world, gameMeta(app));
     try {
       localStorage.setItem('jeu-1940.journal.v1', JSON.stringify(app.logEntries || []));
     } catch {
@@ -765,6 +815,8 @@ async function start() {
     app.resumed = true;
     app.playClock = createPlayClock(saved.meta && saved.meta.playClock);
     app.gameId = (saved.meta && saved.meta.gameId) || newGameId();
+    app.signals = createSignals();
+    for (const id of (saved.meta && saved.meta.signalsRead) || []) app.signals.read.add(id);
     Object.assign(app, { selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0 });
     clearLog(app);
     for (const entry of saved.journal || []) addLogEntry(app, entry.text, entry.level, entry.t, { report: entry.report, replay: true });
@@ -782,7 +834,7 @@ async function start() {
    * downloads capability; elsewhere (the file on disk, a web server) a plain download.
    */
   app.exportGame = async (extra = null) => {
-    const text = exportText(app.world, { meta: { playClock: app.playClock, gameId: app.gameId }, ...(extra || {}) });
+    const text = exportText(app.world, { meta: gameMeta(app), ...(extra || {}) });
     const d = new Date(app.world.startMs + app.world.t * 1000);
     const filename = `partie-${app.world.scenario.id}-${d.toISOString().slice(0, 13).replace(/[-T:]/g, '')}.json`;
     let downloads = null;
@@ -843,6 +895,7 @@ async function start() {
     app.crash = null;
     app.playClock = createPlayClock();
     app.gameId = newGameId();
+    app.signals = createSignals();
     app.world = newWorld(data.scenario);
     // A page closed after this must not set the new game going.
     Object.assign(app, { selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0, unlocked: null });
@@ -863,6 +916,14 @@ async function start() {
   attachInput(app);
   attachTutorial(app);
   // The side panel and the unit panel beside it answer the same buttons.
+  el.dlgWatch.addEventListener('click', (e) => onWatchClick(app, e));
+  el.panel.addEventListener('change', (e) => {
+    const unit = e.target.closest('[data-watch-unit]');
+    if (!unit) return;
+    app.signals.unit = unit.value;
+    app.signals.key = '';
+    app.dirtyHud = true;
+  });
   for (const box of [el.panel, el.unitPanel, el.dlgRoster]) {
     box.addEventListener('click', (e) => onPanelClick(app, e));
     box.addEventListener('change', (e) => onPanelChange(app, e));
@@ -973,6 +1034,7 @@ async function start() {
     // The sheets follow an order at once; the game's own news, at most a few times a second.
     if (app.dirtyPanels || (app.panelsStale && now - lastPanels > 150) || now - lastPanels > 250) {
       renderPanels(app);
+      updateSignalsChrome(app);
       if (el.dlgRoster.open) renderRosterPage(app);
       lastPanels = now;
       app.dirtyPanels = false;

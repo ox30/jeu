@@ -108,8 +108,14 @@
         <p id="panel-hint" class="hint" hidden></p>
       </section>
       <section class="log-section" id="log-section">
-        <h2 class="foldable" data-log-section="1"><span class="fold">▾</span> <span data-i18n="panel.log"></span></h2>
+        <h2 class="foldable with-tabs"><span data-log-section="1"><span class="fold">▾</span> <span data-i18n="panel.log"></span></span>
+          <span class="tabs" role="tablist" id="log-tabs" hidden>
+            <button type="button" role="tab" data-log-tab="journal" data-i18n="panel.logJournal"></button>
+            <button type="button" role="tab" data-log-tab="signals"><span data-i18n="panel.logSignals"></span> <span id="signals-count" class="badge" hidden></span></button>
+          </span>
+        </h2>
         <ol id="log" class="log"></ol>
+        <div id="signals" class="signals" hidden></div>
       </section>
     </aside>
   </div>
@@ -121,6 +127,7 @@
   <dialog id="dlg-desktop"></dialog>
   <dialog id="dlg-scenario"></dialog>
   <dialog id="dlg-reports" class="page-dialog"></dialog>
+  <dialog id="dlg-watch" class="page-dialog"></dialog>
   <dialog id="dlg-cards" class="page-dialog"></dialog>
   <dialog id="dlg-formations" class="page-dialog"></dialog>
   <dialog id="dlg-roster" class="page-dialog"></dialog>
