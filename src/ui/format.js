@@ -67,6 +67,14 @@ export function durationText(seconds) {
   return t('units.hmin', { h: hours, m: String(m).padStart(2, '0') });
 }
 
+/** Real time, for the clock of a game: "moins d'une minute", "47 min", "1 h 12 min". */
+export function realDurationText(ms) {
+  const minutes = Math.floor(Math.max(0, ms) / 60000);
+  if (minutes < 1) return t('units.underMinute');
+  if (minutes < 60) return t('units.min', { n: minutes });
+  return t('units.hminLong', { h: Math.floor(minutes / 60), m: minutes % 60 });
+}
+
 function dm(value) {
   const v = Math.abs(value);
   let deg = Math.floor(v);

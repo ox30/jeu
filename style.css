@@ -317,6 +317,7 @@ dialog h3 { font-size: 14px; margin: 10px 0 4px; }
 .end-objectives { list-style: none; padding-left: 4px; }
 .end-objectives li.done { color: var(--green); }
 .end-objectives li.failed { color: var(--raf-red); }
+.end-clock { font-size: 13px; opacity: 0.8; }
 .scenarios { list-style: none; padding: 0; }
 .scenarios li { border: 1px solid var(--paper-dark); border-radius: 4px; padding: 8px 10px; margin: 8px 0; }
 .scenarios li.current { border-color: var(--brass); background: #efe4c4; }
@@ -365,6 +366,7 @@ dialog h2 { margin-top: 0; font-size: 18px; }
 dialog ol, dialog ul { padding-left: 20px; line-height: 1.45; }
 dialog .keys { font-size: 12px; color: var(--ink-soft); }
 .dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.dialog-buttons button[disabled] { opacity: 0.45; cursor: default; }
 .dialog-buttons button {
   background: var(--raf-blue); color: #fff; border: none; border-radius: 3px; padding: 6px 14px;
 }

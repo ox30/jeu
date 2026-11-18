@@ -45,6 +45,7 @@ import { addLogEntry, clearLog, renderPanels } from './ui/panels.js';
 import { openCards, openReports } from './ui/pages.js';
 import { clearBrowserSave, exportText, loadFromBrowser, parseExport, restore, saveToBrowser } from './save/game.js';
 import { reportCrash } from './ui/crash.js';
+import { createPlayClock, newGameId, tickPlayClock } from './ui/summary.js';
 import { addMobileRadar } from './sim/mru.js';
 import { openEvent } from './ui/dialogs.js';
 import { setSpeed } from './sim/orders.js';
@@ -695,6 +696,8 @@ async function start() {
     audio: null,
     dirtyPanels: true,
     dirtyHud: true,
+    playClock: createPlayClock(), // real time spent on this game (summary.js)
+    gameId: newGameId(), // tells this game from another one of the same scenario (its saves)
   };
   app.unlockAudio = () => unlockAudio(app);
   // The ports' distance fields (a tenth of a second each), worked out in quiet moments rather
@@ -735,7 +738,7 @@ async function start() {
     if (app.world.ended || app.crash) return false;
     app.lastSaveT = app.world.t;
     app.lastSaveReal = performance.now();
-    const ok = saveToBrowser(app.world);
+    const ok = saveToBrowser(app.world, { playClock: app.playClock, gameId: app.gameId });
     try {
       localStorage.setItem('jeu-1940.journal.v1', JSON.stringify(app.logEntries || []));
     } catch {
@@ -759,6 +762,8 @@ async function start() {
     app.world = w;
     app.crash = null;
     app.resumed = true;
+    app.playClock = createPlayClock(saved.meta && saved.meta.playClock);
+    app.gameId = (saved.meta && saved.meta.gameId) || newGameId();
     Object.assign(app, { selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0 });
     clearLog(app);
     for (const entry of saved.journal || []) addLogEntry(app, entry.text, entry.level, entry.t, { report: entry.report, replay: true });
@@ -776,7 +781,7 @@ async function start() {
    * downloads capability; elsewhere (the file on disk, a web server) a plain download.
    */
   app.exportGame = async (extra = null) => {
-    const text = exportText(app.world, extra);
+    const text = exportText(app.world, { meta: { playClock: app.playClock, gameId: app.gameId }, ...(extra || {}) });
     const d = new Date(app.world.startMs + app.world.t * 1000);
     const filename = `partie-${app.world.scenario.id}-${d.toISOString().slice(0, 13).replace(/[-T:]/g, '')}.json`;
     let downloads = null;
@@ -808,7 +813,7 @@ async function start() {
 
   app.importGame = (text) => {
     const parsed = parseExport(text);
-    app.resume({ snap: parsed.snap, journal: [] });
+    app.resume({ snap: parsed.snap, journal: [], meta: parsed.meta || null });
     app.save();
   };
 
@@ -835,6 +840,8 @@ async function start() {
     resetAlerts(app);
     app.lastNavalAttack = null;
     app.crash = null;
+    app.playClock = createPlayClock();
+    app.gameId = newGameId();
     app.world = newWorld(data.scenario);
     // A page closed after this must not set the new game going.
     Object.assign(app, { selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0, unlocked: null });
@@ -887,7 +894,7 @@ async function start() {
       } catch {
         journal = [];
       }
-      app.resume({ snap: saved.snap, journal });
+      app.resume({ snap: saved.snap, journal, meta: saved.meta || null });
     } catch (err) {
       console.warn('saved game not restored', err);
       clearBrowserSave();
@@ -976,9 +983,12 @@ async function start() {
   // fails three frames running is left alone, with the dialog open.
   function frame(now) {
     requestAnimationFrame(frame);
-    const dtReal = Math.min(0.25, (now - last) / 1000);
+    const elapsedMs = now - last;
+    const dtReal = Math.min(0.25, elapsedMs / 1000);
     last = now;
     if (app.crash && app.crash.fatal) return;
+    // The clock of the game: real time, pauses included, until the scenario ends.
+    if (!app.world.ended) tickPlayClock(app.playClock, elapsedMs, app.paused);
     try {
       updateCamera(app.camera, dtReal);
       clampCentre(app.camera, app.mapRenderer.coarse.box);

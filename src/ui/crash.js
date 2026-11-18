@@ -13,17 +13,22 @@ import { loadFromBrowser } from '../save/game.js';
  */
 export function reportCrash(app, err, where, fatal = false) {
   console.error(err);
-  const first = !app.crash;
   app.paused = true;
+  app.dirtyHud = true;
+  if (app.crash) {
+    // Not the first error: the first one is the cause and stays on record (a broken world
+    // often breaks the display too). The display may still give up for good.
+    if (fatal) app.crash.fatal = true;
+    return;
+  }
   app.crash = {
     where,
-    fatal: fatal || Boolean(app.crash && app.crash.fatal),
+    fatal,
     message: String((err && err.message) || err),
     stack: String((err && err.stack) || ''),
     t: app.world ? app.world.t : 0,
   };
-  app.dirtyHud = true;
-  if (first || !app.el.dlgCrash.open) openCrash(app);
+  openCrash(app);
 }
 
 export function openCrash(app) {
@@ -32,11 +37,17 @@ export function openCrash(app) {
   if (!c) return;
   const when = app.world ? formatTime(app.world.startMs + c.t * 1000) : '';
   const place = (c.stack.split('\n')[1] || '').trim().replace(/^at\s+/, '');
-  const saved = loadFromBrowser();
+  // The save offered is one of this very game: a game just begun may still have the save of
+  // the game before it in the browser.
+  const ownSave = () => {
+    const s = loadFromBrowser();
+    return s && s.meta && s.meta.gameId === app.gameId ? s : null;
+  };
+  const saved = ownSave();
   dlg.innerHTML = `
     <form method="dialog">
       <h2>${escapeHtml(t('crash.title'))}</h2>
-      <p>${escapeHtml(t('crash.text'))}</p>
+      <p>${escapeHtml(t('crash.text'))} ${escapeHtml(t(saved ? 'crash.textSaved' : 'crash.textNoSave'))}</p>
       <p class="crash-detail">${escapeHtml(t(`crash.where.${c.where}`, { time: when }))}<br><code>${escapeHtml(c.message)}</code>${place ? `<br><code>${escapeHtml(place)}</code>` : ''}</p>
       <p class="dialog-note" data-crash="note"></p>
       <div class="dialog-buttons">
@@ -55,7 +66,7 @@ export function openCrash(app) {
     }
   });
   dlg.querySelector('[data-crash="resume"]').addEventListener('click', () => {
-    const again = loadFromBrowser();
+    const again = ownSave();
     if (!again) return;
     try {
       app.crash = null;

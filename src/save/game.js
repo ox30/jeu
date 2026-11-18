@@ -141,9 +141,10 @@ export function restore(world, snap, addMobileRadar = null) {
   return world;
 }
 
-export function saveToBrowser(world) {
+/** `meta`: what belongs to the game without being the simulation (the clock of real time played). */
+export function saveToBrowser(world, meta = null) {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ savedAt: Date.now(), snap: snapshot(world) }));
+    localStorage.setItem(KEY, JSON.stringify({ savedAt: Date.now(), snap: snapshot(world), meta }));
     return true;
   } catch {
     return false;

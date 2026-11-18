@@ -132,6 +132,12 @@
     "clearPlan": "Effacer les étapes",
     "removeLeg": "Retirer cette étape",
     "endHintAir": "Fin : durée (6, 1 h 30), heure (14:20), carré (J5) ou position (51N 1E). Vide : jusqu'à nouvel ordre.",
+    "endHintAirNoGrid": "Fin : durée (6, 1 h 30), heure (14:20) ou position (56N 12O). Vide : jusqu'à nouvel ordre.",
+    "endExample": {
+      "sea": "30 · 14:20 · 56N 12O",
+      "air": "6 · 14:20 · J5",
+      "airNoGrid": "6 · 14:20 · 56N 12O"
+    },
     "endHintSea": "Fin : durée en heures (30, 6 min), heure (14:20), position (56N 12O). Vide : jusqu'à nouvel ordre.",
     "errors": {
       "heading": "Cap invalide : un nombre entre 0 et 360.",
@@ -1045,7 +1051,8 @@
     "pilotsKilled": "Pilotes tués : {n}",
     "ammoUsed": "Munitions consommées : {n} t",
     "defeatShipping": "Défaite : les pertes de navires marchands sont trop lourdes, l'Amirauté suspend les départs.",
-    "dollars": "Dollars dépensés : {n} millions, sur {m}"
+    "dollars": "Dollars dépensés : {n} millions, sur {m}",
+    "played": "Temps de jeu : {total}, dont {paused} en pause."
   },
   "success": {
     "title": "Objectifs atteints",
@@ -1138,7 +1145,9 @@
     "ftRel": "{sign}{n} ft",
     "km": "{n} km",
     "straggler": "{name} · traînard {n}",
-    "minShort": "min"
+    "minShort": "min",
+    "underMinute": "moins d'une minute",
+    "hminLong": "{h} h {m} min"
   },
   "legs": {
     "duration": "Cap {heading} pendant {d}",
@@ -1984,7 +1993,9 @@
   },
   "crash": {
     "title": "Le jeu s'est arrêté sur une erreur",
-    "text": "La partie est en pause et la dernière sauvegarde automatique est intacte. Exportez la partie pour la garder ou pour signaler le problème, puis reprenez la dernière sauvegarde.",
+    "text": "La partie est en pause. Exportez-la pour la garder ou pour signaler le problème.",
+    "textSaved": "La dernière sauvegarde automatique de cette partie est intacte : vous pouvez la reprendre.",
+    "textNoSave": "Cette partie n'a pas encore de sauvegarde automatique.",
     "where": {
       "simulation": "Erreur dans la simulation, à {time} (heure du jeu) :",
       "display": "Erreur dans l'affichage, à {time} (heure du jeu) :"

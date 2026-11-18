@@ -1,7 +1,8 @@
 // Dialogs: settings, help, success and end of the scenario.
 
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
-import { dateTimeText, objectiveText } from './format.js';
+import { dateTimeText, objectiveText, realDurationText } from './format.js';
+import { endSummaryKeys } from './summary.js';
 import { checkDevPassword } from './dev.js';
 import { markHelpSeen, matchingPreset, saveSettings } from '../save/settings.js';
 import { showPage } from './pages.js';
@@ -81,7 +82,7 @@ export function openSettings(app) {
       ${pane('map', `
       <fieldset>
         ${checkbox('altitudeStalks', s.altitudeStalks, t('settings.altitudeStalks'))}
-        ${checkbox('grid', s.grid, t('settings.grid'))}
+        ${app.world.grid ? checkbox('grid', s.grid, t('settings.grid')) : ''}
         ${checkbox('autoZoom', s.autoZoom, t('settings.autoZoom'))}
         ${checkbox('lowRes', s.lowRes, t('settings.lowRes'))}
         <label>${escapeHtml(t('settings.sheetPos'))} ${select('sheetPos', s.sheetPos || 'right', presets.choices.sheetPos, 'settings.sheetPosChoices')}</label>
@@ -290,20 +291,19 @@ export function openEnd(app) {
   const dlg = app.el.dlgEnd;
   const w = app.world;
   const st = w.stats;
-  const air = w.raids.length > 0;
-  const keys = air ? ['bombersDown', 'fightersDown', 'rafLost', 'groundLosses', 'raidsIntercepted', 'raidsRepelled', 'targetsHit'] : [];
-  if (w.convoys.length) keys.push('convoysArrived');
-  const lines = keys.map((k) => `<li>${escapeHtml(t(`end.${k}`, { n: st[k] }))}</li>`);
-  if (w.rail.enabled) {
-    lines.push(`<li>${escapeHtml(t('end.shipsSunk', { n: st.shipsSunk }))}</li>`);
-    lines.push(`<li>${escapeHtml(t('end.uboatsSunk', { n: st.uboatsSunk }))}</li>`);
-    lines.push(`<li>${escapeHtml(t('end.unloaded', { fuel: formatNumber(Math.round(st.unloaded.fuel)), materiel: formatNumber(Math.round(st.unloaded.materiel)) }))}</li>`);
-    if (w.factories.length) lines.push(`<li>${escapeHtml(t('end.aircraftBuilt', { n: st.aircraftBuilt, m: st.aircraftDelivered }))}</li>`);
-    if (air) lines.push(`<li>${escapeHtml(t('end.fuelUsed', { n: formatNumber(Math.round(st.fuelUsed)) }))}</li>`);
-    if (w.depots.length) lines.push(`<li>${escapeHtml(t('end.ammoUsed', { n: formatNumber(Math.round(st.ammoUsed)) }))}</li>`);
-  }
-  if (w.currency) lines.push(`<li>${escapeHtml(t('end.dollars', { n: formatNumber(Math.round(w.currency.spent)), m: formatNumber(w.currency.start) }))}</li>`);
-  if (w.settings.fatigue === 'losses') lines.push(`<li>${escapeHtml(t('end.pilotsKilled', { n: st.pilotsKilled }))}</li>`);
+  // The figures of each line; the lines themselves follow the scenario (summary.js).
+  const figures = {
+    unloaded: { fuel: formatNumber(Math.round(st.unloaded.fuel)), materiel: formatNumber(Math.round(st.unloaded.materiel)) },
+    aircraftBuilt: { n: st.aircraftBuilt, m: st.aircraftDelivered },
+    fuelUsed: { n: formatNumber(Math.round(st.fuelUsed)) },
+    ammoUsed: { n: formatNumber(Math.round(st.ammoUsed)) },
+    dollars: w.currency ? { n: formatNumber(Math.round(w.currency.spent)), m: formatNumber(w.currency.start) } : {},
+  };
+  const lines = endSummaryKeys(w).map((k) => `<li>${escapeHtml(t(`end.${k}`, figures[k] || { n: st[k] }))}</li>`);
+  // The real time spent on this game, pauses included.
+  const clock = app.playClock;
+  const played = clock && clock.totalMs >= 1000
+    ? `<p class="end-clock">${escapeHtml(t('end.played', { total: realDurationText(clock.totalMs), paused: realDurationText(clock.pausedMs) }))}</p>` : '';
   let verdict;
   if (w.defeatReason === 'fuel') verdict = t('end.defeatFuel');
   else if (w.defeatReason === 'fighters') verdict = t('end.defeatFighters');
@@ -319,6 +319,7 @@ export function openEnd(app) {
       ${app.unlocked ? `<p class="unlocked">${escapeHtml(t('campaign.unlocked', { title: t(`scenarios.${app.unlocked}.title`) }))}</p>` : ''}
       ${objectives ? `<h3>${escapeHtml(t('end.objectives'))}</h3><ul class="end-objectives">${objectives}</ul>` : ''}
       <ul>${lines.join('')}</ul>
+      ${played}
       <div class="dialog-buttons">
         <button value="replay" type="button" data-replay>${escapeHtml(t('end.replay'))}</button>
         <button value="close">${escapeHtml(t('end.close'))}</button>
