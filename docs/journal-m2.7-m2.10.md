@@ -232,3 +232,31 @@ Choix déjà arrêtés (à confirmer par les mesures) :
 - Les consignes des groupes (Rester ou Chasser, grenadage) restent des ordres permanents
   appliqués sans nouvel ordre ; les changer en haute mer demande une transmission, comme tout
   ordre.
+
+### 18 novembre, 16 h 05 — vérifications historiques pour le M2.8 (N4, H1)
+
+**Radars d'Irlande du Nord (N4), station par station.** Sources : Frontline Ulster, « Radar in
+Northern Ireland 1939-1945 » (d'après Colin Dobinson, *Building Radar*) ; liste des stations
+Chain Home Low d'Air of Authority (rafweb.org) ; WartimeNI pour Downhill.
+
+| Station | Type | Ce que disent les sources | Dans le scénario (10 janvier - 31 mars 1941) |
+| --- | --- | --- | --- |
+| Castlerock (59) | Chain Home, d'abord en version avancée | version avancée posée en novembre 1940, en service fin 1940 | en service dès le début ; voit les avions, pas les navires |
+| Downhill (59A) | Chain Home Low | relevée en septembre 1940, construite en novembre 1940 ; la liste de janvier 1941 d'Air of Authority la dit encore « proposée » | en service dès le début (date exacte de mise en service incertaine) |
+| Glenarm (60A) | Chain Home Low avancée | construite entre septembre 1939 et juillet 1940, améliorée en 1941 | en service dès le début |
+| Greystone, Kilkeel, Roddens Port, Ballymartin | | plans ou chantier en 1941, en service en 1941-1942 | hors scénario |
+
+Conclusion : les trois stations proposées par le document tiennent, toutes trois dès le
+10 janvier ; aucune ne change d'état pendant le scénario. Seules Downhill et Glenarm, du type
+« basse altitude » dérivé du radar de défense côtière, comptent pour la couverture de surface
+des eaux suivies ; Castlerock ne voit que les avions. Positions approchées d'après les
+références de grille de l'article : Castlerock 55,15° N 6,75° O ; Downhill 55,16° N 6,83° O ;
+Glenarm 54,95° N 5,92° O. Réserve : ces sources sont secondaires et se contredisent sur
+Downhill ; les archives n'ont pas été consultées.
+
+**502 Sqn (H1).** Whitley depuis l'automne 1940, à Aldergrove jusqu'au 27 janvier 1941 puis à
+Limavady ; patrouilles d'une dizaine d'heures, ce qui recoupe les 9 h retenues. Une page
+d'histoire locale sur RAF Wick rapporte que le détachement du 502 y vole en janvier 1941
+avec son radar ASV. **Choix** : le radar ASV sera donné au 502 Sqn au M2.8, avec le réglage de
+la mer, et non au M2.7, pour ne pas changer l'équilibre en cours de mesure. Le déménagement à
+Limavady le 27 janvier n'est pas représenté (la décision H1 ne le demande pas).
