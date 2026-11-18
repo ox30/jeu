@@ -20,6 +20,9 @@ import {
 } from './actions.js';
 import { membersOf } from '../sim/formations.js';
 import { answerShown } from './questions.js';
+import { speedIndexOfKey } from './keys.js';
+import { pickHit, unitsUnder } from './hit.js';
+import { isFlying } from '../sim/squadron.js';
 
 const UNIT_KINDS = new Set(['squadron', 'convoy', 'airfield', 'escort', 'rally']);
 const HANDLE_KINDS = new Set(['routePoint', 'routeMid', 'routeExtend']);
@@ -30,8 +33,18 @@ function unitOrigin(app, hit) {
   return u && Number.isFinite(u.x) ? [u.x, u.y] : toWorld(app.camera, hit.x, hit.y);
 }
 
-/** Selection made by a drag from an aerodrome: its first ready squadron, or the aerodrome. */
+/** The squadron in hand (or the leader of the wing in hand) when it stands on this aerodrome. */
+function inHandOnField(app, fieldId) {
+  const s = selectedSquadron(app);
+  return s && !isFlying(s) && s.airfield === fieldId ? s : null;
+}
+
+/**
+ * Selection made by a drag from an aerodrome: its first ready squadron, or the aerodrome.
+ * The squadron in hand stays in hand when it is on this aerodrome.
+ */
 function selectFromAirfield(app, fieldId) {
+  if (inHandOnField(app, fieldId)) return;
   const sq = app.world.squadrons.find((s) => s.airfield === fieldId && s.state === 'ready');
   if (sq) select(app, 'squadron', sq.id);
   else select(app, 'airfield', fieldId);
@@ -55,16 +68,19 @@ function selectHit(app, hit) {
   else selectClicked(app, hit);
 }
 
+/** Does this target belong to what is selected (the unit, its formation, its aerodrome)? */
+function isSelectedHit(app, h) {
+  const sel = app.selection;
+  // Units only: a raid or an installation in hand must not hide the squadron flying over it.
+  if (!sel || !UNIT_KINDS.has(h.kind)) return false;
+  if (sel.kind === 'formation' && (h.formation === sel.id || (h.kind === 'rally' && h.id === sel.id))) return true;
+  if (h.kind === sel.kind && h.id === sel.id) return true;
+  // A squadron on the ground is its aerodrome on the map.
+  return h.kind === 'airfield' && Boolean(inHandOnField(app, h.id));
+}
+
 function hitTest(app, x, y, pad) {
-  let best = null;
-  for (const h of app.hits) {
-    const d = Math.hypot(h.x - x, h.y - y);
-    const inBox = h.box && x >= h.box.x && x <= h.box.x + h.box.w && y >= h.box.y && y <= h.box.y + h.box.h;
-    if (d > h.r + pad && !inBox) continue;
-    const score = h.priority * 1000 + (inBox ? h.r : d);
-    if (!best || score < best.score) best = { ...h, score };
-  }
-  return best;
+  return pickHit(app.hits, x, y, pad, (h) => isSelectedHit(app, h));
 }
 
 export function attachInput(app) {
@@ -114,10 +130,16 @@ export function attachInput(app) {
       return;
     }
     if (app.tool === 'ruler' || e.shiftKey) {
-      // The ruler starts on the unit under the pointer, which is selected for its leg.
-      const unitHit = hit && UNIT_KINDS.has(hit.kind) ? hit : null;
+      // The ruler starts on the unit under the pointer, which is selected for its leg. Where
+      // several units overlap it never changes the selection: it starts on the unit in hand
+      // if that one is there, and on the map itself otherwise.
+      let unitHit = hit && UNIT_KINDS.has(hit.kind) ? hit : null;
+      if (unitHit && unitsUnder(app.hits, p[0], p[1], pad, UNIT_KINDS) > 1) {
+        if (!isSelectedHit(app, unitHit)) unitHit = null;
+      } else if (unitHit) {
+        selectHit(app, unitHit);
+      }
       const w = unitHit ? unitOrigin(app, unitHit) : toWorld(app.camera, p[0], p[1]);
-      if (unitHit) selectHit(app, unitHit);
       app.ruler = { a: w, b: w };
       gesture = { type: 'ruler' };
       return;
@@ -291,10 +313,11 @@ export function attachInput(app) {
       answerShown(app, key === 'Enter');
       return;
     }
+    const speedIndex = speedIndexOfKey(e, SPEEDS.length);
     if (key === ' ') {
       togglePause(app);
-    } else if (key >= '1' && key <= String(SPEEDS.length)) {
-      requestSpeed(app, Number(key) - 1);
+    } else if (speedIndex >= 0) {
+      requestSpeed(app, speedIndex);
     } else if (key === 'a' || key === 'A') {
       goView(app, 'atlantic');
     } else if (key === 'g' || key === 'G') {
