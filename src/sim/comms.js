@@ -112,20 +112,22 @@ function setFix(world, u, how, by = null) {
   u.fix = { x: Math.round(u.x * 10) / 10, y: Math.round(u.y * 10) / 10, t: world.t, how, by };
 }
 
+/** The convoy a group sails with (its reckoning is theirs both), or null. */
+function convoyWith(world, u) {
+  if (u.kind !== 'escort' || u.state !== 'escorting' || !u.escorting) return null;
+  const c = world.convoys.find((v) => v.id === u.escorting);
+  return c && c.fix ? c : null;
+}
+
 /**
  * Where the headquarters puts the ship now: its dead reckoning since the last sure point.
- * A group away hunting on its standing order is believed to be with its convoy.
+ * A group with its convoy is reckoned with it — the same doubt, and its own place around it.
  */
 function reckon(world, u) {
-  let x = u.x;
-  let y = u.y;
-  if (u.kind === 'escort' && u.state === 'hunting' && u.huntFor) {
-    const c = world.convoys.find((v) => v.id === u.huntFor);
-    if (c) [x, y] = [c.x, c.y];
-  }
-  const s = sigmaKm(world, (world.t - u.fix.t) / 3600);
-  const [gx, gy] = leanOf(world, u);
-  return { x: Math.round((x + gx * s) * 10) / 10, y: Math.round((y + gy * s) * 10) / 10, t: world.t };
+  const of = convoyWith(world, u) || u;
+  const s = sigmaKm(world, (world.t - of.fix.t) / 3600);
+  const [gx, gy] = leanOf(world, of);
+  return { x: Math.round((u.x + gx * s) * 10) / 10, y: Math.round((u.y + gy * s) * 10) / 10, t: world.t };
 }
 
 /**
@@ -135,11 +137,18 @@ function reckon(world, u) {
  */
 export function shownPosition(world, u) {
   if (!isSilent(world) || !u.est || !u.fix) return { x: u.x, y: u.y, est: false };
-  const hours = (world.t - u.fix.t) / 3600;
+  // (A group with its convoy: the sure point of the two that counts is the convoy's.)
+  const fix = (convoyWith(world, u) || u).fix;
+  const hours = (world.t - fix.t) / 3600;
   // The doubt of the reckoning, and the way made since the marker was last moved.
   const radiusKm = 2 * sigmaKm(world, hours) + currentSpeed(u) * (world.t - u.est.t) + 2;
-  return { x: u.est.x, y: u.est.y, est: true, radiusKm, fix: u.fix };
+  return { x: u.est.x, y: u.est.y, est: true, radiusKm, fix };
 }
+
+// Events that name the group that tells them by `byId` or `unitId` (the others have escortId).
+const TOLD_BY_ID = new Set(['uboatSighted', 'asdicContact', 'uboatContactLost', 'convoyWaiting', 'planEnded', 'legsEnded', 'routeEnded']);
+// Not a signal of the group: the headquarters' own orders coming back, and what it does in port.
+const QUIET = new Set(['orderDelivered', 'orderFailed', 'orderByLamp', 'orderHandedBack', 'escortInPort', 'escortReady', 'escortRadar']);
 
 // ---- orders --------------------------------------------------------------------------------
 
@@ -151,10 +160,12 @@ const ORDERS = {
   updateLeg: (w, u, index, leg) => updateLeg(w, u, index, leg),
   removeLeg: (w, u, index) => removeLeg(w, u, index),
   clearPlan: (w, u) => clearPlan(w, u),
-  speedPct: (w, u, pct) => setShipSpeedPct(w, u, pct),
-  boost: (w, u, on) => setShipBoost(w, u, on),
-  convoySpeed: (w, u, kn) => setConvoySpeed(w, u, kn),
-  zigzag: (w, u, on) => setZigzag(w, u, on),
+  // These four give back a value, not a success: the order is carried out whenever the
+  // ship can take it (a group out of fuel cannot sprint).
+  speedPct: (w, u, pct) => (setShipSpeedPct(w, u, pct), true),
+  boost: (w, u, on) => (on && u.kind === 'escort' && u.dry ? { ok: false, reason: 'dry' } : (setShipBoost(w, u, on), true)),
+  convoySpeed: (w, u, kn) => (setConvoySpeed(w, u, kn), true),
+  zigzag: (w, u, on) => (setZigzag(w, u, on), true),
   join: (w, u, convoyId) => joinConvoy(w, u, convoyId),
   leave: (w, u) => leaveConvoy(w, u),
   home: (w, u, portId) => escortHome(w, u, portId || null),
@@ -277,15 +288,20 @@ function deliver(world, s, via) {
 export function updateComms(world, first, relief) {
   if (!world.signals) return;
   const silent = isSilent(world);
-  // An attack breaks the silence of the convoy and of its escort.
+  // An attack breaks the silence of the convoy and of its escort. And whatever a group tells
+  // the headquarters (a U-boat seen or attacked, the end of a hunt, its racks or its bunkers
+  // empty) it tells by radio: the enemy knows where it is already, and so does the table.
   let attacked = null;
+  let signalled = null;
   if (silent) {
     for (let i = first; i < world.events.length; i++) {
       const e = world.events[i];
       if (e.type === 'uboatAttack' || e.type === 'condorAttack') (attacked || (attacked = new Set())).add(e.convoyId);
+      const group = e.escortId || (e.unitKind === 'escort' && TOLD_BY_ID.has(e.type) ? e.byId || e.unitId : null);
+      if (group && !QUIET.has(e.type)) (signalled || (signalled = new Set())).add(group);
     }
   }
-  if (!attacked && world.t % 60 !== 0) return; // the rest is looked at once a minute
+  if (!attacked && !signalled && world.t % 60 !== 0) return; // the rest is looked at once a minute
   for (const u of [...world.convoys, ...world.escorts]) {
     if (u.kind === 'convoy' && u.type !== 'ocean') continue; // coastal convoys sail in tracked waters
     if (!silent) {
@@ -303,6 +319,17 @@ export function updateComms(world, first, relief) {
       u.est = { x: u.x, y: u.y, t: world.t };
       continue;
     }
+    if (signalled && u.kind === 'escort' && signalled.has(u.id) && !inTrackedWaters(world, u.x, u.y)) {
+      setFix(world, u, 'signal');
+      u.est = { x: u.x, y: u.y, t: world.t };
+      // In company, the convoy is placed by the same signal.
+      const c = u.state === 'escorting' ? world.convoys.find((v) => v.id === u.escorting) : null;
+      if (c) {
+        setFix(world, c, 'signal', u.name);
+        c.est = { x: c.x, y: c.y, t: world.t };
+      }
+      continue;
+    }
     if (world.t % 60 !== 0) continue;
     if (inTrackedWaters(world, u.x, u.y)) {
       setFix(world, u, 'tracked');
@@ -318,13 +345,20 @@ export function updateComms(world, first, relief) {
     if (!u.fix) setFix(world, u, 'tracked'); // met at sea for the first time (a straggler): from here
     if (!u.est || relief) u.est = reckon(world, u);
   }
-  // Orders carried by a group: handed over when it is with the convoy.
+  // Orders carried by a group: handed over when it is with the convoy. A group that is no
+  // longer bound for it (recalled, sent elsewhere, out of fuel) hands the order back: it
+  // goes by radio at the next relief.
   for (const s of [...world.signals]) {
     if (s.via !== 'ship') continue;
     const e = world.escorts.find((x) => x.id === s.carrier);
     if (e && e.escorting === s.unitId) {
       world.signals = world.signals.filter((x) => x !== s);
       deliver(world, s, 'ship');
+    } else if (!e || e.dry || (e.joinTarget !== s.unitId && e.huntFor !== s.unitId)) {
+      s.via = 'radio';
+      s.carrier = null;
+      const u = unitOf(world, s.unitKind, s.unitId);
+      emit(world, 'orderHandedBack', { unit: u ? u.name : '', unitId: s.unitId, unitKind: s.unitKind, order: s.name, by: e ? e.name : '', byId: e ? e.id : null });
     }
   }
   if (!relief) return;

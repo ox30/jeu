@@ -57,6 +57,7 @@ const MAX_STEPS_PER_FRAME = 6000;
 // Events handled at once, without the rest of the frame's steps: every alert, and a few more.
 const INTERRUPTING = new Set([
   ...ALERT_TYPES, 'scenarioEnd', 'allObjectivesDone', 'convoyArrived', 'pilotAboard', 'uboatSighted', 'scenarioEvent', 'mruReady', 'question',
+  'seaStop', // a relief or a night attack of the sea: the clock stops on the very second
 ]);
 const RADIO = new Set(['tallyHo', 'missed', 'nothingSeen', 'bingo', 'outOfAmmo', 'divert', 'divertOut', 'legMissed', 'convoySighted', 'interceptOrdered', 'uboatSighted']);
 const SCENARIOS = ['kanalkampf', 'adlertag', 'quinze-septembre', 'hiver-atlantique', 'm0-july-1940'];

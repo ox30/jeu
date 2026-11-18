@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { makeKanalkampf, makeWorld, run, runTo } from './helpers.js';
 import { project } from '../src/sim/geo.js';
 import { emit } from '../src/sim/events.js';
-import { WATCH_S, clockHour, fullReport, markersOnWay, noteWatch, pendingDecisions, watchReport } from '../src/sim/watch.js';
+import { WATCH_S, clockHour, fullReport, markersOnWay, pendingDecisions, watchReport } from '../src/sim/watch.js';
 import { joinConvoy, routeConvoy } from '../src/sim/orders.js';
 import { alertFor } from '../src/ui/alertRules.js';
 import { restore, snapshot } from '../src/save/game.js';
@@ -28,7 +28,6 @@ function convoyAt(w, lon, lat) {
 /** A U-boat attack on a convoy, as the simulation reports one during a step. */
 function attackOn(w, c, sunk) {
   emit(w, 'uboatAttack', { convoy: c.name, convoyId: c.id, sunk, escorts: 0, x: c.x, y: c.y });
-  noteWatch(w, w.events.length - 1);
 }
 
 test('the rhythm is the scenario\'s: watches in the Atlantic, live alerts elsewhere', () => {

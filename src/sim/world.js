@@ -15,7 +15,7 @@ import { updateContacts } from './contact.js';
 import { createFormations, updateFormations } from './formations.js';
 import { prepareSeaRoutes } from './searoute.js';
 import { closedRaster } from './uboatnav.js';
-import { createWatch, isRelief, noteWatch, updateWatch } from './watch.js';
+import { createWatch, isRelief, updateWatch } from './watch.js';
 import { createComms, updateComms } from './comms.js';
 import { createQuestions, updateQuestions } from './engagement.js';
 import { createTimetable, updateTimetable } from './timetable.js';
@@ -243,9 +243,9 @@ export function step(world, dt = 1) {
   checkAlerts(world);
   checkObjectives(world);
   recordReports(world, first);
-  // The sea at the rhythm of the watches: what happened is noted, the relief writes its report.
+  // The sea at the rhythm of the watches: what happened was noted as it happened (watch.js);
+  // the relief writes its report.
   if (world.watch) updateComms(world, first, isRelief(world)); // sure points, estimates, orders on their way
-  noteWatch(world, first);
   updateWatch(world);
   if (world.t % minute === 0) {
     const reason = checkDefeat(world);

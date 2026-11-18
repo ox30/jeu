@@ -397,6 +397,8 @@ function depthChargePass(world, e, u) {
   }
   if (result === 'lost') {
     loseContact(world, e, u);
+    // Down to its reserve, the group does not search: it goes back to its convoy.
+    if (!e.huntStay && !canHunt(world, e)) endHunt(world, e, false, 'charges');
     return;
   }
   dive(world, u, 1); // kept down

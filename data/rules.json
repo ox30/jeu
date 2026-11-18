@@ -311,7 +311,9 @@
     "aircraftAsvKm": 25,
     "aircraftNightKm": 4,
     "driftKm": 5,
-    "bearingCallKm": 150
+    "bearingCallKm": 150,
+    "companyKm": 20,
+    "companyNote": "Dans un groupe de soutien, un groupe à moins de companyKm de son chef reçoit ses ordres au projecteur ; plus loin et en haute mer, il ne les reçoit que par radio, à la relève. Ce qu'un groupe signale au QG (U-Boot vu ou attaqué, fin de chasse, grenades ou mazout épuisés) donne un point sûr : il a émis."
   },
   "watches": {
     "note": "La mer au rythme des quarts (scénario : seaRhythm « watches ») : six relèves par jour, à 0, 4, 8, 12, 16 et 20 h. Un repère U-Boot compte comme une décision quand il est à moins de plotKm de la route d'un convoi dans les routeAheadH heures ; un relèvement radio, quand sa zone coupe cette route.",

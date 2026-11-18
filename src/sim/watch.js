@@ -11,7 +11,7 @@
 // The reports are part of the world (and of its saves): world.watch.reports.
 
 import { distance } from './geo.js';
-import { emit } from './events.js';
+import { emit, onEmit } from './events.js';
 import { currentSpeed } from './convoy.js';
 import { isPatrol } from './patrols.js';
 import { inClosedWaters } from './uboatnav.js';
@@ -96,26 +96,22 @@ function nightOf(world) {
 }
 
 /**
- * Reads the events of the last step (from index `first`): the sea events go to the notes of
- * the watch under way; the first attack on a convoy in the night stops the game at once.
+ * Every event, as it is emitted — by a step of the world or by an order given between two
+ * steps (an aircraft bought, a hunt ordered on a plot): the sea events go to the notes of the
+ * watch under way; the first attack on a convoy in the night stops the game at once.
  */
-export function noteWatch(world, first) {
+function noteEvent(world, e) {
   const W = world.watch;
-  if (!W) return;
-  const n = world.events.length;
-  for (let i = first; i < n; i++) {
-    const e = world.events[i];
-    if (!isNoted(world, e)) continue;
-    W.notes.push(noteOf(e));
-    if (e.type !== 'uboatAttack') continue;
-    // A straggler counts with its convoy: one stop a convoy and a night.
-    const c = world.convoys.find((x) => x.id === e.convoyId);
-    const id = c && c.parentId ? c.parentId : e.convoyId;
-    const night = nightOf(world);
-    if (W.nights[id] === night) continue;
-    W.nights[id] = night;
-    emit(world, 'seaStop', { reason: 'attack', convoy: e.convoy, convoyId: e.convoyId, sunk: e.sunk, x: e.x, y: e.y });
-  }
+  if (!W || !isNoted(world, e)) return;
+  W.notes.push(noteOf(e));
+  if (e.type !== 'uboatAttack') return;
+  // A straggler counts with its convoy: one stop a convoy and a night.
+  const c = world.convoys.find((x) => x.id === e.convoyId);
+  const id = c && c.parentId ? c.parentId : e.convoyId;
+  const night = nightOf(world);
+  if (W.nights[id] === night) return;
+  W.nights[id] = night;
+  emit(world, 'seaStop', { reason: 'attack', convoy: e.convoy, convoyId: e.convoyId, sunk: e.sunk, x: e.x, y: e.y });
 }
 
 // ---- what waits for a decision ----------------------------------------------------------
@@ -423,3 +419,5 @@ export function watchReport(world, id = null) {
   const r = id ? list.find((x) => x.id === id) : list[list.length - 1];
   return r ? fullReport(world, r) : null;
 }
+
+onEmit(noteEvent);

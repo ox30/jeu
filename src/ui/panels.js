@@ -8,6 +8,7 @@ import { formatDate, formatShortDate, formatTime } from '../core/time.js';
 import { distance, unproject } from '../sim/geo.js';
 import { gridRef } from '../sim/grid.js';
 import { convoyRemainingKm, currentSpeed, fullKnots, shipThrottle } from '../sim/convoy.js';
+import { shownPosition } from '../sim/comms.js';
 import { isSubmerged, reachKm } from '../sim/asw.js';
 import { shipEndChoices } from '../sim/naval.js';
 import { legTarget } from '../sim/navigation.js';
@@ -126,7 +127,7 @@ function convoyLabel(c) {
 function convoyExtra(app, c) {
   const w = app.world;
   if (c.state === 'atSea' && c.route.length) {
-    return t('tote.eta', { date: dateTimeText(w.startMs + (w.t + convoyRemainingKm(c) / currentSpeed(c)) * 1000) });
+    return t('tote.eta', { date: dateTimeText(w.startMs + (w.t + convoyRemainingKm(c, shownPosition(w, c)) / currentSpeed(c)) * 1000) });
   }
   if (c.state === 'atSea') return t('tote.steering', { heading: headingText(c.heading) });
   return '';
@@ -936,7 +937,10 @@ function sailBlock(app, c) {
 function convoyPanel(app, c) {
   const w = app.world;
   const dest = c.destination ? w.byId.port.get(c.destination).name : t('sheet.none');
-  const remaining = convoyRemainingKm(c);
+  // On the high seas under radio silence: counted from where the table puts the convoy.
+  const shown = shownPosition(w, c);
+  const remaining = convoyRemainingKm(c, shown);
+  const about = (text) => (shown.est ? t('sheet.about', { v: text }) : text);
   const speedKn = Math.round((currentSpeed(c) * 3600) / 1.852);
   const stateText = t(`states.convoy.${c.state === 'arrived' && c.unloading ? 'unloading' : c.state}`);
   const rows = [
@@ -950,8 +954,8 @@ function convoyPanel(app, c) {
     c.state === 'atSea' ? row(t('sheet.heading'), headingText(c.heading)) : '',
     positionRows(app, c),
     row(t('sheet.destination'), escapeHtml(c.state === 'arrived' ? w.byId.port.get(c.portId).name : dest)),
-    remaining !== null && c.state === 'atSea' ? row(t('sheet.remaining'), escapeHtml(kmText(remaining))) : '',
-    remaining !== null && c.state === 'atSea' ? row(t('sheet.eta'), escapeHtml(dateTimeText(w.startMs + (w.t + remaining / currentSpeed(c)) * 1000))) : '',
+    remaining !== null && c.state === 'atSea' ? row(t('sheet.remaining'), escapeHtml(about(kmText(remaining)))) : '',
+    remaining !== null && c.state === 'atSea' ? row(t('sheet.eta'), escapeHtml(about(dateTimeText(w.startMs + (w.t + remaining / currentSpeed(c)) * 1000)))) : '',
   ].join('');
   const canOrder = c.state === 'inPort' || c.state === 'waiting' || c.state === 'atSea';
   const headings = app.settings.orders === 'headings';

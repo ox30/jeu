@@ -834,8 +834,9 @@ function drawEscorts(ctx, cam, app, alpha) {
       app.hits.push({ kind: 'escort', id: e.id, formation: f.id, x: tx, y: ty, r: 8, priority: 1, box: null });
       continue;
     }
-    if (e.state === 'hunting' && !est) {
-      // The search area (or the U-boat held), and a line back to the convoy it left.
+    if (e.state === 'hunting') {
+      // The search area (or the U-boat held), and a line back to the convoy it left. (The
+      // group signalled its contact: on the high seas it is drawn where the table puts it.)
       const held = e.engage ? world.uboats.find((u) => u.id === e.engage.uboatId) : null;
       if (!held) {
         const [hx, hy] = toScreen(cam, e.huntX, e.huntY);
@@ -851,7 +852,7 @@ function drawEscorts(ctx, cam, app, alpha) {
         pencilLine(ctx, [[sx, sy], [hx, hy]], { color: 'rgba(139, 26, 26, 0.55)', width: 1.2, dash: [4, 4] });
       }
       const c = world.convoys.find((x) => x.id === e.huntFor);
-      if (c && selected) pencilLine(ctx, [[sx, sy], toScreen(cam, c.x, c.y)], { color: 'rgba(79, 96, 112, 0.5)', width: 1, dash: [2, 5], arrow: false });
+      if (c && selected) pencilLine(ctx, [[sx, sy], shipScreen(app, cam, c, alpha).slice(0, 2)], { color: 'rgba(79, 96, 112, 0.5)', width: 1, dash: [2, 5], arrow: false });
     }
     if (e.state === 'atSea' || e.state === 'waiting') {
       if (e.route.length) {
@@ -869,7 +870,7 @@ function drawEscorts(ctx, cam, app, alpha) {
       }
       if (e.joinTarget) {
         const c = world.convoys.find((x) => x.id === e.joinTarget);
-        if (c) pencilLine(ctx, [[sx, sy], toScreen(cam, c.x, c.y)], { color: 'rgba(79, 96, 112, 0.6)', width: 1.2, dash: [2, 4], arrow: false });
+        if (c) pencilLine(ctx, [[sx, sy], shipScreen(app, cam, c, alpha).slice(0, 2)], { color: 'rgba(79, 96, 112, 0.6)', width: 1.2, dash: [2, 4], arrow: false });
       }
     }
     if (selected) drawPendingRoute(ctx, cam, app, e, sx, sy);
@@ -887,7 +888,7 @@ function drawEscorts(ctx, cam, app, alpha) {
       ctx.arc(sx + ox, sy + oy, 12, 0, Math.PI * 2);
       ctx.stroke();
     }
-    if (e.engage && !est) {
+    if (e.engage) {
       // At grips with a U-boat: a red ring that beats with the depth-charge passes.
       const pulse = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() / 300));
       ctx.strokeStyle = `rgba(178, 34, 34, ${pulse.toFixed(2)})`;
@@ -899,9 +900,8 @@ function drawEscorts(ctx, cam, app, alpha) {
     let box = null;
     if (e.state !== 'escorting' || selected) {
       let label = `${e.short}${est ? t('map.estimated') : ''} · ${e.ships}`;
-      // (On the high seas the headquarters does not know that a group is fighting or hunting.)
-      if (e.engage && !est) label = t('map.escortCombat', { name: e.short, n: e.ships });
-      else if (e.state === 'hunting' && !est) label = t('map.escortHunting', { name: e.short, n: e.ships });
+      if (e.engage) label = t('map.escortCombat', { name: e.short, n: e.ships });
+      else if (e.state === 'hunting') label = t('map.escortHunting', { name: e.short, n: e.ships });
       if (f && m.index === 0) {
         const ships = f.members.reduce((n, id) => n + (world.escorts.find((x) => x.id === id)?.ships || 0), 0);
         label = t('map.groupPlaque', { name: f.name, n: f.members.length, ships });
@@ -963,7 +963,9 @@ function drawViewZones(ctx, cam, app, alpha) {
   const labels = [];
   ctx.save();
   for (const z of [...zones].sort((a, b) => b.km - a.km)) {
-    const [sx, sy] = unitScreen(cam, z.unit, alpha);
+    // (A ship on the high seas under radio silence: round the place the table gives it.)
+    const ship = z.unit.kind === 'escort' || z.unit.kind === 'convoy';
+    const [sx, sy] = ship ? shipScreen(app, cam, z.unit, alpha) : unitScreen(cam, z.unit, alpha);
     const r = z.km * cam.scale;
     const rx = r / scaleX(z.unit.y);
     if (r < 3 || !onScreen(cam, sx, sy, rx + 20)) continue;
@@ -1246,8 +1248,10 @@ function drawConvoys(ctx, cam, app, alpha) {
     }
     const kn = Math.round((currentSpeed(c) * 3600) / 1.852);
     const name = c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name;
-    const zz = c.zigzag ? ` · ${t('map.zigzag')}` : '';
-    const box = placePlaque(ctx, app, sx, sy, [`${name}${est ? t('map.estimated') : ''} · ${c.ships} · ${c.state === 'atSea' ? kn : c.speedKn} nd${zz}`], {
+    const plaque = t('map.convoyPlaque', {
+      name: `${name}${est ? t('map.estimated') : ''}`, ships: c.ships, kn: c.state === 'atSea' ? kn : c.speedKn, zigzag: c.zigzag ? t('map.convoyPlaqueZigzag') : '',
+    });
+    const box = placePlaque(ctx, app, sx, sy, [plaque], {
       accent: selected ? COLORS.select : null,
     }, 14);
     app.hits.push({ kind: 'convoy', id: c.id, x: sx, y: sy, r: 16, priority: 1, box });

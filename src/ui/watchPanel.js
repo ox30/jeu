@@ -3,7 +3,7 @@
 // (convoys, escort groups, air, intelligence, signals, what waits for a decision with the
 // button that answers it), and the page opened when the game stops at a relief.
 
-import { escapeHtml, t } from '../core/i18n.js';
+import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatDate, formatShortDate, formatTime } from '../core/time.js';
 import { unproject } from '../sim/geo.js';
 import { WATCH_S, clockHour, fullReport, isQuiet, pendingDecisions } from '../sim/watch.js';
@@ -47,7 +47,7 @@ export function headlineText(w, r) {
   const parts = (r.headline || []).map((h) => t(`watch.head.${h.key}`, {
     n: h.n ?? 0, convoy: h.convoyId ? convoyName(w, h.convoyId) : '', escort: h.escortId ? escortShort(w, h.escortId) : '',
   }));
-  return parts.join(' ; ');
+  return parts.join(t('watch.sep'));
 }
 
 /** Does report `r` pass the filter of the page? */
@@ -84,7 +84,7 @@ function convoyLine(w, c) {
   }
   if (c.stragglers) parts.push(t('watch.convoyStragglers', { n: c.stragglers }));
   if (c.markers) parts.push(t('watch.convoyMarkers', { n: c.markers }));
-  return `<li class="${c.attacks ? 'hit' : ''}">${unitLink('convoy', c.id, convoyName(w, c.id))} : ${escapeHtml(parts.join(' ; '))}</li>`;
+  return `<li class="${c.attacks ? 'hit' : ''}">${t('watch.unitLine', { name: unitLink('convoy', c.id, convoyName(w, c.id)), text: escapeHtml(parts.join(t('watch.sep'))) })}</li>`;
 }
 
 function escortOrderText(w, e) {
@@ -104,13 +104,13 @@ function escortOrderText(w, e) {
 function escortLine(w, e) {
   const parts = [
     escortOrderText(w, e),
-    t('watch.escortFuel', { n: String(e.days).replace('.', ',') }),
+    t('watch.escortFuel', { n: formatNumber(e.days, Number.isInteger(e.days) ? 0 : 1) }),
     t('sheet.chargesGauge', { n: e.charges, max: e.max }),
     t(e.hunt ? 'watch.escortHunt' : 'watch.escortStay'),
     t(e.light ? 'watch.escortLight' : 'watch.escortFull'),
   ];
   if (e.radar) parts.push(t('sheet.radarFitted'));
-  return `<li class="${e.charges <= 0 || e.dry ? 'hit' : ''}">${unitLink('escort', e.id, escortShort(w, e.id))} : ${escapeHtml(parts.join(' ; '))}</li>`;
+  return `<li class="${e.charges <= 0 || e.dry ? 'hit' : ''}">${t('watch.unitLine', { name: unitLink('escort', e.id, escortShort(w, e.id)), text: escapeHtml(parts.join(t('watch.sep'))) })}</li>`;
 }
 
 function airText(r) {
@@ -120,7 +120,7 @@ function airText(r) {
   if (a.sightings) parts.push(t('watch.airSightings', { n: a.sightings }));
   if (a.attacks) parts.push(t('watch.airAttacks', { n: a.attacks, sunk: a.sunk }));
   if (a.lost) parts.push(t('watch.airLost', { n: a.lost }));
-  return parts.join(' ; ');
+  return parts.join(t('watch.sep'));
 }
 
 function intelText(w, r) {
@@ -130,7 +130,7 @@ function intelText(w, r) {
   if (i.fixes) parts.push(t('watch.intelFixes', { n: i.fixes }));
   if (i.shadowed.length) parts.push(t('watch.intelShadowed', { convoys: i.shadowed.map((id) => convoyName(w, id)).join(', ') }));
   for (const c of i.condors) parts.push(t(c.attack ? (c.sunk ? 'watch.intelCondorHit' : 'watch.intelCondorMiss') : 'watch.intelCondor', { convoy: convoyName(w, c.convoyId), n: c.sunk || 0 }));
-  return parts.length ? parts.join(' ; ') : t('watch.intelNone');
+  return parts.length ? parts.join(t('watch.sep')) : t('watch.intelNone');
 }
 
 /** One decision: its sentence and the buttons that answer it (when it still waits). */

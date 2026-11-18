@@ -125,6 +125,7 @@ const ESCORT = {
   escortChargesOut: { level: 'warning', shape: (w, e) => (e.convoy ? undefined : 'log.escortChargesOutAlone') },
   escortRadar: { level: 'success' },
   orderDelivered: { shape: signalShape },
+  orderHandedBack: { level: 'warning', shape: signalShape },
   orderByLamp: { shape: signalShape },
   orderFailed: { level: 'warning', shape: signalShape },
 };

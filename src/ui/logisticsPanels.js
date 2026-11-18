@@ -288,8 +288,9 @@ export function convoyCargoRows(app, c) {
 /** Fresh U-boat plots within reach of a group at sea (2 hours, 80 km), newest first. */
 function freshPlots(w, e) {
   const atSea = ['atSea', 'waiting', 'escorting', 'hunting'].includes(e.state);
+  const at = shownPosition(w, e); // where the table puts the group
   return atSea ? w.uboatPlots
-    .filter((p) => w.t - p.t < 2 * 3600 && distance(p.x, p.y, e.x, e.y) < 80)
+    .filter((p) => w.t - p.t < 2 * 3600 && distance(p.x, p.y, at.x, at.y) < 80)
     .sort((a, b) => b.t - a.t)
     .slice(0, 3) : [];
 }
@@ -363,6 +364,7 @@ export function patternButtons(e) {
 export function huntLines(app, e, { behaviour = true } = {}) {
   const w = app.world;
   const fresh = freshPlots(w, e);
+  const at = shownPosition(w, e);
   const hunting = e.state === 'hunting';
   const spare = canHunt(w, e);
   const state = e.charges <= 0 ? 'orders.chargesEmpty' : spare ? 'orders.chargesSpare' : 'orders.chargesReserve';
@@ -373,7 +375,7 @@ export function huntLines(app, e, { behaviour = true } = {}) {
     `<p class="hint">${escapeHtml(t('orders.patternHint'))}</p>`,
     hunting ? `<div class="order-line hunting"><span class="grow">${escapeHtml(huntText(w, e))}</span>${button('hunt-stop', t('orders.huntStop'), { id: e.id, kind: 'escort' })}</div>` : '',
     fresh.length ? `<div class="order-line">${fresh.map((p) => button('hunt-plot', t('orders.huntPlot', {
-      time: formatTime(w.startMs + p.t * 1000), km: Math.round(distance(p.x, p.y, e.x, e.y)),
+      time: formatTime(w.startMs + p.t * 1000), km: Math.round(distance(p.x, p.y, at.x, at.y)),
     }), { id: e.id, kind: 'escort', disabled: !spare, extra: ` data-plot="${escapeHtml(p.id)}"${spare ? '' : ` title="${escapeHtml(t('orders.errors.chargesReserve'))}"`}` })).join('')}</div>` : '',
   ].join('');
 }

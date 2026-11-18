@@ -343,9 +343,10 @@ function checkStragglers(world, c) {
 }
 
 /** Remaining distance (km) of the convoy's route, or null when it steers by heading. */
-export function convoyRemainingKm(c) {
+export function convoyRemainingKm(c, from = null) {
   if (!c.route.length) return null;
-  return polylineLength([[c.x, c.y], ...c.route]);
+  // (`from`: the place the table gives the convoy, when it is only an estimate.)
+  return polylineLength([from ? [from.x, from.y] : [c.x, c.y], ...c.route]);
 }
 
 /** Closest point of segment a-b to point p: { x, y, d }. */
@@ -599,5 +600,8 @@ export function editShipRoute(world, c, points) {
   }
   c.route = route;
   c.routeLocked = locked;
+  // A new routing, like a route drawn afresh: what was asked or read about the old one
+  // (a U-boat plot on the way, a signal the B-Dienst may read) no longer stands.
+  c.routeVersion = (c.routeVersion || 0) + 1;
   return { ok: true, destination: world.byId.port.get(c.destination) };
 }

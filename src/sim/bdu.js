@@ -237,8 +237,9 @@ export function updateBdu(world) {
     if (!c.bdienst.read) continue;
     // Each routing signal sent to it is read, some time after (decrypting takes a while).
     const key = routeKey(c);
-    // (A routing handed over by lamp or by a ship went on no air: nothing to read.)
-    if (c.bdienst.key !== key && c.quietRoute === key) c.bdienst.key = key;
+    // A routing handed over by lamp or by a ship went on no air: nothing to read. And a
+    // signal still being deciphered tells of a route the convoy has left: it is worth nothing.
+    if (c.bdienst.key !== key && c.quietRoute === key) Object.assign(c.bdienst, { key, done: true });
     if (c.bdienst.key !== key) Object.assign(c.bdienst, { key, at: world.t + B.readDelayH * 3600, done: false });
     if (!c.bdienst.done && world.t >= c.bdienst.at) {
       c.bdienst.done = true;
