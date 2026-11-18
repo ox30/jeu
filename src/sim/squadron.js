@@ -35,7 +35,7 @@ export function createSquadron(world, def) {
     aircraftStart: def.aircraft,
     pilots: def.pilots ?? def.aircraft,
     fatigue: def.fatigue ?? 10, // 0 (fresh) to 100 (exhausted)
-    alert: def.alert || 'available', // on the ground: rest | thirty | available | cockpit (crews.js)
+    alert: def.alert || 'min5', // on the ground: rest | min30 | min5 | cockpit (crews.js)
     alertAt: null, // a recall under way: when the new state holds
     alertFrom: null, // the state it holds until then
     alertLong: false,

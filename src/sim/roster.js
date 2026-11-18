@@ -137,7 +137,7 @@ export function plannedChanges(world, s, end) {
 }
 
 function apply(world, s, alert, resumed = false) {
-  if ((s.alert || 'available') === alert) return;
+  if ((s.alert || 'min5') === alert) return;
   changeAlert(world, s, alert);
   emit(world, resumed ? 'rosterResumed' : 'rosterApplied', { squadron: s.name, squadronId: s.id, alert });
 }

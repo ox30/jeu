@@ -197,8 +197,8 @@
     },
     "alert": {
       "rest": "Au repos",
-      "thirty": "30 min",
-      "available": "Prête",
+      "min30": "30 min",
+      "min5": "Prête",
       "cockpit": "Au cockpit"
     }
   },
@@ -292,8 +292,8 @@
     "alert": "État d'alerte",
     "alerts": {
       "rest": "Repos (2 h)",
-      "thirty": "Disponible (30 min)",
-      "available": "Alerte (5 min)",
+      "min30": "Disponible (30 min)",
+      "min5": "Alerte (5 min)",
       "cockpit": "Cockpit (2 min)"
     },
     "alertHint": "Le délai d'un état, c'est le temps pour être en l'air après l'ordre de décoller. Monter d'un cran prend la différence (du repos à l'alerte : 1 h 55) ; descendre est immédiat.",
@@ -327,8 +327,8 @@
     "followRefused": "Impossible de rejoindre cette escadrille.",
     "alertNames": {
       "rest": "au repos",
-      "thirty": "disponible (30 min)",
-      "available": "en alerte (5 min)",
+      "min30": "disponible (30 min)",
+      "min5": "en alerte (5 min)",
       "cockpit": "au cockpit (2 min)"
     },
     "recall": "Rappel en cours : {state} à {time} ; en l'air au plus tôt à {air}.",
@@ -369,8 +369,8 @@
     "rosterNone": "Aucun changement : ceux que vous ajoutez ici se répètent chaque jour.",
     "alertShort": {
       "rest": "repos",
-      "thirty": "disponible",
-      "available": "alerte",
+      "min30": "disponible",
+      "min5": "alerte",
       "cockpit": "cockpit"
     },
     "inDays": "dans {n} jours",
@@ -1589,6 +1589,15 @@
     "import": "Importer une partie…",
     "restart": "Recommencer ce scénario",
     "importError": "Ce fichier n'est pas une partie de ce jeu, ou il vient d'une autre version.",
+    "errors": {
+      "notAGame": "Ce fichier n'est pas une partie de ce jeu : il ne peut pas être chargé.",
+      "tooNew": "Cette partie a été enregistrée par une version plus récente du jeu : mettez le jeu à jour pour la charger.",
+      "damaged": "Cette sauvegarde est abîmée ({detail}) : elle ne peut pas être chargée. La partie en cours n'a pas été touchée.",
+      "unknownScenario": "Cette partie est celle d'un scénario que cette version du jeu ne connaît pas ({detail}).",
+      "wrongScenario": "Cette partie est celle d'un autre scénario ({detail}) : elle ne peut pas être reprise ici.",
+      "storage": "L'enregistrement a échoué : le stockage de ce navigateur est plein ou fermé. Exportez la partie dans un fichier pour ne pas la perdre.",
+      "missing": "Cette sauvegarde n'existe plus dans ce navigateur : elle a peut-être été effacée."
+    },
     "exportError": "L'export n'a pas pu se faire ici. Le jeu reste enregistré dans ce navigateur."
   },
   "mru": {

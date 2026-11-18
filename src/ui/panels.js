@@ -155,7 +155,7 @@ function renderUnits(app) {
     const where = isFlying(s) ? altitudeText(s.alt) : w.byId.airfield.get(s.airfield).name;
     const level = fatigueOn(w) && s.state !== 'lost' ? fatigueLevel(w, s) : 'fresh';
     const tired = level !== 'fresh' ? ` <span class="fatigue-${level}" title="${escapeHtml(t('sheet.fatigue'))}">${escapeHtml(t(`sheet.fatigueLevels.${level}`))}</span>` : '';
-    const stateText = s.state === 'ready' && fatigueOn(w) && s.alert !== 'available' ? t(`states.alert.${s.alert}`) : t(`states.squadron.${s.state}`);
+    const stateText = s.state === 'ready' && fatigueOn(w) && s.alert !== 'min5' ? t(`states.alert.${s.alert}`) : t(`states.squadron.${s.state}`);
     return `<div class="tote-row${member ? ' member' : ''}${isSel(app, 'squadron', s.id) ? ' sel' : ''}" data-action="select" data-kind="squadron" data-id="${escapeHtml(s.id)}">
       <span class="lamp sq-${s.state}${s.state === 'ready' ? ` alert-${s.alert}` : ''}"></span><span class="name">${escapeHtml(s.name)}</span>
       <span class="state">${escapeHtml(stateText)}</span>
@@ -651,7 +651,7 @@ function squadronRows(app, s, state) {
 /** Altitude, speed, vector, orbit, home: the flying orders of a squadron (or a wing's leader). */
 // ---- shared blocks: time, standing orders, alert states, timetable ----
 
-export const ALERTS = ['rest', 'thirty', 'available', 'cockpit'];
+export const ALERTS = ['rest', 'min30', 'min5', 'cockpit'];
 const DAY_MS = 86400000;
 
 /** "09:30" today, "12 janv. 09:30" another day. */
@@ -747,7 +747,7 @@ export function rosterBlock(app, s, { title = true } = {}) {
   const list = ALERTS.map((a) => ({ value: a, label: t(`orders.alertNames.${a}`) }));
   const parts = [title ? `<div class="sub">${escapeHtml(t('orders.roster'))}</div>` : ''];
   parts.push(`<label class="check roster-mode"><input type="checkbox" id="roster-override-${escapeHtml(s.id)}" data-change="roster-override" data-id="${escapeHtml(s.id)}"${o ? ' checked' : ''}> ${escapeHtml(t('orders.rosterOverride', { n: hours }))}</label>`);
-  const stateSelect = `<select id="roster-alert-${escapeHtml(s.id)}">${options(list, 'available')}</select>`;
+  const stateSelect = `<select id="roster-alert-${escapeHtml(s.id)}">${options(list, 'min5')}</select>`;
   if (o) {
     // From H0, the moment the box was ticked: H0 to H+6 at rest, H+6 to H+9 on alert...
     const mark = (at) => (at === o.from ? 'H0' : `H+${hoursText((at - o.from) / 3600)}`);
@@ -804,7 +804,7 @@ function alertBlock(app, s) {
   // On the ground only: the state now (it holds until « Retour au planning »); the plan has its page.
   if (!fatigueOn(w) || s.role !== 'fighter' || (s.state !== 'ready' && s.state !== 'refuelling')) return '';
   return [
-    alertButtons(app, s, 'squadron', s.alert || 'available'),
+    alertButtons(app, s, 'squadron', s.alert || 'min5'),
     `<p class="hint">${escapeHtml(alertStatus(w, s))}</p>`,
     confirmBox(app, 'squadron', s.id, s.name),
     rosterLinks(app, s),
@@ -1243,10 +1243,10 @@ function formationPanel(app, f) {
  * (flights left aside): [{ from, to, state, recall }].
  */
 function alertSegments(w, s, hours = 24) {
-  const delay = (a) => w.rules.crews.alert[a || 'available'].scrambleS;
+  const delay = (a) => w.rules.crews.alert[a || 'min5'].scrambleS;
   const end = w.t + hours * 3600;
   let eff = effectiveAlert(w, s);
-  let target = s.alert || 'available';
+  let target = s.alert || 'min5';
   let readyAt = s.alertAt !== null && s.alertAt !== undefined && s.alertAt > w.t ? s.alertAt : null;
   const changes = plannedChanges(w, s, end);
   const segs = [];
@@ -1300,7 +1300,7 @@ function rosterTab(app, site) {
   const here = w.squadrons.filter((s) => s.role === 'fighter' && s.state !== 'lost' && (s.airfield === site.id || s.home === site.id));
   if (!here.length) return null;
   const blocks = here.map((s) => `<div class="roster-squadron">
-    <div class="roster-head"><b>${escapeHtml(s.name)}</b> <span>${escapeHtml(t(`states.squadron.${s.state}`))} · ${escapeHtml(t(`orders.alertNames.${s.alert || 'available'}`))}${s.alertManual ? ` · ${escapeHtml(t('orders.manual'))}` : ''}</span></div>
+    <div class="roster-head"><b>${escapeHtml(s.name)}</b> <span>${escapeHtml(t(`states.squadron.${s.state}`))} · ${escapeHtml(t(`orders.alertNames.${s.alert || 'min5'}`))}${s.alertManual ? ` · ${escapeHtml(t('orders.manual'))}` : ''}</span></div>
     ${timelineHtml(w, s)}</div>`);
   const legend = ALERTS.map((a) => `<span class="legend"><span class="seg alert-${a}"></span>${escapeHtml(t(`orders.alertNames.${a}`))}</span>`).join('');
   return `<div class="orders roster-tab">${rosterLinks(app, null, site.id)}<div class="legend-line">${legend}</div>${blocks.join('')}</div>`;

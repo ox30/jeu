@@ -79,7 +79,7 @@ export function renderRosterPage(app, force = false) {
     return `<section class="roster-squadron orders${s.id === st.squadronId ? ' focus' : ''}" id="rp-${escapeHtml(s.id)}">
       <div class="roster-head"><b>${escapeHtml(s.name)}</b> <span>${escapeHtml(t(`states.squadron.${s.state}`))}</span></div>
       ${timelineHtml(w, s)}
-      ${grounded ? `${alertButtons(app, s, 'squadron', s.alert || 'available')}${confirmBox(app, 'squadron', s.id, s.name)}` : ''}
+      ${grounded ? `${alertButtons(app, s, 'squadron', s.alert || 'min5')}${confirmBox(app, 'squadron', s.id, s.name)}` : ''}
       <p class="hint">${escapeHtml(alertStatus(w, s))}</p>
       ${s.alertManual ? `<div class="order-line">${button('roster-resume', t('orders.rosterResume'), { id: s.id, kind: 'squadron' })}</div>` : ''}
       ${rosterBlock(app, s, { title: true })}

@@ -9,7 +9,7 @@ import { emit } from './events.js';
 // get them back), available (30 min), at readiness (5 min), in the cockpit (2 min). The delay
 // of a state is the time it takes to be in the air from it; raising the readiness takes the
 // difference (from rest to readiness: 1 h 55), lowering it is immediate.
-export const ALERT_STATES = ['rest', 'thirty', 'available', 'cockpit'];
+export const ALERT_STATES = ['rest', 'min30', 'min5', 'cockpit'];
 
 export function fatigueOn(world) {
   return world.settings.fatigue === 'on' || world.settings.fatigue === 'losses';
@@ -46,13 +46,13 @@ export function fatigueLevel(world, s) {
 }
 
 function alertDelay(world, state) {
-  return world.rules.crews.alert[state || 'available'].scrambleS;
+  return world.rules.crews.alert[state || 'min5'].scrambleS;
 }
 
 /** The alert state the squadron is really at now: until a recall is over, the one before. */
 export function effectiveAlert(world, s) {
   if (s.alertAt !== null && s.alertAt !== undefined && world.t < s.alertAt) return s.alertFrom || 'rest';
-  return s.alert || 'available';
+  return s.alert || 'min5';
 }
 
 /** Seconds from now until the squadron can be in the air (a recall under way included). */

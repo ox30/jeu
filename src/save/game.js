@@ -7,14 +7,16 @@ import { bringToSea } from '../sim/uboatnav.js';
 import { normalizeRoster } from '../sim/roster.js';
 import { fillMissingFields } from '../sim/entities.js';
 import { LONG_AGO } from '../sim/naval.js';
+import { SNAP_VERSION, SaveError, migrate, validate } from './migrate.js';
 
-const VERSION = 1;
+const VERSION = SNAP_VERSION;
 const KEY = 'jeu-1940.game.v1';
 const SITE_FIELDS = ['damage', 'attacks', 'wasOut', 'stocks', 'minStock', 'progress', 'starved', 'dryHours', 'lowWarned'];
 const LISTS = ['convoys', 'escorts', 'uboats', 'squadrons', 'raids', 'dfZones', 'dfPending', 'uboatPlots', 'ferries'];
 const VALUES = ['t', 'nextPlotId', 'nextTrainId', 'stats', 'objectives', 'allDone', 'ended', 'outcome', 'defeatReason',
   'dryHours', 'pilots', 'firedEvents', 'mru', 'flags', 'currency', 'shipping', 'convoyRaidState', 'scheduled', 'formations', 'nextFormationId',
-  'questions', 'nextQuestionId', 'asked', 'nextTimetableId', 'navalReports', 'nextNavalReportId', 'bdu', 'carry', 'fightersAtStart', 'watch', 'signals', 'nextSignalId'];
+  'questions', 'nextQuestionId', 'asked', 'nextTimetableId', 'navalReports', 'nextNavalReportId', 'bdu', 'carry', 'fightersAtStart', 'watch', 'signals', 'nextSignalId',
+  'settings', 'presetStart'];
 
 // Fields added after a save was made: a game saved by an earlier version gets them on restore.
 const SQUADRON_DEFAULTS = () => ({
@@ -88,8 +90,13 @@ export function snapshot(world) {
  * Puts a snapshot back onto `world`, built from the same scenario. `addMobileRadar(world,
  * def)` rebuilds the mobile stations deployed during the game.
  */
-export function restore(world, snap, addMobileRadar = null) {
-  if (!snap || snap.version !== VERSION || snap.scenario !== world.scenario.id) throw new Error('save: wrong game');
+export function restore(world, saved, addMobileRadar = null) {
+  // Brought to the current format (a game of 2.6 to 2.8 is format 1), then looked over: a
+  // damaged snapshot is refused before the world is touched.
+  const snap = migrate(saved);
+  const problem = validate(snap);
+  if (problem) throw problem;
+  if (snap.scenario !== world.scenario.id) throw new SaveError('wrongScenario', snap.scenario);
   // The squadrons a new game of this scenario begins with (the others arrived as reliefs).
   const initialSquadrons = new Set(world.squadrons.map((s) => s.id));
   world.rng.setState(snap.rng);

@@ -368,6 +368,16 @@ export function updateComms(world, first, relief) {
   for (const s of radio) deliver(world, s, 'radio');
 }
 
+/**
+ * Communications are direct again (the setting of the game was changed): every order waiting
+ * for a relief or for a group is passed at once, by radio.
+ */
+export function flushSignals(world) {
+  const waiting = world.signals || [];
+  world.signals = [];
+  for (const s of waiting) deliver(world, s, 'radio');
+}
+
 export function createComms(world) {
   world.signals = [];
   world.nextSignalId = 1;

@@ -36,6 +36,7 @@ import { createBdu, updateBdu } from './bdu.js';
 import { createMru, updateMru } from './mru.js';
 import { createSchedule, updateSchedule } from './schedule.js';
 import { createShipping, updateShipping } from './shipping.js';
+import { copyGameSettings } from './gameSettings.js';
 
 function placed(item) {
   const [x, y] = project(item.lon, item.lat);
@@ -63,7 +64,10 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
     startMs,
     endS: (parseGameDate(scenario.end) - startMs) / 1000,
     rules,
-    settings,
+    // The game's own copy: the player's settings can change afterwards without touching it
+    // (gameSettings.js). The preset it begins with is kept for the end of the game.
+    settings: copyGameSettings(settings),
+    presetStart: (settings && settings.preset) ?? 'custom',
     terrain,
     rng: createRandom(scenario.seed ?? 1),
     scenario,

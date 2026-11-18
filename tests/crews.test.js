@@ -11,7 +11,7 @@ test('alert states: two hours from rest; raising the readiness takes the differe
   setAlert(world, sq, 'rest');
   assert.equal(sq.alertAt, null, 'standing down is immediate');
   assert.equal(scrambleSeconds(world, sq), 7200, 'two hours to the air from rest');
-  setAlert(world, sq, 'available');
+  setAlert(world, sq, 'min5');
   assert.equal(sq.alertAt, world.t + 6900, 'the recall takes 1 h 55');
   assert.equal(effectiveAlert(world, sq), 'rest');
   assert.equal(scrambleSeconds(world, sq), 7200, 'still two hours to the air');
@@ -19,11 +19,11 @@ test('alert states: two hours from rest; raising the readiness takes the differe
   assert.equal(scrambleSeconds(world, sq), 3600);
   const ev = run(world, 3360);
   assert.ok(ev.some((e) => e.type === 'alertReached'), 'the player is told the recall is over');
-  assert.equal(effectiveAlert(world, sq), 'available');
+  assert.equal(effectiveAlert(world, sq), 'min5');
   assert.equal(scramble(world, sq, { vector: 90 }), true);
   assert.ok(sq.timer >= 300, 'five minutes at readiness');
   const other = world.squadrons.find((s) => s.id === '74');
-  setAlert(world, other, 'thirty');
+  setAlert(world, other, 'min30');
   assert.equal(scrambleSeconds(world, other), 1800, 'thirty minutes when available');
   setAlert(world, other, 'cockpit');
   assert.equal(scrambleSeconds(world, other), 1800, 'into the cockpits: not faster than the thirty minutes');

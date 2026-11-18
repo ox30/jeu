@@ -354,11 +354,11 @@
         "scrambleS": 7200,
         "fatiguePerHour": -8
       },
-      "thirty": {
+      "min30": {
         "scrambleS": 1800,
         "fatiguePerHour": -5
       },
-      "available": {
+      "min5": {
         "scrambleS": 300,
         "fatiguePerHour": -2
       },
