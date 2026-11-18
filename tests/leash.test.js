@@ -103,3 +103,26 @@ test('unseen, the boat is not made to dive', () => {
   assert.equal(e.state, 'escorting');
   assert.ok(!isSubmerged(w, u), 'nobody saw it');
 });
+
+test('on its way back to a convoy far ahead, a group told to stay reports a contact and sails on', () => {
+  const w = seaWorld();
+  const { c, e, u } = convoyGroupBoat(w, { km: 14, behaviour: 'stay' });
+  // The group is forty kilometres astern of its convoy, rejoining; the boat lies on its way.
+  const [hx, hy] = headingVector(c.heading);
+  Object.assign(e, { state: 'atSea', escorting: null, joinTarget: c.id, x: c.x - hx * 40, y: c.y - hy * 40 });
+  Object.assign(u, { state: 'patrol', target: null, x: e.x + 1, y: e.y, submergedUntil: w.t + 7200, wx: e.x + 1, wy: e.y, hx: e.x + 1, hy: e.y });
+  w.rules.asw.pAsdic = 1;
+  const events = run(w, 600);
+  assert.ok(events.some((ev) => ev.type === 'uboatSighted' && ev.byId === e.id), 'the ASDIC has it');
+  assert.ok(!events.some((ev) => ev.type === 'escortEngaged'), 'no attack it would have to break off at once');
+  assert.equal(w.navalReports.length, 0, 'and no engagement report for nothing');
+  assert.notEqual(e.state, 'hunting');
+  // A group on its own (no convoy to go back to) attacks what it finds.
+  const w2 = seaWorld();
+  const alone = convoyGroupBoat(w2, { km: 14, behaviour: 'stay' });
+  Object.assign(alone.e, { state: 'atSea', escorting: null, joinTarget: null, x: alone.c.x - 300, y: alone.c.y });
+  Object.assign(alone.u, { state: 'patrol', target: null, x: alone.e.x + 1, y: alone.e.y, submergedUntil: w2.t + 7200, wx: alone.e.x + 1, wy: alone.e.y, hx: alone.e.x + 1, hy: alone.e.y });
+  w2.rules.asw.pAsdic = 1;
+  const events2 = run(w2, 600, (ev) => ev.type === 'escortEngaged');
+  assert.ok(events2.some((ev) => ev.type === 'escortEngaged' && ev.escortId === alone.e.id), 'it attacks');
+});

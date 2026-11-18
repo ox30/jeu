@@ -270,6 +270,12 @@ export function willCounter(world, e, u, c) {
   return distance(u.x, u.y, c.x + hx * run, c.y + hy * run) <= E.stayMaxKm;
 }
 
+/** The convoy a group is with, is joining, or left for a hunt (null: on its own). */
+function convoyOf(world, e) {
+  const id = e.escorting || e.joinTarget || e.huntFor;
+  return id ? world.convoys.find((c) => c.id === id) || null : null;
+}
+
 /** A U-boat hit and on its way home is out of the fight: the groups let it go. */
 function brokenOff(u) {
   return Boolean(u.damaged && u.state === 'leaving');
@@ -480,7 +486,9 @@ export function updateAsw(world) {
       seeUboat(world, u, { by: e.name, byId: e.id, kind: 'escort', how: seen.source });
       dive(world, u, A.diveHours);
       const fair = !brokenOff(u); // a boat hit and going home is let go
-      const attack = fair && !e.engage && distance(e.x, e.y, u.x, u.y) <= A.counterKm;
+      // Close enough to attack; a group told to stay does so only within reach of its convoy
+      // (on its way back to it, it reports the contact and sails on).
+      const attack = fair && !e.engage && distance(e.x, e.y, u.x, u.y) <= A.counterKm && willCounter(world, e, u, convoyOf(world, e));
       if (!held) {
         u.asdicReportAt = world.t;
         emit(world, 'uboatSighted', {

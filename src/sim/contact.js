@@ -10,14 +10,16 @@ import { emit } from './events.js';
 import { isActive } from './raid.js';
 import { isPatrol, sightKm } from './patrols.js';
 import { isDaylight } from './daylight.js';
-import { isSubmerged } from './asw.js';
+import { isDeep, isSubmerged } from './asw.js';
+import { WATCHING } from './sight.js';
 
 function flying(s) {
   return (s.state === 'airborne' || s.state === 'returning' || s.state === 'combat') && s.aircraft > 0;
 }
 
+/** A group that looks around: the same states as for sighting (waiting for orders included). */
 function atSea(e) {
-  return e.state === 'escorting' || e.state === 'atSea' || e.state === 'hunting' || e.state === 'returning';
+  return WATCHING.includes(e.state);
 }
 
 /** The player's unit that sees raid `r` now, or null (the one already watching is kept a little longer). */
@@ -83,7 +85,8 @@ function uboatHeld(world, u, obs) {
     const e = world.escorts.find((x) => x.id === obs.byId);
     if (!e || !atSea(e)) return false;
     const d = distance(e.x, e.y, u.x, u.y);
-    if (d <= A.asdicKm * k) return true;
+    // The ASDIC holds what is under it, except a boat gone deep and silent to shake it off.
+    if (d <= A.asdicKm * k && !isDeep(world, u)) return true;
     if (under) return false;
     if (d <= (day ? A.lookoutDayKm : A.lookoutNightKm) * k) return true;
     const radar = e.radar ? A.radar : null;
@@ -106,7 +109,7 @@ function uboatHandover(world, u) {
   const A = world.rules.asw;
   for (const e of world.escorts) {
     if (!atSea(e)) continue;
-    if (distance(e.x, e.y, u.x, u.y) <= A.asdicKm) return { by: e.name, byId: e.id, kind: 'escort', how: 'asdic' };
+    if (!isDeep(world, u) && distance(e.x, e.y, u.x, u.y) <= A.asdicKm) return { by: e.name, byId: e.id, kind: 'escort', how: 'asdic' };
   }
   return null;
 }
