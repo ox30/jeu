@@ -25,6 +25,7 @@ import { drawDevLayer } from './devLayer.js';
 import { formationById, leaderOf } from '../sim/formations.js';
 import { rallyPoint } from '../sim/rally.js';
 import { allViewZones } from '../sim/sight.js';
+import { drawNight } from './night.js';
 
 const DEG = Math.PI / 180;
 
@@ -1911,6 +1912,7 @@ export function drawScene(ctx, app, alpha) {
   app.plaqueBoxes = symbolObstacles(app, alpha);
   drawMap(ctx, cam, dpr, app.mapRenderer);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (app.settings.nightShadow !== false) drawNight(ctx, cam, app);
   if (app.settings.grid) drawGrid(ctx, cam, app.world.grid);
   if (app.settings.radarCover && cam.scale > 0.35) drawCoverage(ctx, cam, app.world);
   drawRail(ctx, cam, app);

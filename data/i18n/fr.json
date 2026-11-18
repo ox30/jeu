@@ -462,6 +462,7 @@
       "realistic": "Seuil de retour et déroutement"
     },
     "autoZoom": "Zoom automatique sur l'Angleterre à l'alerte",
+    "nightShadow": "Ombre de la nuit sur la carte : là où le soleil est couché, la table s'assombrit (patrouilles, guetteurs et U-Boote suivent la même nuit)",
     "slowOnAlert": "Ralentir le temps à chaque alerte (raid, convoi attaqué, base à sec…)",
     "sound": "Sons (alerte, radio, combats)",
     "note": "Les réglages s'appliquent tout de suite et restent enregistrés dans ce navigateur.",
@@ -976,7 +977,7 @@
       ],
       "hiver-atlantique": [
         "Hiver 1941, du 10 janvier au 31 mars. Les convois HX (Halifax, tous les cinq jours) et SC (Sydney, tous les huit jours, plus lents) partent seuls sur la route de l'Amirauté. Changez-la pour contourner les U-Boote repérés ; mais le commandement allemand apprend où passent vos convois, et une route trop au sud est vite guettée à son tour, sous les Condor de Bordeaux.",
-        "Envoyez un groupe d'escorte au-devant de chaque convoi qui approche : vos groupes ont sept ou huit jours d'autonomie et rentrent se ravitailler. « Chasser » laisse l'escorte poursuivre un contact frais le temps choisi ; « Rester » la garde serrée autour du convoi. « Appareiller » sort le groupe en rade, au large de son port (ou au bout du chenal choisi) : tracez ensuite sa route, ou cliquez « Rejoindre » un convoi. Les nuits d'hiver sont longues : c'est alors que les meutes attaquent. Réglages, onglet Carte et fiche : les zones de vue montrent ce que voient vos navires et vos avions.",
+        "Envoyez un groupe d'escorte au-devant de chaque convoi qui approche : vos groupes ont sept ou huit jours d'autonomie et rentrent se ravitailler. « Chasser » laisse l'escorte poursuivre un contact frais le temps choisi ; « Rester » la garde serrée autour du convoi. « Appareiller » sort le groupe en rade, au large de son port (ou au bout du chenal choisi) : tracez ensuite sa route, ou cliquez « Rejoindre » un convoi. Les nuits d'hiver sont longues (seize heures en janvier, onze fin mars) : c'est alors que les meutes attaquent, chacune à son heure. L'ombre sur la carte montre où il fait nuit ; elle avance d'est en ouest. Réglages, onglet Carte et fiche : les zones de vue montrent ce que voient vos navires et vos avions.",
         "Le Coastal Command patrouille de jour au-dessus des convois et oblige les U-Boote à plonger ; le radar ASV des Hudson et des Sunderland voit aussi un sous-marin en surface. Un U-Boot vu lève l'alerte « U-Boot en vue » et ramène le jeu à ×1. Les deux cercles d'un repère U-Boot montrent où il peut être, en surface et en plongée.",
         "Onglet Logistique : la réserve de dollars paie la cargaison des convois. Réglez la part achetée, ou commandez des Hudson ou des Catalina en Amérique. Après le prêt-bail, tout est gratuit. Victoire si 6 800 t de carburant et 4 400 t de matériel sont déchargées et si moins de 8 % des navires sont perdus ; défaite si les pertes dépassent 20 %."
       ]

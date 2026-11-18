@@ -83,6 +83,7 @@ export function openSettings(app) {
       <fieldset>
         ${checkbox('altitudeStalks', s.altitudeStalks, t('settings.altitudeStalks'))}
         ${app.world.grid ? checkbox('grid', s.grid, t('settings.grid')) : ''}
+        ${checkbox('nightShadow', s.nightShadow !== false, t('settings.nightShadow'))}
         ${checkbox('autoZoom', s.autoZoom, t('settings.autoZoom'))}
         ${checkbox('lowRes', s.lowRes, t('settings.lowRes'))}
         <label>${escapeHtml(t('settings.sheetPos'))} ${select('sheetPos', s.sheetPos || 'right', presets.choices.sheetPos, 'settings.sheetPosChoices')}</label>
