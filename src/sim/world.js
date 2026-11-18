@@ -13,6 +13,8 @@ import { checkEngagements, checkMisses, updateCombat } from './combat.js';
 import { checkAlerts, updateDetection } from './detection.js';
 import { updateContacts } from './contact.js';
 import { createFormations, updateFormations } from './formations.js';
+import { prepareSeaRoutes } from './searoute.js';
+import { closedRaster } from './uboatnav.js';
 import { createQuestions, updateQuestions } from './engagement.js';
 import { createTimetable, updateTimetable } from './timetable.js';
 import { updateRallies } from './rally.js';
@@ -139,6 +141,9 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
   createSchedule(world);
   createShipping(world);
   createFormations(world);
+  // The rasters of the sea routes are built now rather than at the first route of the game.
+  prepareSeaRoutes(world);
+  if (world.uboats.length || (scenario.events || []).some((e) => (e.effects || []).some((fx) => fx.type === 'uboats'))) closedRaster(world);
   createQuestions(world);
   createTimetable(world);
   world.navalReports = []; // depth-charge attacks, one report each (asw.js)

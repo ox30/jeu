@@ -6,7 +6,7 @@
 // out on the grid of sea cells (searoute.js), keeping out of the closed waters.
 
 import { bearing, distance, project, scaleX } from './geo.js';
-import { seaPath } from './searoute.js';
+import { seaPath, seaRaster } from './searoute.js';
 
 const CACHE = new WeakMap(); // the rules' list → its polygons on the plane
 
@@ -77,10 +77,24 @@ function clearOfClosed(world, a, b) {
  */
 export function uboatPath(world, from, to) {
   const avoid = inClosedWaters(world, from[0], from[1]) ? null : {
-    cell: (x, y) => inClosedWaters(world, x, y),
     clear: (a, b) => clearOfClosed(world, a, b),
+    raster: closedRaster(world),
   };
   return seaPath(world, from, to, 0, avoid);
+}
+
+const RASTERS = new WeakMap(); // the rules' list → the closed waters as a raster of sea cells
+
+/** The closed waters cell by cell, for the path search (worked out once). */
+export function closedRaster(world) {
+  const list = (world.rules.uboats && world.rules.uboats.closedWaters) || [];
+  let known = RASTERS.get(list);
+  if (!known || known.terrain !== world.terrain) {
+    const waters = closedWaters(world);
+    known = { terrain: world.terrain, raster: seaRaster(world.terrain, (x, y) => inClosedWaters(world, x, y), waters.map((w) => w.box)) };
+    RASTERS.set(list, known);
+  }
+  return known.raster;
 }
 
 /**

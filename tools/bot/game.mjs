@@ -22,6 +22,7 @@ import * as saveMod from '../../src/save/game.js';
 import * as alertRulesMod from '../../src/ui/alertRules.js';
 import * as campaignMod from '../../src/ui/campaign.js';
 import * as i18nMod from '../../src/core/i18n.js';
+import * as searouteMod from '../../src/sim/searoute.js';
 
 export const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const read = (p) => JSON.parse(readFileSync(ROOT + p, 'utf8'));
@@ -102,7 +103,11 @@ export function makeWorld(scenarioId, { preset = 'standard', overrides = {}, see
     r = structuredClone(data.rules);
     for (const [k, v] of Object.entries(rules)) r[k] = v && typeof v === 'object' && !Array.isArray(v) ? { ...r[k], ...v } : v;
   }
-  return worldMod.createWorld({ scenario, rules: r, settings: settingsFor(preset, overrides), terrain: getTerrain(), carry });
+  const world = worldMod.createWorld({ scenario, rules: r, settings: settingsFor(preset, overrides), terrain: getTerrain(), carry });
+  // As the page does in its first seconds, before anyone plays: the distance by sea to each
+  // port, worked out ahead (they are kept with the coastlines; the game's results do not change).
+  if (searouteMod.warmPortField) while (searouteMod.warmPortField(world));
+  return world;
 }
 
 /** The game's date and time, for logs: "1941-01-14 02:10". */
