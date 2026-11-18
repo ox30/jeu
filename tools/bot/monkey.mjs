@@ -168,7 +168,11 @@ function check(w, label, problems) {
  * Plays games of a scenario until `orders` random orders have been given (a game that ends
  * early is followed by another one). Returns { orders, games, restores, problems }.
  */
-export function runMonkey({ scenario, preset = 'standard', seed = 1, orders = 10000, maxProblems = 5 } = {}) {
+/**
+ * `orders` random orders spread over the scenario (over its first `days` days when given: a
+ * shorter run for the everyday tests), with saves and restores. Returns the problems found.
+ */
+export function runMonkey({ scenario, preset = 'standard', seed = 1, orders = 10000, maxProblems = 5, days = null } = {}) {
   const rnd = randomSource(seed);
   const problems = [];
   let given = 0;
@@ -179,10 +183,11 @@ export function runMonkey({ scenario, preset = 'standard', seed = 1, orders = 10
     let w = makeWorld(scenario, { preset, seed: seed * 1000 + games });
     games++;
     const kit = buildActions(rnd, w);
-    const every = Math.max(1, Math.floor(w.endS / orders));
-    const saveEvery = Math.max(1800, Math.round(w.endS / 40));
+    const length = days ? Math.min(w.endS, days * 86400) : w.endS;
+    const every = Math.max(1, Math.floor(length / orders));
+    const saveEvery = Math.max(1800, Math.round(length / 40));
     try {
-      while (!w.ended && given < orders) {
+      while (!w.ended && given < orders && w.t < length) {
         sim.world.step(w, 1);
         w.events.length = 0;
         if (w.t % every === 0) {
