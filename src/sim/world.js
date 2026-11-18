@@ -15,6 +15,7 @@ import { updateContacts } from './contact.js';
 import { createFormations, updateFormations } from './formations.js';
 import { prepareSeaRoutes } from './searoute.js';
 import { closedRaster } from './uboatnav.js';
+import { createWatch, noteWatch, updateWatch } from './watch.js';
 import { createQuestions, updateQuestions } from './engagement.js';
 import { createTimetable, updateTimetable } from './timetable.js';
 import { updateRallies } from './rally.js';
@@ -154,6 +155,7 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
   }
   createQuestions(world);
   createTimetable(world);
+  createWatch(world);
   world.navalReports = []; // depth-charge attacks, one report each (asw.js)
   world.nextNavalReportId = 1;
   world.raids = [
@@ -239,6 +241,9 @@ export function step(world, dt = 1) {
   checkAlerts(world);
   checkObjectives(world);
   recordReports(world, first);
+  // The sea at the rhythm of the watches: what happened is noted, the relief writes its report.
+  noteWatch(world, first);
+  updateWatch(world);
   if (world.t % minute === 0) {
     const reason = checkDefeat(world);
     if (reason) {

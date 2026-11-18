@@ -302,6 +302,11 @@
       { "name": "Canal de Bristol", "area": [[-4.53, 51.02], [-4.95, 51.58], [-4.0, 51.75], [-2.6, 51.6], [-3.0, 51.05]] }
     ]
   },
+  "watches": {
+    "note": "La mer au rythme des quarts (scénario : seaRhythm « watches ») : six relèves par jour, à 0, 4, 8, 12, 16 et 20 h. Un repère U-Boot compte comme une décision quand il est à moins de plotKm de la route d'un convoi dans les routeAheadH heures ; un relèvement radio, quand sa zone coupe cette route.",
+    "routeAheadH": 24,
+    "plotKm": 50
+  },
   "escortGroups": {
     "joinKm": 15,
     "refitHours": 24,
