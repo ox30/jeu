@@ -575,7 +575,9 @@ async function watches(page, errors) {
     await game(page, async () => {
       const a = window.__game;
       const actions = await import('./src/ui/actions.js');
-      actions.select(a, 'escort', a.world.escorts[0].id);
+      // A group that is not refitting: in refit the sheet has no orders against the U-boats.
+      const group = a.world.escorts.find((e) => e.state !== 'refit') || a.world.escorts[0];
+      actions.select(a, 'escort', group.id);
       a.dirtyPanels = true;
     });
     await sleep(500);

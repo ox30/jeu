@@ -80,6 +80,41 @@ function buildActions(rnd, world) {
     leaveConvoy: () => { const e = pick(w.escorts); if (e) O.leaveConvoy(w, e); },
     setEscortBehaviour: () => { const e = pick(w.escorts); if (e) O.setEscortBehaviour(w, e, pick(['stay', 'hunt'])); },
     setEscortPattern: () => { const e = pick(w.escorts); if (e && O.setEscortPattern) O.setEscortPattern(w, e, pick(['full', 'light', 'none'])); },
+    // The orders of the sea as the interface sends them (2.8): at once, by lamp, by radio at
+    // the next relief or carried by a group, with what goes with them.
+    seaOrder: () => {
+      const C = sim.comms;
+      const u = pick(ships());
+      if (!C || !u) return;
+      const convoy = pick(w.convoys);
+      const port = pick(w.ports);
+      const args = {
+        route: [[near(u, 300), near(u, 600)]],
+        editRoute: [[near(u, 200), near(u, 500)]],
+        addLeg: [{ heading: rnd() * 360, end: legEnd() }],
+        updateLeg: [0, { heading: rnd() * 360, end: legEnd() }],
+        removeLeg: [0],
+        clearPlan: [],
+        speedPct: [rnd() * 130],
+        boost: [rnd() < 0.5],
+        convoySpeed: [rnd() * 14],
+        zigzag: [rnd() < 0.5],
+        join: [convoy ? convoy.id : 'none'],
+        leave: [],
+        home: [rnd() < 0.5 || !port ? null : port.id],
+        behaviour: [pick(['stay', 'hunt'])],
+        pattern: [pick(['full', 'light'])],
+        huntPlot: [pick(w.uboatPlots)?.id ?? 'none'],
+        huntStop: [],
+        endAction: [pick([{ kind: 'stop' }, { kind: 'hold' }, { kind: 'hunt' }, { kind: 'port', id: port ? port.id : null }])],
+        position: [],
+      };
+      const name = pick(C.ORDER_NAMES);
+      C.sendOrder(w, u, name, ...(args[name] || []));
+    },
+    commsCancel: () => { const C = sim.comms; const s = pick(w.signals || []); if (C && s) C.cancelOrder(w, s.id); },
+    commsCarry: () => { const C = sim.comms; const s = pick(w.signals || []); const e = pick(w.escorts); if (C && s && e) C.carryByShip(w, s.id, e.id); },
+    askPosition: () => { const C = sim.comms; const u = pick(ships()); if (C && u) C.requestPosition(w, u); },
     huntPlot: () => { const e = pick(w.escorts); const p = pick(w.uboatPlots); if (e && p) O.huntPlot(w, e, p.id); },
     stopHunt: () => { const e = pick(w.escorts); if (e) asw.stopHunt(w, e); },
     escortHome: () => { const e = pick(w.escorts); if (e) O.escortHome(w, e, rnd() < 0.5 ? null : (pick(w.ports) || {}).id); },

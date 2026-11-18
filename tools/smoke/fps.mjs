@@ -71,14 +71,19 @@ async function measure(label, speed) {
       const tick = (now) => {
         frames.push(now - last);
         last = now;
-        // Stops and questions would hold the clock: the measure keeps it running.
-        if (a.paused && !a.world.ended) a.paused = false;
+        // Stops and questions would hold the clock: the measure keeps it running, and closes
+        // the page a watch report opens at a relief (it would also cover the map).
+        if (a.paused && !a.world.ended) {
+          document.querySelectorAll('dialog[open]').forEach((d) => d.close());
+          a.paused = false;
+        }
         if (now - start < seconds * 1000) requestAnimationFrame(tick);
         else done();
       };
       requestAnimationFrame(tick);
     });
     a.paused = true;
+    document.querySelectorAll('dialog[open]').forEach((d) => d.close());
     frames.shift();
     frames.sort((x, y) => x - y);
     const sum = frames.reduce((x, y) => x + y, 0);
