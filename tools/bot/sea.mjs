@@ -13,6 +13,7 @@ export const SEA_DEFAULTS = {
   seed: null,
   overrides: {},
   rules: null,
+  withWorld: false, // the result carries the world too, for a closer look at a game
   idle: false, // give no order at all
   escort: true, // send escort groups
   groups: 1, // groups per convoy
@@ -145,6 +146,7 @@ export function runSea(cfg = {}) {
   if (c.returnWorld) return w;
   const losses = sim.objectives.shipLosses(w);
   return {
+    ...(c.withWorld ? { world: w } : {}), // for a closer look at a game (not for the report)
     cfg: c,
     outcome: w.outcome,
     reason: w.defeatReason || null,
