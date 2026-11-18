@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { data, getTerrain, makeKanalkampf, makeWorld, run } from './helpers.js';
 import { createWorld } from '../src/sim/world.js';
 import { project } from '../src/sim/geo.js';
-import { canHunt, engage, huntReserve, isSubmerged, patternOf } from '../src/sim/asw.js';
+import { canHunt, engage, huntReserve, isDeep, isSubmerged, patternOf } from '../src/sim/asw.js';
 import { escortHome, huntPlot, setEscortBehaviour, setEscortPattern } from '../src/sim/orders.js';
 import { restore, snapshot } from '../src/save/game.js';
 
@@ -150,6 +150,53 @@ test('contact lost: a search where it was held, then the hunt is over', () => {
   const over = events.find((ev) => ev.type === 'escortHuntOver');
   assert.ok(over && over.why === 'lost');
   assert.ok(w.t - t0 <= S + 300, 'not the three hours of before');
+});
+
+test('a boat that shook off the hunt has gone deep: the search over it finds nothing', () => {
+  // The contact is lost at the first pass and never found again (pRegain 0), although the
+  // boat stays right under the group, where the ASDIC would hold it at once.
+  const w = loadedWorld({ pKillPerShip: 0, pDamagePerShip: 0, pLoseBase: 1, pLosePerShip: 0, pLoseMin: 1, pRegain: 0 }, { pAsdic: 1 });
+  const { e, u } = groupAndBoat(w);
+  setEscortBehaviour(w, e, 'hunt');
+  engage(w, e, u, 'asdic');
+  const t0 = w.t;
+  const first = holdBoat(w, e, u, 120, (evs) => evs.some((ev) => ev.type === 'depthChargePass'));
+  assert.equal(first.find((ev) => ev.type === 'depthChargePass').result, 'lost');
+  assert.ok(isDeep(w, u), 'deep and silent');
+  assert.ok(isSubmerged(w, u), 'and under water for as long');
+  const S = w.rules.asw.engagement.searchS;
+  const events = holdBoat(w, e, u, S + 300, (evs) => evs.some((ev) => ev.type === 'escortHuntOver'));
+  assert.equal(events.filter((ev) => ev.type === 'escortEngaged').length, 0, 'never held again');
+  assert.equal(events.filter((ev) => ev.type === 'depthChargePass').length, 0, 'no charge thrown at nothing');
+  const over = events.find((ev) => ev.type === 'escortHuntOver');
+  assert.ok(over && over.why === 'lost' && !over.sank);
+  assert.ok(w.t - t0 >= S && w.t - t0 <= S + 300, 'the time of the search, no more');
+  assert.equal(u.state !== 'sunk' && !u.damaged, true, 'the boat got away unhurt');
+});
+
+test('a lost contact is sometimes found again during the search, and the attack goes on', () => {
+  // Lost at each pass, found again each time (pRegain 1) a quarter of an hour later.
+  const w = loadedWorld({ pKillPerShip: 0, pDamagePerShip: 0, pLoseBase: 1, pLosePerShip: 0, pLoseMin: 1, pRegain: 1 }, { pAsdic: 1 });
+  const { e, u } = groupAndBoat(w);
+  setEscortBehaviour(w, e, 'hunt');
+  engage(w, e, u, 'asdic');
+  const E = w.rules.asw.engagement;
+  const first = holdBoat(w, e, u, 120, (evs) => evs.some((ev) => ev.type === 'depthChargePass'));
+  assert.equal(first.find((ev) => ev.type === 'depthChargePass').result, 'lost');
+  const lostAt = w.t;
+  assert.ok(isDeep(w, u));
+  const events = holdBoat(w, e, u, E.searchS, (evs) => evs.some((ev) => ev.type === 'escortEngaged'));
+  const again = events.find((ev) => ev.type === 'escortEngaged');
+  assert.ok(again, 'held again');
+  assert.equal(again.how, 'asdic');
+  assert.ok(w.t - lostAt >= E.regainS - 60 && w.t - lostAt <= E.regainS + 180, `after about ${E.regainS / 60} minutes, not at once`);
+  assert.ok(w.t - lostAt < E.searchS, 'within the search');
+  assert.equal(e.state, 'hunting');
+  assert.ok(!events.some((ev) => ev.type === 'escortHuntOver'), 'the hunt was not over');
+  // The chance is one of the rules, between never and always.
+  const p = data.rules.asw.engagement.pRegain;
+  assert.ok(p > 0 && p < 1, `pRegain ${p}`);
+  assert.ok(data.rules.asw.engagement.regainS < data.rules.asw.engagement.searchS);
 });
 
 test('racks empty: dry passes keep the U-boat down and can neither sink nor damage it', () => {

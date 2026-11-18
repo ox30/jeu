@@ -7,7 +7,7 @@ import { clearAtSea, fieldJoin, seaKmToPort, seaPath } from './searoute.js';
 import { emit } from './events.js';
 import { solveIntercept } from './intercept.js';
 import { acceptingPorts, currentSpeed, stepShip } from './convoy.js';
-import { canHunt, dive, endHunt, engage, isSubmerged, rearm, spotAttacker, startHunt, stepHunt } from './asw.js';
+import { canHunt, dive, endHunt, engage, isSubmerged, rearm, spotAttacker, startHunt, stepHunt, willCounter } from './asw.js';
 import { callBoats, noteConvoy } from './bdu.js';
 import { inClosedWaters, moveTo, openForUboat, steerUboat, uboatSpot } from './uboatnav.js';
 import { completeEntity, declareFields } from './entities.js';
@@ -543,6 +543,7 @@ export function createUboat(world, def) {
     wy: y,
     state: 'patrol', // patrol | closing | shadow | leaving | gone | sunk
     submergedUntil: 0,
+    deepUntil: 0, // gone deep after shaking off a hunt: no ASDIC holds it until then
     target: null,
     torpedoes: def.torpedoes ?? 3,
     torpedoesFull: def.torpedoes ?? 3,
@@ -577,15 +578,17 @@ function attack(world, u, c) {
   emit(world, 'uboatAttack', { convoy: c.name, convoyId: c.id, sunk: n, escorts, x: c.x, y: c.y });
   if (n) sinkShips(world, c, n, 'uboat');
   if (escorts > 0) {
-    // Seen (the flash, the torpedo tracks): the nearest group goes for it with depth charges.
+    // Seen (the flash, the torpedo tracks): the nearest group that can get at it goes for it
+    // with depth charges. Out of reach of groups told to stay, it is only made to dive.
     if (spotAttacker(world, u, c)) {
       const group = world.escorts
-        .filter((e) => e.state === 'escorting' && e.escorting === c.id && !e.engage)
+        .filter((e) => e.state === 'escorting' && e.escorting === c.id && !e.engage && willCounter(world, e, u, c))
         .sort((a, b) => distance(a.x, a.y, u.x, u.y) - distance(b.x, b.y, u.x, u.y))[0];
       if (group) {
         engage(world, group, u, 'flash');
         return;
       }
+      dive(world, u, A.diveHours);
     }
     // Unseen, it may still be driven off by the escort's sweep.
     if (rng.next() < U.pDriveOffPerEscort * escorts * A.unseenFactor) {
@@ -744,6 +747,7 @@ function returnFromBase(world, u) {
   u.torpedoes = u.torpedoesFull;
   u.goneAt = null;
   u.submergedUntil = 0;
+  u.deepUntil = 0;
   u.damaged = false; // repaired during its refit
 }
 
