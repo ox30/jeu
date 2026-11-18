@@ -18,7 +18,7 @@ ce qui est fait, les mesures, les choix et les problèmes, dans l'ordre où ils 
   hasard, aller-retour de sauvegarde, test de fumée, intégration continue), puis la mesure
   de l'état de départ, puis les corrections.
 
-### 18 novembre, 15 h à 17 h — le filet, et ce qu'il a trouvé
+### 18 novembre, jusqu'à 14 h 45 — le filet, et ce qu'il a trouvé
 
 Posé avant toute correction (commit `52eeaa5`) :
 
@@ -116,7 +116,7 @@ Images par seconde dans Chrome sans écran, 1 920 × 1 080, Atlantique au jour 4
 (`tools/smoke/fps.mjs`) : 59,5 images/s sans fiche (image la plus longue : 50 ms),
 59,9 images/s avec la fiche d'un groupe ouverte (33 ms).
 
-### 18 novembre, 17 h à 18 h — corrections
+### 18 novembre, 14 h 45 à 15 h 10 — corrections
 
 - **B1, Code 1, Code 3** (`ce564f1`) : fabrique d'entités `src/sim/entities.js`
   (`declareFields`, `completeEntity`). Sites et convois y passent ; les escadrilles, groupes
