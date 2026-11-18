@@ -1,1 +1,3 @@
 node_modules/
+tools/bot/out/
+tools/smoke/out/

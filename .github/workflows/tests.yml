@@ -1,0 +1,31 @@
+# The safety net, at every push and on every pull request: lint, tests, 10 000 random orders
+# per scenario, the single file rebuilt and compared, and the smoke test in a headless Chrome.
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Development tools (lint, build, headless browser driver)
+        run: npm ci --prefix tools
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm test
+      - name: Random orders, 10 000 per scenario
+        run: npm run fuzz
+      - name: Build dist/index.html
+        run: npm run build
+      - name: dist/index.html is the one built from the sources
+        run: git diff --exit-code -- dist/index.html
+      - name: Smoke test in a headless Chrome
+        run: npm run smoke

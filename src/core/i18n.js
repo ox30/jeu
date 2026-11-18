@@ -8,7 +8,7 @@ export function setDictionary(dict) {
 }
 
 function lookup(key) {
-  return key.split('.').reduce((node, part) => (node == null ? undefined : node[part]), dictionary);
+  return key.split('.').reduce((node, part) => (node === null || node === undefined ? undefined : node[part]), dictionary);
 }
 
 export function t(key, params = {}) {

@@ -6,6 +6,12 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.js",
+    "lint": "node tools/node_modules/eslint/bin/eslint.js -c tools/eslint.config.mjs src tests tools",
+    "build": "node tools/build-page.mjs",
+    "fuzz": "node tools/bot/monkey.mjs --all 10000",
+    "smoke": "node tools/smoke/smoke.mjs",
+    "bot": "node tools/bot/run.mjs",
+    "measure": "node tools/bot/measure.mjs",
     "serve": "python3 -m http.server 8000"
   }
 }

@@ -163,7 +163,7 @@ export function projectPlan(world, u, legs, speedOf, domain, openKm, start = nul
  *   "56N 12O", "56°30'N 12°W"        → a position (longitude west unless E is given)
  * Returns { ok: true, end } or { ok: false, error }.
  */
-export function parseLegEnd(text, { grid = null, defaultUnit = 'min', nowMs = 0 } = {}) {
+export function parseLegEnd(text, { grid = null, defaultUnit = 'min' } = {}) {
   const raw = String(text || '').trim().toLowerCase().replace(/,/g, '.');
   if (!raw) return { ok: true, end: null };
 
