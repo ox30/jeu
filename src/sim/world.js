@@ -145,6 +145,13 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
   // The rasters of the sea routes are built now rather than at the first route of the game.
   prepareSeaRoutes(world);
   if (world.uboats.length || (scenario.events || []).some((e) => (e.effects || []).some((fx) => fx.type === 'uboats'))) closedRaster(world);
+  // And the grids of what the Observer Corps sees (with the strip of sea off the coast for the
+  // raids, without it for the mobile radars): the first raid over land does not wait for them.
+  const D = rules.detection;
+  if (D && scenario.raids && scenario.raids.length) {
+    world.terrain.observerMask(D.observerCellKm, D.observerOffshoreKm);
+    world.terrain.observerMask(D.observerCellKm, 0);
+  }
   createQuestions(world);
   createTimetable(world);
   world.navalReports = []; // depth-charge attacks, one report each (asw.js)
