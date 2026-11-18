@@ -142,3 +142,49 @@ Mesure après I1, 10 graines : campagne en Réaliste, simple puis en masse le 15
 **5 sur 10** (0 sur 10 avant). Joué simplement de bout en bout, le 15 septembre reste perdu
 en campagne (40 avions à abattre avec 60 % de la chasse) : c'est le réglage des seuils du
 M2.10.
+
+### 18 novembre, 15 h 10 à 15 h 45 — suite des corrections
+
+- **C2** : `src/ui/summary.js` choisit les lignes du bilan. Une ligne s'affiche si un objectif
+  du scénario la demande ou si le scénario contient la chose (raids, convois, dollars).
+  Carburant et munitions consommés ne s'affichent que là où l'on peut perdre par panne de
+  carburant (Kanalkampf, Adlertag).
+- **N5** : chrono compté par la boucle d'affichage (`tickPlayClock`), arrêté à la fin du
+  scénario, gardé dans la sauvegarde du navigateur et dans l'export (`meta.playClock`). Une
+  image qui arrive après plus d'une seconde (onglet caché) compte pour une seconde.
+- **C4** : `src/ui/keys.js`, lecture par `e.code`. **Choix** : Ctrl, Alt et Meta ne changent
+  plus la vitesse (Ctrl+1 change d'onglet dans le navigateur).
+- **C9, correctif** : `src/ui/hit.js`. L'unité en main gagne sur les autres unités sous le
+  pointeur ; les poignées de sa route gardent la priorité. **Écart assumé** : la règle ne vaut
+  que pour les unités (escadrille, convoi, groupe, aérodrome, point de rassemblement), pas
+  pour un raid ou une installation sélectionnés, sinon un raid en main cacherait l'escadrille
+  qui le combat. **Ajout** : un pointeur posé sur un symbole compte plus près que sur la plaque
+  d'une voisine (avant, deux plaques qui se recouvraient étaient à égalité et la première
+  dessinée gagnait).
+  Limite connue jusqu'au M2.10 : une unité entièrement couverte par la plaque de l'unité en
+  main ne se sélectionne plus d'un clic à cet endroit ; il faut cliquer sa propre plaque, la
+  liste du tableau d'état, ou fermer la fiche (Échap). Les piles et onglets du M2.10 règlent
+  ce cas.
+- **N8, première partie** : la grille est une donnée du scénario ; elle est retirée de
+  `hiver-atlantique.json`. Le réglage « Grille » et l'exemple « carré (J5) » ne s'affichent
+  plus dans ce scénario.
+- **Garde-fou** : la première erreur reste la cause affichée (une erreur de simulation casse
+  souvent l'affichage dans la foulée). La reprise n'est proposée que pour une sauvegarde de
+  la même partie : chaque partie reçoit un identifiant (`app.gameId`), gardé avec la
+  sauvegarde. Il servira aux sauvegardes multiples du M2.9.
+- Le test de fumée rejoue ces corrections dans la page. Vérifié qu'il échoue quand on coupe
+  le correctif C9.
+
+### Porte du M2.7
+
+- **Aucun plantage en 10 000 ordres par scénario** : `npm run fuzz`, 15 h 35. Entraînement,
+  Kanalkampf, Adlertag, 15 septembre, Atlantique : 10 000 ordres chacun, 16 à 22 sauvegardes
+  reprises par scénario, aucun problème (4 min 8 s).
+- **15 septembre gagnable en Réaliste** : campagne en Réaliste jouée simplement, puis le
+  15 septembre en masse : 5 victoires sur 10 graines (0 sur 10 en 2.6.1).
+  `tests/campaign.test.js` garde ce critère.
+- `npm test` : 196 tests, tous verts. Lint vert. `dist/index.html` reconstruit (807 Kio).
+  Test de fumée vert. GitHub Actions vert sur la branche.
+- Pas de simulation et images par seconde : inchangés, comme attendu (C10 est au M2.8).
+  Atlantique : 32 à 43 pas de plus de 20 ms par partie, le plus long 192 à 331 ms ;
+  59,5 et 59,9 images/s à ×14 400.
