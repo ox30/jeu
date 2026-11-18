@@ -331,3 +331,6 @@ sujets des lots M2.8 et M2.10.
 
 Une première mesure, avant la correction du renfort d'Adlertag, donnait « 4 par raid » à
 4 sur 10 au lieu de 3 : c'est elle qui a montré l'effet de bord relevé par la relecture.
+
+État final du lot M2.7 (18 novembre, 17 h 00) : 205 tests verts (156 en 2.6.1, 49 ajoutés),
+lint vert, `npm run fuzz` vert, test de fumée vert, `dist/index.html` reconstruit.
