@@ -188,3 +188,47 @@ M2.10.
 - Pas de simulation et images par seconde : inchangés, comme attendu (C10 est au M2.8).
   Atlantique : 32 à 43 pas de plus de 20 ms par partie, le plus long 192 à 331 ms ;
   59,5 et 59,9 images/s à ×14 400.
+
+### 18 novembre, 15 h 55 — plan du M2.8, écrit pendant la mesure du M2.7
+
+Ordre de travail prévu, du plus indépendant au plus transversal :
+
+1. **C10, calcul de route** (`src/sim/searoute.js`, `src/sim/uboatnav.js`) : `gridPath` passe aux
+   tableaux typés et au tas `floatHeap` déjà présent ; les eaux fermées deviennent une grille
+   calculée une fois, comme `landGrid`. Mesure : `tools/bot/perf.mjs`, cible zéro pas de plus
+   de 20 ms.
+2. **N6, jour et nuit au soleil** : nouveau `src/sim/sun.js` (déclinaison, équation du temps,
+   hauteur du soleil ; jour au-dessus de −0,83°), heure du jeu = GMT+1 (`clockOffsetH` du
+   scénario). `isDaylight(world)` et `isNight(world)` prennent une position. `daylightH`
+   disparaît du scénario. Puis **C5** (attaque tirée au hasard dans la nuit, écart de 4 h
+   gardé, attaques de jour très rares sur traînard ou navire isolé) et **N2** (ombre de la
+   nuit, même fonction). Vérifier l'équilibre des scénarios aériens au joueur automatique.
+3. **I3, grenades** : `charges` par groupe (40 par navire), consigne de grenadage plein ou
+   économe, passes à blanc à vide, réarmement au port, fin de chasse sans durée réglable
+   (contact perdu, U-Boot coulé ou endommagé, stock au tiers). `updateEscort` découpé.
+   **N7** (attaque d'avion visible, une par sortie, repère d'avion qui lance la chasse à moins
+   de 30 km) et **C13** (radar daté par groupe, portée courte).
+4. **I4, avions achetés** : prix en dollars et en tonnes, délai et date d'arrivée, phrase du
+   prêt-bail, prévision de tonnage ; curseur de part achetée retiré.
+5. **Quarts** (idée A, I2, N10) : `src/sim/watch.js`. Six quarts par jour ; le rythme est une
+   donnée du scénario (`rhythm: "watches"`). Les événements de mer du quart sont notés par
+   `emit` ; à la relève, le rapport est construit depuis l'état du monde et ces notes, rangé
+   dans `world.watchReports` (donc sauvegardé), et un événement `watchRelief` dit s'il faut
+   s'arrêter. Entre deux relèves, seul arrêt : la première attaque d'un convoi dans la nuit.
+   Interface : onglet « Signaux » du Journal, filtres, non lus, boutons de décision.
+6. **N1, silence radio** : réglage `seaComms`. Eaux suivies = eaux fermées, approches des
+   ports, couverture de surface des radars côtiers (**N4** : Glenarm, Castle Rock, Downhill,
+   dates à vérifier). En haute mer : position estimée (dernier point sûr, route et vitesse
+   prévues), ordres par radio à la relève, par avion au projecteur, ou par navire.
+   Une fonction `shownPosition` unique pour la carte, les fiches et le joueur automatique.
+7. Joueur automatique adapté (il lit les positions estimées), réglage des valeurs, mesures,
+   tests de chaque nouveauté, relecture, livraison.
+
+Choix déjà arrêtés (à confirmer par les mesures) :
+
+- Une décision en attente arrête le jeu à la relève où elle apparaît. Si le joueur la laisse,
+  elle reste dans « À décider » des rapports suivants sans arrêter de nouveau : sinon un
+  convoi laissé volontairement sans escorte arrêterait le jeu toutes les quatre heures.
+- Les consignes des groupes (Rester ou Chasser, grenadage) restent des ordres permanents
+  appliqués sans nouvel ordre ; les changer en haute mer demande une transmission, comme tout
+  ordre.
