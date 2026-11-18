@@ -340,7 +340,7 @@ lint vert, `npm run fuzz` vert, test de fumée vert, `dist/index.html` reconstru
 Branche `m2.8`, partie de `m2.7` (`04333ee`). La mesure « avant » du lot est la mesure finale
 du M2.7 (`tools/bot/out/m2.7-final.jsonl`).
 
-### 18 novembre, 17 h 05 à 17 h 30 — C10, calcul de route sans à-coups
+### 18 novembre, 16 h 55 à 17 h 22 — C10, calcul de route sans à-coups
 
 `gridPath` réécrit : tableaux typés réutilisés d'une recherche à l'autre (tampons datés),
 coûts entiers (70 et 99), tas binaire à priorités flottantes, grille des eaux fermées
@@ -366,7 +366,7 @@ plutôt que de toucher au test.
 l'Observer Corps se construisait au premier raid au-dessus des terres. Elle est construite
 avec le monde. Les scénarios aériens gardent des pas de 5 à 12 ms.
 
-### 18 novembre, 17 h 30 à 17 h 50 — N6, C5, N2 : jour et nuit au soleil
+### 18 novembre, 17 h 22 à 17 h 50 — N6, C5, N2 : jour et nuit au soleil
 
 - **N6.** `src/core/sun.js` (déclinaison, équation du temps, hauteur du soleil) et
   `src/sim/daylight.js` : `isDaylight(world, x, y)` et `isNight(world, x, y)`, jour au-dessus
@@ -428,7 +428,7 @@ nuit et par bateau, et le scénario devient un peu plus facile. Je règle l'Atla
 fin du lot, une fois les grenades, les quarts et le silence radio en place, comme le
 demande le document.
 
-### 18 novembre, 17 h 50 à 19 h 30 — I3, N7, C13, I4
+### 18 novembre, 17 h 50 à 18 h 25 — I3, N7, C13, I4
 
 - **I3, grenades** (`b092f6a`). 40 par navire (120 ou 160 par groupe), refaites au port avec
   le mazout. Consigne de grenadage : plein (dix par passe) ou économe (cinq, avec 0,6 fois
@@ -474,6 +474,6 @@ demande le document.
   convois d'avant le vote (il en faudrait environ 706) ; sans le curseur, la réserve
   s'épuise fin février, et l'achat d'un Catalina avance cette date d'un convoi et demi.
 
-État à 19 h 30 : 244 tests verts, lint vert, `dist/index.html` reconstruit (826 Kio).
+État à 18 h 25 (heures UTC, lues sur les commits) : 244 tests verts, lint vert, `dist/index.html` reconstruit (826 Kio).
 Reste du lot : quarts et rapports (I2, A, N10), silence radio (N1), radars d'Irlande du
 Nord (N4), ASV du 502 Sqn, joueur automatique adapté, réglage, mesures, relecture.
