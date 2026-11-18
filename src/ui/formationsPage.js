@@ -9,7 +9,7 @@ import {
   renameFormation, setLeader,
 } from '../sim/formations.js';
 import { isFlying } from '../sim/squadron.js';
-import { altitudeText, escortStateText } from './format.js';
+import { altitudeText, escortStateText, formationDefaultName } from './format.js';
 import { showPage } from './pages.js';
 
 function unitsOfKind(world, kind) {
@@ -167,7 +167,8 @@ function onClick(app, e) {
     case 'add':
       if (f) addMember(w, f, id);
       else {
-        const created = newFormation(w, st.kind, id);
+        const leader = (st.kind === 'air' ? w.squadrons : w.escorts).find((u) => u.id === id);
+        const created = newFormation(w, st.kind, id, formationDefaultName(w, st.kind, leader));
         if (created) st.formationId = created.id;
       }
       break;

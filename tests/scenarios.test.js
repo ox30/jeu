@@ -57,10 +57,10 @@ test('Atlantic 1941: convoys sail on a schedule and their cargo is paid in dolla
   const full = lineCost(w, line);
   const events = run(w, 7 * 3600);
   const dep = events.find((e) => e.type === 'convoyDeparted');
-  assert.ok(dep, 'HX 100 sails');
-  assert.equal(dep.convoy, 'HX 100');
+  assert.ok(dep, 'HX 102 sails');
+  assert.equal(dep.convoy, 'HX 102');
   assert.equal(Math.round(w.currency.start - w.currency.stock), Math.round(full));
-  const hx = w.convoys.find((c) => c.name === 'HX 100');
+  const hx = w.convoys.find((c) => c.name === 'HX 102');
   assert.equal(hx.state, 'atSea');
   // Half the cargo for the next convoys: half the price.
   setPurchase(w, 0.5);

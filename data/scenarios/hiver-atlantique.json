@@ -5,15 +5,6 @@
   "start": "1941-01-10T06:00",
   "end": "1941-03-31T18:00",
   "seed": 1941,
-  "grid": {
-    "origin": [
-      -4.5,
-      52.95
-    ],
-    "sizeKm": 25,
-    "cols": 20,
-    "rows": 16
-  },
   "ports": [
     {
       "id": "halifax",
@@ -357,7 +348,7 @@
     {
       "id": "502",
       "name": "502 Sqn",
-      "type": "Anson",
+      "type": "Whitley",
       "airfield": "aldergrove",
       "aircraft": 6,
       "role": "coastal"
@@ -384,7 +375,7 @@
       "id": "10 RAAF",
       "name": "10 Sqn RAAF",
       "type": "Sunderland",
-      "airfield": "pembroke_dock",
+      "airfield": "oban",
       "aircraft": 4,
       "role": "coastal"
     }
@@ -393,7 +384,7 @@
   "convoySchedule": [
     {
       "prefix": "HX",
-      "firstNumber": 100,
+      "firstNumber": 102,
       "first": "1941-01-10T12:00",
       "everyHours": 120,
       "count": 14,

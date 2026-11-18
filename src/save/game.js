@@ -5,6 +5,7 @@
 import { createBdu } from '../sim/bdu.js';
 import { bringToSea } from '../sim/uboatnav.js';
 import { normalizeRoster } from '../sim/roster.js';
+import { fillMissingFields } from '../sim/entities.js';
 
 const VERSION = 1;
 const KEY = 'jeu-1940.game.v1';
@@ -12,7 +13,7 @@ const SITE_FIELDS = ['damage', 'attacks', 'wasOut', 'stocks', 'minStock', 'progr
 const LISTS = ['convoys', 'escorts', 'uboats', 'squadrons', 'raids', 'dfZones', 'dfPending', 'uboatPlots', 'ferries'];
 const VALUES = ['t', 'nextPlotId', 'nextTrainId', 'stats', 'objectives', 'allDone', 'ended', 'outcome', 'defeatReason',
   'dryHours', 'pilots', 'firedEvents', 'mru', 'flags', 'currency', 'shipping', 'convoyRaidState', 'scheduled', 'formations', 'nextFormationId',
-  'questions', 'nextQuestionId', 'asked', 'nextTimetableId', 'navalReports', 'nextNavalReportId', 'bdu'];
+  'questions', 'nextQuestionId', 'asked', 'nextTimetableId', 'navalReports', 'nextNavalReportId', 'bdu', 'carry', 'fightersAtStart'];
 
 // Fields added after a save was made: a game saved by an earlier version gets them on restore.
 const SQUADRON_DEFAULTS = () => ({
@@ -62,7 +63,6 @@ function decode(v) {
 export function snapshot(world) {
   const sites = [];
   for (const s of world.sites.values()) {
-    if (s.mobile) continue;
     const st = {};
     for (const f of SITE_FIELDS) if (f in s) st[f] = encode(s[f]);
     sites.push([s.key, st]);
@@ -89,7 +89,12 @@ export function snapshot(world) {
  */
 export function restore(world, snap, addMobileRadar = null) {
   if (!snap || snap.version !== VERSION || snap.scenario !== world.scenario.id) throw new Error('save: wrong game');
+  // The squadrons a new game of this scenario begins with (the others arrived as reliefs).
+  const initialSquadrons = new Set(world.squadrons.map((s) => s.id));
   world.rng.setState(snap.rng);
+  // The mobile stations first: their state is restored with that of the other installations.
+  world.mobileRadars = [];
+  if (addMobileRadar) for (const def of decode(snap.mobileRadars || [])) addMobileRadar(world, def);
   for (const [key, st] of snap.sites) {
     const site = world.sites.get(key);
     if (site) Object.assign(site, decode(st));
@@ -121,8 +126,6 @@ export function restore(world, snap, addMobileRadar = null) {
   snap.railFree.forEach((v, i) => {
     if (world.rail.links[i]) world.rail.links[i].nextFree = v;
   });
-  world.mobileRadars = [];
-  if (addMobileRadar) for (const def of decode(snap.mobileRadars || [])) addMobileRadar(world, def);
   fillDefaults(world, WORLD_DEFAULTS());
   for (const s of world.squadrons) {
     fillDefaults(s, SQUADRON_DEFAULTS());
@@ -132,7 +135,14 @@ export function restore(world, snap, addMobileRadar = null) {
     fillDefaults(e, SHIP_DEFAULTS());
     if (e.berthed === undefined) e.berthed = e.state === 'inPort' || e.state === 'refit';
   }
-  for (const c of world.convoys) if (c.schedule === undefined) c.schedule = null;
+  // Convoys and installations saved by an earlier version get the fields added since.
+  for (const c of world.convoys) fillMissingFields('convoy', c, world);
+  for (const site of world.sites.values()) fillMissingFields('site', site, world);
+  // A save made before 2.7 does not say how many fighters its game began with: those of a new
+  // game of the scenario (the world it is restored onto), and the reliefs arrived since.
+  if (!('fightersAtStart' in snap)) {
+    for (const s of world.squadrons) if (s.role === 'fighter' && !initialSquadrons.has(s.id)) world.fightersAtStart += s.aircraftStart;
+  }
   for (const u of world.uboats) {
     fillDefaults(u, { way: null, wanderAt: 0 });
     bringToSea(world, u); // a boat an earlier version left ashore
@@ -141,9 +151,10 @@ export function restore(world, snap, addMobileRadar = null) {
   return world;
 }
 
-export function saveToBrowser(world) {
+/** `meta`: what belongs to the game without being the simulation (the clock of real time played). */
+export function saveToBrowser(world, meta = null) {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ savedAt: Date.now(), snap: snapshot(world) }));
+    localStorage.setItem(KEY, JSON.stringify({ savedAt: Date.now(), snap: snapshot(world), meta }));
     return true;
   } catch {
     return false;
@@ -170,8 +181,8 @@ export function clearBrowserSave() {
 }
 
 /** The game as a JSON file to download. */
-export function exportText(world) {
-  return JSON.stringify({ game: 'jeu-1940', savedAt: Date.now(), snap: snapshot(world) });
+export function exportText(world, extra = null) {
+  return JSON.stringify({ game: 'jeu-1940', savedAt: Date.now(), snap: snapshot(world), ...(extra || {}) });
 }
 
 export function parseExport(text) {

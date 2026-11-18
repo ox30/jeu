@@ -17,7 +17,13 @@ function apply(world, fx) {
       if (world.mru) world.mru.available += fx.count ?? 1;
       break;
     case 'squadron':
-      if (!world.squadrons.some((s) => s.id === fx.def.id)) world.squadrons.push(createSquadron(world, fx.def));
+      if (!world.squadrons.some((s) => s.id === fx.def.id)) {
+        const s = createSquadron(world, fx.def);
+        world.squadrons.push(s);
+        // A fighter squadron sent as a relief counts among the fighters the player was given:
+        // the objective of fighter strength is measured on them too.
+        if (s.role === 'fighter') world.fightersAtStart += s.aircraft;
+      }
       break;
     case 'stock': {
       const site = world.sites.get(fx.site);

@@ -17,8 +17,8 @@ import { createQuestions, updateQuestions } from './engagement.js';
 import { createTimetable, updateTimetable } from './timetable.js';
 import { updateRallies } from './rally.js';
 import { createGrid } from './grid.js';
-import { initSite, repairSites } from './sites.js';
-import { checkDefeat, checkObjectives, createObjectives, finalize } from './objectives.js';
+import { createSite, repairSites } from './sites.js';
+import { checkDefeat, checkObjectives, createObjectives, fighterCount, finalize } from './objectives.js';
 import { createLogistics, updateLogistics, updateTrains } from './logistics.js';
 import {
   ageDfZones, checkEscortRange, createEscortGroup, createUboat, initialIntelligence, updateEscort, updateUboat,
@@ -44,16 +44,15 @@ function placedPath(path) {
 
 export function createWorld({ scenario, rules, settings, terrain, carry = null }) {
   const startMs = parseGameDate(scenario.start);
-  const ports = scenario.ports.map((p) => initSite({
+  const ports = scenario.ports.map((p) => ({
     ...placed(p),
     approaches: (p.approaches || []).map((a) => ({ name: a.name, points: placedPath(a.path) })),
-  }, 'port'));
-  const airfields = scenario.airfields.map((a) => initSite(placed(a), 'airfield'));
-  const radars = scenario.radars.map((r) => initSite(placed(r), 'radar'));
-  const factories = (scenario.factories || []).map((f) => initSite(placed(f), 'factory'));
-  const depots = (scenario.depots || []).map((f) => initSite(placed(f), 'depot'));
+  }));
+  const airfields = scenario.airfields.map(placed);
+  const radars = scenario.radars.map(placed);
+  const factories = (scenario.factories || []).map(placed);
+  const depots = (scenario.depots || []).map(placed);
   const sites = new Map();
-  for (const site of [...airfields, ...radars, ...ports, ...factories, ...depots]) sites.set(site.key, site);
 
   const world = {
     t: 0,
@@ -88,6 +87,8 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
     uboatPlots: [],
     nextPlotId: 1,
     squadrons: [],
+    carry: null, // campaign: the losses carried over from the battle before ({ fighterShare, from })
+    fightersAtStart: 0, // fighter aircraft present as the scenario begins
     raids: [],
     contacts: new Map(),
     reports: new Map(),
@@ -119,12 +120,20 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
     outcome: null,
     dryHours: 0,
   };
+  for (const [list, kind] of [[airfields, 'airfield'], [radars, 'radar'], [ports, 'port'], [factories, 'factory'], [depots, 'depot']]) {
+    for (const item of list) {
+      const site = createSite(world, item, kind);
+      sites.set(site.key, site);
+    }
+  }
   createLogistics(world, scenario.logistics || null);
   world.convoys = scenario.convoys.map((c) => createConvoy(world, c));
   world.escorts = (scenario.escorts || []).map((e) => createEscortGroup(world, e));
   world.uboats = (scenario.uboats || []).map((u) => createUboat(world, u));
   world.squadrons = scenario.squadrons.map((s) => createSquadron(world, s));
   if (carry && carry.fighterShare < 1) applyCarry(world, carry);
+  // The fighters present as the scenario begins: the objective of fighter strength is measured on them.
+  world.fightersAtStart = fighterCount(world).now;
   createCrews(world, scenario.pilots || null);
   createMru(world, scenario.mru || null);
   createSchedule(world);
@@ -146,7 +155,13 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
     convoy: first ? first.name : null,
     port: first && first.portId ? world.byId.port.get(first.portId).name : null,
   });
-  if (world.carry) emit(world, 'carryApplied', { share: Math.round(world.carry.fighterShare * 100), from: world.carry.from });
+  if (world.carry) {
+    const total = fighterCount(world).establishment;
+    emit(world, 'carryApplied', {
+      share: total ? Math.round((100 * world.fightersAtStart) / total) : 100, from: world.carry.from,
+      n: world.fightersAtStart, total,
+    });
+  }
   return world;
 }
 
@@ -161,7 +176,8 @@ function applyCarry(world, carry) {
     s.aircraft = n;
     s.pilots = Math.min(s.pilots, n);
   }
-  world.carry = { ...carry };
+  const { now, establishment } = fighterCount(world);
+  world.carry = { ...carry, aircraft: now, establishment };
 }
 
 function end(world, reason = null) {

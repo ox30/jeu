@@ -132,6 +132,12 @@
     "clearPlan": "Effacer les étapes",
     "removeLeg": "Retirer cette étape",
     "endHintAir": "Fin : durée (6, 1 h 30), heure (14:20), carré (J5) ou position (51N 1E). Vide : jusqu'à nouvel ordre.",
+    "endHintAirNoGrid": "Fin : durée (6, 1 h 30), heure (14:20) ou position (56N 12O). Vide : jusqu'à nouvel ordre.",
+    "endExample": {
+      "sea": "30 · 14:20 · 56N 12O",
+      "air": "6 · 14:20 · J5",
+      "airNoGrid": "6 · 14:20 · 56N 12O"
+    },
     "endHintSea": "Fin : durée en heures (30, 6 min), heure (14:20), position (56N 12O). Vide : jusqu'à nouvel ordre.",
     "errors": {
       "heading": "Cap invalide : un nombre entre 0 et 360.",
@@ -567,7 +573,7 @@
     "convoyDelivered": "{convoy} : livrer au moins {share} % de sa cargaison ({state})",
     "convoyDeliveredCoastal": "{convoy} : amener au moins {share} % de sa cargaison à Southampton ({state})",
     "basesOperational": "Garder au moins {min} des {total} bases de chasse en service jusqu'à la fin (aujourd'hui {n})",
-    "fighterStrength": "Garder au moins {share} % des avions de chasse jusqu'à la fin (aujourd'hui {n} %)",
+    "fighterStrength": "Garder jusqu'à la fin au moins {share} % des avions de chasse présents au début (aujourd'hui {n} %)",
     "stateAfloat": "à flot : {n} %",
     "stateDelivered": "arrivé : {n} %",
     "stateLost": "perdu",
@@ -741,7 +747,7 @@
     "formationJoined": "{squadron} est en formation avec {leader}.",
     "formationBroken": "{squadron} vole seule : la formation est rompue.",
     "offerBought": "Commande passée en Amérique : {offer}, pour {cost} millions de dollars. Livraison vers le {date}.",
-    "carryApplied": "Campagne : la chasse commence à {share} % de ses avions, après les pertes de la bataille précédente. Les usines et les convoyeurs combleront les vides.",
+    "carryApplied": "Campagne : la chasse commence à {share} % de ses avions ({n} sur {total}), après les pertes de la bataille précédente. Les usines et les convoyeurs combleront les vides ; l'objectif de chasse se mesure sur les {n} avions présents ce matin.",
     "scenarioStartAtSea": "Prise de service. Le convoi {convoy} est en mer : tracez sa route sur la carte de l'Atlantique, ou donnez-lui des étapes.",
     "raidSighted": "Raid {raid} en vue de {by} : {force}, vers {alt}.",
     "raidSightLost": "Raid {raid} perdu de vue : retour aux plots.",
@@ -1045,7 +1051,8 @@
     "pilotsKilled": "Pilotes tués : {n}",
     "ammoUsed": "Munitions consommées : {n} t",
     "defeatShipping": "Défaite : les pertes de navires marchands sont trop lourdes, l'Amirauté suspend les départs.",
-    "dollars": "Dollars dépensés : {n} millions, sur {m}"
+    "dollars": "Dollars dépensés : {n} millions, sur {m}",
+    "played": "Temps de jeu : {total}, dont {paused} en pause."
   },
   "success": {
     "title": "Objectifs atteints",
@@ -1138,7 +1145,9 @@
     "ftRel": "{sign}{n} ft",
     "km": "{n} km",
     "straggler": "{name} · traînard {n}",
-    "minShort": "min"
+    "minShort": "min",
+    "underMinute": "moins d'une minute",
+    "hminLong": "{h} h {m} min"
   },
   "legs": {
     "duration": "Cap {heading} pendant {d}",
@@ -1396,6 +1405,7 @@
       "Spitfire": "Plus rapide et plus maniable : on l'envoie de préférence contre les chasseurs d'escorte.",
       "Spitfire guet": "Une section qui patrouille haut au-dessus de la Manche pour signaler les raids, comme la 421 Flight créée en septembre 1940.",
       "Anson": "Le patrouilleur côtier de 1940 : lent, peu armé, mais il oblige les U-Boote à plonger.",
+      "Whitley": "Un bombardier de nuit passé au Coastal Command fin 1940 : lent, mais il tient l'air neuf heures et porte loin au large.",
       "Hudson": "Plus rapide et mieux armé que l'Anson ; certains reçoivent le premier radar ASV fin 1940.",
       "Sunderland": "Hydravion à très grande autonomie : il va loin au-dessus de l'Atlantique.",
       "Do 17": "Le « crayon volant » : rapide pour un bombardier, vulnérable aux attaques de face.",
@@ -1436,6 +1446,7 @@
   },
   "events": {
     "ok": "Compris",
+    "carry": "Campagne : après « {from} », la chasse commence à {share} % de ses avions ({n} sur {total}). Les usines et les convoyeurs combleront les vides ; l'objectif de chasse se mesure sur les {n} avions présents ce matin.",
     "adlertag": {
       "intro": {
         "title": "Adlertag",
@@ -1479,7 +1490,7 @@
     "hiver-atlantique": {
       "intro": {
         "title": "Western Approaches",
-        "text": "Prise de service, 10 janvier 1941. Le HX 100 appareille d'Halifax. Les convois suivent la route de l'Amirauté ; vous pouvez la changer pour contourner les U-Boote repérés. Envoyez un groupe d'escorte au-devant de chaque convoi qui approche : vos escorteurs n'ont que sept ou huit jours d'autonomie. Les nuits d'hiver sont longues, et c'est la nuit que les U-Boote attaquent."
+        "text": "Prise de service, 10 janvier 1941. Le HX 102 appareille d'Halifax. Les convois suivent la route de l'Amirauté ; vous pouvez la changer pour contourner les U-Boote repérés. Envoyez un groupe d'escorte au-devant de chaque convoi qui approche : vos escorteurs n'ont que sept ou huit jours d'autonomie. Les nuits d'hiver sont longues, et c'est la nuit que les U-Boote attaquent."
       },
       "packs": {
         "title": "Nouvelles meutes",
@@ -1714,6 +1725,10 @@
     "kind": {
       "air": "Big wing (air)",
       "naval": "Groupe de soutien (mer)"
+    },
+    "defaultName": {
+      "air": "Big Wing {base}",
+      "naval": "Groupe de soutien {n}"
     },
     "new": {
       "air": "+ Nouvelle big wing",
@@ -1975,5 +1990,21 @@
     "settings": "Réglages",
     "help": "Aide",
     "note": "La partie en cours est gardée dans ce navigateur. Le jeu est arrêté tant que ce menu est ouvert ; Échap ou « Continuer » le reprend."
+  },
+  "crash": {
+    "title": "Le jeu s'est arrêté sur une erreur",
+    "text": "La partie est en pause. Exportez-la pour la garder ou pour signaler le problème.",
+    "textSaved": "La dernière sauvegarde automatique de cette partie est intacte : vous pouvez la reprendre.",
+    "textNoSave": "Cette partie n'a pas encore de sauvegarde automatique.",
+    "where": {
+      "simulation": "Erreur dans la simulation, à {time} (heure du jeu) :",
+      "display": "Erreur dans l'affichage, à {time} (heure du jeu) :"
+    },
+    "export": "Exporter la partie",
+    "resume": "Reprendre la dernière sauvegarde",
+    "close": "Fermer",
+    "exported": "Partie exportée, avec le détail de l'erreur.",
+    "exportFailed": "L'export n'a pas abouti.",
+    "resumeFailed": "La sauvegarde n'a pas pu être reprise : {message}"
   }
 }

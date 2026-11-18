@@ -31,6 +31,7 @@ import {
 } from '../sim/rally.js';
 import { isFlying } from '../sim/squadron.js';
 import { addLogEntry } from './panels.js';
+import { formationDefaultName } from './format.js';
 
 export const SPEEDS = [1, 10, 60, 600, 3600, 14400];
 
@@ -105,6 +106,11 @@ export function sheetMessage(app, text, level = 'warning') {
 
 export function setSpeedIndex(app, index) {
   app.speed = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, index))];
+  if (app.crash) {
+    // Stopped on an error: a speed key does not set the clock going, the message comes back.
+    togglePause(app);
+    return;
+  }
   app.paused = false;
   app.speedConfirm = null;
   app.dirtyHud = true;
@@ -154,16 +160,34 @@ export function cancelSpeed(app) {
 }
 
 export function togglePause(app) {
+  // Stopped on an error (crash.js): the clock stays stopped, and the message comes back.
+  if (app.crash) {
+    app.paused = true;
+    if (app.showCrash) app.showCrash();
+    app.dirtyHud = true;
+    return;
+  }
   app.paused = !app.paused;
   app.accumulator = 0;
   app.dirtyHud = true;
 }
 
-export function goView(app, name) {
-  animateTo(app.camera, viewFrame(app.camera, VIEWS[name]));
+/** What the open unit sheet hides of the map, in pixels on each side (null: nothing). */
+export function sheetInset(app) {
+  if (!app.selection || typeof window === 'undefined' || window.innerWidth <= 820) return null;
+  const el = app.el && app.el.unitPanel;
+  if (!el || el.hidden) return null;
+  const pos = app.settings.sheetPos || 'right';
+  if (pos === 'bottom') return { bottom: el.offsetHeight || app.settings.sheetH || 300 };
+  const w = el.offsetWidth || app.settings.sheetW || 400;
+  return pos === 'left' ? { left: w } : { right: w };
 }
 
-/** Centres the map on a unit, zooming in when the map is far out. */
+/** The three views (keys A, L, G) are framed in the part of the map the sheet leaves free. */
+export function goView(app, name) {
+  animateTo(app.camera, viewFrame(app.camera, VIEWS[name], 30, sheetInset(app)));
+}
+
 /** Width of the map hidden by the unit panel (open when something is selected). */
 function unitPanelWidth(app) {
   if (!app.selection || typeof window === 'undefined' || window.innerWidth <= 820) return 0;
@@ -216,7 +240,7 @@ export function revealSelection(app) {
   const m = 30;
   let x0 = m;
   let x1 = cam.width - m;
-  let y0 = m;
+  const y0 = m;
   let y1 = cam.height - m;
   if (window.innerWidth > 820) {
     const where = app.settings.sheetPos || 'right';
@@ -292,7 +316,8 @@ export function orderFormationAlert(app, f, state) {
 }
 
 export function orderNewFormation(app, u) {
-  const f = newFormation(app.world, u.kind === 'squadron' ? 'air' : 'naval', u.id);
+  const kind = u.kind === 'squadron' ? 'air' : 'naval';
+  const f = newFormation(app.world, kind, u.id, formationDefaultName(app.world, kind, u));
   if (f) select(app, 'formation', f.id);
   app.dirtyPanels = true;
   return f;

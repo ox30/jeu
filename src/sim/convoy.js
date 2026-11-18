@@ -6,6 +6,7 @@
 
 import { KNOT_KMH, distance, headingOf, headingVector, polylineLength, project, stepAlong } from './geo.js';
 import { emit } from './events.js';
+import { completeEntity } from './entities.js';
 import { followPlan } from './navigation.js';
 import { clearAtSea, seaPath } from './searoute.js';
 
@@ -20,7 +21,7 @@ export function createConvoy(world, def) {
     materiel: freighters * (def.materielPerFreighter ?? 0),
     ammo: def.ammo ?? 0,
   };
-  return {
+  return completeEntity('convoy', {
     kind: 'convoy',
     id: def.id,
     name: def.name,
@@ -45,7 +46,6 @@ export function createConvoy(world, def) {
     course: def.heading ?? 90,
     route: [],
     routeLocked: 0, // last points of the route that the player cannot move (channel, port)
-    schedule: null, // a sailing ordered for later (timetable.js)
     plan: [],
     legState: null,
     // inPort (also: at anchor, waiting for the order to sail) | atSea | waiting | arrived | lost
@@ -61,10 +61,9 @@ export function createConvoy(world, def) {
     orderedKn: def.orderedKn !== undefined ? def.orderedKn : (def.type || 'ocean') === 'ocean' && !def.straggler ? safeKnots(def.speedKn, world.rules.asw?.stragglerFrom) : null,
     zigzag: false, // zigzagging: harder to torpedo, slower to advance
     straggler: false,
-    rangeAlerted: false, // the player was told it came within reach of the escorts
     parentId: null,
     children: [], // stragglers that fell behind
-  };
+  }, world);
 }
 
 /** The fastest whole number of knots that keeps a convoy together (below `from` of its best). */
@@ -296,7 +295,8 @@ function checkStragglers(world, c) {
   c.cargoStart.materiel -= cargo.materiel;
   c.shipsStart--;
   const [dx, dy] = headingVector(c.heading);
-  const s = {
+  // A straggler is a convoy of one ship: it gets every field a convoy has.
+  const s = completeEntity('convoy', {
     kind: 'convoy',
     id: `${c.id}-s${n}`,
     name: `${c.name}·${n}`,
@@ -336,7 +336,7 @@ function checkStragglers(world, c) {
     straggler: true,
     parentId: c.id,
     children: [],
-  };
+  }, world);
   c.children = [...(c.children || []), s.id];
   world.convoys.push(s);
   emit(world, 'straggler', { convoy: c.name, convoyId: c.id, stragglerId: s.id, n, tanker, x: s.x, y: s.y });

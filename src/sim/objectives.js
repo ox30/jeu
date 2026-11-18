@@ -11,15 +11,34 @@ export function createObjectives(world, defs) {
   return defs.map((o) => ({ ...o, done: false, failed: false }));
 }
 
-export function fighterShare(world) {
+/** Fighter aircraft of the squadrons: { now, establishment }. */
+export function fighterCount(world) {
   let now = 0;
-  let start = 0;
+  let establishment = 0;
   for (const s of world.squadrons) {
     if (s.role !== 'fighter') continue;
     now += s.aircraft;
-    start += s.aircraftStart;
+    establishment += s.aircraftStart;
   }
+  return { now, establishment };
+}
+
+/**
+ * The fighters left, as a share of those present when the scenario began. In a campaign the
+ * squadrons start short of the aircraft lost in the battle before: those losses are not
+ * counted a second time (the objective and the defeat are judged on this share). Aircraft
+ * from the factories can take it above 1.
+ */
+export function fighterShare(world) {
+  const { now, establishment } = fighterCount(world);
+  const start = world.fightersAtStart || establishment;
   return start ? now / start : 1;
+}
+
+/** The fighters left, as a share of the establishment: what a campaign carries to the next battle. */
+export function fighterEstablishmentShare(world) {
+  const { now, establishment } = fighterCount(world);
+  return establishment ? now / establishment : 1;
 }
 
 export function basesInService(world, o) {

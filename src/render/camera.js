@@ -27,12 +27,26 @@ export function visibleBox(cam) {
   return [x0, y0, x1, y1];
 }
 
-/** Centre and scale that fit a lon/lat view in the screen, leaving `margin` pixels. */
-export function viewFrame(cam, view, margin = 30) {
+/**
+ * Centre and scale that fit a lon/lat view in the screen, leaving `margin` pixels. `inset`
+ * is what an open unit sheet hides on each side, in pixels ({ left, right, top, bottom }):
+ * the view is then fitted in the part of the map left free.
+ */
+export function viewFrame(cam, view, margin = 30, inset = null) {
   const [x0, y0] = project(view.lon[0], view.lat[0]);
   const [x1, y1] = project(view.lon[1], view.lat[1]);
-  const scale = Math.min((cam.width - 2 * margin) / (x1 - x0), (cam.height - 2 * margin) / (y1 - y0));
-  return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, scale: clampScale(cam, scale) };
+  const left = (inset && inset.left) || 0;
+  const right = (inset && inset.right) || 0;
+  const top = (inset && inset.top) || 0;
+  const bottom = (inset && inset.bottom) || 0;
+  const w = Math.max(60, cam.width - left - right - 2 * margin);
+  const h = Math.max(60, cam.height - top - bottom - 2 * margin);
+  const scale = clampScale(cam, Math.min(w / (x1 - x0), h / (y1 - y0)));
+  return {
+    cx: (x0 + x1) / 2 + (right - left) / 2 / scale,
+    cy: (y0 + y1) / 2 - (bottom - top) / 2 / scale,
+    scale,
+  };
 }
 
 function clampScale(cam, s) {

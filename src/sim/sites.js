@@ -3,6 +3,7 @@
 // and repair crews bring it back over the hours that follow.
 
 import { emit } from './events.js';
+import { completeEntity, declareFields } from './entities.js';
 
 export const SITE_KINDS = ['airfield', 'radar', 'port', 'factory', 'depot'];
 
@@ -10,14 +11,20 @@ export function siteKey(kind, id) {
   return `${kind}:${id}`;
 }
 
-/** Adds the state shared by every installation to a placed scenario item. */
-export function initSite(site, kind) {
-  site.kind = kind;
-  site.key = siteKey(kind, site.id);
+declareFields('site', (site) => {
   site.damage = 0;
   site.attacks = [];
   site.wasOut = false;
-  return site;
+});
+
+/**
+ * An installation from a placed scenario item (or from a station deployed during the game),
+ * with every field the subsystems keep on installations (damage, stocks, minimum stocks…).
+ */
+export function createSite(world, item, kind) {
+  item.kind = kind;
+  item.key = siteKey(kind, item.id);
+  return completeEntity('site', item, world);
 }
 
 export function siteRules(world, site) {

@@ -70,11 +70,11 @@ test('Atlantic: a coastal patrol that sees a U-boat brings the game down to x1',
 test('an unescorted ocean convoy coming within reach of the escorts calls the player once', () => {
   const w = makeWorld('standard', {}, 'hiver-atlantique');
   const events = runTo(w, 9 * 86400).filter((e) => e.type === 'convoyInEscortRange');
-  assert.ok(events.length >= 1, 'HX 100 comes in range');
-  assert.equal(events[0].convoy, 'HX 100');
+  assert.ok(events.length >= 1, 'HX 102 comes in range');
+  assert.equal(events[0].convoy, 'HX 102');
   assert.equal(events.filter((e) => e.convoyId === events[0].convoyId).length, 1);
   assert.ok(events[0].km <= w.rules.escortGroups.alertKm);
-  const hx = w.convoys.find((c) => c.name === 'HX 100');
+  const hx = w.convoys.find((c) => c.name === 'HX 102');
   assert.ok(hx.rangeAlerted);
 });
 

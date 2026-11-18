@@ -4,7 +4,7 @@
 
 import { project, unproject } from './geo.js';
 import { emit } from './events.js';
-import { initSite } from './sites.js';
+import { createSite } from './sites.js';
 
 export function createMru(world, def) {
   world.mru = { available: def ? def.available ?? 0 : 0, pending: [], next: 1 };
@@ -14,7 +14,7 @@ export function createMru(world, def) {
 /** Adds a deployed mobile station to the radar chain (also used when a game is restored). */
 export function addMobileRadar(world, def) {
   const [x, y] = project(def.lon, def.lat);
-  const site = initSite({ id: def.id, name: def.name, lon: def.lon, lat: def.lat, x, y, azimuth: def.azimuth, mobile: true, rangeFactor: def.rangeFactor }, 'radar');
+  const site = createSite(world, { id: def.id, name: def.name, lon: def.lon, lat: def.lat, x, y, azimuth: def.azimuth, mobile: true, rangeFactor: def.rangeFactor }, 'radar');
   world.radars.push(site);
   world.sites.set(site.key, site);
   world.byId.radar.set(site.id, site);

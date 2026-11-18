@@ -1,11 +1,17 @@
 {
   "name": "jeu-1940",
-  "version": "0.1.0",
+  "version": "2.7.0",
   "private": true,
-  "description": "Prototype M0 : table de traçage, juillet 1940 (jeu navigateur)",
+  "description": "Jeu 1940 : jeu navigateur sur la Seconde Guerre mondiale, Acte I, 1940-1941 (prototype M2)",
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.js",
+    "lint": "node tools/node_modules/eslint/bin/eslint.js -c tools/eslint.config.mjs src tests tools",
+    "build": "node tools/build-page.mjs",
+    "fuzz": "node tools/bot/monkey.mjs --all 10000",
+    "smoke": "node tools/smoke/smoke.mjs",
+    "bot": "node tools/bot/run.mjs",
+    "measure": "node tools/bot/measure.mjs",
     "serve": "python3 -m http.server 8000"
   }
 }

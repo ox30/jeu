@@ -13,8 +13,14 @@ import { departConvoy, scramble } from './orders.js';
 import { formationById, formationOf, leaderOf, membersOf, scrambleFormation } from './formations.js';
 import { launchMember } from './rally.js';
 import { applyRoster } from './roster.js';
+import { declareFields } from './entities.js';
 
 const DAY = 86400;
+
+// A sailing ordered for later, on every convoy (a straggler included).
+declareFields('convoy', (c) => {
+  c.schedule = null;
+});
 
 export function createTimetable(world) {
   world.nextTimetableId = 1;

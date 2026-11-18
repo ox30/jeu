@@ -20,6 +20,9 @@ import {
 } from './actions.js';
 import { membersOf } from '../sim/formations.js';
 import { answerShown } from './questions.js';
+import { speedIndexOfKey } from './keys.js';
+import { pickHit, unitsUnder } from './hit.js';
+import { isFlying } from '../sim/squadron.js';
 
 const UNIT_KINDS = new Set(['squadron', 'convoy', 'airfield', 'escort', 'rally']);
 const HANDLE_KINDS = new Set(['routePoint', 'routeMid', 'routeExtend']);
@@ -30,8 +33,18 @@ function unitOrigin(app, hit) {
   return u && Number.isFinite(u.x) ? [u.x, u.y] : toWorld(app.camera, hit.x, hit.y);
 }
 
-/** Selection made by a drag from an aerodrome: its first ready squadron, or the aerodrome. */
+/** The squadron in hand (or the leader of the wing in hand) when it stands on this aerodrome. */
+function inHandOnField(app, fieldId) {
+  const s = selectedSquadron(app);
+  return s && !isFlying(s) && s.airfield === fieldId ? s : null;
+}
+
+/**
+ * Selection made by a drag from an aerodrome: its first ready squadron, or the aerodrome.
+ * The squadron in hand stays in hand when it is on this aerodrome.
+ */
 function selectFromAirfield(app, fieldId) {
+  if (inHandOnField(app, fieldId)) return;
   const sq = app.world.squadrons.find((s) => s.airfield === fieldId && s.state === 'ready');
   if (sq) select(app, 'squadron', sq.id);
   else select(app, 'airfield', fieldId);
@@ -55,16 +68,26 @@ function selectHit(app, hit) {
   else selectClicked(app, hit);
 }
 
-function hitTest(app, x, y, pad) {
-  let best = null;
-  for (const h of app.hits) {
-    const d = Math.hypot(h.x - x, h.y - y);
-    const inBox = h.box && x >= h.box.x && x <= h.box.x + h.box.w && y >= h.box.y && y <= h.box.y + h.box.h;
-    if (d > h.r + pad && !inBox) continue;
-    const score = h.priority * 1000 + (inBox ? h.r : d);
-    if (!best || score < best.score) best = { ...h, score };
-  }
-  return best;
+/**
+ * Does this target belong to what is in hand? The unit itself or its formation, always. For a
+ * drag (`proxy`), the aerodrome too when the squadron in hand stands on it or when its own
+ * sheet is open: on the map a squadron on the ground is its aerodrome, and the line drawn
+ * from there is its route. A plain click does not take that short cut: clicking a squadron
+ * that flies over the aerodrome selects that squadron.
+ */
+function isSelectedHit(app, h, proxy) {
+  const sel = app.selection;
+  // Units only: a raid or an installation in hand must not hide the squadron flying over it.
+  if (!sel || !UNIT_KINDS.has(h.kind)) return false;
+  if (sel.kind === 'formation' && (h.formation === sel.id || (h.kind === 'rally' && h.id === sel.id))) return true;
+  if (h.kind === sel.kind && h.id === sel.id) return true;
+  if (!proxy || h.kind !== 'airfield') return false;
+  return (sel.kind === 'site' && sel.id === `airfield:${h.id}`) || Boolean(inHandOnField(app, h.id));
+}
+
+/** What is under the pointer: for a drag that starts there (`proxy`), or for a plain click. */
+function hitTest(app, x, y, pad, proxy = true) {
+  return pickHit(app.hits, x, y, pad, (h) => isSelectedHit(app, h, proxy));
 }
 
 export function attachInput(app) {
@@ -114,10 +137,16 @@ export function attachInput(app) {
       return;
     }
     if (app.tool === 'ruler' || e.shiftKey) {
-      // The ruler starts on the unit under the pointer, which is selected for its leg.
-      const unitHit = hit && UNIT_KINDS.has(hit.kind) ? hit : null;
+      // The ruler starts on the unit under the pointer, which is selected for its leg. Where
+      // several units overlap it never changes the selection: it starts on the unit in hand
+      // if that one is there, and on the map itself otherwise.
+      let unitHit = hit && UNIT_KINDS.has(hit.kind) ? hit : null;
+      if (unitHit && unitsUnder(app.hits, p[0], p[1], pad, UNIT_KINDS) > 1) {
+        if (!isSelectedHit(app, unitHit, true)) unitHit = null;
+      } else if (unitHit) {
+        selectHit(app, unitHit);
+      }
       const w = unitHit ? unitOrigin(app, unitHit) : toWorld(app.camera, p[0], p[1]);
-      if (unitHit) selectHit(app, unitHit);
       app.ruler = { a: w, b: w };
       gesture = { type: 'ruler' };
       return;
@@ -131,18 +160,20 @@ export function attachInput(app) {
       }
       return;
     }
+    // What the gesture selects if it turns out to be a plain click.
+    const clickHit = hitTest(app, p[0], p[1], pad, false);
     if (hit && UNIT_KINDS.has(hit.kind)) {
       if (headingsMode(app)) {
         // Orders by heading: the drag lays the ruler from the unit.
         const a = unitOrigin(app, hit);
-        gesture = { type: 'measure', hit, start: p, moved: false, a };
+        gesture = { type: 'measure', hit, clickHit, start: p, moved: false, a };
         return;
       }
-      gesture = { type: 'draw', hit, start: p, moved: false };
+      gesture = { type: 'draw', hit, clickHit, start: p, moved: false };
       app.drawing = { kind: hit.kind, id: hit.id, points: [[hit.x, hit.y]] };
       return;
     }
-    gesture = { type: 'pan', last: p, start: p, hit, moved: false };
+    gesture = { type: 'pan', last: p, start: p, hit: clickHit, moved: false };
   });
 
   canvas.addEventListener('pointermove', (e) => {
@@ -214,7 +245,7 @@ export function attachInput(app) {
         const endHit = hitTest(app, q[0], q[1], 8);
         finishDrawing(app, gesture.hit, points, endHit);
       } else if (!gesture.moved) {
-        clickSelect(app, gesture.hit);
+        clickSelect(app, gesture.clickHit || gesture.hit);
       }
       app.drawing = null;
     } else if (gesture.type === 'extend') {
@@ -237,7 +268,7 @@ export function attachInput(app) {
       }
       app.routeDrag = null;
     } else if (gesture.type === 'measure') {
-      if (!gesture.moved) clickSelect(app, gesture.hit);
+      if (!gesture.moved) clickSelect(app, gesture.clickHit || gesture.hit);
     } else if (gesture.type === 'mru') {
       if (up && app.ruler && Math.hypot(pos(e)[0] - gesture.start[0], pos(e)[1] - gesture.start[1]) > 12) orderMru(app, app.ruler.a, app.ruler.b);
       app.ruler = null;
@@ -291,10 +322,11 @@ export function attachInput(app) {
       answerShown(app, key === 'Enter');
       return;
     }
+    const speedIndex = speedIndexOfKey(e, SPEEDS.length);
     if (key === ' ') {
       togglePause(app);
-    } else if (key >= '1' && key <= String(SPEEDS.length)) {
-      requestSpeed(app, Number(key) - 1);
+    } else if (speedIndex >= 0) {
+      requestSpeed(app, speedIndex);
     } else if (key === 'a' || key === 'A') {
       goView(app, 'atlantic');
     } else if (key === 'g' || key === 'G') {

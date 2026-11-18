@@ -8,6 +8,15 @@ import { cargoShare } from '../sim/convoy.js';
 import { basesInService, enemyDown, fighterShare, radarsInService, shipLosses, tonnesDelivered } from '../sim/objectives.js';
 
 /** "30+" for an estimated count (rounded down to 5), the exact number otherwise. */
+/** The name proposed for a new formation: "Big Wing Duxford", "Groupe de soutien 2". */
+export function formationDefaultName(world, kind, leader) {
+  if (kind === 'air') {
+    const field = leader ? world.byId.airfield.get(leader.home) : null;
+    return t('formations.defaultName.air', { base: field ? field.name : leader ? leader.name : '' });
+  }
+  return t('formations.defaultName.naval', { n: world.nextFormationId });
+}
+
 export function countText(n, approx) {
   if (!approx) return String(n);
   return `${n >= 10 ? Math.floor(n / 5) * 5 : n}+`;
@@ -56,6 +65,14 @@ export function durationText(seconds) {
   const hours = d * 24 + h;
   if (!m || hours >= 10) return t('units.h', { h: hours });
   return t('units.hmin', { h: hours, m: String(m).padStart(2, '0') });
+}
+
+/** Real time, for the clock of a game: "moins d'une minute", "47 min", "1 h 12 min". */
+export function realDurationText(ms) {
+  const minutes = Math.floor(Math.max(0, ms) / 60000);
+  if (minutes < 1) return t('units.underMinute');
+  if (minutes < 60) return t('units.min', { n: minutes });
+  return t('units.hminLong', { h: Math.floor(minutes / 60), m: minutes % 60 });
 }
 
 function dm(value) {

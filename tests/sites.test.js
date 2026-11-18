@@ -75,3 +75,30 @@ test('a fight ends with a combat report', () => {
   assert.ok(sq.lastReport);
   assert.equal(typeof combatRound, 'function');
 });
+
+// B1 of the audit: a mobile station set up during a game was an incomplete installation (no
+// stocks, no minimum stocks) and the next pass of the standing orders stopped the game.
+test('a mobile radar deployed at Adlertag is a complete installation: a day of game goes by', async () => {
+  const { deployMru, addMobileRadar } = await import('../src/sim/mru.js');
+  const { restore, snapshot } = await import('../src/save/game.js');
+  const w = makeWorld('standard', {}, 'adlertag');
+  runTo(w, 8 * 3600); // the station is released on the first afternoon
+  assert.ok(w.mru.available > 0, 'a station is available');
+  const field = w.byId.airfield.get('tangmere');
+  assert.ok(deployMru(w, field.x, field.y - 6, 180).ok);
+  run(w, 24 * 3600);
+  const station = w.radars.find((r) => r.mobile);
+  assert.ok(station, 'the station joined the chain');
+  for (const other of w.radars.filter((r) => !r.mobile).slice(0, 1)) {
+    assert.deepEqual(Object.keys(station.stocks).sort(), Object.keys(other.stocks).sort());
+    assert.deepEqual(Object.keys(station.minStock).sort(), Object.keys(other.minStock).sort());
+  }
+  // Its damage survives a save, as for any installation.
+  damageSite(w, station, 30, 'test');
+  const snap = JSON.parse(JSON.stringify(snapshot(w)));
+  const b = makeWorld('standard', {}, 'adlertag');
+  restore(b, snap, addMobileRadar);
+  const again = b.radars.find((r) => r.mobile);
+  assert.ok(again && Math.abs(again.damage - station.damage) < 1e-9, 'the damage is restored');
+  run(b, 6 * 3600);
+});

@@ -190,7 +190,7 @@ test('a squadron passing under a raid is told it missed, and by how much', () =>
 });
 
 test('a new leg after a leg under way is checked from where that leg will end, not from its whole length', () => {
-  // Florian's HX 100: 070° for 8 days 17 h, 28 h left; the whole leg from here would run into
+  // Florian's convoy (HX 100 at the time, HX 102 since M2.7): 070° for 8 days 17 h, 28 h left; the whole leg from here would run into
   // the Hebrides, what is left of it stays at sea.
   const w = makeWorld('standard', {}, 'hiver-atlantique');
   run(w, 7 * 3600);
