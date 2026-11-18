@@ -13,6 +13,14 @@ const AIR = {
   '3-par-raid': { perRaid: 3 },
   '4-par-raid': { perRaid: 4 },
   '6-par-raid': { perRaid: 6 },
+  // In mass, and after them: six squadrons a raid, pursuit allowed beyond mid-Channel.
+  masse: { perRaid: 6, answers: { engage: true, pursue: true, beyond: true } },
+  // The campaign played simply, then 15 September in mass (a conduct can differ by battle).
+  'masse-le-15': {
+    perRaid: 2,
+    scale: true,
+    byScenario: { 'quinze-septembre': { perRaid: 6, scale: false, answers: { engage: true, pursue: true, beyond: true } } },
+  },
 };
 
 const SEA = {
@@ -55,6 +63,7 @@ export const MATRIX = [
   ['quinze-septembre', 'standard', '4-par-raid'],
   ['quinze-septembre', 'realistic', 'simple'],
   ['quinze-septembre', 'realistic', 'soigne'],
+  ['quinze-septembre', 'realistic', 'masse'],
   ['hiver-atlantique', 'standard', 'rien'],
   ['hiver-atlantique', 'standard', 'simple'],
   ['hiver-atlantique', 'standard', 'rester'],
@@ -67,4 +76,5 @@ export const MATRIX = [
   ['campagne', 'standard', 'simple'],
   ['campagne', 'realistic', 'simple'],
   ['campagne', 'realistic', 'soigne'],
+  ['campagne', 'realistic', 'masse-le-15'],
 ];

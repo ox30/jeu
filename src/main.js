@@ -28,7 +28,7 @@ import { contactEstimate } from './sim/query.js';
 import { openFormations } from './ui/formationsPage.js';
 import { carryFor, loadCampaign, recordResult } from './ui/campaign.js';
 import { attachTutorial, startTutorial, stopTutorial, tutorialEvent, updateTutorial } from './ui/tutorial.js';
-import { fighterShare } from './sim/objectives.js';
+import { fighterEstablishmentShare } from './sim/objectives.js';
 import { alertForEvent, initAlert, resetAlerts, updateAlerts } from './ui/alerts.js';
 import { initQuestions, questionAsked, renderQuestion } from './ui/questions.js';
 import { ALERT_TYPES } from './ui/alertRules.js';
@@ -186,7 +186,7 @@ function handleEvents(app, events) {
       app.paused = true;
       app.dirtyHud = true;
       clearBrowserSave();
-      app.unlocked = recordResult(app.campaign, app.world, fighterShare(app.world));
+      app.unlocked = recordResult(app.campaign, app.world, fighterEstablishmentShare(app.world));
       openEnd(app);
     }
   }

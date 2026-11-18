@@ -5,6 +5,7 @@ import { dateTimeText, objectiveText } from './format.js';
 import { checkDevPassword } from './dev.js';
 import { markHelpSeen, matchingPreset, saveSettings } from '../save/settings.js';
 import { showPage } from './pages.js';
+import { fighterCount } from '../sim/objectives.js';
 import { CHAIN, TRAINING, saveCampaign, scenarioStatus } from './campaign.js';
 import { ALERT_GROUPS, defaultAlertSpeed } from './alertRules.js';
 import { setVolume } from './sound.js';
@@ -509,7 +510,20 @@ export function openEvent(app, e) {
     <form method="dialog">
       <h2>${escapeHtml(t(`${base}.title`))}</h2>
       <p>${escapeHtml(t(`${base}.text`))}</p>
+      ${e.key === 'intro' ? carryNote(app.world) : ''}
       <div class="dialog-buttons"><button value="close">${escapeHtml(t('events.ok'))}</button></div>
     </form>`;
   showPage(app, dlg);
+}
+
+/** Campaign: what the battle before cost, said in the briefing of this one. */
+function carryNote(world) {
+  if (!world.carry) return '';
+  const { establishment } = fighterCount(world);
+  return `<p class="dialog-note">${escapeHtml(t('events.carry', {
+    from: t(`scenarios.${world.carry.from}.title`),
+    share: Math.round(world.carry.fighterShare * 100),
+    n: world.fightersAtStart,
+    total: establishment,
+  }))}</p>`;
 }

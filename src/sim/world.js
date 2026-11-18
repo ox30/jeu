@@ -18,7 +18,7 @@ import { createTimetable, updateTimetable } from './timetable.js';
 import { updateRallies } from './rally.js';
 import { createGrid } from './grid.js';
 import { createSite, repairSites } from './sites.js';
-import { checkDefeat, checkObjectives, createObjectives, finalize } from './objectives.js';
+import { checkDefeat, checkObjectives, createObjectives, fighterCount, finalize } from './objectives.js';
 import { createLogistics, updateLogistics, updateTrains } from './logistics.js';
 import {
   ageDfZones, checkEscortRange, createEscortGroup, createUboat, initialIntelligence, updateEscort, updateUboat,
@@ -87,6 +87,8 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
     uboatPlots: [],
     nextPlotId: 1,
     squadrons: [],
+    carry: null, // campaign: the losses carried over from the battle before ({ fighterShare, from })
+    fightersAtStart: 0, // fighter aircraft present as the scenario begins
     raids: [],
     contacts: new Map(),
     reports: new Map(),
@@ -130,6 +132,8 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
   world.uboats = (scenario.uboats || []).map((u) => createUboat(world, u));
   world.squadrons = scenario.squadrons.map((s) => createSquadron(world, s));
   if (carry && carry.fighterShare < 1) applyCarry(world, carry);
+  // The fighters present as the scenario begins: the objective of fighter strength is measured on them.
+  world.fightersAtStart = fighterCount(world).now;
   createCrews(world, scenario.pilots || null);
   createMru(world, scenario.mru || null);
   createSchedule(world);
@@ -151,7 +155,12 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
     convoy: first ? first.name : null,
     port: first && first.portId ? world.byId.port.get(first.portId).name : null,
   });
-  if (world.carry) emit(world, 'carryApplied', { share: Math.round(world.carry.fighterShare * 100), from: world.carry.from });
+  if (world.carry) {
+    emit(world, 'carryApplied', {
+      share: Math.round(world.carry.fighterShare * 100), from: world.carry.from,
+      n: world.fightersAtStart, total: fighterCount(world).establishment,
+    });
+  }
   return world;
 }
 

@@ -1,7 +1,7 @@
 // A measurement: the matrix of conducts played on several seeds, two games at a time, each
 // in its own process. Results go to tools/bot/out/<name>.jsonl (one line a game) and a
 // summary is printed as a Markdown table.
-//   node tools/bot/measure.mjs --name depart [--seeds 10] [--only hiver] [--workers 2]
+//   node tools/bot/measure.mjs --name depart [--seeds 10] [--only hiver,campagne/realistic] [--workers 2] [--append]
 //   node tools/bot/measure.mjs --summary depart        (the table again, from the file)
 import { spawn } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
@@ -75,7 +75,7 @@ async function main() {
   if (existsSync(out) && !args.includes('--append')) rmSync(out);
   const jobs = [];
   for (const [scenario, preset, conduct] of MATRIX) {
-    if (only && !`${scenario}/${preset}/${conduct}`.includes(only)) continue;
+    if (only && !only.split(',').some((part) => `${scenario}/${preset}/${conduct}`.includes(part))) continue;
     for (let seed = 1; seed <= seeds; seed++) jobs.push({ scenario, preset, conduct, seed });
   }
   let next = 0;

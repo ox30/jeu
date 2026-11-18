@@ -273,8 +273,9 @@ export function runChain(cfg = {}) {
   for (const scenario of ['kanalkampf', 'adlertag', 'quinze-septembre']) {
     const settings = makeWorld(scenario, { preset: cfg.preset || 'standard', overrides: cfg.overrides || {} }).settings;
     const carry = carryFor(campaign, scenario, settings.carry);
-    const w = runAir({ ...cfg, scenario, carry, returnWorld: true });
-    const share = sim.objectives.fighterShare(w);
+    const w = runAir({ ...cfg, ...(cfg.byScenario?.[scenario] || {}), scenario, carry, returnWorld: true });
+    // What the campaign carries over: the share of the establishment (2.6.1 had one share only).
+    const share = (sim.objectives.fighterEstablishmentShare || sim.objectives.fighterShare)(w);
     recordResult(campaign, w, share);
     battles.push({
       scenario,
