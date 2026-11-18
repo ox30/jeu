@@ -40,7 +40,7 @@ import {
 } from './ui/dialogs.js';
 import { playBombs, playGuns, playRadio, unlockAudio } from './ui/sound.js';
 import { addEffectsForEvent } from './render/fx.js';
-import { eventMessage } from './ui/format.js';
+import { eventMessage } from './ui/messages.js';
 import { initHud, updateHud } from './ui/hud.js';
 import { attachInput } from './ui/input.js';
 import { addLogEntry, clearLog, renderPanels } from './ui/panels.js';

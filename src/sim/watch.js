@@ -59,6 +59,14 @@ const NOTED = {
   airborne: 'air', squadronLost: 'air', offerBought: 'convoy', scenarioEvent: 'intel',
 };
 
+/** The family a watch report files this kind of event under, or null when it keeps none. */
+export function watchFamily(type) {
+  return NOTED[type] || null;
+}
+
+/** Every kind of event a watch report may keep. */
+export const NOTED_TYPES = Object.keys(NOTED);
+
 /** Does this event belong in the watch report? (A pass that changed nothing does not.) */
 function isNoted(world, e) {
   if (!NOTED[e.type]) return false;

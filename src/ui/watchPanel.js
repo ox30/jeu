@@ -9,7 +9,8 @@ import { unproject } from '../sim/geo.js';
 import { WATCH_S, clockHour, fullReport, isQuiet, pendingDecisions } from '../sim/watch.js';
 import { shownPosition } from '../sim/comms.js';
 import { centreOn, orderEscortHome, orderJoin, select, togglePause } from './actions.js';
-import { eventMessage, positionText } from './format.js';
+import { positionText } from './format.js';
+import { eventMessage } from './messages.js';
 import { setHtml } from './html.js';
 import { showPage } from './pages.js';
 
