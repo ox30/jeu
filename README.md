@@ -8,6 +8,30 @@ avec un menu principal, un tutoriel guidé et une aide illustrée.
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
+**Version 2.7.0** (lot M2.7, corrections et filet de sécurité). Les décisions qui guident les
+lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md` (fichier du projet) ; le journal des
+travaux est dans `docs/journal-m2.7-m2.10.md`.
+
+## Nouveautés du M2.7
+
+- **La station radar mobile ne fige plus le jeu** : toutes les installations, station mobile
+  comprise, sont créées de la même façon. Si une erreur arrive quand même, le jeu se met en
+  pause, le dit, et propose d'exporter la partie ou de reprendre la dernière sauvegarde.
+- **La campagne se gagne en Réaliste** : l'objectif « garder la chasse » se mesure sur les
+  chasseurs présents au début du scénario, et le briefing dit avec combien d'avions on commence.
+- **Les vues** (touches A, L et G) cadrent la carte dans la partie que la fiche laisse libre.
+- **Plaques empilées** : quand des plaques se recouvrent, un tracé part de l'unité en main, et la
+  règle ne change plus la sélection.
+- **Touches de vitesse** lues par leur position : elles marchent sur un clavier AZERTY et au
+  pavé numérique.
+- **Bilan de fin** selon le scénario (plus de U-Boote coulés un 15 septembre), avec le temps de
+  jeu réel, pauses comprises.
+- **Atlantique** : plus de grille RAF ; le 502 Sqn vole sur Whitley, le 10 Sqn RAAF est basé à
+  Oban, et le convoi du 10 janvier 1941 est le HX 102.
+- **Sous le capot** : sept règles mortes supprimées, une seule vitesse en plongée pour la
+  simulation et la fiche, plus aucun texte français dans le code, un joueur automatique et des
+  tests à chaque envoi (voir Tests et Outils).
+
 ## Lancer le jeu
 
 Le jeu se joue sur un ordinateur, avec une souris et un clavier.
@@ -46,7 +70,8 @@ la case « Débloquer tous les scénarios » les ouvre tous d'un coup.
 Entre les batailles aériennes, le réglage « Campagne » reporte une partie des pertes : en
 Standard, la chasse commence la bataille suivante avec la moitié des avions perdus en moins
 (au moins 75 %) ; en Réaliste, avec toutes les pertes (au moins 60 %). Les usines et les
-convoyeurs comblent ensuite les vides.
+convoyeurs comblent ensuite les vides. Le briefing du scénario dit avec combien d'avions la
+chasse commence, et l'objectif « garder la chasse » se mesure sur ces avions-là.
 
 La partie en cours est enregistrée toute seule dans le navigateur et reprend où on l'a
 laissée. La page Campagne permet aussi de l'exporter dans un fichier `.json`, et « Charger
@@ -254,7 +279,8 @@ vitesse élevée (au-delà de ×60 pendant un raid, de ×600 pendant une attaque
 confirmation : Entrée pour accepter, Échap pour rester. Il n'y a pas d'avance jusqu'au
 prochain événement : le joueur doit pouvoir être surpris.
 
-Raccourcis : Espace pause · 1 à 6 vitesse · A Atlantique · L Grande-Bretagne · G Angleterre ·
+Raccourcis : Espace pause · 1 à 6 vitesse (les six premières touches de la rangée des chiffres,
+quel que soit le clavier, ou le pavé numérique) · A Atlantique · L Grande-Bretagne · G Angleterre ·
 R ou Maj + glisser règle (la croix de son encart l'efface) · Entrée ajouter l'étape mesurée ·
 C couverture radar · Échap annuler, puis fermer la fiche · ↑ ↓ altitude · Suppr retirer le point choisi ·
 S décoller · B boost (avion ou navire) · O orbite · P rentrer · D rompre le combat (désengager le raid en cours) · question à l'écran : Entrée oui (au
@@ -308,7 +334,7 @@ ou 100 %).
 Options : pause pendant les pages et durée du plan d'exception des Effectifs (Partie) ;
 ralenti à l'alerte avec une vitesse pour chaque alerte, confirmation des vitesses élevées
 pendant une action ennemie, questions d'engagement et de poursuite (Temps et alertes) ; tiges
-d'altitude, grille de carrés, zoom automatique et **zones de vue** (aucune, de l'unité
+d'altitude, grille de carrés (sauf dans l'Atlantique, qui n'en a pas), zoom automatique et **zones de vue** (aucune, de l'unité
 choisie, de toutes) : ce qu'un avion voit des autres avions et, pour une patrouille côtière,
 d'un U-Boot en surface ; ce qu'un groupe d'escorte voit d'un U-Boot en surface (vigies,
 radar) et en plongée (ASDIC), de jour et de nuit ; la place de la fiche (à droite, à gauche
@@ -345,8 +371,12 @@ ou en bas de la carte) et l'affichage économe, un peu moins net mais plus fluid
 │   ├── presets.json           préréglages Arcade, Standard, Réaliste
 │   ├── help/images.json       images de l'aide, prises sur le banc d'essai
 │   └── i18n/fr.json           tous les textes affichés
-├── tests/                     tests de la simulation (Node)
+├── tests/                     tests de la simulation et des règles du code (Node)
 ├── tools/                     génération des cartes et de la version en un seul fichier
+│   ├── bot/                   joueur automatique, mesures, ordres au hasard
+│   └── smoke/                 test de fumée et images par seconde dans Chrome sans écran
+├── docs/                      journal des travaux
+├── .github/workflows/         tests à chaque envoi sur GitHub
 └── dist/index.html            le jeu en un seul fichier
 ```
 
@@ -361,10 +391,38 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test
+npm test          # les 196 tests, environ deux minutes
+npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
+npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
+npm run smoke     # le jeu dans Chrome sans écran : tutoriel, pages, fiches, corrections
+npm run build     # reconstruit dist/index.html
 ```
 
-Les 156 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
+GitHub lance le tout à chaque envoi (`.github/workflows/tests.yml`) et vérifie que
+`dist/index.html` est bien celui que donnent les sources.
+
+Le filet du M2.7 :
+
+- **Ordres au hasard** (`tests/fuzz.test.js`, `tools/bot/monkey.mjs`) : tous les ordres de
+  l'interface, donnés au hasard tout au long de chaque scénario, avec des sauvegardes et des
+  reprises. Rien ne doit planter, aucune valeur ne doit devenir impossible, et la partie
+  reprise doit être la partie sauvegardée.
+- **Aller-retour de sauvegarde** (`tests/roundtrip.test.js`) par scénario, avec station
+  mobile, formation, avion acheté et traînard ; même graine et mêmes ordres, même partie.
+- **Règles du code** (`tests/architecture.test.js`) : `src/sim` n'importe que `src/core`,
+  aucun texte français dans le code, chaque clé de texte citée existe, aucune règle morte
+  dans `data/rules.json`.
+- **Test de fumée** (`tools/smoke/smoke.mjs`) : la version de développement et le fichier
+  unique démarrent, le tutoriel est joué à la souris et au clavier jusqu'à sa dernière étape,
+  chaque page et chaque sorte de fiche s'ouvre dans chaque scénario, et les corrections du
+  M2.7 sont rejouées (plaques empilées, touches d'un clavier AZERTY, bilan de fin, briefing
+  de campagne, garde-fou sur une erreur provoquée).
+- Les tests du M2.7 lui-même : campagne en Réaliste (`tests/campaign.test.js`), bilan de fin
+  et chrono (`tests/summary.test.js`), touches (`tests/keys.test.js`), test de clic
+  (`tests/hit.test.js`), station mobile sur un jour de jeu (`tests/sites.test.js`), cadrage
+  des vues (`tests/camera.test.js`).
+
+Les tests (Node 20 ou plus récent ; aucune dépendance pour `npm test`) vérifient notamment la géométrie, la
 terre et la mer, les routes, les étapes et leur édition, le pilote à l'entrée des chenaux,
 les interceptions, le guidage du contrôleur et les ratés, les rapports, les installations,
 les trains mélangés, les munitions, la fatigue et les pilotes, les patrouilles, les U-Boote
@@ -403,6 +461,17 @@ node build-maps.mjs    # régénère data/maps/atlantic.json et channel.json
 node build-page.mjs    # régénère dist/index.html
 ```
 
+**Joueur automatique** (`tools/bot/`, voir son `README.md`). Il lit ce que la table montre et
+donne les ordres d'un joueur ; il sert à mesurer l'équilibre avant et après chaque lot.
+
+```
+npm run bot -- adlertag simple standard 3      # une partie : scénario, conduite, préréglage, graine
+npm run bot -- campagne masse-le-15 realistic 1
+npm run measure -- --name essai --seeds 10     # toute la matrice, dix graines par ligne
+node tools/bot/perf.mjs                        # durée des pas de simulation (machine au repos)
+node tools/smoke/fps.mjs                       # images par seconde à ×14 400 dans Chrome
+```
+
 ## Données et sources
 
 - Côtes : Natural Earth 1:50m et 1:10m (domaine public), via le paquet world-atlas.
@@ -413,6 +482,9 @@ node build-page.mjs    # régénère dist/index.html
 - Libertés assumées : la section de guet (le 421 Flight date du 21 septembre 1940) est déjà
   là en juillet ; les Catalina du 240 Squadron arrivent un peu tôt ; les heures de jour et
   de nuit sont simplifiées (été, hiver).
+- Corrigé au M2.7 d'après l'audit : le 502 Sqn vole sur Whitley (depuis octobre 1940) ; le
+  10 Sqn RAAF est à Oban, où l'unité avait un détachement ; la série HX commence à HX 102 le
+  10 janvier 1941, si bien que le convoi du 1er mars est le HX 112.
 
 ## Limites connues du M2
 
