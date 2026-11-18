@@ -878,7 +878,7 @@ function letGoLine(app, s) {
 function squadronPanel(app, s) {
   const w = app.world;
   const state = squadronStateText(app, s);
-  const headings = app.settings.orders === 'headings';
+  const headings = app.world.settings.orders === 'headings';
   const member = formationOf(w, s);
   const grounded = s.state === 'ready' || s.state === 'refuelling';
   const up = isFlying(s) || s.state === 'scrambling';
@@ -958,7 +958,7 @@ function convoyPanel(app, c) {
     remaining !== null && c.state === 'atSea' ? row(t('sheet.eta'), escapeHtml(about(dateTimeText(w.startMs + (w.t + remaining / currentSpeed(c)) * 1000)))) : '',
   ].join('');
   const canOrder = c.state === 'inPort' || c.state === 'waiting' || c.state === 'atSea';
-  const headings = app.settings.orders === 'headings';
+  const headings = app.world.settings.orders === 'headings';
   const cmd = canOrder ? [
     c.state === 'inPort' || c.state === 'refit' ? section(app, 'convoyPort', t('sec.port'), ordersBox(sailBlock(app, c),
       `<p class="hint">${escapeHtml(t('orders.sailHint'))}</p>`)) : '',
@@ -1180,7 +1180,7 @@ function formationPanel(app, f) {
   const air = f.kind === 'air';
   const total = members.reduce((n, u) => n + (air ? u.aircraft : u.ships), 0);
   const manage = `<div class="order-line">${button('formation-manage', t('unit.manage'), { id: f.id })}${button('formation-dissolve', t('unit.dissolve'), { id: f.id })}</div>`;
-  const headings = app.settings.orders === 'headings';
+  const headings = app.world.settings.orders === 'headings';
   const planned = f.rally && f.rally.phase !== 'plan' && f.rally.phase !== 'gone';
   let cmd;
   if (air) {
@@ -1599,7 +1599,7 @@ export function renderPanels(app) {
   const hint = app.el.panelHint;
   if (hint) {
     hint.hidden = Boolean(app.selection);
-    const text = app.settings.orders === 'headings' ? t('panel.hintHeadings') : t('panel.hint');
+    const text = app.world.settings.orders === 'headings' ? t('panel.hintHeadings') : t('panel.hint');
     if (hint.textContent !== text) hint.textContent = text;
   }
 }

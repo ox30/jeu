@@ -405,6 +405,20 @@ const GAME = {
   objectiveDone: { level: 'success', shape: objectiveShape },
   allObjectivesDone: { level: 'success' },
   objectiveFailed: { level: 'alert', shape: objectiveShape },
+  // The settings of the game changed on the way (an order of the settings page).
+  settingChanged: {
+    shape(w, e, p) {
+      p.name = t(`settings.${e.key}`);
+      const choice = t(`settings.${e.key}Choices.${e.value}`);
+      p.value = typeof e.value === 'boolean' ? t(e.value ? 'common.yes' : 'common.no') : choice === `settings.${e.key}Choices.${e.value}` ? String(e.value) : choice;
+    },
+  },
+  presetChanged: {
+    shape(w, e, p) {
+      p.from = t(`settings.presets.${e.from}`);
+      p.to = t(`settings.presets.${e.to}`);
+    },
+  },
   question: { shape: () => null }, // the banner asks; the answer goes into the journal
   questionYes: { shape: questionShape },
   questionNo: { shape: questionShape },

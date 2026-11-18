@@ -4,7 +4,8 @@ import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { dateTimeText, objectiveText, realDurationText } from './format.js';
 import { endSummaryKeys } from './summary.js';
 import { checkDevPassword } from './dev.js';
-import { markHelpSeen, matchingPreset, saveSettings } from '../save/settings.js';
+import { markHelpSeen, saveSettings } from '../save/settings.js';
+import { GAME_SETTING_KEYS, applyPreset, canSetGameSetting, matchingPreset, setGameSetting } from '../sim/gameSettings.js';
 import { showPage } from './pages.js';
 import { fighterCount } from '../sim/objectives.js';
 import { CHAIN, TRAINING, saveCampaign, scenarioStatus } from './campaign.js';
@@ -45,9 +46,18 @@ function speedWord(v) {
 
 const SETTINGS_TABS = ['game', 'time', 'map', 'sound', 'dev'];
 
-export function openSettings(app) {
+/**
+ * The settings page. `scope` says whose game settings it shows: 'game', those of the game
+ * under way (changed by an order, kept with the game), or 'defaults', the player's own, which
+ * the next games begin with. The display settings are the player's in both.
+ */
+export function openSettings(app, { scope = 'game' } = {}) {
   const dlg = app.el.dlgSettings;
-  const s = app.settings;
+  const inGame = scope === 'game';
+  const mine = app.settings;
+  // `s` gives every value of the page: the game's own for what belongs to it, the player's
+  // for the rest.
+  const s = inGame ? { ...mine, ...app.world.settings } : mine;
   const presets = app.data.presets;
   const presetChoices = [...Object.keys(presets.presets), 'custom'];
   const tab = SETTINGS_TABS.includes(app.settingsTab) ? app.settingsTab : 'game';
@@ -57,6 +67,7 @@ export function openSettings(app) {
       <h2>${escapeHtml(t('settings.title'))}</h2>
       <nav class="settings-tabs" role="tablist">${SETTINGS_TABS.map((id) => `<button type="button" role="tab" data-stab="${id}" class="${id === tab ? 'active' : ''}">${escapeHtml(t(`settings.tabs.${id}`))}</button>`).join('')}</nav>
       ${pane('game', `
+      <p class="hint settings-scope">${escapeHtml(t(inGame ? 'settings.scopeGame' : 'settings.scopeDefaults'))}</p>
       <label>${escapeHtml(t('settings.preset'))} ${select('preset', matchingPreset(s, presets), presetChoices, 'settings.presets')}</label>
       <fieldset>
         <label>${escapeHtml(t('settings.detection'))} ${select('detection', s.detection, presets.choices.detection, 'settings.detectionChoices')}</label>
@@ -124,25 +135,47 @@ export function openSettings(app) {
     for (const x of form.querySelectorAll('[data-stab]')) x.classList.toggle('active', x === b);
     for (const p of form.querySelectorAll('[data-spane]')) p.hidden = p.dataset.spane !== b.dataset.stab;
   });
+  // What belongs to the game: its preset and its settings. Fixed ones (the carry-over of the
+  // campaign) cannot be changed once the game is under way.
+  if (inGame) {
+    for (const k of GAME_SETTING_KEYS) {
+      const field = form.elements[k];
+      if (field && !canSetGameSetting(app.world, k, field.type === 'checkbox' ? field.checked : field.value, presets)) field.disabled = true;
+    }
+  }
   form.addEventListener('change', (e) => {
     const field = e.target;
     if (field.dataset.dev) return; // developer mode: devSettings()
-    if (field.name.startsWith('alertSpeed:')) {
-      const type = field.name.slice('alertSpeed:'.length);
-      s.alertSpeeds = { ...(s.alertSpeeds || {}) };
-      if (field.value === '') delete s.alertSpeeds[type];
-      else s.alertSpeeds[type] = Number(field.value);
-    } else if (field.name === 'preset') {
-      if (field.value !== 'custom') Object.assign(s, presets.presets[field.value]);
-    } else if (field.type === 'checkbox') {
-      s[field.name] = field.checked;
-    } else if (field.type === 'range') {
-      s[field.name] = Number(field.value);
+    const ofGame = field.name === 'preset' || GAME_SETTING_KEYS.includes(field.name);
+    if (ofGame && inGame) {
+      // The game under way: by an order, which the journal keeps.
+      const value = field.type === 'checkbox' ? field.checked : field.value;
+      if (field.name === 'preset') {
+        if (value !== 'custom') applyPreset(app.world, value, presets);
+      } else setGameSetting(app.world, field.name, value, presets);
+      Object.assign(s, app.world.settings);
+      app.save();
     } else {
-      s[field.name] = field.value;
+      const own = mine;
+      if (field.name.startsWith('alertSpeed:')) {
+        const type = field.name.slice('alertSpeed:'.length);
+        own.alertSpeeds = { ...(own.alertSpeeds || {}) };
+        if (field.value === '') delete own.alertSpeeds[type];
+        else own.alertSpeeds[type] = Number(field.value);
+      } else if (field.name === 'preset') {
+        if (field.value !== 'custom') Object.assign(own, presets.presets[field.value]);
+      } else if (field.type === 'checkbox') {
+        own[field.name] = field.checked;
+      } else if (field.type === 'range') {
+        own[field.name] = Number(field.value);
+      } else {
+        own[field.name] = field.value;
+      }
+      own.preset = matchingPreset(own, presets);
+      saveSettings(own);
+      if (!inGame) Object.assign(s, own);
+      else for (const k of Object.keys(own)) if (!(k in app.world.settings)) s[k] = own[k];
     }
-    s.preset = matchingPreset(s, presets);
-    saveSettings(s);
     if (field.name === 'volume') setVolume(app);
     if (field.name === 'lowRes' && app.resize) app.resize();
     if (field.name === 'sheetPos' && app.applySheet) app.applySheet();
@@ -156,7 +189,7 @@ export function openSettings(app) {
   });
   // The volume follows the slider while it moves.
   form.elements.volume.addEventListener('input', (e) => {
-    s.volume = Number(e.target.value);
+    mine.volume = Number(e.target.value);
     setVolume(app);
   });
   showPage(app, dlg);
@@ -233,6 +266,7 @@ openSettings.refresh = (form, s, presets) => {
   form.elements.bdienst.value = String(s.bdienst ?? '25');
   form.elements.falseAlarms.checked = s.falseAlarms;
   form.elements.pagesPause.checked = s.pagesPause;
+  form.elements.seaComms.value = s.seaComms || 'direct';
 };
 
 /** The steps of the help, for the scenario being played. */

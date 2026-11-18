@@ -1133,8 +1133,8 @@ function drawGates(ctx, cam, app) {
   const ship = sel && (sel.kind === 'convoy' || sel.kind === 'escort') ? sel : null;
   // The bubbles of the ports (a route or a leg that ends in one enters the port): with a ship
   // chosen, and always when ordering by headings (like the pilots' gates).
-  if (ship || app.settings.orders === 'headings') drawPortBubbles(ctx, cam, app, ship);
-  if (app.settings.orders !== 'headings' && !ship) return;
+  if (ship || app.world.settings.orders === 'headings') drawPortBubbles(ctx, cam, app, ship);
+  if (app.world.settings.orders !== 'headings' && !ship) return;
   const r = Math.max(5, world.rules.navigation.pilotKm * cam.scale);
   ctx.save();
   for (const port of world.ports) {
@@ -1652,7 +1652,7 @@ function drawRouteEditor(ctx, cam, app, alpha) {
       let [ex, ey] = toScreen(cam, end.x, end.y);
       ex += 9;
       ey += 13;
-      if (u.route.length && app.settings.orders !== 'headings') {
+      if (u.route.length && app.world.settings.orders !== 'headings') {
         // Beside the ring that lengthens the route.
         const pts = u.route;
         const [lx, ly] = toScreen(cam, pts[pts.length - 1][0], pts[pts.length - 1][1]);
@@ -1672,7 +1672,7 @@ function drawRouteEditor(ctx, cam, app, alpha) {
       ctx.fillText(label, ex, ey);
     }
   }
-  if (app.settings.orders === 'headings') return;
+  if (app.world.settings.orders === 'headings') return;
   const pts = editableRoute(u);
   if (!pts) return;
   const [ux, uy] = unitScreen(cam, u, alpha);

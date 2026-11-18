@@ -98,7 +98,7 @@ export function selectUnit(app, u) {
 }
 
 export function headingsMode(app) {
-  return app.settings.orders === 'headings';
+  return app.world.settings.orders === 'headings';
 }
 
 /** A short message shown in the unit sheet (refused orders, typing mistakes). */

@@ -582,6 +582,8 @@
     "slowOnAlert": "Ralentir le temps à chaque alerte (raid, convoi attaqué, base à sec…)",
     "sound": "Sons (alerte, radio, combats)",
     "note": "Les réglages s'appliquent tout de suite et restent enregistrés dans ce navigateur.",
+    "scopeGame": "Réglages de la partie en cours : ils sont enregistrés avec elle, et le journal note chaque changement. Les prochaines parties commencent avec ceux du menu principal.",
+    "scopeDefaults": "Réglages des prochaines parties. Une partie en cours garde les siens (menu ☰, « Réglages de la partie »).",
     "close": "Fermer",
     "orders": "Ordres",
     "ordersChoices": {
@@ -884,6 +886,8 @@
     "stragglerTanker": "pétrolier",
     "stragglerFreighter": "cargo",
     "gameResumed": "Partie reprise là où vous l'aviez laissée.",
+    "settingChanged": "Réglage de la partie changé : {name} → {value}.",
+    "presetChanged": "Préréglage de la partie changé : {from} → {to}.",
     "mruOrdered": "{name} : installation en cours, prête vers {time}.",
     "mruReady": "{name} est en service : portée réduite, mais elle bouche le trou.",
     "scenarioEndShipping": "Défaite : trop de navires marchands perdus.",

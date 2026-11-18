@@ -6,29 +6,51 @@
 import { escapeHtml, t } from '../core/i18n.js';
 import { goView, select } from './actions.js';
 
-const STEPS = [
-  { id: 'welcome', manual: true, enter: (app) => pause(app) },
-  {
-    id: 'convoy',
-    enter: (app) => {
-      goView(app, 'atlantic');
-      const c = app.world.convoys[0];
-      if (c) select(app, 'convoy', c.id);
-    },
-    done: (app) => app.world.convoys.some((c) => c.state === 'atSea' || c.state === 'arrived'),
-  },
-  { id: 'time', done: (app) => (!app.paused && app.speed >= 600) || app.world.contacts.size > 0 },
-  { id: 'radar', done: (app) => app.world.contacts.size > 0 },
-  {
-    id: 'scramble',
-    enter: (app) => goView(app, 'england'),
-    done: (app) => app.world.squadrons.some((s) => s.role === 'fighter' && s.state !== 'ready' && s.state !== 'lost'),
-  },
-  { id: 'altitude', done: (app, seen) => seen.has('tallyHo') || seen.has('combatRound') },
-  { id: 'combat', done: (app, seen) => seen.has('raidReport') },
-  { id: 'reports', manual: true, done: (app) => Boolean(app.reportsOpened) },
-  { id: 'end', manual: true, last: true },
-];
+// The conditions a step can wait for (data/tutorial.json): each takes the app, its argument
+// from the data, and the events seen since the lesson began.
+const CONDITIONS = {
+  convoyAtSea: (app) => app.world.convoys.some((c) => c.state === 'atSea' || c.state === 'arrived'),
+  speedAtLeast: (app, n) => !app.paused && app.speed >= n,
+  contacts: (app, n) => app.world.contacts.size >= n,
+  fighterUp: (app) => app.world.squadrons.some((s) => s.role === 'fighter' && s.state !== 'ready' && s.state !== 'lost'),
+  seen: (app, types, seen) => types.some((x) => seen.has(x)),
+  flag: (app, name) => Boolean(app[name]),
+  any: (app, list, seen) => list.some((c) => holds(app, c, seen)),
+  all: (app, list, seen) => list.every((c) => holds(app, c, seen)),
+};
+
+/** Is this condition of the data true now? ({ name: argument }, every name of it must hold.) */
+export function holds(app, condition, seen) {
+  if (!condition) return false;
+  return Object.entries(condition).every(([name, arg]) => {
+    const test = CONDITIONS[name];
+    if (!test) throw new Error(`tutorial: unknown condition ${name}`);
+    return test(app, arg, seen);
+  });
+}
+
+/** The names of the conditions the lessons may use (for the tests of the data). */
+export const CONDITION_NAMES = Object.keys(CONDITIONS);
+
+/** The lesson of the data played on this scenario (the first one, when several are). */
+export function lessonFor(tutorial, scenarioId) {
+  return ((tutorial && tutorial.lessons) || []).find((l) => l.scenario === scenarioId) || null;
+}
+
+function stepsOf(app) {
+  return app.tutorial ? app.tutorial.steps : [];
+}
+
+/** What a step does as it begins: pause, a view of the map, a unit in hand. */
+function begin(app, step) {
+  if (step.pause) pause(app);
+  if (step.view) goView(app, step.view);
+  if (step.select) {
+    const list = step.select.kind === 'convoy' ? app.world.convoys : step.select.kind === 'escort' ? app.world.escorts : app.world.squadrons;
+    const u = list[step.select.index || 0];
+    if (u) select(app, step.select.kind, u.id);
+  }
+}
 
 function pause(app) {
   app.paused = true;
@@ -36,7 +58,9 @@ function pause(app) {
 }
 
 export function startTutorial(app) {
-  app.tutorial = { index: 0, seen: new Set() };
+  const lesson = lessonFor(app.data.tutorial, app.world.scenario.id);
+  if (!lesson) return;
+  app.tutorial = { index: 0, seen: new Set(), lesson: lesson.id, steps: lesson.steps };
   app.reportsOpened = false;
   app.el.coach.hidden = false;
   enter(app, 0);
@@ -53,20 +77,19 @@ export function stopTutorial(app) {
 function enter(app, index) {
   const tu = app.tutorial;
   tu.index = index;
-  const step = STEPS[index];
-  if (step.enter) step.enter(app);
+  begin(app, tu.steps[index]);
   render(app);
 }
 
 function render(app) {
   const tu = app.tutorial;
-  const step = STEPS[tu.index];
+  const step = tu.steps[tu.index];
   const base = `tutorial.${step.id}`;
   const next = step.manual
     ? `<button type="button" data-coach="next">${escapeHtml(t(step.last ? 'tutorial.finish' : 'tutorial.next'))}</button>`
     : `<span class="coach-wait">${escapeHtml(t('tutorial.waiting'))}</span>`;
   app.el.coach.innerHTML = `
-    <div class="coach-head"><b>${escapeHtml(t(`${base}.title`))}</b><small>${escapeHtml(t('tutorial.step', { n: tu.index + 1, total: STEPS.length }))}</small></div>
+    <div class="coach-head"><b>${escapeHtml(t(`${base}.title`))}</b><small>${escapeHtml(t('tutorial.step', { n: tu.index + 1, total: tu.steps.length }))}</small></div>
     <p>${escapeHtml(t(`${base}.text`))}</p>
     <div class="coach-buttons">${step.last ? '' : `<button type="button" class="link" data-coach="quit">${escapeHtml(t('tutorial.quit'))}</button>`}${next}</div>`;
 }
@@ -81,12 +104,12 @@ export function updateTutorial(app) {
   const tu = app.tutorial;
   if (!tu) return;
   let moved = false;
-  for (let guard = 0; guard < STEPS.length; guard++) {
-    const step = STEPS[tu.index];
-    if (!step.done || !step.done(app, tu.seen) || tu.index >= STEPS.length - 1) break;
+  const steps = stepsOf(app);
+  for (let guard = 0; guard < steps.length; guard++) {
+    const step = steps[tu.index];
+    if (!step.done || !holds(app, step.done, tu.seen) || tu.index >= steps.length - 1) break;
     tu.index++;
-    const nextStep = STEPS[tu.index];
-    if (nextStep.enter) nextStep.enter(app);
+    begin(app, steps[tu.index]);
     moved = true;
   }
   if (moved) render(app);
@@ -100,7 +123,7 @@ export function attachTutorial(app) {
       stopTutorial(app);
       return;
     }
-    const step = STEPS[app.tutorial.index];
+    const step = app.tutorial.steps[app.tutorial.index];
     if (step.last) stopTutorial(app);
     else enter(app, app.tutorial.index + 1);
   });

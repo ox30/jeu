@@ -4,6 +4,31 @@
   "note": "Inspiré de juillet 1940 ; dates, unités, stocks et effectifs sont choisis pour le jeu et restent approximatifs. Les stocks sont la part réservée à la chasse, en tonnes.",
   "start": "1940-07-10T06:00",
   "end": "1940-07-24T18:00",
+  "seaRhythm": "direct",
+  "map": {
+    "zone": "atlantic",
+    "view": "britain",
+    "views": [
+      "atlantic",
+      "britain",
+      "england"
+    ],
+    "layers": [
+      "grid",
+      "radars",
+      "routes",
+      "closedWaters",
+      "night"
+    ],
+    "tools": [
+      "ruler",
+      "radarCover",
+      "reports",
+      "formations",
+      "roster",
+      "cards"
+    ]
+  },
   "seed": 1940,
   "grid": {
     "origin": [

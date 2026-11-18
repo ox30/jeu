@@ -4,6 +4,28 @@
   "note": "Inspiré de janvier à mars 1941 ; convois, effectifs et chiffres choisis pour le jeu. Avant le prêt-bail, la Grande-Bretagne paie comptant ce qu'elle achète en Amérique.",
   "start": "1941-01-10T06:00",
   "end": "1941-03-31T18:00",
+  "map": {
+    "zone": "atlantic",
+    "view": "atlantic",
+    "views": [
+      "atlantic",
+      "britain"
+    ],
+    "layers": [
+      "radars",
+      "routes",
+      "closedWaters",
+      "night"
+    ],
+    "tools": [
+      "ruler",
+      "radarCover",
+      "reports",
+      "formations",
+      "roster",
+      "cards"
+    ]
+  },
   "seed": 1941,
   "seaRhythm": "watches",
   "ports": [

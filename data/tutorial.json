@@ -1,0 +1,20 @@
+{
+  "note": "Les leçons du tutoriel : chacune se joue sur un scénario et suit ses étapes dans l'ordre. Une étape dit ce qu'elle fait en entrant (pause, vue de la carte, unité choisie) et à quoi elle se termine (done) ; « manual » lui donne un bouton pour passer à la suite. Les textes sont dans data/i18n/fr.json (tutorial.<étape>.title et .text). Conditions connues (src/ui/tutorial.js) : convoyAtSea, speedAtLeast, contacts, fighterUp, seen (un de ces événements a eu lieu), flag (un repère posé par l'interface), any et all (listes de conditions).",
+  "lessons": [
+    {
+      "id": "basics",
+      "scenario": "m0-july-1940",
+      "steps": [
+        { "id": "welcome", "manual": true, "pause": true },
+        { "id": "convoy", "view": "atlantic", "select": { "kind": "convoy", "index": 0 }, "done": { "convoyAtSea": true } },
+        { "id": "time", "done": { "any": [{ "speedAtLeast": 600 }, { "contacts": 1 }] } },
+        { "id": "radar", "done": { "contacts": 1 } },
+        { "id": "scramble", "view": "england", "done": { "fighterUp": true } },
+        { "id": "altitude", "done": { "seen": ["tallyHo", "combatRound"] } },
+        { "id": "combat", "done": { "seen": ["raidReport"] } },
+        { "id": "reports", "manual": true, "done": { "flag": "reportsOpened" } },
+        { "id": "end", "manual": true, "last": true }
+      ]
+    }
+  ]
+}

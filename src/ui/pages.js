@@ -10,7 +10,7 @@ import { countText, ftText } from './format.js';
 
 /** Opens a dialog as a page; the game pauses while it is open when the setting asks. */
 export function showPage(app, dlg) {
-  if (app.settings.pagesPause && !app.paused && !app.world.ended && !dlg.open) {
+  if (app.world.settings.pagesPause && !app.paused && !app.world.ended && !dlg.open) {
     app.paused = true;
     app.pausedByPage = true;
     app.dirtyHud = true;

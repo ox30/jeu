@@ -819,7 +819,9 @@ async function start() {
     // Built as a new game of this scenario would be, with what the campaign carries over: a
     // save made before 2.7 does not say how many fighters its game began with, and takes it
     // from here; a later save says it itself.
-    const w = createWorld({ scenario: sc, rules: data.rules, settings, terrain, carry: carryFor(campaign, sc.id, settings.carry) });
+    // Its own settings come back with it (2.9); an older save takes the player's.
+    const carryMode = (saved.snap.settings && saved.snap.settings.carry) || settings.carry;
+    const w = createWorld({ scenario: sc, rules: data.rules, settings, terrain, carry: carryFor(campaign, sc.id, carryMode) });
     drainEvents(w);
     restore(w, saved.snap, (world, def) => app.addMobileRadar && app.addMobileRadar(world, def));
     app.world = w;
