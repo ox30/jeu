@@ -4,7 +4,7 @@
 // Then the corrections that live in the page are tried one by one (stacked plaques, speed keys,
 // end summary, campaign briefing, the guard of the frame loop).
 //   npm run smoke            (add --shots to keep screenshots in tools/smoke/out;
-//                             --only tutorial|scenarios|corrections|dist for one part)
+//                             --only tutorial|scenarios|corrections|watches|dist for one part)
 import { mkdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { ROOT, closeDialogs, fastForward, openGame, screenOf, serve, sleep } from './browser.mjs';
@@ -465,6 +465,138 @@ async function corrections(page, errors) {
   note(errors.slice(before).length === 0 && own.length === 0, 'corrections: no unexpected console error', [...errors.slice(before), ...own].slice(0, 2).join(' | '));
 }
 
+/** Steps the game an hour at a time (the page reads the events as they come) until `done()` in the page is true. */
+async function playUntil(page, done, maxHours) {
+  for (let h = 0; h < maxHours; h++) {
+    const ok = await page.evaluate((src) => {
+      const a = window.__game;
+      const test = new Function('a', `return (${src})(a);`);
+      a.paused = true;
+      for (let i = 0; i < 3600 && !a.world.ended && !test(a); i++) a.stepWorld(1);
+      a.dirtyPanels = true;
+      a.dirtyHud = true;
+      return Boolean(test(a));
+    }, done.toString());
+    await sleep(25);
+    if (ok) return true;
+  }
+  return false;
+}
+
+/**
+ * The sea of M2.8 in the page: a relief that stops the game with its report and the button
+ * that answers, « Reprendre » at the speed of before, the « Signaux » tab, radio silence (an
+ * estimated convoy, an order by radio), the depth-charge gauge, and the pause of the first
+ * attack in the night.
+ */
+async function watches(page, errors) {
+  const before = errors.length;
+  await game(page, () => {
+    const a = window.__game;
+    a.campaign.unlockAll = true;
+    a.restart('hiver-atlantique');
+  });
+  await settle(page);
+  await game(page, () => {
+    window.__game.speed = 600;
+  });
+  await step('relief stop', async () => {
+    const stopped = await playUntil(page, (a) => a.world.events.some((e) => e.type === 'seaStop' && e.reason === 'relief'), 12 * 24);
+    note(stopped, 'watches: a relief stops the game for a decision');
+    await page.waitForFunction(() => document.getElementById('dlg-watch').open, null, { timeout: 15000 });
+    await game(page, () => {
+      for (const d of document.querySelectorAll('dialog[open]')) if (d.id !== 'dlg-watch') d.close();
+    });
+    await sleep(200);
+    const s = await game(page, () => ({ paused: window.__game.paused, speed: window.__game.speed, sends: document.querySelectorAll('#dlg-watch [data-watch="send"]').length }));
+    note(s.paused && s.speed === 600, 'watches: the stop is a pause, the speed is left alone', JSON.stringify(s));
+    note(s.sends >= 1, 'watches: the report offers the button that answers the decision');
+    await shot(page, 'watch-relief');
+    await page.click('#dlg-watch [data-watch="send"]');
+    await sleep(200);
+    const sent = await game(page, () => ({
+      joining: window.__game.world.escorts.filter((e) => e.joinTarget).length, settled: document.querySelectorAll('#dlg-watch .decision.settled').length,
+    }));
+    note(sent.joining === 1 && sent.settled === 1, 'watches: « Envoyer » sends a group and the decision is settled', JSON.stringify(sent));
+    await page.click('#dlg-watch [data-watch="resume"]');
+    await sleep(200);
+    const r = await game(page, () => ({ paused: window.__game.paused, speed: window.__game.speed, open: document.getElementById('dlg-watch').open }));
+    note(!r.paused && r.speed === 600 && !r.open, 'watches: « Reprendre » goes on at the speed of before', JSON.stringify(r));
+  });
+  await step('signals tab', async () => {
+    await playUntil(page, () => false, 36);
+    await closeDialogs(page);
+    await page.click('[data-log-tab="signals"]');
+    await sleep(400);
+    const lines = await game(page, () => document.querySelectorAll('#signals .watch-line').length);
+    note(lines >= 6, 'watches: the « Signaux » tab lists the reports', `${lines} lines`);
+    await page.click('#signals .watch-line .watch-head');
+    await sleep(300);
+    note(await game(page, () => document.querySelectorAll('#signals .watch-line.open .watch-body h4').length >= 4), 'watches: a click unfolds a report');
+    await page.click('#signals [data-filter="decide"]');
+    await sleep(300);
+    const filtered = await game(page, () => document.querySelectorAll('#signals .watch-line').length);
+    note(filtered >= 1 && filtered < lines, 'watches: the filter « À décider » keeps the reports with a decision', `${filtered} of ${lines}`);
+    await shot(page, 'watch-signals');
+    await page.click('[data-log-tab="journal"]');
+  });
+  await step('radio silence', async () => {
+    const id = await game(page, async () => {
+      const a = window.__game;
+      const actions = await import('./src/ui/actions.js');
+      const c = a.world.convoys.find((x) => x.state === 'atSea' && x.est);
+      if (!c) return null;
+      actions.select(a, 'convoy', c.id);
+      actions.revealSelection(a);
+      a.dirtyPanels = true;
+      return c.id;
+    });
+    note(Boolean(id), 'radio silence: a convoy on the high seas is an estimate');
+    await sleep(700);
+    await page.click('[data-unit-tab="state"]');
+    await sleep(200);
+    note(await game(page, () => /Position estimée/.test(document.getElementById('unit-body').textContent) && /Dernier point/.test(document.getElementById('unit-body').textContent)),
+      'radio silence: the sheet gives the estimated position and the last sure point');
+    await page.click('[data-unit-tab="cmd"]');
+    await sleep(200);
+    await page.click('#unit-bar [data-action="zigzag"]');
+    await sleep(300);
+    const sent = await game(page, (cid) => {
+      const a = window.__game;
+      const c = a.world.convoys.find((x) => x.id === cid);
+      return { zigzag: c.zigzag, pending: a.world.signals.filter((s) => s.unitId === cid).map((s) => `${s.name}:${s.via}`), text: document.getElementById('unit-body').textContent };
+    }, id);
+    note(!sent.zigzag && sent.pending.includes('zigzag:radio') && /par radio/.test(sent.text), 'radio silence: an order goes by radio at the next relief, and the sheet says so', JSON.stringify(sent.pending));
+    await shot(page, 'radio-silence');
+    const done = await playUntil(page, (a) => a.world.signals.length === 0, 5);
+    note(done && await game(page, (cid) => window.__game.world.convoys.find((x) => x.id === cid).zigzag, id), 'radio silence: the order takes effect at the relief');
+  });
+  await step('depth charges', async () => {
+    await game(page, async () => {
+      const a = window.__game;
+      const actions = await import('./src/ui/actions.js');
+      actions.select(a, 'escort', a.world.escorts[0].id);
+      a.dirtyPanels = true;
+    });
+    await sleep(500);
+    note(await game(page, () => /Grenades \d+\/\d+/.test(document.getElementById('unit-summary').textContent)), 'depth charges: the gauge is on the group\'s sheet');
+    note(await game(page, () => document.querySelectorAll('[data-action="escort-pattern"]').length === 2), 'depth charges: « Plein » and « Économe »');
+  });
+  await step('first attack of the night', async () => {
+    await closeDialogs(page);
+    const hit = await playUntil(page, (a) => a.world.events.some((e) => e.type === 'seaStop' && e.reason === 'attack'), 40 * 24);
+    note(hit, 'watches: the first attack on a convoy in the night stops the game');
+    await sleep(500);
+    await game(page, () => {
+      for (const d of document.querySelectorAll('dialog[open]')) d.close();
+    });
+    const s = await game(page, () => ({ paused: window.__game.paused, alert: !document.getElementById('alert').hidden, title: document.getElementById('alert-title').textContent }));
+    note(s.paused && s.alert && /attaqué/.test(s.title), 'watches: the attack raises its alert, in pause', JSON.stringify(s));
+    await shot(page, 'watch-attack');
+  });
+  note(errors.length === before, 'watches: no console error', errors.slice(before, before + 2).join(' | '));
+}
+
 async function main() {
   const server = await serve();
   try {
@@ -477,6 +609,7 @@ async function main() {
       for (const id of ['kanalkampf', 'adlertag', 'quinze-septembre', 'hiver-atlantique', 'm0-july-1940']) await step(id, () => scenario(dev.page, id, dev.errors));
     }
     if (wanted('corrections')) await corrections(dev.page, dev.errors);
+    if (wanted('watches')) await watches(dev.page, dev.errors);
     note(dev.errors.length === 0, 'development version: no console error', dev.errors.slice(0, 3).join(' | '));
     await dev.browser.close();
 
