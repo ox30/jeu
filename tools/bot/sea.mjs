@@ -21,7 +21,6 @@ export const SEA_DEFAULTS = {
   pattern: null, // full | light depth-charge patterns (null: the group's own default)
   rearm: false, // a group whose racks are empty is sent home, and another takes its place
   zigzag: false,
-  purchase: null, // share of the cargo bought, while the game has that setting
   buy: [], // aircraft bought: [{ id: 'hudson', day: 0 }]
   air: 'none', // none | cover: Coastal Command covers the nearest convoy by day
   airKm: 700,
@@ -46,7 +45,6 @@ export function runSea(cfg = {}) {
   const routed = new Set();
   const covering = new Map(); // squadron id → convoy id
   const escortPorts = [...new Set(w.escorts.map((e) => e.portId))].map((id) => w.byId.port.get(id));
-  if (!c.idle && c.purchase !== null && O.setPurchase) O.setPurchase(w, c.purchase);
   const endT = c.days ? c.days * 86400 : Infinity;
 
   function convoyOrders() {

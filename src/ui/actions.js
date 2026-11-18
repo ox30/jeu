@@ -8,7 +8,7 @@ import {
 } from '../sim/orders.js';
 import { canHunt, stopHunt } from '../sim/asw.js';
 import { setShipEndAction } from '../sim/naval.js';
-import { buyOffer, setPurchase } from '../sim/shipping.js';
+import { buyOffer } from '../sim/shipping.js';
 import { feetOf, squadronSpeed } from '../sim/squadron.js';
 import { currentSpeed, legSpeed, shipThrottle } from '../sim/convoy.js';
 import { parseLegEnd } from '../sim/navigation.js';
@@ -391,12 +391,6 @@ export function orderFollow(app, sq, leaderId) {
 
 export function orderLeaveFormation(app, sq) {
   leaveFormation(app.world, sq);
-  app.dirtyPanels = true;
-}
-
-/** Atlantic 1941: share of each convoy's cargo bought with dollars. */
-export function orderPurchase(app, share) {
-  setPurchase(app.world, share);
   app.dirtyPanels = true;
 }
 

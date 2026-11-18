@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { data, makeWorld, run, runTo } from './helpers.js';
 import { restore, snapshot } from '../src/save/game.js';
-import { buyOffer, lineCost, setPurchase } from '../src/sim/shipping.js';
+import { buyOffer, crossingHours, lineCost, offerArrival, offerInCargo, offers, tonnageForecast } from '../src/sim/shipping.js';
 import { followSquadron, scramble } from '../src/sim/orders.js';
 import { CHAIN, carryFor, recordResult, scenarioStatus } from '../src/ui/campaign.js';
 import { isDaylight, isNight } from '../src/sim/daylight.js';
@@ -62,14 +62,82 @@ test('Atlantic 1941: convoys sail on a schedule and their cargo is paid in dolla
   assert.equal(Math.round(w.currency.start - w.currency.stock), Math.round(full));
   const hx = w.convoys.find((c) => c.name === 'HX 102');
   assert.equal(hx.state, 'atSea');
-  // Half the cargo for the next convoys: half the price.
-  setPurchase(w, 0.5);
+  // No more share to set (I4): the next convoy sails fully laden too, at its full price.
   const before = w.currency.stock;
   const e2 = runTo(w, 2.5 * 86400).filter((e) => e.type === 'convoyDeparted');
   assert.equal(e2[0].convoy, 'SC 19');
   const scLine = w.shipping.lines.find((l) => l.prefix === 'SC');
-  assert.equal(Math.round(before - w.currency.stock), Math.round(lineCost(w, scLine) * 0.5));
-  assert.ok(Math.abs(e2[0].share - 0.5) < 1e-9);
+  assert.equal(Math.round(before - w.currency.stock), Math.round(lineCost(w, scLine)));
+  assert.equal(e2[0].share, 1);
+  assert.equal(w.currency.purchase, undefined, 'the share bought is no longer a setting');
+});
+
+test('the reserve runs dry before Lend-Lease: the last convoys sail part laden, then in ballast', () => {
+  const w = makeWorld('standard', {}, 'hiver-atlantique');
+  const hx = w.shipping.lines.find((l) => l.prefix === 'HX');
+  w.currency.stock = lineCost(w, hx) * 1.5; // one convoy and a half
+  const dep = runTo(w, 6 * 86400).filter((e) => e.type === 'convoyDeparted');
+  // HX 102 (10 January), SC 19 (12 January), HX 103 (15 January).
+  assert.deepEqual(dep.map((e) => e.convoy), ['HX 102', 'SC 19', 'HX 103']);
+  assert.equal(dep[0].share, 1);
+  assert.ok(dep[1].share > 0 && dep[1].share < 1, 'what is left of the reserve');
+  assert.equal(dep[2].share, 0);
+  assert.equal(dep[2].fuel, 0);
+  assert.ok(Math.abs(w.currency.stock) < 1e-9, 'not a dollar left');
+  const hx103 = w.convoys.find((c) => c.name === 'HX 103');
+  assert.equal(hx103.cargo.fuel + hx103.cargo.materiel, 0, 'in ballast');
+});
+
+test('an offer says what it costs in cargo and when the aircraft would arrive', () => {
+  const w = makeWorld('standard', {}, 'hiver-atlantique');
+  const catalina = offers(w).find((o) => o.id === 'catalina');
+  const hudson = offers(w).find((o) => o.id === 'hudson');
+  // 70 $ is about 1 750 t of fuel or 1 560 t of matériel; 45 $ is 1 125 t or 1 000 t.
+  assert.equal(Math.round(offerInCargo(w, catalina).fuel), 1750);
+  assert.equal(Math.round(offerInCargo(w, catalina).materiel), 1556);
+  assert.equal(Math.round(offerInCargo(w, hudson).fuel), 1125);
+  assert.equal(Math.round(offerInCargo(w, hudson).materiel), 1000);
+  assert.equal(offerArrival(w, hudson) - w.t, 12 * 86400);
+  assert.equal(offerArrival(w, catalina) - w.t, 18 * 86400);
+  // Ordered on 11 March, after the vote: free, the Hudson on the 23rd, the Catalina on the 29th.
+  w.t = 60 * 86400 - 600; // the clock is put forward to 11 March, 05:50
+  runTo(w, 60 * 86400 + 3600); // 07:00: the vote was announced at 06:00
+  assert.ok(w.flags.lendLease);
+  const day = (o) => new Date(w.startMs + offerArrival(w, o) * 1000).getUTCDate();
+  assert.equal(day(hudson), 23);
+  assert.equal(day(catalina), 29);
+  assert.deepEqual(offerInCargo(w, catalina), { fuel: 0, materiel: 0 });
+});
+
+test('the tonnage forecast: unloaded, at sea, and what the reserve can still buy, against the objective', () => {
+  const w = makeWorld('standard', {}, 'hiver-atlantique');
+  const start = tonnageForecast(w);
+  assert.equal(start.fuel.target, 6800);
+  assert.equal(start.materiel.target, 4400);
+  assert.equal(start.fuel.unloaded + start.fuel.atSea, 0);
+  // 520 $ do not pay for every convoy until the end: about twelve or thirteen of them.
+  const hx = w.shipping.lines.find((l) => l.prefix === 'HX');
+  const sc = w.shipping.lines.find((l) => l.prefix === 'SC');
+  const spent = (start.fuel.buyable * w.currency.costFuel) + (start.materiel.buyable * w.currency.costMateriel);
+  assert.ok(spent <= w.currency.stock + 1e-6, `${spent.toFixed(1)} $ of cargo for ${w.currency.stock} $`);
+  assert.ok(spent > w.currency.stock - lineCost(w, hx), 'nearly the whole reserve is counted');
+  assert.ok(crossingHours(w, hx) > 11 * 24 && crossingHours(w, hx) < 15 * 24, `HX: ${(crossingHours(w, hx) / 24).toFixed(1)} days`);
+  assert.ok(crossingHours(w, sc) > crossingHours(w, hx), 'the slow convoys take longer');
+  // An aircraft bought is cargo that will not sail: the forecast drops by its price in tonnes.
+  const before = tonnageForecast(w);
+  assert.ok(buyOffer(w, 'catalina'));
+  const after = tonnageForecast(w);
+  const lost = (before.fuel.buyable - after.fuel.buyable) * w.currency.costFuel + (before.materiel.buyable - after.materiel.buyable) * w.currency.costMateriel;
+  assert.ok(Math.abs(lost - 70) < 1e-6, `${lost.toFixed(2)} $ of cargo less`);
+  // What sails moves from « buyable » to « at sea », then to « unloaded »: the total stays.
+  runTo(w, 7 * 3600);
+  const sailed = tonnageForecast(w);
+  assert.equal(Math.round(sailed.fuel.atSea), 640);
+  assert.ok(Math.abs(sailed.fuel.total - after.fuel.total) < 1e-6 && Math.abs(sailed.materiel.total - after.materiel.total) < 1e-6);
+  // After the vote, the convoys still to come that can arrive in time are free and full.
+  w.flags.lendLease = true;
+  const lend = tonnageForecast(w);
+  assert.ok(lend.lendLease && lend.fuel.buyable > sailed.fuel.buyable);
 });
 
 test('aircraft bought in America arrive later; after Lend-Lease cargo is free', () => {

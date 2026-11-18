@@ -18,7 +18,7 @@ import {
   orderCover, orderDissolve, orderEndAction, orderEscortBehaviour, orderEscortHome, orderEscortPattern, orderExitChannel,
   orderFormationAlert, orderHome, orderHuntPlot, orderHuntStop, orderIntercept, orderJoin,
   orderLaunchWaiting, orderLeave, orderLeaveFormationOf, orderMerge, orderMinStock, orderNewFormation,
-  orderOffer, orderOrbit, orderPurchase, orderRally, orderRemoveLeg, orderRoe, orderRosterAdd,
+  orderOffer, orderOrbit, orderRally, orderRemoveLeg, orderRoe, orderRosterAdd,
   orderRosterCopy, orderRosterOverride, orderRosterRemove, orderRosterResume, orderSail, orderScheduleJoin,
   orderScheduleSail, orderScheduleTakeoff, orderScheduleWing, orderShipEnd, orderSpeedPct, orderTrain,
   orderVector, orderZigzag, revealSelection, scrambleSquadron, select, selectedUnit, startEditLeg, toggleBuster
@@ -523,9 +523,6 @@ function onPanelClick(app, e) {
       break;
     case 'close-unit':
       select(app, null, null);
-      break;
-    case 'purchase':
-      orderPurchase(app, Number(b.dataset.share));
       break;
     case 'offer':
       orderOffer(app, b.dataset.offer);

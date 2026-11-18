@@ -26,6 +26,11 @@ export function dateTimeText(ms) {
   return t('common.dateAt', { date: formatShortDate(ms, t('months')), time: formatTime(ms) });
 }
 
+/** "23 mars" */
+export function shortDateText(ms) {
+  return formatShortDate(ms, t('months'));
+}
+
 export function gameTimeText(world, gameT) {
   return formatTime(world.startMs + gameT * 1000);
 }
@@ -487,6 +492,8 @@ export function eventMessage(world, e) {
     case 'convoyDeparted':
       if (e.lendLease) key = 'log.convoyDepartedLendLease';
       else if (e.share <= 0) key = 'log.convoyDepartedBallast';
+      else if (e.share < 0.995) key = 'log.convoyDepartedShort'; // the reserve could not pay for all of it
+      p.pct = Math.round(e.share * 100);
       p.fuel = formatNumber(e.fuel);
       p.materiel = formatNumber(e.materiel);
       break;

@@ -10,9 +10,9 @@ import { RESOURCES, fuelDays, fullTrain, inbound, trainHours } from '../sim/logi
 import { escortStrength, portChoices } from '../sim/naval.js';
 import { canHunt } from '../sim/asw.js';
 import { capacityFactor, isOperational } from '../sim/sites.js';
-import { lineCost, offerCost, offers } from '../sim/shipping.js';
+import { lineCost, offerArrival, offerCost, offerInCargo, offers, tonnageForecast } from '../sim/shipping.js';
 import { button, options, row } from './html.js';
-import { cargoText, dateTimeText, escortStateText, positionText, resourceName, tonnesText } from './format.js';
+import { cargoText, dateTimeText, escortStateText, positionText, resourceName, shortDateText, tonnesText } from './format.js';
 
 function isSel(app, kind, id) {
   return app.selection && app.selection.kind === kind && app.selection.id === id;
@@ -38,46 +38,54 @@ function fuelLevel(days) {
   return 'ok';
 }
 
-const SHARES = [1, 0.75, 0.5, 0.25, 0];
+/** One line of the tonnage forecast: "Carburant : 1 200 t déchargées + 640 t en mer + 4 100 t achetables = 5 940 t (objectif 6 800 t)". */
+function forecastLine(label, f) {
+  const n = (v) => formatNumber(Math.round(v));
+  return `<li class="${f.total + 0.5 < f.target ? 'short' : 'ok'}"><b>${escapeHtml(label)}</b> ${escapeHtml(t('offers.forecastLine', {
+    unloaded: n(f.unloaded), atSea: n(f.atSea), buyable: n(f.buyable), total: n(f.total), target: n(f.target),
+  }))}</li>`;
+}
 
-/** Atlantic 1941: the dollar reserve, the share of the cargo bought, aircraft to order. */
+/**
+ * Atlantic 1941: the dollar reserve, what it still buys against the objective, the next
+ * sailings, and the aircraft to order with what each costs in cargo.
+ */
 function currencyBlock(app) {
   const w = app.world;
   const cur = w.currency;
   if (!cur) return '';
   const lend = Boolean(w.flags.lendLease);
+  const n = (v) => formatNumber(Math.round(v));
   const parts = [`<div class="tote-group">${escapeHtml(t('offers.title'))}</div><div class="currency">`];
-  parts.push(`<p>${escapeHtml(t('offers.stock', { n: formatNumber(Math.round(cur.stock)), m: formatNumber(cur.start) }))}</p>`);
-  if (lend) {
-    parts.push(`<p class="hint">${escapeHtml(t('offers.lendLease'))}</p>`);
-  } else {
-    parts.push(`<p class="hint">${escapeHtml(t('offers.intro'))}</p>`);
-    parts.push(`<div class="order-line"><span>${escapeHtml(t('offers.purchase'))}</span></div><div class="order-line">`);
-    for (const k of SHARES) parts.push(button('purchase', `${Math.round(k * 100)} %`, { active: Math.abs(cur.purchase - k) < 0.01, extra: ` data-share="${k}"` }));
-    parts.push('</div>');
-    const cost = (prefix) => {
-      const line = w.shipping.lines.find((l) => l.prefix === prefix);
-      return line ? formatNumber(Math.round(lineCost(w, line))) : '—';
-    };
-    parts.push(`<p class="hint">${escapeHtml(t('offers.purchaseHint', { hx: cost('HX'), sc: cost('SC') }))}</p>`);
-  }
+  parts.push(`<p>${escapeHtml(t('offers.stock', { n: n(cur.stock), m: formatNumber(cur.start) }))}</p>`);
+  parts.push(`<p class="hint">${escapeHtml(t(lend ? 'offers.lendLease' : 'offers.intro'))}</p>`);
+  if (!lend) parts.push(`<p class="hint warn">${escapeHtml(t('offers.congress'))}</p>`);
+  const forecast = tonnageForecast(w);
+  parts.push(`<div class="sub">${escapeHtml(t('offers.forecast'))}</div><ul class="forecast">
+    ${forecastLine(t('offers.fuel'), forecast.fuel)}${forecastLine(t('offers.materiel'), forecast.materiel)}</ul>
+    <p class="hint">${escapeHtml(t(lend ? 'offers.forecastHintLend' : 'offers.forecastHint'))}</p>`);
   const next = w.shipping.lines
     .filter((l) => l.sent < l.count)
-    .map((l) => ({ name: `${l.prefix} ${l.firstNumber + l.sent}`, at: l.nextS, cost: lend ? 0 : Math.min(lineCost(w, l) * cur.purchase, cur.stock) }))
+    .map((l) => ({ name: `${l.prefix} ${l.firstNumber + l.sent}`, at: l.nextS, cost: lend ? 0 : Math.min(lineCost(w, l), cur.stock), full: lineCost(w, l) }))
     .sort((a, b) => a.at - b.at)
     .slice(0, 3);
   if (next.length) {
     parts.push(`<div class="sub">${escapeHtml(t('offers.next'))}</div><ul class="next-sailings">`);
-    for (const n of next) {
-      parts.push(`<li>${escapeHtml(t('offers.nextLine', { convoy: n.name, date: dateTimeText(w.startMs + n.at * 1000), cost: formatNumber(Math.round(n.cost)) }))}</li>`);
+    for (const x of next) {
+      const key = lend ? 'offers.nextLineFree' : x.cost + 0.5 < x.full ? 'offers.nextLineShort' : 'offers.nextLine';
+      parts.push(`<li>${escapeHtml(t(key, { convoy: x.name, date: dateTimeText(w.startMs + x.at * 1000), cost: n(x.cost), share: Math.round((x.full > 0 ? x.cost / x.full : 0) * 100) }))}</li>`);
     }
     parts.push('</ul>');
   }
+  parts.push(`<div class="sub">${escapeHtml(t('offers.aircraft'))}</div>`);
   for (const o of offers(w)) {
     const bought = cur.bought.includes(o.id);
     const c = offerCost(w, o);
-    parts.push(`<div class="order-line offer"><span class="grow">${escapeHtml(t(`offers.${o.id}`))} <small>(${escapeHtml(t('offers.arrives', { days: o.days }))})</small></span>
-      ${button('offer', bought ? t('offers.bought') : t('offers.buy', { cost: formatNumber(c) }), { disabled: bought || cur.stock < c, extra: ` data-offer="${escapeHtml(o.id)}"` })}</div>`);
+    const cargo = offerInCargo(w, o);
+    const price = lend ? t('offers.priceFree') : t('offers.price', { cost: formatNumber(c), fuel: n(cargo.fuel), materiel: n(cargo.materiel) });
+    const delivery = bought ? t('offers.ordered') : t('offers.delivery', { days: o.days, date: shortDateText(w.startMs + offerArrival(w, o) * 1000) });
+    parts.push(`<div class="order-line offer"><span class="grow"><b>${escapeHtml(t(`offers.${o.id}`))}</b><br><small>${escapeHtml(price)}<br>${escapeHtml(delivery)}</small></span>
+      ${button('offer', bought ? t('offers.bought') : lend ? t('offers.buyFree') : t('offers.buy', { cost: formatNumber(c) }), { disabled: bought || cur.stock < c, extra: ` data-offer="${escapeHtml(o.id)}"` })}</div>`);
   }
   parts.push('</div>');
   return parts.join('');

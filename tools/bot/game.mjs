@@ -77,7 +77,6 @@ export const orders = {
   answerQuestion: engagementMod.answerQuestion,
   authorize: engagementMod.authorize,
   buyOffer: shippingMod.buyOffer,
-  setPurchase: shippingMod.setPurchase,
   newFormation: formationsMod.newFormation,
   addMember: formationsMod.addMember,
   scrambleFormation: formationsMod.scrambleFormation,

@@ -207,6 +207,10 @@ button {
 .currency .offer small { color: var(--ink-soft); }
 .currency .offer button { white-space: nowrap; }
 .next-sailings { margin: 2px 0 6px; padding-left: 18px; }
+.forecast { margin: 2px 0 4px; padding-left: 18px; }
+.forecast li { margin: 2px 0; }
+.forecast li.short { color: #8a3b1c; }
+.currency .hint.warn { color: #8a3b1c; font-style: normal; }
 
 /* ---------- side panel ---------- */
 

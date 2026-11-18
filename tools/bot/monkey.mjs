@@ -87,7 +87,6 @@ function buildActions(rnd, world) {
     setExitChannel: () => { const e = pick(w.escorts); if (e) O.setExitChannel(w, e, pick(channels())); },
     sendTrain: () => { const a = pick(sites()); const b = pick(sites()); if (a && b) O.sendTrain(w, a.key, b.key, { fuel: rnd() * 120, materiel: rnd() < 0.5 ? rnd() * 60 : 0, ammo: rnd() < 0.3 ? 5 : 0 }); },
     setMinStock: () => { const a = pick(sites()); if (a) O.setMinStock(w, a, pick(['fuel', 'materiel', 'ammo']), pick([null, 0, 20, 60, NaN])); },
-    setPurchase: () => { if (O.setPurchase) O.setPurchase(w, pick([0, 0.25, 0.5, 0.75, 1, 2, -1])); },
     buyOffer: () => { const o = pick(sim.shipping.offers(w)); if (o) O.buyOffer(w, o.id); },
     deployMru: () => { const f = pick(w.airfields); if (f) mru.deployMru(w, f.x + (rnd() - 0.5) * 60, f.y + (rnd() - 0.5) * 60, rnd() * 360); },
     answerQuestion: () => { const q = pick(w.questions); if (q) O.answerQuestion(w, q.id, pick([true, false, 'wait', 'slow', 'go'])); },

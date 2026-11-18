@@ -127,6 +127,9 @@ export function restore(world, snap, addMobileRadar = null) {
     if (world.rail.links[i]) world.rail.links[i].nextFree = v;
   });
   fillDefaults(world, WORLD_DEFAULTS());
+  // The share of each convoy bought with dollars, a setting until 2.7, is gone (I4): the
+  // convoys sail fully laden as long as the reserve can pay.
+  if (world.currency) delete world.currency.purchase;
   for (const s of world.squadrons) {
     fillDefaults(s, SQUADRON_DEFAULTS());
     fillMissingFields('squadron', s, world);
