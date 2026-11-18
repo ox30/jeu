@@ -9,7 +9,7 @@ import {
   renameFormation, setLeader,
 } from '../sim/formations.js';
 import { isFlying } from '../sim/squadron.js';
-import { altitudeText } from './format.js';
+import { altitudeText, escortStateText } from './format.js';
 import { showPage } from './pages.js';
 
 function unitsOfKind(world, kind) {
@@ -26,8 +26,8 @@ function placeText(world, u) {
   return t('formations.atSea');
 }
 
-function stateText(u) {
-  return u.kind === 'squadron' ? t(`states.squadron.${u.state}`) : t(`states.escort.${u.state}`);
+function stateText(w, u) {
+  return u.kind === 'squadron' ? t(`states.squadron.${u.state}`) : escortStateText(w, u);
 }
 
 function countText(u) {
@@ -94,7 +94,7 @@ function render(app) {
     const note = problem ? t(`formations.problem.${problem}`) : other ? t('formations.inOther', { name: other.name }) : '';
     return `<li class="fm-row${problem ? ' off' : ''}">
       <span class="fm-name">${escapeHtml(u.name)}</span>
-      <span class="fm-meta">${escapeHtml(u.kind === 'squadron' ? u.typeName : u.short)} · ${escapeHtml(stateText(u))} · ${escapeHtml(placeText(w, u))} · ${escapeHtml(countText(u))}${note ? ` · <em>${escapeHtml(note)}</em>` : ''}</span>
+      <span class="fm-meta">${escapeHtml(u.kind === 'squadron' ? u.typeName : u.short)} · ${escapeHtml(stateText(w, u))} · ${escapeHtml(placeText(w, u))} · ${escapeHtml(countText(u))}${note ? ` · <em>${escapeHtml(note)}</em>` : ''}</span>
       <button type="button" data-fm="add" data-id="${escapeHtml(u.id)}" title="${escapeHtml(t('formations.add'))}"${problem ? ' disabled' : ''}>→</button></li>`;
   }).join('') || `<li class="fm-empty">${escapeHtml(t('formations.noneLeft'))}</li>`;
 
@@ -108,7 +108,7 @@ function render(app) {
       <ol class="fm-members">${members.map((u, i) => `<li class="fm-row${i === 0 ? ' leader' : ''}">
         <button type="button" class="fm-star" data-fm="lead" data-id="${escapeHtml(u.id)}" title="${escapeHtml(i === 0 ? t('formations.isLeader') : t('formations.makeLeader'))}">${i === 0 ? '★' : '☆'}</button>
         <span class="fm-name">${escapeHtml(u.name)}</span>
-        <span class="fm-meta">${escapeHtml(stateText(u))} · ${escapeHtml(placeText(w, u))} · ${escapeHtml(countText(u))}</span>
+        <span class="fm-meta">${escapeHtml(stateText(w, u))} · ${escapeHtml(placeText(w, u))} · ${escapeHtml(countText(u))}</span>
         <span class="fm-move">
           <button type="button" data-fm="up" data-id="${escapeHtml(u.id)}" title="${escapeHtml(t('formations.up'))}"${i <= 1 ? ' disabled' : ''}>↑</button>
           <button type="button" data-fm="down" data-id="${escapeHtml(u.id)}" title="${escapeHtml(t('formations.down'))}"${i === 0 || i === members.length - 1 ? ' disabled' : ''}>↓</button>

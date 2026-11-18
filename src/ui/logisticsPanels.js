@@ -12,7 +12,7 @@ import { huntHours } from '../sim/asw.js';
 import { capacityFactor, isOperational } from '../sim/sites.js';
 import { lineCost, offerCost, offers } from '../sim/shipping.js';
 import { button, options, row } from './html.js';
-import { cargoText, dateTimeText, positionText, resourceName, tonnesText } from './format.js';
+import { cargoText, dateTimeText, escortStateText, positionText, resourceName, tonnesText } from './format.js';
 
 function isSel(app, kind, id) {
   return app.selection && app.selection.kind === kind && app.selection.id === id;
@@ -310,10 +310,24 @@ export function huntLines(app, e, { behaviour = true } = {}) {
   ].join('');
 }
 
+/**
+ * The ports of « Rentrer au port », worked out at most every second and a half of real time:
+ * at high speed the sheet is redrawn several times a second while the group moves fast.
+ */
+const PORTS_SHOWN = new WeakMap();
+function shownPorts(app, e) {
+  const now = typeof performance !== 'undefined' ? performance.now() : 0;
+  const memo = PORTS_SHOWN.get(e);
+  if (memo && memo.world === app.world && now - memo.at < 1500) return memo.ports;
+  const ports = portChoices(app.world, e);
+  PORTS_SHOWN.set(e, { at: now, ports, world: app.world });
+  return ports;
+}
+
 /** « Rentrer au port » with the port: nearest by sea first, distance and hours. */
 export function homePortLine(app, e) {
   const atSea = ['atSea', 'waiting', 'escorting', 'hunting'].includes(e.state);
-  const ports = atSea ? portChoices(app.world, e) : [];
+  const ports = atSea ? shownPorts(app, e) : [];
   if (!ports.length) return '';
   return `<div class="order-line"><span>${escapeHtml(t('orders.homePort'))}</span><select id="home-port-${escapeHtml(e.id)}">${options(ports.map((x) => ({
     value: x.port.id, label: t('orders.portChoice', { port: x.port.name, km: Math.round(x.km), h: formatNumber(x.hours, x.hours < 10 ? 1 : 0) }),
@@ -354,7 +368,7 @@ export function exitLines(app, e, { sail = true } = {}) {
 export function escortSheet(app, e) {
   const w = app.world;
   const [lon, lat] = unproject(e.x, e.y);
-  let state = t(`states.escort.${e.state}`);
+  let state = escortStateText(w, e);
   if (e.state === 'escorting') {
     const c = w.convoys.find((x) => x.id === e.escorting);
     if (c) state += ` · ${c.name}`;

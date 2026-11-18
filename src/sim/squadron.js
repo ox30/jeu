@@ -1,7 +1,7 @@
 // RAF fighter squadrons: scramble, climb, follow the controller's vectors or a list of legs,
 // fight, come home to refuel and rearm.
 
-import { FOOT_M, bearing, distance, headingVector, turnToward } from './geo.js';
+import { FOOT_M, bearing, distance, headingVector, stepAlong, turnToward } from './geo.js';
 import { emit } from './events.js';
 import { followPlan } from './navigation.js';
 import { airfieldDelayFactor, isOperational, nearestOperationalAirfield } from './sites.js';
@@ -474,9 +474,9 @@ export function updateSquadron(world, s, dt) {
       desired = s.vector;
     }
     s.heading = turnToward(s.heading, desired, turnRate * dt);
-    const [dx, dy] = headingVector(s.heading);
-    s.x += dx * v * dt;
-    s.y += dy * v * dt;
+    const [dx, dy] = stepAlong(s.heading, v * dt, s.y);
+    s.x += dx;
+    s.y += dy;
 
     if (s.state === 'returning' && distance(s.x, s.y, field.x, field.y) < R.landingRangeKm) {
       const other = isOperational(world, field) ? null : nearestOperationalAirfield(world, s.x, s.y, field.id);

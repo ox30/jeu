@@ -2,6 +2,8 @@
 // freshly built from the same scenario. Kept in the browser (one game at a time) and
 // exported or imported as a JSON file.
 
+import { createBdu } from '../sim/bdu.js';
+import { bringToSea } from '../sim/uboatnav.js';
 import { normalizeRoster } from '../sim/roster.js';
 
 const VERSION = 1;
@@ -10,7 +12,7 @@ const SITE_FIELDS = ['damage', 'attacks', 'wasOut', 'stocks', 'minStock', 'progr
 const LISTS = ['convoys', 'escorts', 'uboats', 'squadrons', 'raids', 'dfZones', 'dfPending', 'uboatPlots', 'ferries'];
 const VALUES = ['t', 'nextPlotId', 'nextTrainId', 'stats', 'objectives', 'allDone', 'ended', 'outcome', 'defeatReason',
   'dryHours', 'pilots', 'firedEvents', 'mru', 'flags', 'currency', 'shipping', 'convoyRaidState', 'scheduled', 'formations', 'nextFormationId',
-  'questions', 'nextQuestionId', 'asked', 'nextTimetableId', 'navalReports', 'nextNavalReportId'];
+  'questions', 'nextQuestionId', 'asked', 'nextTimetableId', 'navalReports', 'nextNavalReportId', 'bdu'];
 
 // Fields added after a save was made: a game saved by an earlier version gets them on restore.
 const SQUADRON_DEFAULTS = () => ({
@@ -20,10 +22,11 @@ const SQUADRON_DEFAULTS = () => ({
 const SHIP_DEFAULTS = () => ({
   formation: null, followEscort: null, followSlot: 0, waitForGroup: false, leftConvoy: null, schedule: null, lateFor: null,
   huntHours: null, huntPath: null, huntGoal: null, huntStay: false, engage: null, endAction: { kind: 'stop' }, routeEnded: false, exitChannel: null, boost: false, boostKn: null,
+  dry: false, dryKn: null,
 });
 const WORLD_DEFAULTS = () => ({
   formations: [], nextFormationId: 1, questions: [], nextQuestionId: 1, asked: new Set(), nextTimetableId: 1,
-  navalReports: [], nextNavalReportId: 1,
+  navalReports: [], nextNavalReportId: 1, bdu: createBdu(),
 });
 
 function fillDefaults(target, defaults) {
@@ -125,8 +128,15 @@ export function restore(world, snap, addMobileRadar = null) {
     fillDefaults(s, SQUADRON_DEFAULTS());
     normalizeRoster(world, s); // a roster of M2.3 (a list of dated changes) becomes a daily plan
   }
-  for (const e of world.escorts) fillDefaults(e, SHIP_DEFAULTS());
+  for (const e of world.escorts) {
+    fillDefaults(e, SHIP_DEFAULTS());
+    if (e.berthed === undefined) e.berthed = e.state === 'inPort' || e.state === 'refit';
+  }
   for (const c of world.convoys) if (c.schedule === undefined) c.schedule = null;
+  for (const u of world.uboats) {
+    fillDefaults(u, { way: null, wanderAt: 0 });
+    bringToSea(world, u); // a boat an earlier version left ashore
+  }
   world.events = [];
   return world;
 }

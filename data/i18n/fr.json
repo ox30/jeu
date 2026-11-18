@@ -93,7 +93,9 @@
       "waiting": "En attente d'ordres",
       "escorting": "Escorte",
       "refit": "Ravitaillement",
-      "hunting": "En chasse"
+      "hunting": "En chasse",
+      "castingOff": "Appareillage (en route à {time})",
+      "dry": "À sec : rentre au port à {kn} nœuds"
     },
     "alert": {
       "rest": "Au repos",
@@ -133,6 +135,7 @@
     "endHintSea": "Fin : durée en heures (30, 6 min), heure (14:20), position (56N 12O). Vide : jusqu'à nouvel ordre.",
     "errors": {
       "heading": "Cap invalide : un nombre entre 0 et 360.",
+      "dry": "Plus de mazout : le groupe ne peut que rentrer au port (vous pouvez choisir lequel).",
       "format": "Fin non comprise. Exemples : 6, 1 h 30, 14:20, J5, 56N 12O.",
       "square": "Ce carré n'existe pas sur la grille.",
       "time": "Heure invalide.",
@@ -151,6 +154,7 @@
     "join": "Rejoindre {convoy}",
     "leave": "Quitter le convoi",
     "homePort": "Rentrer au port",
+    "dryHint": "Plus de mazout : le groupe rentre au port le plus proche, à {kn} nœuds au plus. Il ne peut plus escorter ni chasser ; vous pouvez seulement choisir un autre port.",
     "joinHint": "Le groupe prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » calcule lui-même la route d'interception (sauf en Réaliste), et contourne la terre ; « Rentrer au port » aussi. Une route tracée qui finit dans la bulle d'un port y entre.",
     "cover": "Couvrir {convoy}",
     "coverHint": "L'escadrille tourne au-dessus du convoi et le suit.",
@@ -528,13 +532,16 @@
       "convoySighted": "Convoi pisté par un U-Boot",
       "convoyInEscortRange": "Convoi à portée des escortes",
       "escortLowFuel": "Escorte à court de carburant",
+      "escortDry": "Escorte à sec",
       "convoyStopped": "Navires arrêtés avant la côte",
       "convoyWaiting": "Navires en attente d'ordres",
       "noAmmo": "Base à court de munitions",
       "noFuel": "Base sans carburant",
       "lowFuel": "Carburant bas sur une base",
       "scheduleDelayed": "Ordre programmé retardé",
-      "uboatSighted": "U-Boot vu par un avion ou une escorte"
+      "uboatSighted": "U-Boot vu par un avion ou une escorte",
+      "condorSighted": "Condor au-dessus d'un convoi",
+      "condorAttack": "Condor : convoi bombardé"
     },
     "lowRes": "Affichage économe : carte un peu moins nette, plus fluide sur un grand écran",
     "sheetPos": "Fiche d'unité",
@@ -543,7 +550,16 @@
       "left": "à gauche de la carte",
       "bottom": "en bas de la carte"
     },
-    "sheetHint": "Tirez le bord de la fiche pour l'élargir (ou la grandir en bas). Ses sections se replient d'un clic sur leur titre et restent comme vous les laissez."
+    "sheetHint": "Tirez le bord de la fiche pour l'élargir (ou la grandir en bas). Ses sections se replient d'un clic sur leur titre et restent comme vous les laissez.",
+    "bdienst": "Messages britanniques lus par la marine allemande (B-Dienst)",
+    "bdienstChoices": {
+      "0": "jamais",
+      "10": "10 %",
+      "25": "25 %",
+      "50": "50 %",
+      "75": "75 %",
+      "100": "tous"
+    }
   },
   "objectives": {
     "convoyArrived": "Amener le convoi {convoy} dans un port britannique",
@@ -576,6 +592,11 @@
     "legMissed": "{unit} : objectif de l'étape manqué, passé à {km} km. Étape suivante.",
     "legMissedSquare": "{unit} : carré {target} manqué, passé à {km} km de son centre. Étape suivante.",
     "planEnded": "{unit} : fin des étapes, garde le cap {heading}.",
+    "legsEnded": {
+      "hold": "{escort} : fin des étapes, garde le cap {heading}.",
+      "escort": "{escort} : fin des étapes, rejoint {convoy}.",
+      "port": "{escort} : fin des étapes, rentre à {port}."
+    },
     "legRefused": "{unit} : la dernière étape n'a pas de fin.",
     "scrambleOrdered": "{squadron} : décollage ordonné à {airfield}.",
     "scrambleRefused": "{squadron} ne peut pas décoller ({state}).",
@@ -659,6 +680,8 @@
     "escortInPort": "Le {escort} est au port de {port} pour ravitailler.",
     "escortReady": "Le {escort} est prêt à {port}.",
     "escortLowFuel": "Le {escort} est à court de mazout et rentre.",
+    "escortDry": "{escort} n'a plus de mazout : il rentre à {port} à {kn} nœuds au plus.",
+    "escortDryConvoy": "{escort} n'a plus de mazout : il laisse {convoy} et rentre à {port} à {kn} nœuds au plus.",
     "convoyRaidPlanned": "",
     "objectiveFailed": "Objectif manqué : {objective}.",
     "scenarioEndVictory": "Fin de la période : victoire.",
@@ -803,7 +826,14 @@
       "lost": "{escort}, passe {pass} : contact perdu.",
       "sunk": "{escort}, passe {pass} : U-Boot coulé !"
     },
-    "brokeOffOrdered": "{units} : désengagé du raid {raid}, en attente d'ordres."
+    "brokeOffOrdered": "{units} : désengagé du raid {raid}, en attente d'ordres.",
+    "uboatSightedDown": "{by} : écho ASDIC, U-Boot en plongée vers {depth} m, cap {course}.",
+    "uboatSightedDownNoCourse": "{by} : écho ASDIC, U-Boot en plongée vers {depth} m.",
+    "asdicContact": "{by} : contact ASDIC tenu, U-Boot vers {depth} m, cap {course}.",
+    "asdicContactNoCourse": "{by} : contact ASDIC tenu, U-Boot vers {depth} m.",
+    "condorSighted": "Un Condor tourne au-dessus du convoi {convoy} : sa position est signalée aux U-Boote.",
+    "condorAttack": "Un Condor bombarde le convoi {convoy} : manqué.",
+    "condorAttackHit": "Un Condor bombarde le convoi {convoy} : un navire coulé."
   },
   "reasons": {
     "fuel": "carburant",
@@ -899,7 +929,11 @@
     },
     "viewAir": "vue {km} km",
     "viewSurface": "surface {km} km",
-    "viewSubmerged": "plongée {km} km"
+    "viewSubmerged": "plongée {km} km",
+    "viewSurfaceNight": "surface, de nuit {km} km",
+    "greatCircle": "plus court sur le globe vers {name} : {km} km",
+    "routeLength": "route suivie : {km} km restants",
+    "condorZone": "rayon d'action des Condor ({name})"
   },
   "help": {
     "title": "Comment jouer",
@@ -935,7 +969,7 @@
         "Victoire si 40 avions ennemis sont abattus, si les docks restent sous 50 % de dégâts et si la chasse garde 70 % de ses avions."
       ],
       "hiver-atlantique": [
-        "Hiver 1941, du 10 janvier au 31 mars. Les convois HX (Halifax, tous les cinq jours) et SC (Sydney, tous les huit jours, plus lents) partent seuls sur la route de l'Amirauté. Changez-la pour contourner les U-Boote repérés.",
+        "Hiver 1941, du 10 janvier au 31 mars. Les convois HX (Halifax, tous les cinq jours) et SC (Sydney, tous les huit jours, plus lents) partent seuls sur la route de l'Amirauté. Changez-la pour contourner les U-Boote repérés ; mais le commandement allemand apprend où passent vos convois, et une route trop au sud est vite guettée à son tour, sous les Condor de Bordeaux.",
         "Envoyez un groupe d'escorte au-devant de chaque convoi qui approche : vos groupes ont sept ou huit jours d'autonomie et rentrent se ravitailler. « Chasser » laisse l'escorte poursuivre un contact frais le temps choisi ; « Rester » la garde serrée autour du convoi. « Appareiller » sort le groupe en rade, au large de son port (ou au bout du chenal choisi) : tracez ensuite sa route, ou cliquez « Rejoindre » un convoi. Les nuits d'hiver sont longues : c'est alors que les meutes attaquent. Réglages, onglet Carte et fiche : les zones de vue montrent ce que voient vos navires et vos avions.",
         "Le Coastal Command patrouille de jour au-dessus des convois et oblige les U-Boote à plonger ; le radar ASV des Hudson et des Sunderland voit aussi un sous-marin en surface. Un U-Boot vu lève l'alerte « U-Boot en vue » et ramène le jeu à ×1. Les deux cercles d'un repère U-Boot montrent où il peut être, en surface et en plongée.",
         "Onglet Logistique : la réserve de dollars paie la cargaison des convois. Réglez la part achetée, ou commandez des Hudson ou des Catalina en Amérique. Après le prêt-bail, tout est gratuit. Victoire si 6 800 t de carburant et 4 400 t de matériel sont déchargées et si moins de 8 % des navires sont perdus ; défaite si les pertes dépassent 20 %."
@@ -965,9 +999,12 @@
       "Rassemblement (onglet d'une big wing ou d'un groupe de soutien) : sur le chef, ou sur un point à une heure donnée (ou au plus tôt), avec la route à suivre ensuite. Chaque membre a son heure de départ : en Arcade elles sont calculées, en Standard la fiche montre l'heure d'arrivée de chacun, en Réaliste à vous de compter (délai, montée, trajet). Avec une heure fixée, la formation part à cette heure (les premiers arrivés tournent) ; au plus tôt, dès que tous sont là. À l'heure, s'il manque quelqu'un : attendre (un temps maximum), ralentir vers la cible ou partir ; une big wing vous pose la question. Les retardataires suivent le plan en retard et rejoignent en route."
     ],
     "sea": [
-      "Appareiller : un groupe d'escorte sort en rade, juste au large du port, ou suit jusqu'au bout le chenal choisi (« Sortie » dans la section Au port) ; il y attend vos ordres, ou prend votre tracé ou vos étapes. Un tracé tiré depuis le port part de la rade et contourne la terre par la mer.",
-      "En mer, la barre de commandes d'un groupe d'escorte donne « Face aux U-Boote » : Rester avec le convoi ou Chasser les contacts, pour une durée choisie (3 h par défaut, section « Chasse aux U-Boote ») ; « Stop » ou tout autre ordre arrête la chasse. Un U-Boot tenu à l'ASDIC reçoit une passe de grenades toutes les 10 minutes. « Au port » rentre au port choisi dans la section « Retour au port » ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un port y entre. Section « Route et étapes » : que faire en fin de tracé (s'arrêter, garder le cap, chasser sur place, rejoindre un convoi, entrer au port).",
+      "Appareiller : un groupe d'escorte met une heure à quitter son quai, puis sort en rade, juste au large du port, ou suit jusqu'au bout le chenal choisi (« Sortie » dans la section Au port) ; il y attend vos ordres, ou prend votre tracé ou vos étapes. Un tracé tiré depuis le port part de la rade et contourne la terre par la mer.",
+      "En mer, la barre de commandes d'un groupe d'escorte donne « Face aux U-Boote » : Rester avec le convoi ou Chasser les contacts, pour une durée choisie (3 h par défaut, section « Chasse aux U-Boote ») ; « Stop » ou tout autre ordre arrête la chasse. Un U-Boot tenu à l'ASDIC reçoit une passe de grenades toutes les 10 minutes. « Au port » rentre au port choisi dans la section « Retour au port » ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un port y entre. Section « Route et étapes » : que faire à la fin du tracé ou des étapes (s'arrêter, garder le cap, chasser sur place, rejoindre un convoi, entrer au port).",
       "Vitesse des navires : un convoi à 100 % garde ses navires groupés ; son boost (sa meilleure vitesse) en laisse décrocher. Un groupe d'escorte à 100 % file à sa vitesse de mer ; son boost (+15 %) use son autonomie 1,6 fois plus vite. Zigzag et route de l'Amirauté sont dans la barre d'un convoi.",
+      "Autonomie : un groupe rentre de lui-même quand il ne lui reste que de quoi regagner le port le plus proche, plus un jour de marge (« Retour au port » montre la distance et le temps pour chaque port). Si vous le retenez en mer et que son mazout s'épuise, il quitte tout, convoi compris, et se traîne au port le plus proche à 7 nœuds au plus : vous ne pouvez plus que choisir son port.",
+      "Le commandement des U-Boote (BdU) tend tous les deux jours une ligne de patrouille en travers de la route que vos convois ont prise ces derniers temps : au début la route de l'Amirauté, plus au sud si vos convois y passent. Le B-Dienst lit une part des messages de routage (Réglages, onglet Partie, 0 à 100 %) : deux U-Boote vont alors attendre le convoi en travers de sa route. Les Fw 200 Condor de Bordeaux couvrent le golfe de Gascogne et l'ouest de l'Irlande (cercle pointillé sur la carte) : ils signalent les convois aux U-Boote et bombardent parfois. Les U-Boote n'entrent ni en mer d'Irlande, ni dans la Manche, le canal de Bristol ou les eaux intérieures des Hébrides (mines, patrouilles) : ils attendent au large et contournent la terre.",
+      "Le globe : la carte est plate, mais les distances sont celles du globe ; plus au nord, le chemin est plus court qu'il n'y paraît. Sélectionnez un convoi : la carte montre en pointillé le plus court chemin sur le globe jusqu'aux entrées des chenaux, et la longueur de la route suivie. Une escorte qui tient un U-Boot à l'ASDIC annonce sa profondeur et son cap estimés.",
       "Un U-Boot vu par un avion ou par une escorte lève une alerte « U-Boot en vue » et ramène le jeu à ×1. Les deux cercles d'un repère montrent où il peut être, en surface et en plongée ; Réglages, onglet Carte et fiche, « Zones de vue », montre ce que voient vos navires et vos avions."
     ],
     "time": [
@@ -1570,6 +1607,11 @@
       "text": "{escort} doit rentrer se ravitailler : {convoy} n'a plus d'escorte.",
       "alone": "{escort} doit rentrer se ravitailler."
     },
+    "escortDry": {
+      "title": "Escorte à sec",
+      "text": "{escort} n'a plus de mazout : il rentre à {port} à {kn} nœuds, {convoy} n'a plus d'escorte.",
+      "alone": "{escort} n'a plus de mazout : il rentre à {port} à {kn} nœuds."
+    },
     "convoyStopped": {
       "title": "Navires arrêtés",
       "text": "{convoy} s'est arrêté avant la côte : donnez-lui une route."
@@ -1606,6 +1648,15 @@
       "title": "Escorte au combat",
       "text": "{escort} attaque un U-Boot près de {convoy}.",
       "alone": "{escort} attaque un U-Boot."
+    },
+    "condorSighted": {
+      "title": "Condor en vue",
+      "text": "Un Fw 200 Condor tourne au-dessus du convoi {convoy} : sa position est signalée aux U-Boote."
+    },
+    "condorAttack": {
+      "title": "Condor : convoi bombardé",
+      "text": "Un Fw 200 Condor bombarde {convoy} (navires coulés : {n}).",
+      "missed": "Un Fw 200 Condor a bombardé {convoy}, sans toucher."
     }
   },
   "speedConfirm": {

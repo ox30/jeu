@@ -67,6 +67,7 @@ export function openSettings(app) {
         <label>${escapeHtml(t('settings.fatigue'))} ${select('fatigue', s.fatigue, presets.choices.fatigue, 'settings.fatigueChoices')}</label>
         <label>${escapeHtml(t('settings.rosterHours'))} ${select('rosterHours', String(s.rosterHours || '24'), presets.choices.rosterHours, 'settings.rosterHoursChoices')}</label>
         <label>${escapeHtml(t('settings.carry'))} ${select('carry', s.carry || 'none', presets.choices.carry, 'settings.carryChoices')}</label>
+        <label>${escapeHtml(t('settings.bdienst'))} ${select('bdienst', String(s.bdienst ?? '25'), presets.choices.bdienst, 'settings.bdienstChoices')}</label>
       </fieldset>`)}
       ${pane('time', `
       <fieldset>
@@ -222,6 +223,7 @@ openSettings.refresh = (form, s, presets) => {
   form.elements.logistics.value = s.logistics;
   form.elements.fatigue.value = s.fatigue;
   form.elements.carry.value = s.carry || 'none';
+  form.elements.bdienst.value = String(s.bdienst ?? '25');
   form.elements.falseAlarms.checked = s.falseAlarms;
   form.elements.pagesPause.checked = s.pagesPause;
 };

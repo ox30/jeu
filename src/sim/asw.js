@@ -6,10 +6,9 @@
 // group told to hunt leaves its convoy to chase a fresh contact for a few hours.
 // The U-boat command, for its part, moves the patrol areas toward the convoy routes.
 
-import { bearing, distance, headingVector, unproject } from './geo.js';
+import { bearing, distance, stepAlong, unproject } from './geo.js';
 import { emit } from './events.js';
 import { isPatrol, isDaylight } from './patrols.js';
-import { currentSpeed } from './convoy.js';
 import { forgetUboat, putPlot, seeUboat } from './contact.js';
 import { clearAtSea, seaPath } from './searoute.js';
 import { WATCHING } from './sight.js';
@@ -183,10 +182,10 @@ function steerTo(world, e, tx, ty, dt) {
     return;
   }
   const h = bearing(e.x, e.y, ax, ay);
-  const [dx, dy] = headingVector(h);
   const step = Math.min(d, e.speed * dt);
-  const nx = e.x + dx * step;
-  const ny = e.y + dy * step;
+  const [dx, dy] = stepAlong(h, step, e.y);
+  const nx = e.x + dx;
+  const ny = e.y + dy;
   if (world.terrain.isLand(nx, ny)) {
     if (way.length > 1) way.shift(); // a turning point grazing the coast: on to the next
     return;
@@ -325,6 +324,16 @@ export function stepHunt(world, e, dt) {
   }
 }
 
+/**
+ * What an escort makes of a U-boat under water: its depth (guessed, for the depth-charge
+ * settings) and its course, both rough.
+ */
+function asdicEstimate(world, u) {
+  const depthM = 10 * Math.round((40 + world.rng.next() * 110) / 10);
+  const course = Number.isFinite(u.heading) ? (Math.round((u.heading + world.rng.gauss() * 12) / 5) * 5 + 360) % 360 : null;
+  return { depthM, course };
+}
+
 function sunkOrGone(u) {
   return u.state === 'sunk' || u.state === 'gone';
 }
@@ -337,15 +346,25 @@ export function updateAsw(world) {
     for (const e of watchingGroups(world)) {
       const seen = escortLooks(world, e, u);
       if (!seen) continue;
+      // Already held by this group: the same contact, not a new sighting.
+      const held = Boolean(u.seen && u.seen.byId === e.id);
+      const wasDown = isSubmerged(world, u);
       const plot = addPlot(world, u, seen.source, e.name, seen.error);
       if (plot) plot.byId = e.id;
       seeUboat(world, u, { by: e.name, byId: e.id, kind: 'escort', how: seen.source });
       dive(world, u, A.diveHours);
       const attack = !e.engage && distance(e.x, e.y, u.x, u.y) <= A.counterKm;
-      emit(world, 'uboatSighted', {
-        by: e.name, byId: e.id, source: seen.source, unitKind: 'escort', uboatId: u.id, plotId: plot ? plot.id : null,
-        x: plot ? plot.x : u.x, y: plot ? plot.y : u.y, attack,
-      });
+      if (!held) {
+        u.asdicReportAt = world.t;
+        emit(world, 'uboatSighted', {
+          by: e.name, byId: e.id, source: seen.source, unitKind: 'escort', uboatId: u.id, plotId: plot ? plot.id : null,
+          x: plot ? plot.x : u.x, y: plot ? plot.y : u.y, attack, dived: !wasDown, ...asdicEstimate(world, u),
+        });
+      } else if (wasDown && world.t - (u.asdicReportAt ?? -Infinity) >= (A.asdicReportEveryS ?? 1800)) {
+        // A contact held at the ASDIC: now and then an estimate of its depth and course.
+        u.asdicReportAt = world.t;
+        emit(world, 'asdicContact', { by: e.name, byId: e.id, uboatId: u.id, x: u.x, y: u.y, ...asdicEstimate(world, u) });
+      }
       // Close enough: the group attacks it with depth charges.
       if (attack) engage(world, e, u, seen.source);
       else if (e.state === 'escorting' && e.behaviour === 'hunt' && plot) startHunt(world, e, plot.x, plot.y);
@@ -370,54 +389,8 @@ export function updateAsw(world) {
   }
   const life = A.plotLifetimeH * 3600;
   world.uboatPlots = world.uboatPlots.filter((p) => world.t - p.t < life);
-  if (world.t % (A.repositionEveryH * 3600) === 0) reposition(world);
 }
 
-/** Where a convoy will be in `hours`, following its route or its course. */
-function predict(c, hours) {
-  let left = currentSpeed(c) * hours * 3600;
-  let x = c.x;
-  let y = c.y;
-  for (const [px, py] of c.route) {
-    const d = distance(x, y, px, py);
-    if (d >= left) {
-      const k = left / d;
-      return [x + (px - x) * k, y + (py - y) * k];
-    }
-    left -= d;
-    x = px;
-    y = py;
-  }
-  const [dx, dy] = headingVector(c.heading);
-  return [x + dx * left, y + dy * left];
-}
-
-/**
- * The U-boat command sends the boats on patrol toward the probable route of the convoys
- * (its intelligence, the B-Dienst, reads part of the British signals). Their orders cost
- * them a radio message, sometimes caught by the direction-finding stations.
- */
-function reposition(world) {
-  const A = world.rules.asw;
-  const convoys = world.convoys.filter((c) => c.state === 'atSea' && c.type !== 'coastal');
-  if (!convoys.length) return;
-  for (const u of world.uboats) {
-    if (u.state !== 'patrol') continue;
-    let best = null;
-    for (const c of convoys) {
-      const [px, py] = predict(c, A.predictHours);
-      const d = distance(u.hx, u.hy, px, py);
-      if (d < A.repositionMaxKm && (!best || d < best.d)) best = { d, px, py };
-    }
-    if (!best) continue;
-    u.hx = best.px + world.rng.gauss() * A.repositionErrorKm;
-    u.hy = best.py + world.rng.gauss() * A.repositionErrorKm;
-    u.radius = Math.min(u.radius, A.repositionRadiusKm);
-    u.wx = u.hx;
-    u.wy = u.hy;
-    if (world.rng.next() < A.repositionDfP) world.dfPending.push(u.id);
-  }
-}
 
 /** The plots a squadron or group made, for the sheets. */
 export function plotsNear(world, x, y, km) {

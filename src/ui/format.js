@@ -22,6 +22,15 @@ export function gameTimeText(world, gameT) {
 }
 
 /** "18 000 ft" (rounded to 100 ft). */
+/** The state of an escort group, « Appareillage (en route à 14:32) » while it casts off. */
+export function escortStateText(w, e) {
+  if (e.state !== 'inPort' && e.state !== 'refit' && e.underwayAt && w.t < e.underwayAt) {
+    return t('states.escort.castingOff', { time: gameTimeText(w, e.underwayAt) });
+  }
+  if (e.dry && e.state !== 'inPort' && e.state !== 'refit') return t('states.escort.dry', { kn: e.dryKn });
+  return t(`states.escort.${e.state}`);
+}
+
 export function ftText(ft) {
   return t('units.ft', { n: formatNumber(Math.round(ft / 100) * 100) });
 }
@@ -278,8 +287,11 @@ const LEVELS = {
   straggler: 'warning',
   uboatDrivenOff: 'success',
   convoySighted: 'warning',
+  condorSighted: 'warning',
+  condorAttack: 'alert',
   dfFix: 'info',
   escortLowFuel: 'warning',
+  escortDry: 'alert',
   escortJoined: 'success',
   convoyUnloaded: 'success',
   trainArrived: 'logistics',
@@ -342,6 +354,12 @@ export function eventMessage(world, e) {
     case 'convoyArrived':
       if (e.fuel || e.materiel) key = 'log.convoyArrivedCargo';
       break;
+    case 'condorAttack':
+      if (e.sunk > 0) key = 'log.condorAttackHit';
+      break;
+    case 'bduLine':
+    case 'bdienstRead':
+      return null; // the U-boat command's own business: the player hears nothing of it
     case 'shipsSunk':
       key = `log.shipsSunk.${e.cause}`;
       break;
@@ -387,6 +405,17 @@ export function eventMessage(world, e) {
       break;
     case 'uboatSighted':
       p.source = t(`map.uSource.${e.source}`);
+      // Found under water by the ASDIC: it did not dive, it was down already.
+      if (e.unitKind === 'escort' && e.dived === false && e.depthM) {
+        key = e.course === null || e.course === undefined ? 'log.uboatSightedDownNoCourse' : 'log.uboatSightedDown';
+        p.depth = e.depthM;
+        p.course = headingText(e.course);
+      }
+      break;
+    case 'asdicContact':
+      key = e.course === null || e.course === undefined ? 'log.asdicContactNoCourse' : 'log.asdicContact';
+      p.depth = e.depthM;
+      p.course = headingText(e.course ?? 0);
       break;
     case 'raidSighted': {
       const parts = [];
@@ -517,7 +546,15 @@ export function eventMessage(world, e) {
       if (e.target) key = 'log.legMissedSquare';
       break;
     case 'planEnded':
-      if (e.unitKind === 'squadron') return null; // the end of the route says what it does next
+      // A squadron's end of route, a group's end of legs (legsEnded) say what it does next.
+      if (e.unitKind === 'squadron' || e.unitKind === 'escort') return null;
+      p.heading = headingText(e.heading);
+      break;
+    case 'escortDry':
+      if (e.convoy) key = 'log.escortDryConvoy';
+      break;
+    case 'legsEnded':
+      key = `log.legsEnded.${e.action}`;
       p.heading = headingText(e.heading);
       break;
     case 'routeEnded':

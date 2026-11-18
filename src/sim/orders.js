@@ -7,7 +7,7 @@ import { disengage } from './combat.js';
 import {
   aircraftSpec, airfieldsAround, applyEndAction, applyPointAltitude, isFlying, squadronSpeed, startReturn,
 } from './squadron.js';
-import { currentSpeed as currentSpeedOf, editShipRoute, editablePoints, fullKnots, harbourWayOut, legSpeed, routeConvoy } from './convoy.js';
+import { channelOut, currentSpeed as currentSpeedOf, editShipRoute, editablePoints, fullKnots, harbourWayOut, legSpeed, routeConvoy } from './convoy.js';
 import { projectPlan, resolveClock } from './navigation.js';
 import { airfieldDelayFactor, isOperational } from './sites.js';
 import { distance } from './geo.js';
@@ -427,6 +427,7 @@ function takePlan(world, u, legs) {
  * Returns { ok, reason, at }.
  */
 export function addLeg(world, u, leg) {
+  if (u.dry) return { ok: false, reason: 'dry' };
   if (!canPlan(world, u)) return { ok: false, reason: 'state' };
   const last = u.plan[u.plan.length - 1];
   if (last && !last.end) {
@@ -446,6 +447,7 @@ export function addLeg(world, u, leg) {
 
 /** Replaces leg `index` of a plan (the leg being flown starts again). */
 export function updateLeg(world, u, index, leg) {
+  if (u.dry) return { ok: false, reason: 'dry' };
   if (!canPlan(world, u)) return { ok: false, reason: 'state' };
   if (index < 0 || index >= u.plan.length) return { ok: false, reason: 'state' };
   if (!leg.end && index < u.plan.length - 1) return { ok: false, reason: 'open' };
@@ -540,7 +542,8 @@ export function setShipSpeedPct(world, u, pct) {
  */
 export function setShipBoost(world, u, on) {
   if (u.kind === 'escort') {
-    u.boost = Boolean(on);
+    u.boost = Boolean(on) && !u.dry; // out of fuel: no sprint
+    if (u.dry) return false;
     u.boostKn = u.speedKn * world.rules.escortGroups.boostSpeed;
     if (on) u.orderedKn = null;
   } else {
@@ -563,25 +566,18 @@ export function setZigzag(world, c, on) {
  */
 export function leavePort(world, e, x, y) {
   const port = world.byId.port.get(e.portId);
-  let best = null;
-  for (const a of port.approaches || []) {
-    const out = a.points.slice(0, -1).reverse();
-    for (let i = 0; i < out.length; i++) {
-      const d = distance(out[i][0], out[i][1], x, y);
-      if (!best || d < best.d) best = { out, i, d };
-    }
-  }
   e.state = 'atSea';
   e.destination = null;
   e.legState = null;
-  e.route = best ? best.out.slice(0, best.i + 1).map(([px, py]) => [px, py]) : [];
+  // Down the charted channel until the open sea leads to (x, y).
+  e.route = channelOut(world, port, x, y);
   e.routeLocked = e.route.length;
 }
 
 /** The group sails (or turns) to meet a convoy and take station with it. */
 export function joinConvoy(world, e, convoyId) {
   const c = world.convoys.find((x) => x.id === convoyId);
-  if (!c || c.state !== 'atSea') return false;
+  if (!c || c.state !== 'atSea' || e.dry) return false;
   // Hunting, or with another convoy: the order ends that.
   if (e.state === 'hunting') endHunt(world, e, false, 'order');
   else if (e.state === 'escorting' && e.escorting !== convoyId) {
@@ -633,7 +629,7 @@ export function setHuntHours(world, e, hours) {
 /** Sends the group to hunt a U-boat plot, for the hours set. */
 export function huntPlot(world, e, plotId) {
   const p = world.uboatPlots.find((x) => x.id === plotId);
-  if (!p) return false;
+  if (!p || e.dry) return false;
   if (e.state !== 'atSea' && e.state !== 'escorting' && e.state !== 'waiting' && e.state !== 'hunting') return false;
   // A new hunt: the one going on stops (its report is closed), the way into port too.
   if (e.state === 'hunting') endHunt(world, e, false, 'order');

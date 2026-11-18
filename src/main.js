@@ -3,6 +3,7 @@
 import { loadJSON } from './core/data.js';
 import { setDictionary, t, translatePage } from './core/i18n.js';
 import { createTerrain } from './sim/terrain.js';
+import { warmPortField } from './sim/searoute.js';
 import { createWorld, step } from './sim/world.js';
 import { drainEvents } from './sim/events.js';
 import { createCamera, clampCentre, setFrame, updateCamera, viewFrame, VIEWS } from './render/camera.js';
@@ -694,6 +695,11 @@ async function start() {
     dirtyHud: true,
   };
   app.unlockAudio = () => unlockAudio(app);
+  // The ports' distance fields (a tenth of a second each), worked out in quiet moments rather
+  // than on the first look at « Rentrer au port ».
+  setInterval(() => {
+    if (!document.hidden) warmPortField(app.world);
+  }, 700);
   /** Selects a formation and brings its leader into view (from the formations page). */
   app.selectFormation = (id) => {
     const f = formationById(app.world, id);

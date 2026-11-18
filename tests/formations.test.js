@@ -91,7 +91,7 @@ test('a support group sails together and goes home with its shortest group', () 
   assert.ok(addMember(w, f, 'eg2'));
   const eg2 = w.escorts.find((e) => e.id === 'eg2');
   assert.equal(eg2.joinTarget, c.id, 'the new member meets the same convoy');
-  run(w, 3600);
+  run(w, 2 * 3600); // an hour to cast off, then at sea
   eg2.lowWarned = true;
   sendEscortHome(w, eg2);
   const ev = run(w, 10);

@@ -405,6 +405,7 @@ export function orderAdmiraltyRoute(app, convoy) {
   }
   const result = routeConvoy(app.world, convoy, route.slice(from));
   if (!result.ok && result.at) app.flash = { x: result.at[0], y: result.at[1], until: performance.now() + 2500 };
+  if (!result.ok && result.reason === 'dry') sheetMessage(app, t('orders.errors.dry'));
   app.dirtyPanels = true;
 }
 
@@ -426,7 +427,9 @@ function groupsOf(app, escort) {
 }
 
 export function orderJoin(app, escort, convoyId) {
-  for (const e of groupsOf(app, escort)) joinConvoy(app.world, e, convoyId);
+  const groups = groupsOf(app, escort);
+  if (groups.some((e) => e.dry)) sheetMessage(app, t('orders.errors.dry'));
+  for (const e of groups) joinConvoy(app.world, e, convoyId);
   app.dirtyPanels = true;
 }
 
@@ -449,7 +452,9 @@ export function orderHuntStop(app, escort) {
 
 /** Off to hunt a fresh U-boat plot, for the hours set. */
 export function orderHuntPlot(app, escort, plotId) {
-  for (const e of groupsOf(app, escort)) huntPlot(app.world, e, plotId);
+  const groups = groupsOf(app, escort);
+  if (groups.some((e) => e.dry)) sheetMessage(app, t('orders.errors.dry'));
+  for (const e of groups) huntPlot(app.world, e, plotId);
   app.dirtyPanels = true;
 }
 
@@ -655,6 +660,7 @@ export function finishDrawing(app, hit, screenPoints, endHit = null) {
     const result = routeConvoy(world, ship, points);
     if (!result.ok && result.at) app.flash = { x: result.at[0], y: result.at[1], until: performance.now() + 2500 };
     selectUnit(app, ship);
+    if (!result.ok && result.reason === 'dry') sheetMessage(app, t('orders.errors.dry'));
   }
   app.dirtyPanels = true;
 }

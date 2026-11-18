@@ -20,7 +20,7 @@ export const ALERT_GROUPS = [
     id: 'sea',
     speeds: {
       uboatAttack: 1, convoyBombed: 1, escortEngaged: 1, uboatSighted: 1, convoySighted: 1, straggler: 1,
-      convoyInEscortRange: 1, escortLowFuel: 1, convoyStopped: 1, convoyWaiting: 1,
+      convoyInEscortRange: 1, escortLowFuel: 1, escortDry: 1, convoyStopped: 1, convoyWaiting: 1, condorSighted: 1, condorAttack: 1,
     },
   },
   { id: 'bases', speeds: { siteOut: 600, noFuel: 600, noAmmo: 600, lowFuel: 600, scheduleDelayed: 600 } },
@@ -89,6 +89,22 @@ const RULES = {
     params: { convoy: e.convoy, raid: e.raid, n: e.sunk },
     focus: convoyAt(w, e.convoyId, e.x, e.y),
   }),
+  // A Condor over a convoy: its position goes to the U-boats; it may bomb.
+  condorSighted: (w, e) => ({
+    level: 'warning',
+    key: `condor:${e.convoyId}`,
+    quiet: 12 * H,
+    params: { convoy: e.convoy },
+    focus: convoyAt(w, e.convoyId, e.x, e.y),
+  }),
+  condorAttack: (w, e) => ({
+    level: 'danger',
+    key: `condorBomb:${e.convoyId}`,
+    quiet: 2 * H,
+    params: { convoy: e.convoy, n: e.sunk },
+    variant: e.sunk > 0 ? 'text' : 'missed',
+    focus: convoyAt(w, e.convoyId, e.x, e.y),
+  }),
   convoySighted: (w, e) => ({
     level: 'warning',
     key: `sighted:${e.convoyId}`,
@@ -139,6 +155,13 @@ const RULES = {
     params: { escort: e.escort, convoy: e.convoy },
     variant: e.convoy ? 'text' : 'alone',
     focus: e.convoyId ? convoyAt(w, e.convoyId, e.x, e.y) : convoyAt(w, e.escortId, e.x, e.y),
+  }),
+  escortDry: (w, e) => ({
+    level: 'danger',
+    key: `escortDry:${e.escortId}`,
+    params: { escort: e.escort, convoy: e.convoy, port: e.port, kn: e.kn },
+    variant: e.convoy ? 'text' : 'alone',
+    focus: convoyAt(w, e.escortId, e.x, e.y),
   }),
   convoyStopped: (w, e) => ({
     level: 'warning',

@@ -34,6 +34,7 @@ import {
 import { isActive } from '../sim/raid.js';
 import { altitudeControl, cmdButton, cmdGroup, kmhText, section, speedControl } from './commands.js';
 import {
+  escortStateText,
   altitudeText, countText, dateTimeText, durationText, endActionText, ftText, headingText, kmText, legEndInput, legText,
   objectiveText, positionText, reportText, siteEffectText, siteRepairText, siteStatusText, siteTitle,
 } from './format.js';
@@ -146,7 +147,7 @@ function renderUnits(app) {
     const with_ = e.state === 'escorting' ? w.convoys.find((c) => c.id === e.escorting) : null;
     return `<div class="tote-row${member ? ' member' : ''}${isSel(app, 'escort', e.id) ? ' sel' : ''}" data-action="select" data-kind="escort" data-id="${escapeHtml(e.id)}">
       <span class="lamp escort-${e.state}"></span><span class="name">${escapeHtml(e.short)}</span>
-      <span class="state">${escapeHtml(t(`states.escort.${e.state}`))}</span>
+      <span class="state">${escapeHtml(escortStateText(w, e))}</span>
       <span class="extra">${escapeHtml(with_ ? t('tote.escortingShort', { convoy: with_.name }) : '')}</span></div>`;
   };
   const squadronRow = (s, member = false) => {
@@ -167,7 +168,7 @@ function renderUnits(app) {
     const air = kind === 'air';
     const total = members.reduce((n, u) => n + (air ? strength(w, u) : u.ships), 0);
     const where = air ? (isFlying(leader) ? altitudeText(leader.alt) : w.byId.airfield.get(leader.airfield).name) : '';
-    const state = air ? (leader.holdForWing ? t('sheet.gathering') : t(`states.squadron.${leader.state}`)) : t(`states.escort.${leader.state}`);
+    const state = air ? (leader.holdForWing ? t('sheet.gathering') : t(`states.squadron.${leader.state}`)) : escortStateText(w, leader);
     const extra = air ? `${t('tote.wingExtra', { n: members.length, total })} · ${where}` : t('tote.groupExtra', { n: members.length, total });
     return `<div class="tote-row formation${isSel(app, 'formation', f.id) ? ' sel' : ''}" data-action="select" data-kind="formation" data-id="${escapeHtml(f.id)}">
       <span class="lamp ${air ? `sq-${leader.state}` : `escort-${leader.state}`}"></span><span class="name">${escapeHtml(f.name)}</span>
@@ -426,10 +427,11 @@ function climbArrow(s) {
   return target > s.alt ? ` ↑ ${ftText(feetOf(target))}` : ` ↓ ${ftText(feetOf(target))}`;
 }
 
-/** Menu of what the squadron does at the end of its route or legs. */
-/** End of route of an escort group: stop, hold on, meet a convoy, hunt there, into a port. */
+/** End of route (or of legs) of an escort group: stop, hold on, meet a convoy, hunt there, into a port. */
 function shipEndLine(app, e) {
-  // Going to meet a convoy, or into a port: the route already says how it ends.
+  // Going to meet a convoy, or into a port: the route already says how it ends. A convoy
+  // keeps its course at the end of its legs (its route ends in a port).
+  if (e.kind !== 'escort') return '';
   if (!(e.route.length || e.plan.length) || e.homeward || e.joinTarget || e.state === 'escorting') return '';
   const w = app.world;
   const list = shipEndChoices(w, e).map((a) => ({ value: a.id ? `${a.kind}:${a.id}` : a.kind, label: shipEndText(w, e, a) }));
@@ -996,7 +998,13 @@ function escortPanel(app, e) {
   const atSea = ['atSea', 'waiting', 'escorting', 'hunting'].includes(e.state);
   let cmd;
   if (member) cmd = ordersBox(e.schedule ? sailBlock(app, e) : '', formationLine(app, e));
-  else {
+  else if (e.dry && atSea) {
+    // Out of fuel: into port at a crawl; only the port can still be chosen.
+    cmd = [
+      `<p class="hint warn">${escapeHtml(t('orders.dryHint', { kn: e.dryKn }))}</p>`,
+      section(app, 'home', t('sec.home'), ordersBox(homePortLine(app, e))),
+    ].join('');
+  } else {
     cmd = [
       e.state === 'inPort' || e.state === 'refit' ? section(app, 'port', t('sec.port'), ordersBox(e.state === 'inPort' ? exitLines(app, e, { sail: false }) : '', sailBlock(app, e))) : '',
       section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, e))),
@@ -1014,7 +1022,7 @@ function escortPanel(app, e) {
   return {
     group: 'escort',
     title,
-    summary: escapeHtml(`${t(`states.escort.${e.state}`)} · ${t('unit.shipsShort', { n: e.ships })} · ${t('sheet.enduranceDays', { n: formatNumber(Math.max(0, e.endurance) / 86400, 1) })}`),
+    summary: escapeHtml(`${escortStateText(w, e)} · ${t('unit.shipsShort', { n: e.ships })} · ${t('sheet.enduranceDays', { n: formatNumber(Math.max(0, e.endurance) / 86400, 1) })}`),
     bar: member ? '' : seaBar(app, e),
     tabs,
   };
@@ -1037,7 +1045,7 @@ function formationStateText(app, f, leader) {
     }
     return text;
   }
-  let text = t(`states.escort.${leader.state}`);
+  let text = escortStateText(w, leader);
   const convoyId = leader.escorting || leader.joinTarget;
   const c = convoyId ? w.convoys.find((x) => x.id === convoyId) : null;
   if (c) text += ` · ${c.name}`;
@@ -1059,7 +1067,7 @@ function memberRows(app, f) {
       const level = fatigueOn(w) && u.state !== 'lost' ? fatigueLevel(w, u) : 'fresh';
       extra = `${t('unit.aircraftShort', { n: u.aircraft, total: u.aircraftStart })} · ${t('unit.ammoShort', { n: Math.round(u.ammo * 100) })}${fuel}${level !== 'fresh' ? ` · ${t(`sheet.fatigueLevels.${level}`)}` : ''}`;
     } else {
-      state = t(`states.escort.${u.state}`);
+      state = escortStateText(w, u);
       extra = `${t('unit.shipsShort', { n: u.ships })} · ${t('sheet.enduranceDays', { n: formatNumber(Math.max(0, u.endurance) / 86400, 1) })}`;
     }
     const kind = f.kind === 'air' ? 'squadron' : 'escort';

@@ -56,3 +56,24 @@ test('a save that piled up plots is tidied up when it is loaded', () => {
   restore(twin, snap);
   assert.deepEqual(twin.uboatPlots.map((p) => p.id), ['A0'], 'the newest plot of the U-boat afloat only');
 });
+
+test('a contact held at the ASDIC is reported now and then with a depth and a course, not as new dives', () => {
+  const w = makeWorld('standard', {}, 'hiver-atlantique');
+  const u = w.uboats[0];
+  const e = w.escorts[0];
+  Object.assign(e, { state: 'atSea', x: u.x + 1, y: u.y });
+  u.submergedUntil = w.t + 6 * 3600; // down before the group comes
+  const events = [];
+  for (let m = 0; m < 120 && u.state !== 'sunk'; m++) {
+    events.push(...run(w, 60));
+    if (e.state === 'atSea' || e.state === 'waiting' || e.state === 'hunting') Object.assign(e, { x: u.x + 1, y: u.y });
+  }
+  const sightings = events.filter((x) => x.type === 'uboatSighted' && x.byId === e.id);
+  assert.ok(sightings.length <= 2, `one sighting for a contact held (${sightings.length})`);
+  assert.ok(sightings.every((x) => x.dived === false), 'found under water: no dive announced');
+  const reports = events.filter((x) => x.type === 'asdicContact');
+  if (u.state !== 'sunk') assert.ok(reports.length >= 1, 'reports while it is held');
+  for (const r of [...sightings, ...reports]) {
+    assert.ok(r.depthM >= 40 && r.depthM <= 150, `depth ${r.depthM}`);
+  }
+});

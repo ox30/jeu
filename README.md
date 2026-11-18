@@ -89,10 +89,15 @@ autonomie 1,6 fois plus vite.
    nord de l'Irlande ou au canal Saint-Georges : un pilote les conduit au port. La vitesse
    ordonnée garde le convoi groupé ; plus près de sa vitesse maximale, des navires lents
    décrochent et deviennent des traînards. Le zigzag gêne les U-Boote mais ralentit.
-   **Appareiller** : un groupe d'escorte sort en rade, juste au large de son port, ou suit
-   jusqu'au bout le chenal choisi (« Sortie », section Au port) ; il y attend vos ordres, ou
-   prend votre tracé ou vos étapes. Un tracé tiré depuis le port part de la rade et contourne
-   la terre par la mer.
+   **Appareiller** : un groupe d'escorte met une heure à quitter son quai, puis sort en rade,
+   juste au large de son port, ou suit jusqu'au bout le chenal choisi (« Sortie », section Au
+   port) ; il y attend vos ordres, ou prend votre tracé ou vos étapes. Un tracé tiré depuis le
+   port part de la rade et contourne la terre par la mer.
+   **Le globe** : la carte est plate, mais les distances sont celles du globe (un kilomètre
+   est-ouest de la carte vaut cos(latitude)/cos(50°) km réels) ; une route infléchie vers le
+   nord, vers l'orthodromie, est donc plus courte qu'il n'y paraît, une route par le sud plus
+   longue. Un convoi choisi montre en pointillé le plus court chemin sur le globe jusqu'aux
+   entrées des chenaux, et la longueur de la route suivie.
 2. **U-Boote.** Ils attaquent de nuit, en surface. Les zones hachurées viennent de la
    radiogoniométrie ; un repère U-Boot (vu par une vigie, un avion, l'ASDIC ou le radar)
    porte deux cercles : où il peut être en surface, et en plongée. La table garde un seul
@@ -107,11 +112,29 @@ autonomie 1,6 fois plus vite.
    (ASDIC, ou vu tout près) reçoit une passe de grenades toutes les 10 minutes : coulé,
    touché (il rentre), perdu ou rien de visible ; chaque attaque a son rapport. « Au port »
    rentre au port choisi dans la section « Retour au port », du plus proche par mer au plus
-   loin, avec distance et durée ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un
+   loin, avec distance et durée (tirées d'un champ de distances par mer calculé une fois par
+   port : la fiche ne coûte plus rien, même à ×14 400) ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un
    port (15 km, montrée quand un navire est choisi) y entre. Comme pour les avions, la section
-   « Route et étapes » dit que faire en fin de tracé : s'arrêter et attendre, garder le cap, chasser
+   « Route et étapes » dit que faire à la fin du tracé ou des étapes : s'arrêter et attendre, garder le cap, chasser
    sur place, rejoindre un convoi ou entrer au port. Un groupe qui attend ses ordres garde
-   la veille ; un groupe attaqué en rentrant reprend ensuite sa route vers le port.
+   la veille ; un groupe attaqué en rentrant reprend ensuite sa route vers le port, sans
+   s'arrêter auprès des convois qu'il croise. Un U-Boot tenu à l'ASDIC est annoncé avec sa
+   profondeur et son cap estimés.
+   **Autonomie** : un groupe rentre de lui-même quand il ne lui reste que de quoi gagner le
+   port le plus proche, plus un jour. Retenu en mer jusqu'à la panne sèche, il quitte tout
+   (convoi compris) et se traîne au port le plus proche à 7 nœuds ; il ne peut plus que
+   changer de port, jusqu'à son ravitaillement.
+   **Le commandement des U-Boote** (BdU, à Kernével) : tous les deux jours, une ligne de
+   patrouille en travers de la route que les convois ont prise ces derniers temps, sur le
+   méridien 17° O (d'abord la route de l'Amirauté, puis là où passent vos convois : une route
+   par le sud est guettée à son tour) ; ses ordres par radio donnent parfois des relèvements.
+   Le B-Dienst lit une part des messages de routage (réglage de 0 à 100 %) : deux U-Boote
+   vont alors attendre le convoi en travers de sa route, en haute mer, à l'est de 30° O. Les Fw 200 Condor de
+   Bordeaux-Mérignac couvrent le golfe de Gascogne et l'ouest de l'Irlande (cercle pointillé
+   sur la carte) : ils signalent les convois aux U-Boote et bombardent parfois. Les U-Boote
+   contournent la terre et n'entrent pas dans les eaux fermées en 1941 (mer d'Irlande et
+   canal du Nord, Clyde, Hébrides intérieures et Minch, Manche, canal de Bristol) : ils
+   attendent dans les approches.
 3. **Patrouilles.** La section de guet (Spitfire) et le Coastal Command voient ce que les
    radars voient mal : un raid en vue d'une patrouille est connu exactement. Une patrouille
    peut être surprise par l'escorte allemande.
@@ -278,6 +301,10 @@ par un :
 | Fatigue des pilotes | non | oui | oui, avec pilotes tués |
 | Campagne : pertes reportées | aucune | la moitié | toutes |
 
+Le réglage **B-Dienst** (Partie) dit quelle part des messages de routage des convois la
+marine allemande lit : 0 % en Arcade, 25 % en Standard, 50 % en Réaliste (0, 10, 25, 50, 75
+ou 100 %).
+
 Options : pause pendant les pages et durée du plan d'exception des Effectifs (Partie) ;
 ralenti à l'alerte avec une vitesse pour chaque alerte, confirmation des vitesses élevées
 pendant une action ennemie, questions d'engagement et de poursuite (Temps et alertes) ; tiges
@@ -337,7 +364,7 @@ facilite les tests et l'équilibrage.
 npm test
 ```
 
-Les 143 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
+Les 155 tests (Node 20 ou plus récent, sans dépendance) vérifient notamment la géométrie, la
 terre et la mer, les routes, les étapes et leur édition, le pilote à l'entrée des chenaux,
 les interceptions, le guidage du contrôleur et les ratés, les rapports, les installations,
 les trains mélangés, les munitions, la fatigue et les pilotes, les patrouilles, les U-Boote
@@ -359,7 +386,12 @@ zones de vue, la vitesse de chaque alerte, des rapports qui ne disent que ce que
 au M2.5 la sortie en rade ou par un chenal, l'alerte « U-Boot en vue », la vitesse en % et le
 boost des avions et des navires, l'état choisi à la main et « Retour au planning », la copie
 d'un plan, l'aide et le tutoriel, au M2.5.1 un seul repère par U-Boot (aucun pour un U-Boot
-coulé, et les sauvegardes plus anciennes nettoyées), et une quinzaine complète sans ordres.
+coulé, et les sauvegardes plus anciennes nettoyées), au M2.6 la distance par mer jusqu'aux
+ports (celle de la route qui sera prise, à peu de frais), les U-Boote qui contournent
+l'Irlande et restent hors de la mer d'Irlande, le B-Dienst qui ne place jamais un U-Boot à
+terre, le pisteur qui lâche un convoi entré dans le canal du Nord, une sauvegarde avec un
+U-Boot à terre remis en mer, la fin des étapes d'un groupe, le retour au port avant la panne
+sèche et la panne sèche elle-même, et une quinzaine complète sans ordres.
 
 ## Outils
 

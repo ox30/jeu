@@ -4,7 +4,7 @@
 // This is dead reckoning: a badly computed heading simply passes beside its goal, and the
 // next leg starts from where the unit really is.
 
-import { FOOT_M, distance, headingDiff, headingVector, project } from './geo.js';
+import { FOOT_M, distance, headingDiff, headingVector, project, stepAlong } from './geo.js';
 import { gridSquare, inSquare } from './grid.js';
 import { emit } from './events.js';
 
@@ -76,7 +76,10 @@ export function followPlan(world, u, domain) {
       if (u.kind === 'squadron') {
         u.vector = leg.heading;
         u.planJustEnded = true;
-      } else u.course = leg.heading;
+      } else {
+        u.course = leg.heading;
+        u.planJustEnded = true; // a group whose last leg ends in a port's bubble goes in (naval.js)
+      }
       return leg.heading;
     }
   }
@@ -136,11 +139,14 @@ export function projectPlan(world, u, legs, speedOf, domain, openKm, start = nul
     } else if (end.kind === 'time') {
       km = v * Math.max(0, end.t - t);
     } else {
-      km = rayEnd(world, x, y, leg.heading, leg, domain) ?? 0;
+      // The end of the leg is a point of the plane: there, in real km (the globe).
+      const along = rayEnd(world, x, y, leg.heading, leg, domain) ?? 0;
+      const [hx, hy] = headingVector(leg.heading);
+      km = distance(x, y, x + hx * along, y + hy * along);
     }
-    const [dx, dy] = headingVector(leg.heading);
-    x += dx * km;
-    y += dy * km;
+    const [dx, dy] = stepAlong(leg.heading, km, y);
+    x += dx;
+    y += dy;
     t += v > 0 ? km / v : 0;
     points.push({ x, y, t, open });
   });

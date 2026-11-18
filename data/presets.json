@@ -10,7 +10,8 @@
       "logistics": "auto",
       "pagesPause": true,
       "fatigue": "off",
-      "carry": "none"
+      "carry": "none",
+      "bdienst": "0"
     },
     "standard": {
       "detection": "approximate",
@@ -21,7 +22,8 @@
       "logistics": "manual",
       "pagesPause": true,
       "fatigue": "on",
-      "carry": "light"
+      "carry": "light",
+      "bdienst": "25"
     },
     "realistic": {
       "detection": "delayed",
@@ -32,20 +34,69 @@
       "logistics": "manual",
       "pagesPause": false,
       "fatigue": "losses",
-      "carry": "full"
+      "carry": "full",
+      "bdienst": "50"
     }
   },
   "choices": {
-    "detection": ["exact", "approximate", "delayed"],
-    "interceptAid": ["auto", "point", "track", "none"],
-    "fuel": ["unlimited", "simple", "realistic"],
-    "orders": ["draw", "headings"],
-    "logistics": ["auto", "manual"],
-    "fatigue": ["off", "on", "losses"],
-    "carry": ["none", "light", "full"],
-    "rosterHours": ["6", "12", "24", "48"],
-    "viewZones": ["none", "selected", "all"],
-    "sheetPos": ["right", "left", "bottom"]
+    "detection": [
+      "exact",
+      "approximate",
+      "delayed"
+    ],
+    "interceptAid": [
+      "auto",
+      "point",
+      "track",
+      "none"
+    ],
+    "fuel": [
+      "unlimited",
+      "simple",
+      "realistic"
+    ],
+    "orders": [
+      "draw",
+      "headings"
+    ],
+    "logistics": [
+      "auto",
+      "manual"
+    ],
+    "fatigue": [
+      "off",
+      "on",
+      "losses"
+    ],
+    "carry": [
+      "none",
+      "light",
+      "full"
+    ],
+    "rosterHours": [
+      "6",
+      "12",
+      "24",
+      "48"
+    ],
+    "viewZones": [
+      "none",
+      "selected",
+      "all"
+    ],
+    "sheetPos": [
+      "right",
+      "left",
+      "bottom"
+    ],
+    "bdienst": [
+      "0",
+      "10",
+      "25",
+      "50",
+      "75",
+      "100"
+    ]
   },
   "options": {
     "autoZoom": true,

@@ -15,7 +15,7 @@ export function viewZones(world, u, unitKind) {
   const day = isDaylight(world);
   const zones = [];
   const add = (kind, km) => {
-    if (km > 0) zones.push({ unit: u, x: u.x, y: u.y, km, kind });
+    if (km > 0) zones.push({ unit: u, x: u.x, y: u.y, km, kind, night: !day });
   };
   if (unitKind === 'squadron') {
     if (!isFlying(u) || u.aircraft <= 0) return zones;

@@ -131,7 +131,9 @@ export function tripSeconds(world, f, u) {
     return Math.round(delay + Math.max(km / cruise, climb));
   }
   const kms = (u.speedKn * 1.852) / 3600;
-  return Math.round(km / kms);
+  // A group in port first casts off (escortGroups.sailDelayH).
+  const castOff = u.state === 'inPort' || u.state === 'refit' ? (world.rules.escortGroups.sailDelayH ?? 0) * 3600 : 0;
+  return Math.round(castOff + km / kms);
 }
 
 export function tripKm(world, f, u) {

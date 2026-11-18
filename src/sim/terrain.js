@@ -170,7 +170,8 @@ export function createTerrain(coarseData, fineData) {
       const [ax, ay] = points[i - 1];
       const [bx, by] = points[i];
       const len = distance(ax, ay, bx, by);
-      const steps = Math.max(1, Math.ceil(len / stepKm));
+      // Samples every stepKm of the plane (the coastline's own scale), counted in real km.
+      const steps = Math.max(1, Math.ceil(Math.max(len, Math.hypot(bx - ax, by - ay)) / stepKm));
       for (let s = 0; s <= steps; s++) {
         const f = s / steps;
         const along = travelled + f * len;

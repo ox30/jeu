@@ -12,7 +12,12 @@ export function loadSettings(presets) {
   const base = defaultSettings(presets);
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (saved && typeof saved === 'object') return { ...base, ...saved };
+    if (saved && typeof saved === 'object') {
+      // A setting added since (the B-Dienst share, say) takes the value of the player's preset.
+      const own = presets.presets[saved.preset];
+      const added = own ? Object.fromEntries(Object.entries(own).filter(([k]) => !(k in saved))) : {};
+      return { ...base, ...added, ...saved };
+    }
   } catch {
     // ignore unreadable storage
   }

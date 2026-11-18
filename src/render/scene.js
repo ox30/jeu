@@ -2,7 +2,7 @@
 
 import { formatNumber, t } from '../core/i18n.js';
 import { clockColorIndex, formatTime } from '../core/time.js';
-import { FOOT_M, distance, headingOf, project } from '../sim/geo.js';
+import { FOOT_M, distance, greatCircle, headingOf, polylineLength, project, scaleX, sphereKm } from '../sim/geo.js';
 import { columnLetter } from '../sim/grid.js';
 import { solveIntercept } from '../sim/intercept.js';
 import { editableRoute, navigationEnd, planTrack, routeCanExtend } from '../sim/orders.js';
@@ -569,28 +569,31 @@ function drawPendingMru(ctx, cam, app) {
  * screen: its outline is off-screen) or 'in'. Zoomed in on a fight, the circles of an old
  * plot are thousands of pixels wide: drawing their dashed outline in full is what costs.
  */
-function circleOnScreen(cam, sx, sy, r) {
+function circleOnScreen(cam, sx, sy, rx, ry = rx) {
   const nx = Math.max(0, Math.min(cam.width, sx));
   const ny = Math.max(0, Math.min(cam.height, sy));
-  if (Math.hypot(nx - sx, ny - sy) > r) return 'out';
+  if (Math.hypot((nx - sx) / rx, (ny - sy) / ry) > 1) return 'out';
   const fx = Math.max(Math.abs(sx), Math.abs(sx - cam.width));
   const fy = Math.max(Math.abs(sy), Math.abs(sy - cam.height));
-  return Math.hypot(fx, fy) < r ? 'around' : 'in';
+  return Math.hypot(fx / rx, fy / ry) < 1 ? 'around' : 'in';
 }
+
 
 /**
  * A dashed circle, drawn only over the angles where it can show when its centre is off the
  * screen (dashes cost per pixel of outline); the dashes keep their place on the circle.
  */
-function ringOutline(ctx, cam, sx, sy, r, dash) {
+function ringOutline(ctx, cam, sx, sy, rx, ry, dash) {
   let a0 = 0;
   let a1 = Math.PI * 2;
   if (sx < 0 || sx > cam.width || sy < 0 || sy > cam.height) {
-    const ac = Math.atan2(cam.height / 2 - sy, cam.width / 2 - sx);
+    // Parametric angles of the ellipse (x = rx cos a, y = ry sin a).
+    const ang = (x, y) => Math.atan2((y - sy) / ry, (x - sx) / rx);
+    const ac = ang(cam.width / 2, cam.height / 2);
     let lo = Infinity;
     let hi = -Infinity;
     for (const [x, y] of [[0, 0], [cam.width, 0], [0, cam.height], [cam.width, cam.height]]) {
-      const d = Math.atan2(y - sy, x - sx) - ac;
+      const d = ang(x, y) - ac;
       const n = Math.atan2(Math.sin(d), Math.cos(d));
       lo = Math.min(lo, n);
       hi = Math.max(hi, n);
@@ -600,9 +603,9 @@ function ringOutline(ctx, cam, sx, sy, r, dash) {
   }
   const period = dash.reduce((a, b) => a + b, 0);
   ctx.setLineDash(dash);
-  ctx.lineDashOffset = period ? (((r * a0) % period) + period) % period : 0;
+  ctx.lineDashOffset = period ? (((((rx + ry) / 2) * a0) % period) + period) % period : 0;
   ctx.beginPath();
-  ctx.arc(sx, sy, r, a0, a1);
+  ctx.ellipse(sx, sy, rx, ry, 0, a0, a1);
   ctx.stroke();
   ctx.lineDashOffset = 0;
 }
@@ -616,13 +619,14 @@ function drawUboatPlots(ctx, cam, app) {
     const age = world.t - p.t;
     const [sx, sy] = toScreen(cam, p.x, p.y);
     const reach = reachKm(world, age);
+    const k = 1 / scaleX(p.y); // east-west stretch of the flat map (the globe)
     const rs = reach.surface * cam.scale;
     const rd = reach.submerged * cam.scale;
-    if (sx + rs < 0 || sy + rs < 0 || sx - rs > cam.width || sy - rs > cam.height) continue;
+    if (sx + rs * k < 0 || sy + rs < 0 || sx - rs * k > cam.width || sy - rs > cam.height) continue;
     const selected = isSelected(app, 'uplot', p.id);
     shown.push({
-      p, sx, sy, rs, rd, selected, alpha: selected ? 1 : Math.max(0.35, 1 - age / life),
-      surface: rs > 4 ? circleOnScreen(cam, sx, sy, rs) : 'out', under: rd > 3 ? circleOnScreen(cam, sx, sy, rd) : 'out',
+      p, sx, sy, rs, rd, k, selected, alpha: selected ? 1 : Math.max(0.35, 1 - age / life),
+      surface: rs > 4 ? circleOnScreen(cam, sx, sy, rs * k, rs) : 'out', under: rd > 3 ? circleOnScreen(cam, sx, sy, rd * k, rd) : 'out',
     });
   }
   if (!shown.length) return;
@@ -635,23 +639,23 @@ function drawUboatPlots(ctx, cam, app) {
     ctx.beginPath();
     if (fills.some((x) => x.under === 'around')) ctx.rect(0, 0, cam.width, cam.height);
     else {
-      for (const { sx, sy, rd } of fills) {
-        ctx.moveTo(sx + rd, sy);
-        ctx.arc(sx, sy, rd, 0, Math.PI * 2);
+      for (const { sx, sy, rd, k } of fills) {
+        ctx.moveTo(sx + rd * k, sy);
+        ctx.ellipse(sx, sy, rd * k, rd, 0, 0, Math.PI * 2);
       }
     }
     ctx.fill('nonzero');
   }
-  for (const { p, sx, sy, rs, rd, selected, alpha, surface, under } of shown) {
+  for (const { p, sx, sy, rs, rd, k, selected, alpha, surface, under } of shown) {
     ctx.globalAlpha = alpha;
     ctx.lineWidth = 1.2;
     if (surface === 'in') {
       ctx.strokeStyle = 'rgba(120, 30, 25, 0.55)';
-      ringOutline(ctx, cam, sx, sy, rs, [7, 5]);
+      ringOutline(ctx, cam, sx, sy, rs * k, rs, [7, 5]);
     }
     if (under === 'in') {
       ctx.strokeStyle = 'rgba(120, 30, 25, 0.8)';
-      ringOutline(ctx, cam, sx, sy, rd, [2, 3]);
+      ringOutline(ctx, cam, sx, sy, rd * k, rd, [2, 3]);
     }
     ctx.setLineDash([]);
     const color = COLORS.clock[clockColorIndex(world.startMs + p.t * 1000)];
@@ -723,8 +727,9 @@ function drawDfZones(ctx, cam, app) {
   for (const z of world.dfZones) {
     const [sx, sy] = toScreen(cam, z.x, z.y);
     const rr = Math.max(z.r * cam.scale, 6);
-    const where = circleOnScreen(cam, sx, sy, rr);
-    if (where !== 'out') shown.push({ z, sx, sy, rr, where, fade: Math.max(0.25, 1 - (world.t - z.t) / life) });
+    const rx = rr / scaleX(z.y);
+    const where = circleOnScreen(cam, sx, sy, rx, rr);
+    if (where !== 'out') shown.push({ z, sx, sy, rx, rr, where, fade: Math.max(0.25, 1 - (world.t - z.t) / life) });
   }
   if (!shown.length) return;
   ctx.save();
@@ -740,9 +745,9 @@ function drawDfZones(ctx, cam, app) {
     ctx.beginPath();
     if (shown.some((x) => x.where === 'around')) ctx.rect(0, 0, cam.width, cam.height);
     else {
-      for (const { sx, sy, rr } of shown) {
-        ctx.moveTo(sx + rr, sy);
-        ctx.arc(sx, sy, rr, 0, Math.PI * 2);
+      for (const { sx, sy, rx, rr } of shown) {
+        ctx.moveTo(sx + rx, sy);
+        ctx.ellipse(sx, sy, rx, rr, 0, 0, Math.PI * 2);
       }
     }
     ctx.fill('nonzero');
@@ -750,12 +755,12 @@ function drawDfZones(ctx, cam, app) {
   ctx.font = `italic 11px ${FONTS.serif}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  for (const { z, sx, sy, rr, where, fade } of shown) {
+  for (const { z, sx, sy, rx, rr, where, fade } of shown) {
     ctx.globalAlpha = fade;
     if (where !== 'in') continue;
     ctx.strokeStyle = 'rgba(120, 30, 25, 0.8)';
     ctx.lineWidth = 1.4;
-    ringOutline(ctx, cam, sx, sy, rr, [6, 4]);
+    ringOutline(ctx, cam, sx, sy, rx, rr, [6, 4]);
     ctx.setLineDash([]);
     ctx.fillStyle = 'rgba(120, 30, 25, 0.95)';
     ctx.fillText(t('map.df', { time: dateTimeText(world.startMs + z.t * 1000) }), sx, sy - rr - 2);
@@ -803,7 +808,8 @@ function drawEscorts(ctx, cam, app, alpha) {
         ctx.strokeStyle = 'rgba(139, 26, 26, 0.55)';
         ctx.lineWidth = 1.2;
         ctx.beginPath();
-        ctx.arc(hx, hy, Math.max(6, world.rules.asw.asdicKm * 2 * cam.scale), 0, Math.PI * 2);
+        const hr = Math.max(6, world.rules.asw.asdicKm * 2 * cam.scale);
+        ctx.ellipse(hx, hy, hr / scaleX(e.huntY), hr, 0, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
         pencilLine(ctx, [[sx, sy], [hx, hy]], { color: 'rgba(139, 26, 26, 0.55)', width: 1.2, dash: [4, 4] });
@@ -919,10 +925,11 @@ function drawViewZones(ctx, cam, app, alpha) {
   for (const z of [...zones].sort((a, b) => b.km - a.km)) {
     const [sx, sy] = unitScreen(cam, z.unit, alpha);
     const r = z.km * cam.scale;
-    if (r < 3 || !onScreen(cam, sx, sy, r + 20)) continue;
+    const rx = r / scaleX(z.unit.y);
+    if (r < 3 || !onScreen(cam, sx, sy, rx + 20)) continue;
     const st = ZONE_STYLE[z.kind];
     ctx.beginPath();
-    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.ellipse(sx, sy, rx, r, 0, 0, Math.PI * 2);
     ctx.fillStyle = st.fill;
     ctx.fill();
     ctx.setLineDash(st.dash);
@@ -930,7 +937,7 @@ function drawViewZones(ctx, cam, app, alpha) {
     ctx.lineWidth = 1.1;
     ctx.stroke();
     ctx.setLineDash([]);
-    if (z.unit === named && r >= 22) labels.push({ z, sx, sy, r, st });
+    if (z.unit === named && r >= 12) labels.push({ z, sx, sy, r, st });
   }
   // Same size circles (a patrol: aircraft and U-boats): one label above, the other below.
   ctx.font = `10px ${FONTS.mono}`;
@@ -943,7 +950,10 @@ function drawViewZones(ctx, cam, app, alpha) {
     if (!below) lastTop = l.r;
     const y = below ? l.sy + l.r + 3 : l.sy - l.r - 3;
     ctx.textBaseline = below ? 'top' : 'bottom';
-    const text = t(ZONE_TEXT[l.z.kind], { km: formatNumber(Math.round(l.z.km * 10) / 10) });
+    // At night the lookouts see a surfaced U-boat only very close: the circle shrinks inside
+    // the ASDIC one, so its label says so.
+    const key = l.z.kind === 'surface' && l.z.night && l.z.unit.kind === 'escort' ? 'map.viewSurfaceNight' : ZONE_TEXT[l.z.kind];
+    const text = t(key, { km: formatNumber(Math.round(l.z.km * 10) / 10) });
     ctx.strokeText(text, l.sx, y);
     ctx.fillStyle = l.st.text;
     ctx.fillText(text, l.sx, y);
@@ -955,7 +965,7 @@ function drawPortBubbles(ctx, cam, app, u) {
   const world = app.world;
   const r = world.rules.navigation.portBubbleKm * cam.scale;
   if (r < 6) return;
-  const ports = world.ports.filter((p) => !p.foreign && (u.type === 'coastal' ? p.coastal : p.convoys));
+  const ports = world.ports.filter((p) => !p.foreign && (u ? (u.type === 'coastal' ? p.coastal : p.convoys) : p.coastal || p.convoys));
   ctx.save();
   ctx.setLineDash([3, 5]);
   ctx.lineWidth = 1.2;
@@ -966,9 +976,10 @@ function drawPortBubbles(ctx, cam, app, u) {
   ctx.textBaseline = 'top';
   for (const p of ports) {
     const [sx, sy] = toScreen(cam, p.x, p.y);
-    if (!onScreen(cam, sx, sy, r)) continue;
+    const rx = r / scaleX(p.y);
+    if (!onScreen(cam, sx, sy, rx)) continue;
     ctx.beginPath();
-    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.ellipse(sx, sy, rx, r, 0, 0, Math.PI * 2);
     ctx.stroke();
     if (r > 14) ctx.fillText(t('map.portBubble'), sx, sy + r + 2);
   }
@@ -977,11 +988,111 @@ function drawPortBubbles(ctx, cam, app, u) {
 
 // ---- navigation: entrances of the charted channels, planned tracks -------------------
 
+/**
+ * The globe on the flat map: for an ocean convoy chosen far out at sea, the great circle (the
+ * shortest way) to the entrance of each channel it may take, bending north, with its length,
+ * and the length of the route it follows.
+ */
+function drawGreatCircles(ctx, cam, app) {
+  const world = app.world;
+  const c = selectedUnit(app);
+  if (!c || c.kind !== 'convoy' || c.type === 'coastal' || c.straggler) return;
+  if (c.state !== 'atSea' && c.state !== 'inPort') return;
+  const gates = [];
+  for (const port of world.ports) {
+    if (port.foreign || !port.convoys || !port.approaches) continue;
+    for (const a of port.approaches) {
+      const g = a.points[0];
+      if (!gates.some((x) => distance(x[0], x[1], g[0], g[1]) < 30)) gates.push([g[0], g[1], a.name]);
+    }
+  }
+  const far = gates.filter(([gx, gy]) => sphereKm(c.x, c.y, gx, gy) > 400);
+  if (!far.length) return;
+  ctx.save();
+  ctx.font = `italic 10.5px ${FONTS.serif}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  const routeKm = c.route.length ? polylineLength([[c.x, c.y], ...c.route]) : null;
+  for (const [gx, gy, name] of far) {
+    const pts = greatCircle(c.x, c.y, gx, gy).map(([x, y]) => toScreen(cam, x, y));
+    pencilLine(ctx, pts, { color: 'rgba(104, 84, 52, 0.55)', width: 1, dash: [1.5, 4], arrow: false });
+    const [mx, my] = pts[Math.floor(pts.length / 2)];
+    const label = t('map.greatCircle', { name, km: formatNumber(Math.round(sphereKm(c.x, c.y, gx, gy) / 10) * 10) });
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(247, 240, 220, 0.9)';
+    ctx.strokeText(label, mx, my - 3);
+    ctx.fillStyle = 'rgba(104, 84, 52, 0.95)';
+    ctx.fillText(label, mx, my - 3);
+  }
+  if (routeKm) {
+    const [ex, ey] = toScreen(cam, c.x, c.y);
+    const label = t('map.routeLength', { km: formatNumber(Math.round(routeKm / 10) * 10) });
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.strokeText(label, ex + 14, ey + 12);
+    ctx.fillStyle = 'rgba(47, 79, 111, 0.95)';
+    ctx.fillText(label, ex + 14, ey + 12);
+  }
+  ctx.restore();
+}
+
+/**
+ * The reach of the Fw 200 Condors (a scenario with condors): a circle on the globe around
+ * their base, drawn as it falls on the map; inside it, convoys may be found and bombed.
+ */
+const CONDOR_RINGS = new Map();
+function condorRing(base, km) {
+  const key = `${base[0]},${base[1]},${km}`;
+  if (CONDOR_RINGS.has(key)) return CONDOR_RINGS.get(key);
+  const R = 6371;
+  const DEG = Math.PI / 180;
+  const p1 = base[1] * DEG;
+  const l1 = base[0] * DEG;
+  const d = km / R;
+  const pts = [];
+  for (let b = 0; b <= 360; b += 3) {
+    const th = b * DEG;
+    const p2 = Math.asin(Math.sin(p1) * Math.cos(d) + Math.cos(p1) * Math.sin(d) * Math.cos(th));
+    const l2 = l1 + Math.atan2(Math.sin(th) * Math.sin(d) * Math.cos(p1), Math.cos(d) - Math.sin(p1) * Math.sin(p2));
+    pts.push(project(l2 / DEG, p2 / DEG));
+  }
+  CONDOR_RINGS.set(key, pts);
+  return pts;
+}
+
+function drawCondorZone(ctx, cam, app) {
+  const world = app.world;
+  const C = world.scenario.condors;
+  if (!C) return;
+  const km = C.rangeKm ?? world.rules.condors.rangeKm;
+  const ring = condorRing(C.base, km).map(([x, y]) => toScreen(cam, x, y));
+  ctx.save();
+  pencilLine(ctx, ring, { color: 'rgba(138, 64, 44, 0.5)', width: 1.2, dash: [7, 5], arrow: false });
+  // The label on the ocean side, west of Ireland, where the ring is on screen.
+  const pick = [300, 285, 315, 270, 330].map((b) => ring[Math.round(b / 3)]).find(([x, y]) => x > 40 && y > 30 && x < cam.width - 40 && y < cam.height - 30);
+  if (pick) {
+    const [lx, ly] = pick;
+    const label = t('map.condorZone', { name: C.name || '' });
+    ctx.font = `italic 11px ${FONTS.serif}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(247, 240, 220, 0.9)';
+    ctx.strokeText(label, lx, ly - 4);
+    ctx.fillStyle = 'rgba(138, 64, 44, 0.9)';
+    ctx.fillText(label, lx, ly - 4);
+  }
+  ctx.restore();
+}
+
 function drawGates(ctx, cam, app) {
   const world = app.world;
   const sel = selectedUnit(app);
-  if (sel && (sel.kind === 'convoy' || sel.kind === 'escort') && app.settings.orders !== 'headings') drawPortBubbles(ctx, cam, app, sel);
-  if (app.settings.orders !== 'headings' && !(sel && (sel.kind === 'convoy' || sel.kind === 'escort'))) return;
+  const ship = sel && (sel.kind === 'convoy' || sel.kind === 'escort') ? sel : null;
+  // The bubbles of the ports (a route or a leg that ends in one enters the port): with a ship
+  // chosen, and always when ordering by headings (like the pilots' gates).
+  if (ship || app.settings.orders === 'headings') drawPortBubbles(ctx, cam, app, ship);
+  if (app.settings.orders !== 'headings' && !ship) return;
   const r = Math.max(5, world.rules.navigation.pilotKm * cam.scale);
   ctx.save();
   for (const port of world.ports) {
@@ -993,7 +1104,7 @@ function drawGates(ctx, cam, app) {
       ctx.strokeStyle = 'rgba(47, 79, 111, 0.75)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.ellipse(sx, sy, r / scaleX(a.points[0][1]), r, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = 'rgba(47, 79, 111, 0.9)';
@@ -1415,7 +1526,7 @@ function drawSquadrons(ctx, cam, app, alpha) {
           ctx.strokeStyle = selected ? 'rgba(44, 74, 124, 0.7)' : 'rgba(44, 74, 124, 0.35)';
           ctx.lineWidth = 1.2;
           ctx.beginPath();
-          ctx.arc(sx, sy, r, 0, Math.PI * 2);
+          ctx.ellipse(sx, sy, r / scaleX(sq.y), r, 0, 0, Math.PI * 2);
           ctx.stroke();
           ctx.restore();
         }
@@ -1709,8 +1820,10 @@ function niceLength(target) {
 }
 
 function drawScaleBar(ctx, cam) {
-  const km = niceLength(110 / cam.scale);
-  const px = km * cam.scale;
+  // East-west at the middle of the screen: the flat map's scale changes with the latitude.
+  const k = cam.scale / scaleX(cam.cy);
+  const km = niceLength(110 / k);
+  const px = km * k;
   const x = 16;
   const y = cam.height - 30;
   ctx.fillStyle = 'rgba(244, 236, 214, 0.85)';
@@ -1802,6 +1915,7 @@ export function drawScene(ctx, app, alpha) {
   if (app.settings.radarCover && cam.scale > 0.35) drawCoverage(ctx, cam, app.world);
   drawRail(ctx, cam, app);
   drawViewZones(ctx, cam, app, alpha);
+  drawCondorZone(ctx, cam, app);
   drawDfZones(ctx, cam, app);
   drawUboatPlots(ctx, cam, app);
   drawUboatContacts(ctx, cam, app);
@@ -1809,6 +1923,7 @@ export function drawScene(ctx, app, alpha) {
   drawPendingMru(ctx, cam, app);
   drawGauges(ctx, cam, app);
   drawGates(ctx, cam, app);
+  drawGreatCircles(ctx, cam, app);
   drawTrains(ctx, cam, app, alpha);
   drawConvoys(ctx, cam, app, alpha);
   drawEscorts(ctx, cam, app, alpha);

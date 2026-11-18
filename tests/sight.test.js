@@ -76,7 +76,10 @@ test('a group on its way into port that attacks a U-boat then goes on into port'
   Object.assign(u, { x: e.x + 1, y: e.y, px: e.x + 1, py: e.y, state: 'patrol' });
   engage(w, e, u, 'asdic');
   assert.equal(e.state, 'hunting');
-  run(w, 2 * H, (ev) => ev.type === 'escortHuntOver');
+  run(w, 6 * H, (ev) => ev.type === 'escortHuntOver'); // the attack, then at most the hunt hours
+  // The U-boat gets clear (otherwise, still within reach, it is attacked again).
+  Object.assign(u, { x: u.x + 400, y: u.y + 400, px: u.x + 400, py: u.y + 400, seen: null });
+  if (e.state === 'hunting') run(w, 6 * H, (ev) => ev.type === 'escortHuntOver');
   assert.equal(e.state, 'atSea');
   assert.ok(e.homeward && e.destination === 'clyde' && e.route.length > 0, 'back on its way');
   run(w, 30 * H, (ev) => ev.type === 'escortInPort');

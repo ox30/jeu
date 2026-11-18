@@ -28,6 +28,7 @@ import { recordReports } from './reports.js';
 import { createCrews, updateCrews } from './crews.js';
 import { updatePatrols } from './patrols.js';
 import { updateAsw } from './asw.js';
+import { createBdu, updateBdu } from './bdu.js';
 import { createMru, updateMru } from './mru.js';
 import { createSchedule, updateSchedule } from './schedule.js';
 import { createShipping, updateShipping } from './shipping.js';
@@ -83,6 +84,7 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
     uboats: [],
     dfZones: [],
     dfPending: [],
+    bdu: createBdu(),
     uboatPlots: [],
     nextPlotId: 1,
     squadrons: [],
@@ -203,6 +205,7 @@ export function step(world, dt = 1) {
     updateConvoyRaids(world);
     ageDfZones(world);
     checkEscortRange(world);
+    if (world.t % 3600 === 0) updateBdu(world);
   }
   checkAlerts(world);
   checkObjectives(world);
