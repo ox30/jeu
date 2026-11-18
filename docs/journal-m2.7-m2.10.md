@@ -184,7 +184,12 @@ M2.10.
   15 septembre en masse : 5 victoires sur 10 graines (0 sur 10 en 2.6.1).
   `tests/campaign.test.js` garde ce critère.
 - `npm test` : 196 tests, tous verts. Lint vert. `dist/index.html` reconstruit (807 Kio).
-  Test de fumée vert. GitHub Actions vert sur la branche.
+  Test de fumée vert.
+- GitHub Actions : **correction du 18 novembre, 16 h 40**. J'avais écrit ici « vert sur la
+  branche » avant la fin du passage. En réalité le passage sur `67b6d41` a échoué : les
+  commits de corrections avaient changé les sources sans reconstruire `dist/index.html`, et
+  l'étape « dist à jour » l'a vu. Le passage sur `9282b26` est vert depuis 15 h 51. Depuis,
+  `dist/index.html` est reconstruit avant chaque envoi.
 - Pas de simulation et images par seconde : inchangés, comme attendu (C10 est au M2.8).
   Atlantique : 32 à 43 pas de plus de 20 ms par partie, le plus long 192 à 331 ms ;
   59,5 et 59,9 images/s à ×14 400.
@@ -260,3 +265,69 @@ d'histoire locale sur RAF Wick rapporte que le détachement du 502 y vole en jan
 avec son radar ASV. **Choix** : le radar ASV sera donné au 502 Sqn au M2.8, avec le réglage de
 la mer, et non au M2.7, pour ne pas changer l'équilibre en cours de mesure. Le déménagement à
 Limavady le 27 janvier n'est pas représenté (la décision H1 ne le demande pas).
+
+### 18 novembre, 16 h 25 à 16 h 50 — relecture par un agent neuf, et ses suites
+
+Un agent qui n'avait pas vu le travail a relu le lot contre les critères du document
+(`95379ee..9282b26`), en lecture seule, avec ses propres copies. Verdict : porte passée,
+avec réserves ; aucun bug bloquant ; aucun test existant affaibli. Il a relancé le singe sur
+neuf autres séries de 10 000 ordres (autres graines, trois préréglages) sans problème, et
+vérifié que les nouveaux tests échouent bien sur la 2.6.1.
+
+Ce qu'il a trouvé, et ce que j'en ai fait :
+
+| Constat | Suite |
+| --- | --- |
+| **Important.** Un renfort (le 266 Sqn, le 14 août à Adlertag) n'entrait pas dans la référence de l'objectif de chasse : la part sautait de 0,77 à 0,85, et Adlertag devenait plus facile hors campagne (« 4 par raid », graine 3 : défaite en 2.6.1, victoire en 2.7.0). Je l'avais vu en lisant `schedule.js` pendant la mesure, sans l'avoir encore corrigé | **Corrigé** : une escadrille de chasse qui arrive s'ajoute à `fightersAtStart`. Hors campagne, la mesure redevient exactement celle de la 2.6.1. Test, et mesure refaite |
+| Après une erreur, « Fermer » puis Espace : le jeu semblait reparti, l'heure ne bougeait plus | **Corrigé** : tant que l'erreur est là, le jeu reste en pause et toute reprise rouvre le message |
+| Escadrille au sol en main, une autre survole son aérodrome : un clic ouvrait la fiche de l'aérodrome | **Corrigé** : l'aérodrome ne remplace l'escadrille en main que pour un glisser ; un clic choisit ce qui est sous le pointeur. Le cas d'un aérodrome sélectionné, que mon test croyait couvrir, l'est maintenant vraiment |
+| Pavé numérique, verrouillage éteint : la flèche bas changeait la vitesse | **Corrigé** : le pavé ne compte que s'il tape des chiffres |
+| Une partie de campagne sauvegardée en 2.6.1 gardait l'ancienne mesure (228 avions) | **Corrigé** : une partie est reprise sur un monde construit avec le report de la campagne ; une sauvegarde d'avant la 2.7 y prend son effectif du matin, plus les renforts arrivés depuis |
+| Le briefing annonçait 60 % pour 133 avions sur 228 (58 %) | **Corrigé** : la part affichée est la part réelle |
+| La fabrique ne complétait pas les entités à la reprise d'une sauvegarde | **Corrigé** : `fillMissingFields` à la reprise, test des champs par type |
+| Tests : le train de l'aller-retour de Kanalkampf était refusé sans que le test le voie ; le groupe de soutien n'était pas exigé | **Corrigé** : chaque entité facultative doit exister au moment de la sauvegarde |
+| Manquaient : une vraie sauvegarde 2.6.1 en entrée, le renfort, le pavé numérique, l'état après fermeture du message d'erreur | **Ajoutés** : `tests/fixtures/` (trois parties enregistrées par la 2.6.1), `tests/oldsaves.test.js`, et les cas correspondants |
+| Fiche ouverte sur une fenêtre de 1 100 px ou moins : la vue Atlantique bute sur le zoom minimal et dépasse de 43 px sous la fiche | **Laissé**, limite connue (I8 demandait de faire court) |
+| Le joueur automatique donne huit ordres qui ne sont pas dans `orders.js` | **Écart assumé**, voir ci-dessous |
+| Journal : « GitHub Actions vert » écrit trop tôt ; README : « la campagne se gagne en Réaliste » trop affirmatif | **Corrigés** |
+
+**Écart au document : les ordres du joueur automatique.** Le document demande qu'il ne donne
+que « les ordres de `src/sim/orders.js` ». Dans le code, les ordres de l'interface vivent
+dans plusieurs modules : `orders.js`, mais aussi `engagement.js` (attitude, réponses aux
+questions, autorisation), `shipping.js` (achats), `formations.js`, `roster.js`,
+`timetable.js`, `rally.js`, `mru.js`. Le joueur automatique appelle ces mêmes fonctions, celles
+que l'interface appelle, et rien d'autre : il ne modifie jamais le monde à la main. Réunir
+tous les ordres derrière une seule entrée va avec la table d'actions du M2.9.
+
+**Limites connues du M2.7, à dire à Florian :**
+
+- Une unité entièrement couverte par la plaque de l'unité en main ne se choisit pas d'un clic
+  à cet endroit (piles et onglets du M2.10).
+- Vue Atlantique sur petite fenêtre avec la fiche ouverte (ci-dessus).
+- Le 15 septembre en campagne ne se gagne qu'en engageant en masse (seuils du M2.10).
+- Les tests des touches, du clic, du cadrage et du chrono portent sur des fonctions pures ;
+  leur branchement dans la page n'est tenu que par le test de fumée, qui tourne à chaque
+  envoi mais pas dans `npm test`.
+
+### Mesure après le M2.7 (18 novembre, 16 h 55)
+
+Même matrice que la mesure de départ : 32 lignes, 10 graines, soit 320 parties
+(`tools/bot/out/m2.7-final.jsonl`). Comparaison partie par partie avec la 2.6.1 (issue,
+avions abattus et perdus, navires et U-Boote coulés, arrêts, carburant) : **30 lignes sur 32
+sont identiques à la partie près.** Les deux qui changent :
+
+| Ligne | 2.6.1 | 2.7.0 | Cause |
+| --- | --- | --- | --- |
+| Campagne, Réaliste, simple puis en masse le 15 septembre | 0 sur 10 | **5 sur 10** | I1 : l'objectif de chasse se mesure sur les chasseurs présents au début |
+| Atlantique, Réaliste, soigné (Chasser et couverture aérienne) | 9 sur 10 ; 5,0 % de navires perdus ; 99 arrêts | 9 sur 10 ; 5,7 % ; 111 arrêts | H1 et H2 : le Whitley du 502 Sqn et le 10 Sqn RAAF à Oban changent la couverture aérienne |
+
+Les campagnes jouées simplement ou « soigné » restent perdues le 15 septembre (40 avions à
+abattre), mais plus jamais sur l'objectif de chasse.
+
+Le reste est inchangé, comme il se doit pour un lot de corrections : Kanalkampf gagné sans
+chasse, Adlertag gagné sans ravitaillement, « Chasser » qui gagne 10 fois sur 10 dans
+l'Atlantique, 96 à 147 arrêts par partie d'Atlantique en jouant simplement. Ce sont les
+sujets des lots M2.8 et M2.10.
+
+Une première mesure, avant la correction du renfort d'Adlertag, donnait « 4 par raid » à
+4 sur 10 au lieu de 3 : c'est elle qui a montré l'effet de bord relevé par la relecture.

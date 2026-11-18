@@ -17,13 +17,18 @@ travaux est dans `docs/journal-m2.7-m2.10.md`.
 - **La station radar mobile ne fige plus le jeu** : toutes les installations, station mobile
   comprise, sont créées de la même façon. Si une erreur arrive quand même, le jeu se met en
   pause, le dit, et propose d'exporter la partie ou de reprendre la dernière sauvegarde.
-- **La campagne se gagne en Réaliste** : l'objectif « garder la chasse » se mesure sur les
-  chasseurs présents au début du scénario, et le briefing dit avec combien d'avions on commence.
+- **La campagne peut se gagner en Réaliste** : l'objectif « garder la chasse » se mesure sur les
+  chasseurs présents au début du scénario (les renforts arrivés ensuite comptent avec eux), et
+  le briefing dit avec combien d'avions on commence. Au joueur automatique, le 15 septembre
+  est gagné 5 fois sur 10 en engageant en masse ; joué simplement, il reste perdu, car il faut
+  abattre 40 avions avec 60 % de la chasse (les seuils se règlent au M2.10).
 - **Les vues** (touches A, L et G) cadrent la carte dans la partie que la fiche laisse libre.
 - **Plaques empilées** : quand des plaques se recouvrent, un tracé part de l'unité en main, et la
-  règle ne change plus la sélection.
+  règle ne change plus la sélection. Glisser depuis un aérodrome fait décoller l'escadrille en
+  main si elle s'y trouve, même quand d'autres le survolent ; un simple clic choisit toujours
+  ce qui est sous le pointeur.
 - **Touches de vitesse** lues par leur position : elles marchent sur un clavier AZERTY et au
-  pavé numérique.
+  pavé numérique (verrouillage numérique allumé ; éteint, le pavé garde ses flèches).
 - **Bilan de fin** selon le scénario (plus de U-Boote coulés un 15 septembre), avec le temps de
   jeu réel, pauses comprises.
 - **Atlantique** : plus de grille RAF ; le 502 Sqn vole sur Whitley, le 10 Sqn RAAF est basé à
@@ -391,7 +396,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 196 tests, environ deux minutes
+npm test          # les 212 tests, environ deux minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : tutoriel, pages, fiches, corrections
@@ -408,7 +413,10 @@ Le filet du M2.7 :
   reprises. Rien ne doit planter, aucune valeur ne doit devenir impossible, et la partie
   reprise doit être la partie sauvegardée.
 - **Aller-retour de sauvegarde** (`tests/roundtrip.test.js`) par scénario, avec station
-  mobile, formation, avion acheté et traînard ; même graine et mêmes ordres, même partie.
+  mobile, formation, groupe de soutien, train, avion acheté et traînard ; même graine et mêmes
+  ordres, même partie.
+- **Sauvegardes de la version 2.6.1** (`tests/oldsaves.test.js`, `tests/fixtures/`) : trois
+  vraies parties enregistrées par la 2.6.1 sont reprises et continuent.
 - **Règles du code** (`tests/architecture.test.js`) : `src/sim` n'importe que `src/core`,
   aucun texte français dans le code, chaque clé de texte citée existe, aucune règle morte
   dans `data/rules.json`.
@@ -419,8 +427,9 @@ Le filet du M2.7 :
   de campagne, garde-fou sur une erreur provoquée).
 - Les tests du M2.7 lui-même : campagne en Réaliste (`tests/campaign.test.js`), bilan de fin
   et chrono (`tests/summary.test.js`), touches (`tests/keys.test.js`), test de clic
-  (`tests/hit.test.js`), station mobile sur un jour de jeu (`tests/sites.test.js`), cadrage
-  des vues (`tests/camera.test.js`).
+  (`tests/hit.test.js`), station mobile sur un jour de jeu (`tests/sites.test.js`), champs
+  des installations et des convois (`tests/entities.test.js`), cadrage des vues
+  (`tests/camera.test.js`).
 
 Les tests (Node 20 ou plus récent ; aucune dépendance pour `npm test`) vérifient notamment la géométrie, la
 terre et la mer, les routes, les étapes et leur édition, le pilote à l'entrée des chenaux,
