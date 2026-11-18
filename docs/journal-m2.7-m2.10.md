@@ -478,7 +478,7 @@ demande le document.
 Reste du lot : quarts et rapports (I2, A, N10), silence radio (N1), radars d'Irlande du
 Nord (N4), ASV du 502 Sqn, joueur automatique adapté, réglage, mesures, relecture.
 
-### 18 novembre, 18 h 25 à 19 h 40 — quarts (I2, A, N10), silence radio (N1), radars (N4)
+### 18 novembre, 18 h 25 à 19 h 07 — quarts (I2, A, N10), silence radio (N1), radars (N4)
 
 **Quarts, simulation** (`src/sim/watch.js`, `ec676dd`). Scénario au rythme des quarts
 (`seaRhythm: "watches"`, l'Atlantique seulement). Les événements de mer sont notés ; à chaque

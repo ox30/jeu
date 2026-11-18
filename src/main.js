@@ -15,7 +15,8 @@ import {
   activePoint, addRulerLeg, addTypedLeg, cancelConfirm, cancelEditLeg, centreOn, changeAltitude,
   changePointAltitude, clearPointAltitude, deletePoint, findUnit, goView, orderAdmiraltyRoute,
   orderAlertChecked, orderBoost, orderBreakOff, orderCancelSchedule, orderClearPlan, orderConvoySpeed,
-  orderCover, orderDissolve, orderEndAction, orderEscortBehaviour, orderEscortHome, orderEscortPattern, orderExitChannel,
+  orderAskPosition, orderCommsCancel, orderCommsCarry, orderCover, orderDissolve, orderEndAction, orderEscortBehaviour, orderEscortHome, orderEscortPattern,
+  orderExitChannel,
   orderFormationAlert, orderHome, orderHuntPlot, orderHuntStop, orderIntercept, orderJoin,
   orderLaunchWaiting, orderLeave, orderLeaveFormationOf, orderMerge, orderMinStock, orderNewFormation,
   orderOffer, orderOrbit, orderRally, orderRemoveLeg, orderRoe, orderRosterAdd,
@@ -226,6 +227,7 @@ function seaStop(app, e) {
     setTimeout(() => openWatch(app, e.reportId), 150);
     return;
   }
+  // (The attack has just given a sure point: the convoy is where it is drawn.)
   const c = app.world.convoys.find((x) => x.id === e.convoyId);
   raiseAlert(app, {
     type: 'seaStop', t: app.world.t, level: 'danger', pause: true, variant: e.sunk > 0 ? 'text' : 'missed',
@@ -538,6 +540,15 @@ function onPanelClick(app, e) {
       break;
     case 'escort-pattern':
       if (unit) orderEscortPattern(app, unit, b.dataset.pattern);
+      break;
+    case 'comms-cancel':
+      orderCommsCancel(app, b.dataset.signal);
+      break;
+    case 'comms-carry':
+      orderCommsCarry(app, b.dataset.signal, b.dataset.group);
+      break;
+    case 'comms-position':
+      if (unit) orderAskPosition(app, unit);
       break;
     case 'formation-new': {
       const f = unit ? orderNewFormation(app, unit) : null;

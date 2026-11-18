@@ -819,3 +819,10 @@ dialog.menu-dialog::backdrop { background: rgba(27, 21, 14, 0.62); }
 .watch-page .watch-body { padding: 0; font-size: 14px; }
 .watch-page .page-head .when { color: var(--ink-soft); font-size: 13px; }
 dialog#dlg-watch { width: 760px; }
+
+/* ---- Radio silence: the comms block of a ship's sheet ---- */
+.comms .pending-orders { list-style: none; margin: 2px 0 6px; padding: 0; }
+.comms .pending-orders li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 3px 0; border-bottom: 1px dotted var(--paper-dark); }
+.comms .pending-orders .grow { flex: 1 1 140px; }
+.comms .pending-orders small { color: var(--ink-soft); }
+.comms .hint.warn { color: #8a3b1c; font-style: normal; }

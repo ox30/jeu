@@ -306,6 +306,7 @@ const LEVELS = {
   escortChargesOut: 'warning',
   aircraftAttack: 'warning',
   escortRadar: 'success',
+  orderFailed: 'warning',
   uboatSighted: 'warning',
   scenarioEvent: 'alert',
   mruReady: 'success',
@@ -470,6 +471,12 @@ export function eventMessage(world, e) {
       break;
     case 'escortChargesOut':
       if (!e.convoy) key = 'log.escortChargesOutAlone';
+      break;
+    case 'orderDelivered':
+    case 'orderFailed':
+    case 'orderByLamp':
+      p.what = t(`comms.orders.${e.order}`);
+      if (e.type === 'orderDelivered' && e.via === 'ship') key = 'log.orderDeliveredShip';
       break;
     case 'escortEngaged':
       p.how = t(`log.engageHow.${e.how}`);

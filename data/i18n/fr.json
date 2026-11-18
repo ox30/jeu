@@ -617,6 +617,12 @@
     "devUnavailable": "Cette page ne peut pas vérifier le mot de passe.",
     "devHint": "Pour contrôler les scénarios : les vraies positions ennemies en magenta et un onglet « Ennemis ». Il ne change rien à la partie. Le cocher demande le mot de passe.",
     "rosterHours": "Effectifs : un planning des prochaines heures dure",
+    "seaComms": "Communications en mer",
+    "seaCommsChoices": {
+      "direct": "directes : positions exactes, ordres immédiats",
+      "silence": "silence radio : positions estimées en haute mer, ordres à la relève"
+    },
+    "seaCommsHint": "Silence radio (dans l'Atlantique) : hors des eaux suivies — eaux fermées aux U-Boote, approches des ports, couverture des radars côtiers — vos navires ne sont vus que par estimation. Un ordre part par radio à la relève suivante, au projecteur si un de vos avions est en vue, ou confié à un groupe qui rejoint le convoi.",
     "watchStops": "Arrêt aux relèves (mer au rythme des quarts)",
     "watchStopsChoices": {
       "decision": "sur décision seulement",
@@ -807,6 +813,11 @@
     "escortJoined": "Le {escort} a rejoint le convoi {convoy}.",
     "escortInPort": "Le {escort} est au port de {port} pour ravitailler.",
     "escortReady": "Le {escort} est prêt à {port}.",
+    "orderDelivered": "{unit} a reçu l'ordre par radio : {what}.",
+    "orderDeliveredShip": "{by} a remis l'ordre à {unit} : {what}.",
+    "orderFailed": "{unit} n'a pas pu exécuter l'ordre reçu ({what}).",
+    "orderByLamp": "{by} passe l'ordre à {unit} au projecteur : {what}.",
+    "positionReported": "{unit} signale sa position par radio.",
     "escortRadar": "Le {escort} a reçu à {port} un des premiers radars : il voit un U-Boot en surface à 2 km, de nuit comme de jour, et repère plus sûrement celui qui vient d'attaquer.",
     "escortLowFuel": "Le {escort} est à court de mazout et rentre.",
     "escortDry": "{escort} n'a plus de mazout : il rentre à {port} à {kn} nœuds au plus.",
@@ -1059,6 +1070,7 @@
     "rallyAir": "RV {name} · {time} · {alt}",
     "rallySea": "RV {name} · {time}",
     "escortCombat": "{name} · {n} · au combat",
+    "estimated": " ?",
     "escortHunting": "{name} · {n} · en chasse",
     "portBubble": "entrée au port",
     "shipEnd": {
@@ -2127,7 +2139,59 @@
     "convoys": "Convois",
     "uboats": "Chasse aux U-Boote",
     "home": "Retour au port",
-    "group": "Groupe de soutien"
+    "group": "Groupe de soutien",
+    "comms": "Communications (silence radio)"
+  },
+  "comms": {
+    "estimated": "Position estimée",
+    "estimatedText": "{pos}, à {km} km près",
+    "lastFix": "Dernier point",
+    "lastFixText": "{time}, {by}",
+    "fixBy": "{by}",
+    "fix": {
+      "port": "au port",
+      "tracked": "en eaux suivies",
+      "aircraft": "vu par un avion",
+      "signal": "position signalée par radio",
+      "attack": "signal d'attaque"
+    },
+    "channel": {
+      "direct": "En eaux suivies : position en direct, ordres immédiats.",
+      "lamp": "Un de vos avions est en vue : les ordres passent au projecteur, tout de suite et sans radio.",
+      "radio": "En haute mer, sous silence radio : la position est une estimation, et un ordre part par radio à la relève de {hour} h. Une nouvelle route peut être lue par le B-Dienst."
+    },
+    "pending": "Ordres en route",
+    "byRadio": "par radio, à la relève de {hour} h",
+    "byShip": "confié à {group}, remis à la rencontre",
+    "carry": "Confier à {group}",
+    "cancel": "Annuler",
+    "carryRefused": "Ce groupe ne peut plus prendre l'ordre : il doit être au port ou en eaux suivies, en route vers ce convoi.",
+    "askPosition": "Demander la position",
+    "askPositionHint": "Le navire répond par radio à la relève de {hour} h : un point sûr pour vous, mais aussi un relèvement pour le commandement des U-Boote.",
+    "positionAsked": "{unit} : position demandée, réponse à la prochaine relève.",
+    "sentByRadio": "{unit} est en haute mer : l'ordre part par radio à la relève de {hour} h.",
+    "sentByLamp": "{unit} : ordre passé au projecteur par un avion en vue.",
+    "orders": {
+      "route": "nouvelle route",
+      "editRoute": "route modifiée",
+      "addLeg": "nouvelle étape",
+      "updateLeg": "étape modifiée",
+      "removeLeg": "étape retirée",
+      "clearPlan": "étapes effacées",
+      "speedPct": "changement de vitesse",
+      "boost": "vitesse maximale",
+      "convoySpeed": "vitesse du convoi",
+      "zigzag": "zigzag",
+      "join": "rejoindre un convoi",
+      "leave": "quitter le convoi",
+      "home": "rentrer au port",
+      "behaviour": "consigne Rester ou Chasser",
+      "pattern": "grenadage",
+      "huntPlot": "chasser un contact",
+      "huntStop": "interrompre la chasse",
+      "endAction": "fin de route",
+      "position": "signaler sa position"
+    }
   },
   "roster": {
     "title": "Effectifs : états d'alerte et plannings",

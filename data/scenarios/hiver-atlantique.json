@@ -379,7 +379,8 @@
       "type": "Whitley",
       "airfield": "aldergrove",
       "aircraft": 6,
-      "role": "coastal"
+      "role": "coastal",
+      "asv": true
     },
     {
       "id": "233",

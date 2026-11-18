@@ -26,6 +26,7 @@ import { formationById, leaderOf } from '../sim/formations.js';
 import { rallyPoint } from '../sim/rally.js';
 import { allViewZones } from '../sim/sight.js';
 import { drawNight } from './night.js';
+import { pendingOrders, shownPosition } from '../sim/comms.js';
 
 const DEG = Math.PI / 180;
 
@@ -35,6 +36,40 @@ function lerp(a, b, k) {
 
 function unitScreen(cam, u, alpha) {
   return toScreen(cam, lerp(u.px, u.x, alpha), lerp(u.py, u.y, alpha));
+}
+
+/**
+ * Where a ship is drawn: [sx, sy, est]. `est` is null for its true place; under radio silence
+ * on the high seas it is the estimate the table holds ({ radiusKm, fix }).
+ */
+function shipScreen(app, cam, u, alpha) {
+  const p = shownPosition(app.world, u);
+  if (!p.est) return [...unitScreen(cam, u, alpha), null];
+  return [...toScreen(cam, p.x, p.y), p];
+}
+
+/** An estimated place: a dashed outline round the ship and its circle of doubt, in friendly blue. */
+function drawEstimate(ctx, cam, sx, sy, est, y, selected) {
+  const rx = est.radiusKm * cam.scale / Math.max(0.2, scaleX(y));
+  const ry = est.radiusKm * cam.scale;
+  ctx.save();
+  ctx.strokeStyle = selected ? 'rgba(47, 79, 111, 0.85)' : 'rgba(47, 79, 111, 0.5)';
+  ctx.lineWidth = selected ? 1.6 : 1.1;
+  if (ry > 14) ringOutline(ctx, cam, sx, sy, rx, ry, [6, 5]);
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.arc(sx, sy, 13, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** The route of an order still on its way to a ship (radio, or a group that carries it): faint dashes. */
+function drawPendingRoute(ctx, cam, app, u, sx, sy) {
+  for (const s of pendingOrders(app.world, u)) {
+    if ((s.name !== 'route' && s.name !== 'editRoute') || !Array.isArray(s.args[0])) continue;
+    const pts = [[sx, sy], ...s.args[0].map(([x, y]) => toScreen(cam, x, y))];
+    pencilLine(ctx, pts, { color: 'rgba(47, 79, 111, 0.5)', width: 1.3, dash: [2, 6], arrow: true });
+  }
 }
 
 function onScreen(cam, sx, sy, margin = 60) {
@@ -777,7 +812,7 @@ function drawEscorts(ctx, cam, app, alpha) {
     const f = m ? m.f : null;
     const leader = f ? world.escorts.find((x) => x.id === f.members[0]) : null;
     const selected = isSelected(app, 'escort', e.id) || Boolean(f && m.index === 0 && isSelected(app, 'formation', f.id));
-    const [sx, sy] = unitScreen(cam, e, alpha);
+    const [sx, sy, est] = shipScreen(app, cam, e, alpha);
     // A group in station with its support group's leader: a small symbol, no plaque.
     const inPort = (x) => x.state === 'inPort' || x.state === 'refit';
     const tucked = m && m.index > 0 && leader && (
@@ -799,7 +834,7 @@ function drawEscorts(ctx, cam, app, alpha) {
       app.hits.push({ kind: 'escort', id: e.id, formation: f.id, x: tx, y: ty, r: 8, priority: 1, box: null });
       continue;
     }
-    if (e.state === 'hunting') {
+    if (e.state === 'hunting' && !est) {
       // The search area (or the U-boat held), and a line back to the convoy it left.
       const held = e.engage ? world.uboats.find((u) => u.id === e.engage.uboatId) : null;
       if (!held) {
@@ -837,7 +872,10 @@ function drawEscorts(ctx, cam, app, alpha) {
         if (c) pencilLine(ctx, [[sx, sy], toScreen(cam, c.x, c.y)], { color: 'rgba(79, 96, 112, 0.6)', width: 1.2, dash: [2, 4], arrow: false });
       }
     }
+    if (selected) drawPendingRoute(ctx, cam, app, e, sx, sy);
     if (!onScreen(cam, sx, sy)) continue;
+    // A group with its convoy shares its circle of doubt: one is enough.
+    if (est && (e.state !== 'escorting' || selected)) drawEstimate(ctx, cam, sx, sy, est, e.y, selected);
     const ox = e.state === 'inPort' || e.state === 'refit' ? 14 : 0;
     const oy = e.state === 'inPort' || e.state === 'refit' ? 12 : 0;
     warship(ctx, sx + ox - 3, sy + oy, e.heading, 6);
@@ -849,7 +887,7 @@ function drawEscorts(ctx, cam, app, alpha) {
       ctx.arc(sx + ox, sy + oy, 12, 0, Math.PI * 2);
       ctx.stroke();
     }
-    if (e.engage) {
+    if (e.engage && !est) {
       // At grips with a U-boat: a red ring that beats with the depth-charge passes.
       const pulse = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() / 300));
       ctx.strokeStyle = `rgba(178, 34, 34, ${pulse.toFixed(2)})`;
@@ -860,16 +898,17 @@ function drawEscorts(ctx, cam, app, alpha) {
     }
     let box = null;
     if (e.state !== 'escorting' || selected) {
-      let label = `${e.short} · ${e.ships}`;
-      if (e.engage) label = t('map.escortCombat', { name: e.short, n: e.ships });
-      else if (e.state === 'hunting') label = t('map.escortHunting', { name: e.short, n: e.ships });
+      let label = `${e.short}${est ? t('map.estimated') : ''} · ${e.ships}`;
+      // (On the high seas the headquarters does not know that a group is fighting or hunting.)
+      if (e.engage && !est) label = t('map.escortCombat', { name: e.short, n: e.ships });
+      else if (e.state === 'hunting' && !est) label = t('map.escortHunting', { name: e.short, n: e.ships });
       if (f && m.index === 0) {
         const ships = f.members.reduce((n, id) => n + (world.escorts.find((x) => x.id === id)?.ships || 0), 0);
         label = t('map.groupPlaque', { name: f.name, n: f.members.length, ships });
       } else if (f) {
         label = `${e.short} · ${e.ships} → ${f.name}`;
       }
-      box = placePlaque(ctx, app, sx + ox, sy + oy, [label], { accent: e.engage ? COLORS.rafRed : selected ? COLORS.select : '#4f6070', size: 10 }, 10);
+      box = placePlaque(ctx, app, sx + ox, sy + oy, [label], { accent: e.engage && !est ? COLORS.rafRed : selected ? COLORS.select : '#4f6070', size: 10 }, 10);
     }
     app.hits.push({ kind: 'escort', id: e.id, formation: f ? f.id : undefined, x: sx + ox, y: sy + oy, r: 12, priority: 1, box });
   }
@@ -1182,14 +1221,16 @@ function drawConvoys(ctx, cam, app, alpha) {
       ctx.textAlign = 'center';
       ctx.fillText(t('map.admiraltyRoute'), mid[0], mid[1] - 10);
     }
-    const [sx, sy] = unitScreen(cam, c, alpha);
+    const [sx, sy, est] = shipScreen(app, cam, c, alpha);
     if (c.state === 'atSea' && c.route.length) {
       const pts = [[sx, sy], ...c.route.map(([x, y]) => toScreen(cam, x, y))];
       pencilLine(ctx, pts, { color: COLORS.route, width: 1.6, dash: [8, 6], arrow: true });
     } else if (c.state !== 'arrived') {
       drawPlanTrack(ctx, cam, app, c, selected);
     }
-    if (!onScreen(cam, sx, sy)) continue;
+    if (selected) drawPendingRoute(ctx, cam, app, c, sx, sy);
+    if (!onScreen(cam, sx, sy, est ? 60 + est.radiusKm * cam.scale : 60)) continue;
+    if (est) drawEstimate(ctx, cam, sx, sy, est, c.y, selected);
     if (awaiting) {
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 300);
       ctx.strokeStyle = `rgba(184, 64, 44, ${0.35 + 0.5 * pulse})`;
@@ -1206,7 +1247,7 @@ function drawConvoys(ctx, cam, app, alpha) {
     const kn = Math.round((currentSpeed(c) * 3600) / 1.852);
     const name = c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name;
     const zz = c.zigzag ? ` · ${t('map.zigzag')}` : '';
-    const box = placePlaque(ctx, app, sx, sy, [`${name} · ${c.ships} · ${c.state === 'atSea' ? kn : c.speedKn} nd${zz}`], {
+    const box = placePlaque(ctx, app, sx, sy, [`${name}${est ? t('map.estimated') : ''} · ${c.ships} · ${c.state === 'atSea' ? kn : c.speedKn} nd${zz}`], {
       accent: selected ? COLORS.select : null,
     }, 14);
     app.hits.push({ kind: 'convoy', id: c.id, x: sx, y: sy, r: 16, priority: 1, box });

@@ -70,6 +70,8 @@ export function openSettings(app) {
         <label>${escapeHtml(t('settings.rosterHours'))} ${select('rosterHours', String(s.rosterHours || '24'), presets.choices.rosterHours, 'settings.rosterHoursChoices')}</label>
         <label>${escapeHtml(t('settings.carry'))} ${select('carry', s.carry || 'none', presets.choices.carry, 'settings.carryChoices')}</label>
         <label>${escapeHtml(t('settings.bdienst'))} ${select('bdienst', String(s.bdienst ?? '25'), presets.choices.bdienst, 'settings.bdienstChoices')}</label>
+        <label>${escapeHtml(t('settings.seaComms'))} ${select('seaComms', s.seaComms || 'direct', presets.choices.seaComms, 'settings.seaCommsChoices')}</label>
+        <p class="hint">${escapeHtml(t('settings.seaCommsHint'))}</p>
       </fieldset>`)}
       ${pane('time', `
       <fieldset>

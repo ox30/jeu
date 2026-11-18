@@ -9,6 +9,8 @@ import { cargoShare } from '../sim/convoy.js';
 import { RESOURCES, fuelDays, fullTrain, inbound, trainHours } from '../sim/logistics.js';
 import { escortStrength, portChoices } from '../sim/naval.js';
 import { canHunt } from '../sim/asw.js';
+import { carriersFor, isSilent, orderChannel, pendingOrders, shownPosition } from '../sim/comms.js';
+import { WATCH_S, clockHour } from '../sim/watch.js';
 import { capacityFactor, isOperational } from '../sim/sites.js';
 import { lineCost, offerArrival, offerCost, offerInCargo, offers, tonnageForecast } from '../sim/shipping.js';
 import { button, options, row } from './html.js';
@@ -297,6 +299,50 @@ export function behaviourButtons(e) {
   return `${button('escort-behaviour', t('orders.behaviours.stay'), { id: e.id, kind: 'escort', active: e.behaviour !== 'hunt', extra: ' data-behaviour="stay"' })}${button('escort-behaviour', t('orders.behaviours.hunt'), { id: e.id, kind: 'escort', active: e.behaviour === 'hunt', extra: ' data-behaviour="hunt"' })}`;
 }
 
+/** The hour of the next relief of the watch, by the clock. */
+function nextReliefHour(w) {
+  return (clockHour(w) - (clockHour(w) % 4) + 4) % 24;
+}
+
+/** "Position" of a ship on its sheet: where the table shows it, and since when it is an estimate. */
+export function positionRows(app, u) {
+  const w = app.world;
+  const p = shownPosition(w, u);
+  const [lon, lat] = unproject(p.x, p.y);
+  if (!p.est) return row(t('sheet.position'), escapeHtml(positionText(lat, lon)));
+  const by = p.fix.by ? t('comms.fixBy', { by: p.fix.by }) : t(`comms.fix.${p.fix.how}`);
+  return [
+    row(t('comms.estimated'), escapeHtml(t('comms.estimatedText', { pos: positionText(lat, lon), km: Math.round(p.radiusKm) }))),
+    row(t('comms.lastFix'), escapeHtml(t('comms.lastFixText', { time: dateTimeText(w.startMs + p.fix.t * 1000), by }))),
+  ].join('');
+}
+
+/**
+ * Radio silence: how an order would reach this ship now, the orders on their way (each can
+ * be cancelled, or given to a group bound for the convoy), and « Demander la position ».
+ */
+export function commsLines(app, u) {
+  const w = app.world;
+  if (!isSilent(w) || !['atSea', 'waiting', 'escorting', 'hunting'].includes(u.state)) return '';
+  const via = orderChannel(w, u);
+  const hour = nextReliefHour(w);
+  const pending = pendingOrders(w, u);
+  const carriers = u.kind === 'convoy' ? carriersFor(w, u.id) : [];
+  const lines = pending.map((s) => {
+    const how = s.via === 'ship' ? t('comms.byShip', { group: (w.escorts.find((e) => e.id === s.carrier) || {}).short || '' }) : t('comms.byRadio', { hour });
+    const hand = s.via === 'radio' ? carriers.map((e) => button('comms-carry', t('comms.carry', { group: e.short }), { id: u.id, kind: u.kind, extra: ` data-signal="${escapeHtml(s.id)}" data-group="${escapeHtml(e.id)}"` })).join('') : '';
+    return `<li><span class="grow">${escapeHtml(t(`comms.orders.${s.name}`))} <small>${escapeHtml(how)}</small></span>${hand}${button('comms-cancel', t('comms.cancel'), { id: u.id, kind: u.kind, extra: ` data-signal="${escapeHtml(s.id)}"` })}</li>`;
+  });
+  const asked = pending.some((s) => s.name === 'position');
+  return [
+    `<div class="comms">`,
+    `<p class="hint${via === 'radio' ? ' warn' : ''}">${escapeHtml(t(`comms.channel.${via}`, { hour }))}</p>`,
+    lines.length ? `<div class="sub">${escapeHtml(t('comms.pending'))}</div><ul class="pending-orders">${lines.join('')}</ul>` : '',
+    via === 'radio' && !asked ? `<div class="order-line">${button('comms-position', t('comms.askPosition'), { id: u.id, kind: u.kind })}</div><p class="hint">${escapeHtml(t('comms.askPositionHint', { hour }))}</p>` : '',
+    `</div>`,
+  ].join('');
+}
+
 /** "Grenades 96/160" (the same words on the sheet, in the unit bar and in the watch reports). */
 export function chargesText(e) {
   return t('sheet.chargesGauge', { n: e.charges, max: e.chargesMax });
@@ -389,7 +435,6 @@ export function exitLines(app, e, { sail = true } = {}) {
 
 export function escortSheet(app, e) {
   const w = app.world;
-  const [lon, lat] = unproject(e.x, e.y);
   let state = escortStateText(w, e);
   if (e.state === 'escorting') {
     const c = w.convoys.find((x) => x.id === e.escorting);
@@ -410,7 +455,7 @@ export function escortSheet(app, e) {
     row(t('sheet.charges'), escapeHtml(`${e.charges}/${e.chargesMax} · ${t(`orders.patterns.${e.pattern || 'full'}`)}`)),
     e.state === 'inPort' || e.state === 'refit'
       ? row(t('sheet.airfield'), escapeHtml(w.byId.port.get(e.portId).name))
-      : row(t('sheet.position'), escapeHtml(positionText(lat, lon))),
+      : positionRows(app, e),
   ].join('');
   const canMove = e.state === 'inPort' || e.state === 'atSea' || e.state === 'waiting' || e.state === 'hunting';
   const aid = w.settings.interceptAid !== 'none';
@@ -418,6 +463,7 @@ export function escortSheet(app, e) {
   const orders = [
     `<div class="orders">`,
     e.state === 'inPort' ? exitLines(app, e) : '',
+    commsLines(app, e),
     joinLines(app, e),
     huntAndPortLines(app, e),
     `</div>`,
@@ -427,8 +473,14 @@ export function escortSheet(app, e) {
     planUnit: canMove ? e : null,
     orders,
     legForm: canMove,
-    key: `eg:${e.id}:${e.state}:${e.plan.length > 0}:${e.route.length > 0}:${joinable.map((c) => c.id).join(',')}:${app.settings.orders}:${aid}:${app.editingLeg ? app.editingLeg.index : ''}:${e.behaviour}:${e.pattern}:${e.charges}`,
+    key: `eg:${e.id}:${e.state}:${e.plan.length > 0}:${e.route.length > 0}:${joinable.map((c) => c.id).join(',')}:${app.settings.orders}:${aid}:${app.editingLeg ? app.editingLeg.index : ''}:${e.behaviour}:${e.pattern}:${e.charges}:${commsKey(w, e)}`,
   };
+}
+
+/** What changes in the comms block of a ship (for the keys that tell when to redraw a sheet). */
+export function commsKey(w, u) {
+  if (!isSilent(w)) return '';
+  return `${orderChannel(w, u)}:${pendingOrders(w, u).map((s) => `${s.id}${s.via}`).join(',')}:${u.est ? Math.round(u.est.t / WATCH_S) : 'live'}:${u.fix ? u.fix.t - (u.fix.t % 600) : ''}`;
 }
 
 /** "En chasse : attaque un U-Boot (passe 2)", or the search and the hour it ends. */

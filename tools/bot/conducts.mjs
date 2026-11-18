@@ -30,7 +30,7 @@ const SEA = {
   chasser: { behaviour: 'hunt' },
   'rester-econome': { behaviour: 'stay', pattern: 'light' },
   'chasser-econome': { behaviour: 'hunt', pattern: 'light' },
-  soigne: { behaviour: 'hunt', air: 'cover' },
+  soigne: { behaviour: 'hunt', air: 'cover', rearm: true },
   'deux-avions': { buy: [{ id: 'hudson', day: 0 }, { id: 'catalina', day: 0 }] },
 };
 
@@ -70,6 +70,8 @@ export const MATRIX = [
   ['hiver-atlantique', 'standard', 'simple'],
   ['hiver-atlantique', 'standard', 'rester'],
   ['hiver-atlantique', 'standard', 'chasser'],
+  ['hiver-atlantique', 'standard', 'chasser-econome'],
+  ['hiver-atlantique', 'standard', 'soigne'],
   ['hiver-atlantique', 'standard', 'deux-avions'],
   ['hiver-atlantique', 'realistic', 'rester'],
   ['hiver-atlantique', 'realistic', 'chasser'],

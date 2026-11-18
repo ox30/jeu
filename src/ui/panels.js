@@ -28,7 +28,8 @@ import { drawProfile } from '../render/profile.js';
 import { button, options, row, setHtml } from './html.js';
 import { devRaids, isRaidActive, raidLine, uboatLine, uboatReturnText } from './dev.js';
 import {
-  chargesText, convoyCargoRows, coverButtons, escortSheet, exitLines, homePortLine, huntLines, joinLines, renderLogistics, stockBlock, stockOrders, trainSheet,
+  chargesText, commsKey, commsLines, convoyCargoRows, coverButtons, escortSheet, exitLines, homePortLine, huntLines, joinLines, positionRows, renderLogistics, stockBlock,
+  stockOrders, trainSheet,
 } from './logisticsPanels.js';
 import { isActive } from '../sim/raid.js';
 import { altitudeControl, cmdButton, cmdGroup, kmhText, section, speedControl } from './commands.js';
@@ -935,7 +936,6 @@ function sailBlock(app, c) {
 function convoyPanel(app, c) {
   const w = app.world;
   const dest = c.destination ? w.byId.port.get(c.destination).name : t('sheet.none');
-  const [lon, lat] = unproject(c.x, c.y);
   const remaining = convoyRemainingKm(c);
   const speedKn = Math.round((currentSpeed(c) * 3600) / 1.852);
   const stateText = t(`states.convoy.${c.state === 'arrived' && c.unloading ? 'unloading' : c.state}`);
@@ -948,7 +948,7 @@ function convoyPanel(app, c) {
       ? t('sheet.speedKnLeg', { n: speedKn, max: c.speedKn })
       : t('sheet.speedKn', { n: c.speedKn }))),
     c.state === 'atSea' ? row(t('sheet.heading'), headingText(c.heading)) : '',
-    row(t('sheet.position'), escapeHtml(positionText(lat, lon))),
+    positionRows(app, c),
     row(t('sheet.destination'), escapeHtml(c.state === 'arrived' ? w.byId.port.get(c.portId).name : dest)),
     remaining !== null && c.state === 'atSea' ? row(t('sheet.remaining'), escapeHtml(kmText(remaining))) : '',
     remaining !== null && c.state === 'atSea' ? row(t('sheet.eta'), escapeHtml(dateTimeText(w.startMs + (w.t + remaining / currentSpeed(c)) * 1000))) : '',
@@ -958,12 +958,13 @@ function convoyPanel(app, c) {
   const cmd = canOrder ? [
     c.state === 'inPort' || c.state === 'refit' ? section(app, 'convoyPort', t('sec.port'), ordersBox(sailBlock(app, c),
       `<p class="hint">${escapeHtml(t('orders.sailHint'))}</p>`)) : '',
+    commsLines(app, c) ? section(app, 'comms', t('sec.comms'), ordersBox(commsLines(app, c))) : '',
     routeSection(app, c),
     c.type !== 'coastal' && !c.straggler ? `<p class="hint">${escapeHtml(t('orders.speedHint', { n: formatNumber(c.speedKn * w.rules.asw.stragglerFrom, 1) }))}</p>` : '',
     c.state !== 'inPort' ? `<p class="hint">${escapeHtml(headings ? t('orders.headingsHint') : t('orders.drawHint'))}</p>` : '',
   ].join('') : '';
   const tabs = [
-    canOrder ? tab('cmd', { keyed: cmd, key: editingLegIndex(app, c) }) : null,
+    canOrder ? tab('cmd', { keyed: cmd, key: `${editingLegIndex(app, c)}:${commsKey(w, c)}` }) : null,
     tab('state', { pre: rows }),
     tab('card', { keyed: unitCardHtml(w, c) }),
   ].filter(Boolean);
@@ -1005,6 +1006,7 @@ function escortPanel(app, e) {
   } else {
     cmd = [
       e.state === 'inPort' || e.state === 'refit' ? section(app, 'port', t('sec.port'), ordersBox(e.state === 'inPort' ? exitLines(app, e, { sail: false }) : '', sailBlock(app, e))) : '',
+      commsLines(app, e) ? section(app, 'comms', t('sec.comms'), ordersBox(commsLines(app, e))) : '',
       section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, e))),
       e.state === 'refit' ? '' : section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, e, { behaviour: false }))),
       atSea ? section(app, 'home', t('sec.home'), ordersBox(homePortLine(app, e))) : '',
@@ -1013,7 +1015,7 @@ function escortPanel(app, e) {
     ].join('');
   }
   const tabs = [
-    tab('cmd', { keyed: cmd, key: editingLegIndex(app, e) }),
+    tab('cmd', { keyed: cmd, key: `${editingLegIndex(app, e)}:${commsKey(w, e)}` }),
     tab('state', { pre: body }),
     tab('card', { keyed: unitCardHtml(w, e) }),
   ].filter(Boolean);

@@ -7,6 +7,7 @@ import { escapeHtml, t } from '../core/i18n.js';
 import { formatDate, formatShortDate, formatTime } from '../core/time.js';
 import { unproject } from '../sim/geo.js';
 import { WATCH_S, clockHour, fullReport, isQuiet, pendingDecisions } from '../sim/watch.js';
+import { shownPosition } from '../sim/comms.js';
 import { centreOn, orderEscortHome, orderJoin, select, togglePause } from './actions.js';
 import { eventMessage, positionText } from './format.js';
 import { setHtml } from './html.js';
@@ -268,7 +269,8 @@ function seeUnit(app, kind, id) {
   const u = kind === 'convoy' ? w.convoys.find((x) => x.id === id) : w.escorts.find((x) => x.id === id);
   if (!u) return;
   select(app, kind, id);
-  centreOn(app, u.x, u.y, 0.25);
+  const p = shownPosition(w, u);
+  centreOn(app, p.x, p.y, 0.25);
   app.dirtyPanels = true;
 }
 
