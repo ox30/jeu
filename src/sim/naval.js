@@ -639,7 +639,12 @@ export function updateUboat(world, u, dt) {
     u.lastReport = world.t;
     dfFix(world, u);
   }
-  if (isNight(world, c.x, c.y) && d < U.shadowDistanceKm + 8 && world.t - u.lastAttack >= U.attackGapH * 3600) attack(world, u, c);
+  if (d >= U.shadowDistanceKm + 8 || world.t - u.lastAttack < U.attackGapH * 3600) return;
+  // In place and ready: each boat picks its own moment, any time of the night. By day it
+  // hardly ever attacks a convoy; a straggler or a ship alone tempts it more.
+  const alone = c.straggler || c.ships <= U.aloneShips;
+  const perHour = isNight(world, c.x, c.y) ? U.attackPerHourNight : alone ? U.attackPerHourDayAlone : U.attackPerHourDay;
+  if (world.rng.next() < perHour / 60) attack(world, u, c);
 }
 
 /** The next point of a patrol: somewhere open around the station (or, if none, wait an hour). */
