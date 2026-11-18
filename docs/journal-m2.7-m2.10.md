@@ -334,3 +334,146 @@ Une première mesure, avant la correction du renfort d'Adlertag, donnait « 4 pa
 
 État final du lot M2.7 (18 novembre, 17 h 00) : 205 tests verts (156 en 2.6.1, 49 ajoutés),
 lint vert, `npm run fuzz` vert, test de fumée vert, `dist/index.html` reconstruit.
+
+## M2.8 · La mer au rythme des quarts
+
+Branche `m2.8`, partie de `m2.7` (`04333ee`). La mesure « avant » du lot est la mesure finale
+du M2.7 (`tools/bot/out/m2.7-final.jsonl`).
+
+### 18 novembre, 17 h 05 à 17 h 30 — C10, calcul de route sans à-coups
+
+`gridPath` réécrit : tableaux typés réutilisés d'une recherche à l'autre (tampons datés),
+coûts entiers (70 et 99), tas binaire à priorités flottantes, grille des eaux fermées
+calculée une fois par monde (`closedRaster`), grille de terrain à trois classes (mer, terre,
+côte) qui rend `isLand` exact et environ douze fois plus rapide, redressement du chemin par
+points tournants. Les grilles se construisent à la création du monde, plus au premier calcul.
+
+| Mesure (`tools/bot/perf.mjs`, machine au repos) | 2.7.0 | Après C10 |
+| --- | --- | --- |
+| Routes typiques de l'Atlantique | 5 à 204 ms | 0,3 à 10 ms |
+| Pas de plus de 20 ms par partie d'Atlantique | 32 à 44 | 0 (six parties) |
+| Pas le plus long, Atlantique | 192 à 341 ms | 5,8 à 13,2 ms |
+
+`tests/searoute.test.js` (5 tests) : chemin optimal contre un Dijkstra de référence, routes
+en mer, U-Boote hors des eaux fermées, longs trajets sous 20 ms, grille de terre contre les
+côtes. Le test existant `tests/seaways.test.js` (route au plus 5 % plus longue que la
+distance du champ de port) a d'abord échoué avec le redressement par points tournants
+(6,1 %) : j'ai affiné le redressement (recherche par dichotomie le long de chaque tronçon)
+plutôt que de toucher au test.
+
+**Autre à-coup trouvé en mesurant (17 h 50).** Au 15 septembre et à Adlertag, un pas de 40 à
+80 ms revenait au même instant quelle que soit la graine : la grille de ce que voit
+l'Observer Corps se construisait au premier raid au-dessus des terres. Elle est construite
+avec le monde. Les scénarios aériens gardent des pas de 5 à 12 ms.
+
+### 18 novembre, 17 h 30 à 17 h 50 — N6, C5, N2 : jour et nuit au soleil
+
+- **N6.** `src/core/sun.js` (déclinaison, équation du temps, hauteur du soleil) et
+  `src/sim/daylight.js` : `isDaylight(world, x, y)` et `isNight(world, x, y)`, jour au-dessus
+  de −0,83°, horloge du jeu à GMT+1 (`clockOffsetH` du scénario, 1 par défaut). Patrouilles,
+  vue des escadrilles et des navires, guetteurs, Condor, attaques des U-Boote et fiches
+  posent tous la question au même endroit, à la position de l'unité. Les heures fixes
+  disparaissent des données (`daylightH`, `dayFromH`, `dayToH`, `nightFromH`, `nightToH`).
+  Coût : 0,11 µs par question, aucun effet mesurable sur la durée d'un pas (3,9 µs en
+  moyenne dans l'Atlantique, comme avant).
+- **Tests touchés, sans les affaiblir.** Les tests d'autorisation du 15 septembre posaient
+  un raid à 06 h 00, heure d'ouverture du scénario : le soleil ne se lève plus qu'à 06 h 36
+  sur le Kent ce jour-là, l'escadrille ne voyait donc plus le raid à 15 km. Ils commencent
+  maintenant au lever du soleil ; leurs assertions sont inchangées. Le test « les jours
+  d'hiver sont courts » vérifie à présent la nuit de seize heures de la mi-janvier à 56° N
+  et le coucher du soleil plus tardif à l'ouest.
+- **C5.** Un U-Boot en place et prêt (quatre heures après sa dernière attaque) attaque à son
+  heure : de nuit, une heure d'attente en moyenne (`attackPerHourNight`) ; de jour, presque
+  jamais contre un convoi (0,01 par heure), plus volontiers contre un traînard ou un convoi
+  réduit à deux navires (0,12 par heure). Avant, tout tombait à la minute où la nuit
+  commençait, puis toutes les quatre heures, et la meute attaquait d'un seul coup.
+- **N2.** `src/render/night.js` : là où le soleil est couché, la table s'assombrit, avec un
+  dégradé pendant le crépuscule civil (de −0,83° à −6°). Réglage d'affichage « Ombre de la
+  nuit sur la carte », activé par défaut. La hauteur du soleil vient de la fonction de la
+  simulation ; `tests/night.test.js` vérifie point par point, sur deux jours, que l'ombre
+  dessinée est la nuit de la simulation.
+
+**Écart au document (N2).** Le document prévoit « un contour de quelques centaines de points
+par image ». J'ai d'abord étiré une petite image avec le lissage du navigateur : mesuré dans
+Chrome sans écran, ×14 400 tombait à 42-52 images par seconde. L'ombre est donc calculée
+tous les 32 pixels, interpolée par le code en carrés de 4 pixels et étirée sans lissage :
+**59,3 et 59,4 images par seconde** (59 et 59,9 sans ombre, sous la même charge). L'intention
+est tenue : même fonction que la simulation, dégradé au crépuscule, sans effet sur ×14 400.
+
+**Effet de N6 et C5 sur l'équilibre** (`tools/bot/out/m2.8-n6c5.jsonl`, mêmes 32 lignes,
+10 graines, comparées à la mesure finale du M2.7 par `tools/bot/compare.mjs`) :
+
+| Ligne | M2.7 | N6 et C5 |
+| --- | --- | --- |
+| 15 septembre, toutes conduites | — | 70 parties identiques à la partie près : les raids tombent en plein jour |
+| Kanalkampf, toutes conduites | 0, 10, 10, 10, 10 sur 10 | mêmes victoires ; parties différentes (aube et crépuscule déplacés) |
+| Adlertag, simple, Standard | 10 sur 10 | 9 sur 10 |
+| Adlertag, 1 par raid | 6 sur 10 | 4 sur 10 |
+| Adlertag, 2 par raid | 10 sur 10 | 9 sur 10 |
+| Adlertag, 4 par raid | 3 sur 10 | 1 sur 10 |
+| Adlertag, simple, Réaliste | 10 sur 10 | 8 sur 10 |
+| Adlertag, soigné, Réaliste | 10 sur 10 | 10 sur 10 |
+| Atlantique, rien | 0 sur 10, 18,5 % de navires perdus | 0 sur 10, 18,5 % |
+| Atlantique, simple ou Rester, Standard | 7 sur 10, 7,2 % | 9 sur 10, 6,2 % |
+| Atlantique, Chasser, Standard | 10 sur 10, 4,1 % | 10 sur 10, 3,2 % |
+| Atlantique, Rester, Réaliste | 4 sur 10, 8,4 % | 9 sur 10, 7,1 % |
+| Atlantique, Chasser, Réaliste | 9 sur 10, 5,8 % | 10 sur 10, 5,4 % |
+
+Lecture : à Adlertag le jour d'août est plus court d'une heure et quart (05 h 45 à 20 h 25
+à l'horloge, au lieu de 05 h à 21 h), ce qui coûte une à deux victoires sur dix ; le réglage
+des seuils est de toute façon l'affaire du M2.10 (I5). Dans l'Atlantique, la nuit est plus
+longue (seize heures au lieu de treize), mais les attaques ne tombent plus toutes les quatre
+heures pile : l'attente tirée au sort (une heure en moyenne) en retire à peu près une par
+nuit et par bateau, et le scénario devient un peu plus facile. Je règle l'Atlantique à la
+fin du lot, une fois les grenades, les quarts et le silence radio en place, comme le
+demande le document.
+
+### 18 novembre, 17 h 50 à 19 h 30 — I3, N7, C13, I4
+
+- **I3, grenades** (`b092f6a`). 40 par navire (120 ou 160 par groupe), refaites au port avec
+  le mazout. Consigne de grenadage : plein (dix par passe) ou économe (cinq, avec 0,6 fois
+  la chance de couler et 0,75 fois celle de toucher). À vide, passes à blanc : le U-Boot
+  reste en plongée, sans rien risquer ; événement `escortChargesOut`, pas de retour forcé.
+  La chasse s'arrête seule : U-Boot coulé ou touché, contact perdu (après 45 minutes de
+  recherche sur place), ou stock tombé au tiers gardé pour le convoi. La durée de chasse
+  réglable disparaît. `updateEscort` découpé en huit fonctions. Jauge « Grenades 96/160 »
+  sur la fiche, dans la barre et dans le rapport d'attaque.
+- **Choix d'I3 à signaler.**
+  1. « La chasse s'arrête quand le U-Boot est endommagé » ne tenait pas tel quel : le groupe
+     ré-attaquait à la minute suivante le bateau touché, encore sous lui. Un U-Boot touché
+     qui rentre n'est donc plus attaqué par les groupes (il est hors de combat ; un avion
+     peut encore le couler), et il est réparé pendant sa remise en état. La règle
+     `damagedKillFactor` devient sans objet et disparaît.
+  2. « Contact perdu » : après la perte du contact, ou une fois arrivé sur un repère, le
+     groupe cherche 45 minutes (`searchS`), puis rentre. Un trajet vers un repère est borné
+     par une fois et demie le temps en ligne droite, plus la recherche.
+  3. La fin de route « Chasser sur place (3 h) » devient « Chercher un U-Boot sur place » :
+     une recherche de 45 minutes, puis le groupe attend. Elle n'a plus grand intérêt ; je la
+     garde plutôt que de retirer un ordre que le document ne cite pas.
+  4. Un groupe qui n'a plus que sa réserve refuse l'ordre « Chasser ce contact », avec un
+     message ; il riposte encore près du convoi.
+  5. Deux tests décrivaient la durée de chasse réglable (`naval.test.js`) : ils décrivent
+     maintenant la règle décidée (trajet et recherche). Ce n'est pas un affaiblissement :
+     le comportement testé a changé par décision.
+- **N7, attaques d'avions visibles** (`8af1777`). Une attaque par sortie, à moins de 4 km ;
+  ratée, elle donne l'événement `aircraftAttack` (« grenade un U-Boot en plongée, résultat
+  inconnu ») ; ensuite l'avion fait encore plonger. Le repère d'un avion à moins de 30 km
+  d'un convoi lance la chasse du groupe en « Chasser » le plus proche.
+- **C13, radar d'escorte**. Donnée datée par groupe (`radarFrom`) : EG 1 le 1er mars 1941,
+  EG 3 le 15 mars ; le poste est monté au port. Portée 2 km contre un U-Boot en surface
+  (4,8 km avant), de nuit comme de jour ; plus de détection de périscope.
+  **Choix :** dans le modèle, un U-Boot qui piste reste à 14 km du convoi et n'entre presque
+  jamais dans 2 km d'un escorteur : pour que ce radar pèse, comme le Vanoc contre l'U-100, un
+  groupe équipé repère plus sûrement l'U-Boot qui vient d'attaquer en surface (0,6 au lieu
+  de 0,35). La portée de 2 km est « de l'ordre du kilomètre » tout en dépassant les vigies
+  de nuit (1,5 km).
+- **I4, avions achetés** (`0fe5feb`). Prix en dollars et en tonnes, délai et date d'arrivée,
+  phrase du Congrès, prévision de tonnage (`tonnageForecast`), curseur de part achetée
+  retiré : les convois partent chargés à plein tant que la réserve paie, puis en partie,
+  puis sur lest. Constat utile pour l'équilibre : les 520 millions ne paient pas tous les
+  convois d'avant le vote (il en faudrait environ 706) ; sans le curseur, la réserve
+  s'épuise fin février, et l'achat d'un Catalina avance cette date d'un convoi et demi.
+
+État à 19 h 30 : 244 tests verts, lint vert, `dist/index.html` reconstruit (826 Kio).
+Reste du lot : quarts et rapports (I2, A, N10), silence radio (N1), radars d'Irlande du
+Nord (N4), ASV du 502 Sqn, joueur automatique adapté, réglage, mesures, relecture.
