@@ -32,6 +32,12 @@ changent que par le jour et la nuit au soleil.
 - **Grenades.** 40 par navire, refaites au port ; grenadage plein ou économe ; à vide, des
   passes à blanc qui font encore plonger. La chasse s'arrête seule ; la durée de chasse
   réglable disparaît.
+- **Rester ou Chasser, un vrai choix.** Une passe coule ou endommage moins souvent (environ
+  une chasse sur deux aboutit), et un U-Boot qui se dérobe en profondeur n'est retrouvé
+  qu'une fois sur trois : chasser coûte des grenades et laisse le convoi seul. Un groupe en
+  « Rester » ne quitte plus son convoi pour un U-Boot qu'il ne peut pas atteindre : il le
+  force à plonger. Le BdU remplace un U-Boot coulé trois semaines plus tard. Victoire sous
+  7,5 % de pertes (8 % avant). Au joueur automatique, aucune conduite ne gagne à coup sûr.
 - **Avions.** L'attaque d'une patrouille sur un U-Boot se voit, coulé ou non, une fois par
   sortie ; son repère peut lancer la chasse d'un groupe. Le 502 Sqn a son radar ASV.
 - **Radar d'escorte** : daté et par groupe (EG 1 le 1er mars 1941, EG 3 le 15), à courte portée.
@@ -455,7 +461,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 268 tests, environ trois minutes
+npm test          # les 290 tests, environ trois minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : tutoriel, pages, fiches, corrections, quarts
