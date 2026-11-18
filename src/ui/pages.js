@@ -265,9 +265,9 @@ function shipCards(world) {
       [t('cards.lookouts'), t('cards.lookoutsText', { day: A.lookoutDayKm, night: A.lookoutNightKm })],
     ])}</article>`,
     `<article class="card"><h4>${escapeHtml(S.uboat.name)}</h4><p class="hint">${escapeHtml(t('cards.notes.uboat'))}</p>${cardRows([
-      [t('cards.surface'), t('cards.knots', { n: S.uboat.surfaceKn })],
-      [t('cards.submerged'), t('cards.knots', { n: S.uboat.submergedKn })],
-      [t('cards.battery'), t('cards.batteryText', { n: S.uboat.batteryNm })],
+      [t('cards.surface'), t('cards.knots', { n: A.surfaceKn })],
+      [t('cards.submerged'), t('cards.knots', { n: A.submergedKn })],
+      [t('cards.battery'), t('cards.batteryText', { n: A.batteryNm })],
       [t('cards.torpedoes'), S.uboat.torpedoes],
       [t('cards.crew'), S.uboat.crew],
     ])}</article>`,

@@ -8,6 +8,15 @@ import { cargoShare } from '../sim/convoy.js';
 import { basesInService, enemyDown, fighterShare, radarsInService, shipLosses, tonnesDelivered } from '../sim/objectives.js';
 
 /** "30+" for an estimated count (rounded down to 5), the exact number otherwise. */
+/** The name proposed for a new formation: "Big Wing Duxford", "Groupe de soutien 2". */
+export function formationDefaultName(world, kind, leader) {
+  if (kind === 'air') {
+    const field = leader ? world.byId.airfield.get(leader.home) : null;
+    return t('formations.defaultName.air', { base: field ? field.name : leader ? leader.name : '' });
+  }
+  return t('formations.defaultName.naval', { n: world.nextFormationId });
+}
+
 export function countText(n, approx) {
   if (!approx) return String(n);
   return `${n >= 10 ? Math.floor(n / 5) * 5 : n}+`;

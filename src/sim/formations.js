@@ -52,14 +52,6 @@ export function joinProblem(world, kind, u) {
   return null;
 }
 
-function defaultName(world, kind, leader) {
-  if (kind === 'air') {
-    const field = world.byId.airfield.get(leader.home);
-    return `Big Wing ${field ? field.name : leader.name}`;
-  }
-  return `Groupe de soutien ${world.nextFormationId}`;
-}
-
 /** A follower flies to its leader and keeps station (the big wing mechanics, silently). */
 export function linkToLeader(s, leader) {
   s.route = [];
@@ -141,16 +133,20 @@ function placeNavalMember(world, f, e) {
   e.behaviour = leader.behaviour;
 }
 
-/** Creates a formation led by `leaderId`. Returns it, or null. */
+/**
+ * Creates a formation led by `leaderId`. Returns it, or null. The name is the player's (the
+ * interface proposes one, from the texts); without a name the formation goes by its number.
+ */
 export function newFormation(world, kind, leaderId, name = null) {
   const leader = unitOf(world, kind, leaderId);
   if (joinProblem(world, kind, leader)) return null;
   const old = formationOf(world, leader);
   if (old) removeMember(world, old, leader.id, true);
+  const id = `F${world.nextFormationId}`;
   const f = {
-    id: `F${world.nextFormationId}`,
+    id,
     kind,
-    name: name || defaultName(world, kind, leader),
+    name: (name && String(name).trim().slice(0, 40)) || id,
     members: [leader.id],
     gatherUntil: null,
     homeward: false,

@@ -194,7 +194,6 @@
     }
   },
   "convoy": {
-    "portSnapKm": 80,
     "harbourMarginKm": 45,
     "gateRadiusKm": 160,
     "approachEndKm": 450
@@ -247,10 +246,6 @@
     "loadHours": 2,
     "unloadHours": 1,
     "routeFactor": 1.25,
-    "trainTonnes": {
-      "fuel": 100,
-      "materiel": 120
-    },
     "unloadPerHour": 25,
     "fuelPerAircraftSortie": 0.35,
     "baseDailyFuel": 3,
@@ -285,11 +280,9 @@
     "pHit": 0.85,
     "escortFactor": 0.6,
     "secondShipP": 0.5,
-    "pKillPerEscort": 0.07,
     "pDriveOffPerEscort": 0.22,
     "nightFromH": 21,
     "nightToH": 4,
-    "giveUpH": 48,
     "lostKm": 60,
     "callKm": 250,
     "refitDays": 14,
@@ -401,6 +394,25 @@
       "armament": "2 mitrailleuses, bombes légères de 45 kg",
       "crew": 4
     },
+    "Whitley": {
+      "name": "Armstrong Whitworth Whitley Mk V",
+      "role": "coastal",
+      "cruiseKmh": 265,
+      "maxKmh": 370,
+      "climbMpm": 240,
+      "enduranceMin": 540,
+      "ceilingFt": 26000,
+      "sightDayKm": 16,
+      "sightNightKm": 2,
+      "uboatSightKm": 16,
+      "asvKm": 6,
+      "attackKill": 0.05,
+      "evasion": 1.2,
+      "vsBombers": 0,
+      "vsFighters": 0,
+      "armament": "5 mitrailleuses, bombes anti-sous-marines et grenades",
+      "crew": 5
+    },
     "Hudson": {
       "name": "Lockheed Hudson Mk I",
       "role": "coastal",
@@ -494,10 +506,7 @@
     "aircraftAttackKm": 4,
     "diveHours": 2,
     "counterKm": 3,
-    "pKillCounterPerShip": 0.02,
-    "pKillHuntPerShip": 0.012,
     "huntHours": 3,
-    "huntKm": 30,
     "plotEveryS": 600,
     "plotLifetimeH": 12,
     "counterWindowS": 1800,
@@ -537,9 +546,6 @@
     },
     "uboat": {
       "name": "U-Boot type VII",
-      "surfaceKn": 17,
-      "submergedKn": 7.6,
-      "batteryNm": 70,
       "torpedoes": 14,
       "crew": 44
     }

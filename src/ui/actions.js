@@ -31,6 +31,7 @@ import {
 } from '../sim/rally.js';
 import { isFlying } from '../sim/squadron.js';
 import { addLogEntry } from './panels.js';
+import { formationDefaultName } from './format.js';
 
 export const SPEEDS = [1, 10, 60, 600, 3600, 14400];
 
@@ -303,7 +304,8 @@ export function orderFormationAlert(app, f, state) {
 }
 
 export function orderNewFormation(app, u) {
-  const f = newFormation(app.world, u.kind === 'squadron' ? 'air' : 'naval', u.id);
+  const kind = u.kind === 'squadron' ? 'air' : 'naval';
+  const f = newFormation(app.world, kind, u.id, formationDefaultName(app.world, kind, u));
   if (f) select(app, 'formation', f.id);
   app.dirtyPanels = true;
   return f;
