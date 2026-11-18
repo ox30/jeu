@@ -477,3 +477,71 @@ demande le document.
 État à 18 h 25 (heures UTC, lues sur les commits) : 244 tests verts, lint vert, `dist/index.html` reconstruit (826 Kio).
 Reste du lot : quarts et rapports (I2, A, N10), silence radio (N1), radars d'Irlande du
 Nord (N4), ASV du 502 Sqn, joueur automatique adapté, réglage, mesures, relecture.
+
+### 18 novembre, 18 h 25 à 19 h 40 — quarts (I2, A, N10), silence radio (N1), radars (N4)
+
+**Quarts, simulation** (`src/sim/watch.js`, `ec676dd`). Scénario au rythme des quarts
+(`seaRhythm: "watches"`, l'Atlantique seulement). Les événements de mer sont notés ; à chaque
+relève un rapport s'écrit dans `world.watch.reports` (donc sauvegardé) ; l'événement
+`seaStop` arrête le jeu : à la relève quand une décision nouvelle attend, selon le réglage
+`watchStops` (décision, 8 h et 20 h, chaque relève), et entre deux relèves pour la première
+attaque d'un convoi dans la nuit (de midi à midi, traînards comptés avec leur convoi).
+
+**Choix des quarts, à signaler.**
+1. *Décisions* : convoi sans escorte à portée d'un groupe prêt au port (hors des eaux
+   fermées) ; groupe ou navires en attente d'ordres ; grenades épuisées ; repères U-Boote sur
+   la route d'un convoi dans les 24 h. Le retour d'un groupe à court de mazout reste
+   automatique (sinon il tomberait à sec entre deux relèves) : la décision porte alors sur
+   son convoi, redevenu « à portée, sans escorte ».
+2. *Repères sur la route : demandé une fois par tracé de route.* Première version : un arrêt
+   par repère nouveau, soit 54 arrêts de relève sur les repères seuls (41 relèvements radio,
+   13 U-Boote vus) et 90 arrêts par partie, hors cible. Le joueur qui garde sa route a
+   répondu ; une nouvelle route est une nouvelle question. Mesure après : **46 à 55 arrêts
+   par partie** (graines 1 à 3, jeu simple), dont 22 convois à escorter, 11 repères sur une
+   route et 15 à 23 premières attaques de nuit.
+3. *Un rapport sans événement ni décision nouvelle n'est pas « non lu »* : sinon le compteur
+   de l'onglet Signaux monte de six par jour.
+4. *Taille* : les rapports d'une partie entière pèsent environ 430 Kio en JSON (parties vides
+   omises, lecture par `fullReport`). À retenir pour les cinq sauvegardes du M2.9 :
+   compresser, ou ne garder les rapports qu'une fois.
+5. Le test « un U-Boot vu par une patrouille ramène l'Atlantique à ×1 » décrit maintenant la
+   décision : dans l'Atlantique l'observation va au rapport de quart ; là où les alertes
+   restent en direct (Kanalkampf), elle ramène toujours le jeu à ×1.
+
+**Quarts, interface** (`src/ui/watchPanel.js`). Onglet « Signaux » du journal : rapports par
+jour puis par quart, une ligne repliée chacun, filtres (tout, à décider, attaques et pertes,
+U-Boote, un convoi ou un groupe), non lus marqués et comptés sur l'onglet, clic qui déplie,
+centre la carte et sélectionne l'unité. À l'arrêt d'une relève, la page du rapport s'ouvre
+avec « À décider » en tête et le bouton qui répond (« Envoyer EG 2 (la Clyde) », « Rentrer
+réarmer », « Voir »). L'arrêt est une pause : la vitesse n'est pas touchée, « Reprendre »
+repart à la vitesse d'avant (vérifié dans Chrome sans écran). À la première attaque de la
+nuit : alerte « Convoi attaqué », en pause.
+
+**Silence radio, simulation** (`src/sim/comms.js`, `eab7aa2`). Réglage `seaComms` : direct en
+Arcade, silence en Standard et en Réaliste. Eaux suivies : eaux fermées (le canal
+Saint-Georges en fait partie, testé), approches des ports (80 km : la tête de route des HX
+est à 60 km d'Halifax), couverture de surface des radars. Ordres par `sendOrder` : direct,
+projecteur d'un avion en vue, radio à la relève suivante, ou confié à un groupe.
+
+**Choix du silence radio, à signaler.**
+1. *L'estimation.* Dans la simulation un convoi suit exactement sa route : une estime « route
+   et vitesse prévues » serait toujours juste. Pour que l'information reste imparfaite,
+   l'estimation est la position plus une dérive qui croît comme la racine du temps depuis le
+   dernier point sûr (5 km × √heures : 25 km après un jour, 60 km après six), dans une
+   direction tirée une fois pour ce point sûr à partir de la graine, du navire et de l'heure —
+   jamais des dés de la simulation, qui ne change donc pas selon le réglage. Le repère ne
+   bouge qu'aux relèves ; le cercle dessiné (deux fois la dérive, plus le chemin fait depuis
+   la relève) contient toujours le navire (testé sur quatre jours).
+2. Un groupe parti chasser sur sa consigne est cru avec son convoi.
+3. Une route passée au projecteur ou par un groupe n'est pas un signal radio : le B-Dienst
+   ne peut pas la lire (`quietRoute`). La route d'appareillage reste lisible, comme avant.
+4. « Demander la position » : `noteConvoy` (le BdU apprend où passe le convoi) et rappel des
+   bateaux en patrouille à moins de 150 km.
+5. Les scénarios sans quarts ne changent pas, quel que soit le réglage (testé à Kanalkampf).
+
+**N4.** Castlerock, Downhill, Glenarm ajoutés à l'Atlantique ; seules Downhill et Glenarm
+(`surfaceKm: 50`) comptent pour les eaux suivies : le nord d'Inishowen devient suivi.
+
+État : 264 tests verts. Reste : interface du silence radio (repères estimés sur la carte,
+fiches, ordres par `sendOrder`), ASV du 502 Sqn, joueur automatique, réglage, mesures,
+test de fumée des nouveautés, README, relecture, livraison.
