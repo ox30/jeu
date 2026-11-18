@@ -14,7 +14,7 @@
 
 import { distance, project, sphereKm, unproject } from './geo.js';
 import { emit } from './events.js';
-import { isNight } from './naval.js';
+import { isNight } from './daylight.js';
 import { escortStrength, sinkShips } from './naval.js';
 import { currentSpeed } from './convoy.js';
 import { inClosedWaters, openForUboat, uboatSpot } from './uboatnav.js';
@@ -271,11 +271,12 @@ export function inCondorReach(world, x, y) {
 
 function updateCondors(world) {
   const K = world.rules.condors;
-  if (!world.scenario.condors || isNight(world)) return;
+  if (!world.scenario.condors) return;
   const base = condorBase(world);
   const range = world.scenario.condors.rangeKm ?? K.rangeKm;
   for (const c of world.convoys) {
     if (c.state !== 'atSea' || c.type === 'coastal' || c.straggler) continue;
+    if (isNight(world, c.x, c.y)) continue; // the Condors look for ships by day
     const d = sphereKm(base[0], base[1], c.x, c.y);
     if (d > range) continue;
     // Few aircraft: all over the Bay of Biscay and the south-western approaches, then the

@@ -81,12 +81,13 @@ export function runSea(cfg = {}) {
   }
 
   // Coastal Command: by day, each ready squadron goes and covers the nearest convoy in reach.
+  // Daylight where a squadron stands: the player sees the hour and the night's shadow on the map.
+  const isDay = (x, y) => (sim.daylight ? sim.daylight.isDaylight(w, x, y) : !sim.naval.isNight(w));
   function airOrders() {
-    const day = !sim.naval.isNight(w);
     for (const s of w.squadrons) {
       if (s.role !== 'coastal') continue;
-      if (s.state === 'ready' && day) {
-        const field = w.byId.airfield.get(s.airfield);
+      const field = w.byId.airfield.get(s.airfield);
+      if (s.state === 'ready' && isDay(field.x, field.y)) {
         const target = w.convoys
           .filter((cv) => cv.state === 'atSea' && !cv.straggler && distance(cv.x, cv.y, field.x, field.y) <= c.airKm)
           .sort((a, b) => distance(a.x, a.y, field.x, field.y) - distance(b.x, b.y, field.x, field.y))[0];

@@ -8,21 +8,7 @@ import { distance } from './geo.js';
 import { emit } from './events.js';
 import { isActive } from './raid.js';
 import { pilotsKilled } from './crews.js';
-
-function hourOf(world) {
-  return new Date(world.startMs + world.t * 1000).getUTCHours();
-}
-
-/**
- * Daylight for spotting from the air (a rough summer rule: 05:00 to 20:59; a winter
- * scenario gives its own hours as `daylightH: [from, to]`).
- */
-export function isDaylight(world) {
-  const h = hourOf(world);
-  const P = world.rules.patrolRules;
-  const [from, to] = world.scenario.daylightH || [P.dayFromH, P.dayToH];
-  return h >= from && h < to;
-}
+import { isDaylight } from './daylight.js';
 
 export function isPatrol(s) {
   return s.role === 'watch' || s.role === 'coastal';
@@ -39,7 +25,7 @@ function specOf(world, s) {
 /** Distance at which a patrol sees aircraft now (day or night). */
 export function sightKm(world, s) {
   const spec = specOf(world, s);
-  return isDaylight(world) ? spec.sightDayKm : spec.sightNightKm;
+  return isDaylight(world, s.x, s.y) ? spec.sightDayKm : spec.sightNightKm;
 }
 
 /** A patrol in the air that sees (x, y) at height altM, or null. */

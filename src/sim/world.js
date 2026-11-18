@@ -89,6 +89,7 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
     uboatPlots: [],
     nextPlotId: 1,
     squadrons: [],
+    clockOffsetH: scenario.clockOffsetH ?? 1, // the game's clock ahead of GMT (British summer time)
     carry: null, // campaign: the losses carried over from the battle before ({ fighterShare, from })
     fightersAtStart: 0, // fighter aircraft present as the scenario begins
     raids: [],

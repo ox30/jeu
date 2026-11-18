@@ -8,7 +8,8 @@
 import { distance, unproject } from './geo.js';
 import { emit } from './events.js';
 import { isActive } from './raid.js';
-import { isDaylight, isPatrol, sightKm } from './patrols.js';
+import { isPatrol, sightKm } from './patrols.js';
+import { isDaylight } from './daylight.js';
 import { isSubmerged } from './asw.js';
 
 function flying(s) {
@@ -23,7 +24,7 @@ function atSea(e) {
 export function raidObserver(world, r) {
   const V = world.rules.visual;
   const gap = world.rules.patrolRules.heightGapM;
-  const day = isDaylight(world);
+  const day = isDaylight(world, r.x, r.y); // the light where the raid is
   const keep = (id) => (r.seen && r.seen.byId === id ? V.keepFactor : 1);
   let best = null;
   for (const s of world.squadrons) {
@@ -76,7 +77,7 @@ function loseRaid(world, r) {
 function uboatHeld(world, u, obs) {
   const A = world.rules.asw;
   const k = world.rules.visual.keepFactor;
-  const day = isDaylight(world);
+  const day = isDaylight(world, u.x, u.y);
   const under = isSubmerged(world, u);
   if (obs.kind === 'escort') {
     const e = world.escorts.find((x) => x.id === obs.byId);

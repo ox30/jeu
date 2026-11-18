@@ -281,8 +281,6 @@
     "escortFactor": 0.6,
     "secondShipP": 0.5,
     "pDriveOffPerEscort": 0.22,
-    "nightFromH": 21,
-    "nightToH": 4,
     "lostKm": 60,
     "callKm": 250,
     "refitDays": 14,
@@ -473,8 +471,6 @@
   },
   "patrolRules": {
     "note": "Patrouilles de guet et Coastal Command : vue, risque d'être surpris par l'escorte allemande.",
-    "dayFromH": 5,
-    "dayToH": 21,
     "heightGapM": 3000,
     "bounceKm": 10,
     "bounceHeightM": 2500,

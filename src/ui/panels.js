@@ -21,9 +21,8 @@ import { aircraftSpec, feetOf, isFlying, squadronSpeed, throttle, typeKmh } from
 import { effectiveAlert, fatigueLevel, fatigueOn, pilotLossesOn, scrambleSeconds, strength } from '../sim/crews.js';
 import { arrivalOf, rallyPoint, tripKm } from '../sim/rally.js';
 import { overrideOf, plannedChanges } from '../sim/roster.js';
-import { isDaylight } from '../sim/patrols.js';
+import { isDaylight } from '../sim/daylight.js';
 
-const isDaylightSafe = (w) => isDaylight(w);
 import { radarRangeFactor, siteStatus } from '../sim/sites.js';
 import { drawProfile } from '../render/profile.js';
 import { button, options, row, setHtml } from './html.js';
@@ -643,7 +642,7 @@ function squadronRows(app, s, state) {
       : t('sheet.speedPct', { p: throttle(s).pct, n: Math.round(typeKmh(type, throttle(s))) }))),
     row(t('sheet.fuel'), escapeHtml(fuel)),
     s.role === 'fighter' ? row(t('sheet.ammo'), escapeHtml(t('sheet.percent', { n: Math.round(s.ammo * 100) })))
-      : row(t('sheet.sight'), escapeHtml(t('sheet.sightText', { n: Math.round(w.rules.patrols[s.type][isDaylightSafe(w) ? 'sightDayKm' : 'sightNightKm']) }))),
+      : row(t('sheet.sight'), escapeHtml(t('sheet.sightText', { n: Math.round(w.rules.patrols[s.type][isDaylight(w, s.x, s.y) ? 'sightDayKm' : 'sightNightKm']) }))),
     s.lastReport ? `<p class="report-line">${escapeHtml(reportText(w, s.lastReport))}</p>` : '',
   ].join('');
 }

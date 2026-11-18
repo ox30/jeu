@@ -11,6 +11,7 @@ import { dive, endHunt, engage, isSubmerged, spotAttacker, startHunt, stepHunt }
 import { callBoats, noteConvoy } from './bdu.js';
 import { inClosedWaters, moveTo, openForUboat, steerUboat, uboatSpot } from './uboatnav.js';
 import { declareFields } from './entities.js';
+import { isNight } from './daylight.js';
 
 // Whether the player was told that the convoy came within reach of the escorts.
 declareFields('convoy', (c) => {
@@ -505,19 +506,6 @@ export function createUboat(world, def) {
   };
 }
 
-function hourOf(world) {
-  return new Date(world.startMs + world.t * 1000).getUTCHours();
-}
-
-export function isNight(world) {
-  const U = world.rules.uboats;
-  const h = hourOf(world);
-  const day = world.scenario.daylightH;
-  // A winter scenario: night from the end of the day until an hour before dawn.
-  if (day) return h >= day[1] || h < day[0] - 1;
-  return h >= U.nightFromH || h < U.nightToH;
-}
-
 /** A radio message from a U-boat gives a direction-finding fix, with an error. */
 function dfFix(world, u) {
   const U = world.rules.uboats;
@@ -590,7 +578,8 @@ export function updateUboat(world, u, dt) {
     const went = steerUboat(world, u, u.wx, u.wy, patrolV, dt);
     if (went !== 'moving' && world.t >= (u.wanderAt || 0)) pickWander(world, u, went === 'blocked');
     if (world.t % 60 !== 0) return;
-    const sight = down ? (isNight(world) ? 0 : A.periscopeSightKm) : isNight(world) ? U.sightKmNight : U.sightKmDay;
+    const night = isNight(world, u.x, u.y);
+    const sight = down ? (night ? 0 : A.periscopeSightKm) : night ? U.sightKmNight : U.sightKmDay;
     for (const c of world.convoys) {
       if (c.state !== 'atSea' || c.type === 'coastal') continue;
       if (distance(u.x, u.y, c.x, c.y) > sight) continue;
@@ -628,7 +617,7 @@ export function updateUboat(world, u, dt) {
     }
     if (world.t % 60 === 0) {
       const d = distance(u.x, u.y, c.x, c.y);
-      if (!down && d <= (isNight(world) ? U.sightKmNight : U.sightKmDay)) u.state = 'shadow';
+      if (!down && d <= (isNight(world, u.x, u.y) ? U.sightKmNight : U.sightKmDay)) u.state = 'shadow';
       else if (d > (u.closeLimitKm ?? U.callKm * 1.5)) breakOff(u);
     }
     return;
@@ -650,7 +639,7 @@ export function updateUboat(world, u, dt) {
     u.lastReport = world.t;
     dfFix(world, u);
   }
-  if (isNight(world) && d < U.shadowDistanceKm + 8 && world.t - u.lastAttack >= U.attackGapH * 3600) attack(world, u, c);
+  if (isNight(world, c.x, c.y) && d < U.shadowDistanceKm + 8 && world.t - u.lastAttack >= U.attackGapH * 3600) attack(world, u, c);
 }
 
 /** The next point of a patrol: somewhere open around the station (or, if none, wait an hour). */

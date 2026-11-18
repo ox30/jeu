@@ -24,6 +24,9 @@ import * as campaignMod from '../../src/ui/campaign.js';
 import * as i18nMod from '../../src/core/i18n.js';
 import * as searouteMod from '../../src/sim/searoute.js';
 
+// Modules that came after 2.7: absent when the player runs on an earlier checkout.
+const daylightMod = await import('../../src/sim/daylight.js').catch(() => null);
+
 export const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const read = (p) => JSON.parse(readFileSync(ROOT + p, 'utf8'));
 
@@ -60,6 +63,8 @@ export const sim = {
   save: saveMod,
   alertRules: alertRulesMod,
   campaign: campaignMod,
+  searoute: searouteMod,
+  daylight: daylightMod,
 };
 
 /**

@@ -8,7 +8,8 @@
 
 import { bearing, distance, stepAlong, unproject } from './geo.js';
 import { emit } from './events.js';
-import { isPatrol, isDaylight } from './patrols.js';
+import { isPatrol } from './patrols.js';
+import { isDaylight } from './daylight.js';
 import { forgetUboat, putPlot, seeUboat } from './contact.js';
 import { clearAtSea, seaPath } from './searoute.js';
 import { WATCHING } from './sight.js';
@@ -64,7 +65,7 @@ function escortLooks(world, e, u) {
   const A = world.rules.asw;
   const d = distance(e.x, e.y, u.x, u.y);
   const rng = world.rng;
-  const day = isDaylight(world);
+  const day = isDaylight(world, u.x, u.y);
   const radar = world.scenario.escortRadar ? A.radar : null;
   if (!isSubmerged(world, u)) {
     const eye = day ? A.lookoutDayKm : A.lookoutNightKm;
@@ -83,7 +84,7 @@ function aircraftLooks(world, s, u) {
   const spec = world.rules.patrols[s.type];
   if (isSubmerged(world, u)) return null;
   const d = distance(s.x, s.y, u.x, u.y);
-  if (isDaylight(world) && d <= spec.uboatSightKm && world.rng.next() < A.pAircraft) return { source: 'aircraft', error: 1 };
+  if (isDaylight(world, u.x, u.y) && d <= spec.uboatSightKm && world.rng.next() < A.pAircraft) return { source: 'aircraft', error: 1 };
   if (s.asv && spec.asvKm && d <= spec.asvKm && world.rng.next() < A.pAsv) return { source: 'asv', error: 1.5 };
   return null;
 }

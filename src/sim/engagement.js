@@ -12,7 +12,7 @@
 import { bearing, distance, headingVector, project } from './geo.js';
 import { emit } from './events.js';
 import { isActive } from './raid.js';
-import { isDaylight } from './patrols.js';
+import { isDaylight } from './daylight.js';
 import { solveIntercept } from './intercept.js';
 import { rallyAnswer } from './rally.js';
 
@@ -60,7 +60,7 @@ export function authorize(s, raidId) {
 /** Does squadron `s` see raid `r` (visual range by day or night, halved for a big height gap)? */
 export function seesRaid(world, s, r, factor = 1) {
   const V = world.rules.visual;
-  let range = (isDaylight(world) ? V.airDayKm : V.airNightKm) * factor;
+  let range = (isDaylight(world, s.x, s.y) ? V.airDayKm : V.airNightKm) * factor;
   if (Math.abs(s.alt - r.alt) > world.rules.patrolRules.heightGapM) range /= 2;
   return distance(s.x, s.y, r.x, r.y) <= range;
 }

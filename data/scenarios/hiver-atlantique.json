@@ -546,10 +546,6 @@
     "rangeKm": 1600,
     "name": "Bordeaux-Mérignac"
   },
-  "daylightH": [
-    8,
-    18
-  ],
   "currency": {
     "stock": 520,
     "costFuel": 0.04,

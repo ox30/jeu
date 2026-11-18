@@ -1,4 +1,4 @@
-import { isDaylight } from '../src/sim/patrols.js';
+import { isDaylight } from '../src/sim/daylight.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { reachKm, isSubmerged } from '../src/sim/asw.js';
@@ -74,7 +74,7 @@ test('an escort group told to hunt leaves its convoy for a fresh contact, then c
   run(world, 4 * 86400, (e) => e.type === 'escortJoined');
   assert.equal(eg.state, 'escorting');
   // Wait for daylight: at night a surfaced U-boat is hard to see.
-  for (let i = 0; i < 86400 && !isDaylight(world); i += 60) run(world, 60);
+  for (let i = 0; i < 86400 && !isDaylight(world, eg.x, eg.y); i += 60) run(world, 60);
   assert.equal(eg.state, 'escorting');
   // A U-boat surfaces right beside the convoy, by day.
   const u = world.uboats.find((x) => x.id === 'u1');

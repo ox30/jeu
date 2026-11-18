@@ -5,8 +5,8 @@ import { restore, snapshot } from '../src/save/game.js';
 import { buyOffer, lineCost, setPurchase } from '../src/sim/shipping.js';
 import { followSquadron, scramble } from '../src/sim/orders.js';
 import { CHAIN, carryFor, recordResult, scenarioStatus } from '../src/ui/campaign.js';
-import { isDaylight } from '../src/sim/patrols.js';
-import { isNight } from '../src/sim/naval.js';
+import { isDaylight, isNight } from '../src/sim/daylight.js';
+import { project } from '../src/sim/geo.js';
 
 const IDS = ['adlertag', 'quinze-septembre', 'hiver-atlantique'];
 
@@ -93,14 +93,32 @@ test('aircraft bought in America arrive later; after Lend-Lease cargo is free', 
 });
 
 test('winter days are short: U-boats get long nights, patrols short days', () => {
+  // Day and night by the sun (N6), where the convoys pass: 56° N 12° W. The clock is GMT+1.
   const w = makeWorld('standard', {}, 'hiver-atlantique');
+  const [x, y] = project(-12, 56);
   runTo(w, 13 * 3600); // 19:00
-  assert.ok(isNight(w) && !isDaylight(w));
-  runTo(w, 26 * 3600 + 30 * 60); // 08:30 the next day
-  assert.ok(!isNight(w) && isDaylight(w));
+  assert.ok(isNight(w, x, y) && !isDaylight(w, x, y));
+  runTo(w, 26 * 3600 + 30 * 60); // 08:30 the next day: the sun is not up yet in January
+  assert.ok(isNight(w, x, y), 'still night at 08:30');
+  runTo(w, 31 * 3600); // 13:00
+  assert.ok(!isNight(w, x, y) && isDaylight(w, x, y));
+  // The night of mid-January lasts about sixteen hours out there (ten hours by the old rule).
+  let night = 0;
+  for (let m = 0; m < 1440; m++) {
+    w.t += 60;
+    if (isNight(w, x, y)) night++;
+  }
+  assert.ok(night > 15.5 * 60 && night < 17 * 60, `${(night / 60).toFixed(1)} h of night`);
+  // The sun sets later in the west: at 18:30 it is night off Liverpool, still day at 30° W.
+  const d = makeWorld('standard', {}, 'hiver-atlantique');
+  runTo(d, 12 * 3600 + 30 * 60); // 18:30
+  assert.ok(isNight(d, ...project(-3.5, 53.5)) && isDaylight(d, ...project(-30, 53.5)));
   const k = makeWorld('standard', {}, 'kanalkampf');
+  const kent = project(0.5, 51.3);
   runTo(k, 13 * 3600); // 19:00 in July: still day
-  assert.ok(!isNight(k) && isDaylight(k));
+  assert.ok(!isNight(k, ...kent) && isDaylight(k, ...kent));
+  runTo(k, 17 * 3600); // 23:00
+  assert.ok(isNight(k, ...kent));
 });
 
 test('a U-boat that went home comes back after its refit in a long scenario', () => {
