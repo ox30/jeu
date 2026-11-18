@@ -11,6 +11,7 @@ import { canHunt, dive, endHunt, engage, isSubmerged, rearm, spotAttacker, start
 import { callBoats, noteConvoy } from './bdu.js';
 import { inClosedWaters, moveTo, openForUboat, steerUboat, uboatSpot } from './uboatnav.js';
 import { completeEntity, declareFields } from './entities.js';
+import { parseGameDate } from '../core/time.js';
 import { isNight } from './daylight.js';
 
 // Whether the player was told that the convoy came within reach of the escorts.
@@ -70,6 +71,14 @@ export function attackConvoyFromAir(world, c, raid, accuracy) {
 }
 
 // ---- escort groups ----------------------------------------------------------------
+
+// The first radar sets: a dated datum of the scenario, group by group (`radarFrom`), in place
+// of a switch for the whole scenario. A game saved before gets it from the scenario too.
+declareFields('escort', (e, world) => {
+  const def = (world.scenario.escorts || []).find((d) => d.id === e.id);
+  e.radar = Boolean(def && def.radar); // a set on board (rules.asw.radar)
+  e.radarFrom = def && def.radarFrom ? (parseGameDate(def.radarFrom) - world.startMs) / 1000 : null; // fitted in port from then on
+});
 
 export function createEscortGroup(world, def) {
   const port = world.byId.port.get(def.from);
@@ -263,6 +272,11 @@ export function clearHunt(e) {
 /** In port: the refit runs its time, then the group is ready, bunkers and racks full. */
 function stayInPort(world, e, dt) {
   e.berthed = true;
+  // The dockyard fits its first radar set, from the date the scenario gives for this group.
+  if (!e.radar && e.radarFrom !== null && world.t >= e.radarFrom) {
+    e.radar = true;
+    emit(world, 'escortRadar', { escort: e.name, escortId: e.id, port: world.byId.port.get(e.portId).name });
+  }
   if (e.state !== 'refit') return;
   e.timer -= dt;
   if (e.timer > 0) return;

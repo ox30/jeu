@@ -265,7 +265,8 @@
       "ships": 4,
       "composition": "2 destroyers, 2 corvettes",
       "speedKn": 16,
-      "enduranceDays": 8
+      "enduranceDays": 8,
+      "radarFrom": "1941-03-01T06:00"
     },
     {
       "id": "eg2",
@@ -285,7 +286,8 @@
       "ships": 4,
       "composition": "2 destroyers, 2 corvettes",
       "speedKn": 16,
-      "enduranceDays": 8
+      "enduranceDays": 8,
+      "radarFrom": "1941-03-15T06:00"
     },
     {
       "id": "eg4",

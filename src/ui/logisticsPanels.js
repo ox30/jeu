@@ -396,7 +396,7 @@ export function escortSheet(app, e) {
   const info = [
     `<h3>${escapeHtml(e.name)} <small>${escapeHtml(e.short)}</small></h3>`,
     row(t('sheet.state'), escapeHtml(state)),
-    row(t('sheet.composition2'), escapeHtml(e.composition)),
+    row(t('sheet.composition2'), escapeHtml(e.radar ? `${e.composition} · ${t('sheet.radarFitted')}` : e.composition)),
     row(t('sheet.speed'), escapeHtml(t('sheet.speedKn', { n: e.speedKn }))),
     row(t('sheet.endurance'), escapeHtml(t('sheet.enduranceDays', { n: formatNumber(Math.max(0, e.endurance) / 86400, 1) }))),
     row(t('sheet.charges'), escapeHtml(`${e.charges}/${e.chargesMax} · ${t(`orders.patterns.${e.pattern || 'full'}`)}`)),

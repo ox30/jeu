@@ -129,6 +129,7 @@ export function restore(world, snap, addMobileRadar = null) {
   fillDefaults(world, WORLD_DEFAULTS());
   for (const s of world.squadrons) {
     fillDefaults(s, SQUADRON_DEFAULTS());
+    fillMissingFields('squadron', s, world);
     normalizeRoster(world, s); // a roster of M2.3 (a list of dated changes) becomes a daily plan
   }
   for (const e of world.escorts) {

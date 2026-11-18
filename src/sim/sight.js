@@ -30,9 +30,9 @@ export function viewZones(world, u, unitKind) {
   if (unitKind === 'escort') {
     if (!WATCHING.includes(u.state)) return zones;
     const A = world.rules.asw;
-    const radar = world.scenario.escortRadar ? A.radar : null;
+    const radar = u.radar ? A.radar : null;
     add('surface', Math.max(day ? A.lookoutDayKm : A.lookoutNightKm, radar ? radar.surfaceKm : 0));
-    add('submerged', Math.max(A.asdicKm, day ? A.periscopeKm : 0, radar ? radar.periscopeKm : 0));
+    add('submerged', Math.max(A.asdicKm, day ? A.periscopeKm : 0));
   }
   return zones;
 }

@@ -267,6 +267,8 @@ function shipCards(world) {
       [t('cards.speedSea'), t('cards.knots', { n: S.escort.speedKn })],
       [t('cards.asdic'), t('cards.km', { n: A.asdicKm })],
       [t('cards.lookouts'), t('cards.lookoutsText', { day: A.lookoutDayKm, night: A.lookoutNightKm })],
+      [t('cards.escortRadar'), t('cards.escortRadarText', { km: A.radar.surfaceKm })],
+      [t('cards.charges'), t('cards.chargesText', { n: A.engagement.chargesPerShip, full: A.engagement.patternFull, light: A.engagement.patternLight })],
     ])}</article>`,
     `<article class="card"><h4>${escapeHtml(S.uboat.name)}</h4><p class="hint">${escapeHtml(t('cards.notes.uboat'))}</p>${cardRows([
       [t('cards.surface'), t('cards.knots', { n: A.surfaceKn })],

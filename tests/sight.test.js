@@ -44,8 +44,10 @@ test('what a fighter and an escort group see, by day and by night', () => {
   toLight(w, false);
   assert.equal(km(viewZones(w, s, 'squadron'), 'air'), V.airNightKm);
   assert.equal(km(viewZones(w, e, 'escort'), 'surface'), A.lookoutNightKm);
-  w.scenario.escortRadar = true;
+  e.radar = true; // a group fitted with one of the first sets (C13: by group, no more by scenario)
   assert.equal(km(viewZones(w, e, 'escort'), 'surface'), A.radar.surfaceKm, 'radar by night');
+  assert.ok(A.radar.surfaceKm > A.lookoutNightKm && A.radar.surfaceKm <= 2, 'short range, but better than lookouts at night');
+  assert.equal(km(viewZones(w, e, 'escort'), 'submerged'), A.asdicKm, 'it does not see a periscope');
   e.state = 'inPort';
   assert.deepEqual(viewZones(w, e, 'escort'), [], 'in port, no watch');
 });

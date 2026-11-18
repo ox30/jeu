@@ -485,7 +485,7 @@
     "plotCount": 0.2
   },
   "asw": {
-    "note": "Chasse aux U-Boote en 1940 : vigies, périscope, ASDIC ; le radar des escorteurs vient en 1941 (option du scénario).",
+    "note": "Chasse aux U-Boote en 1940 : vigies, périscope, ASDIC. Le premier radar des escorteurs n'arrive qu'en mars 1941, sur quelques groupes (donnée datée du scénario, radarFrom par groupe).",
     "surfaceKn": 17,
     "submergedKn": 5,
     "batteryNm": 70,
@@ -498,13 +498,16 @@
     "pPeriscope": 0.15,
     "periscopeSightKm": 8,
     "radar": {
-      "surfaceKm": 4.8,
-      "periscopeKm": 0.8,
-      "p": 0.5
+      "note": "Premier radar des escorteurs (Type 286, début 1941) : portée courte contre un U-Boot en surface (le 17 mars 1941, le Vanoc détecte l'U-100 à 1 000 m environ), mais de nuit comme de jour, là où les vigies ne voient presque rien. Il ne voit pas un périscope. Un groupe équipé repère plus sûrement l'U-Boot qui vient d'attaquer en surface (pSpotAttacker, au lieu de celui des vigies).",
+      "surfaceKm": 2,
+      "p": 0.6,
+      "pSpotAttacker": 0.6
     },
     "pAircraft": 0.35,
     "pAsv": 0.3,
     "aircraftAttackKm": 4,
+    "aircraftNote": "Un avion de patrouille qui voit un U-Boot à moins de aircraftAttackKm l'attaque, une fois par sortie (attackKill de son type : la bombe et la grenade d'avion de 1941 coulent rarement) ; ensuite il le fait encore plonger. Le repère d'un avion à moins de aircraftHuntKm d'un convoi lance la chasse du groupe en « Chasser » le plus proche.",
+    "aircraftHuntKm": 30,
     "diveHours": 2,
     "counterKm": 3,
     "plotEveryS": 600,
@@ -549,7 +552,7 @@
     "escort": {
       "name": "Groupe d'escorte",
       "speedKn": 16,
-      "note": "destroyers, corvettes, avisos ; ASDIC, grenades sous-marines ; radar à partir de 1941"
+      "note": "destroyers, corvettes, avisos ; ASDIC, grenades sous-marines ; premier radar en mars 1941 sur quelques groupes"
     },
     "uboat": {
       "name": "U-Boot type VII",

@@ -31,6 +31,11 @@ declareFields('escort', (e, world) => {
   e.chargesOut = false; // told once that the racks are empty (until it rearms)
 });
 
+// A patrol aircraft carries the load of one attack: after it, it still makes a U-boat dive.
+declareFields('squadron', (s) => {
+  s.uboatAttacks = 0; // attacks on U-boats in this sortie (set back to zero on landing)
+});
+
 /** Depth charges a hunt must leave on board: a third of the stock, for the convoy's defence. */
 export function huntReserve(world, e) {
   return e.chargesMax * world.rules.asw.engagement.huntReserve;
@@ -96,16 +101,16 @@ function escortLooks(world, e, u) {
   const d = distance(e.x, e.y, u.x, u.y);
   const rng = world.rng;
   const day = isDaylight(world, u.x, u.y);
-  const radar = world.scenario.escortRadar ? A.radar : null;
+  const radar = e.radar ? A.radar : null;
   if (!isSubmerged(world, u)) {
     const eye = day ? A.lookoutDayKm : A.lookoutNightKm;
     if (d <= eye && rng.next() < A.pLookout) return { source: 'seen', error: 0.5 };
     if (radar && d <= radar.surfaceKm && rng.next() < radar.p) return { source: 'radar', error: 0.3 };
     return null;
   }
+  // Under water: the ASDIC, or a periscope seen by day (this first radar does not see one).
   if (d <= A.asdicKm && rng.next() < A.pAsdic) return { source: 'asdic', error: 0.3 };
   if (day && d <= A.periscopeKm && rng.next() < A.pPeriscope) return { source: 'periscope', error: 0.2 };
-  if (radar && d <= radar.periscopeKm && rng.next() < radar.p * 0.5) return { source: 'radar', error: 0.2 };
   return null;
 }
 
@@ -467,8 +472,16 @@ export function updateAsw(world) {
         by: s.name, byId: s.id, source: seen.source, unitKind: 'squadron', uboatId: u.id, plotId: plot ? plot.id : null,
         x: plot ? plot.x : u.x, y: plot ? plot.y : u.y, attack: false,
       });
+      // Close enough: it attacks the boat as it dives, once in a sortie. Sunk or not, the
+      // table is told (a miss used to leave no trace).
       const spec = world.rules.patrols[s.type];
-      if (distance(s.x, s.y, u.x, u.y) <= A.aircraftAttackKm) attackUboat(world, u, spec.attackKill, s.name, u.x, u.y);
+      if (s.uboatAttacks < 1 && distance(s.x, s.y, u.x, u.y) <= A.aircraftAttackKm) {
+        s.uboatAttacks++;
+        const sunk = attackUboat(world, u, spec.attackKill, s.name, u.x, u.y);
+        if (!sunk) emit(world, 'aircraftAttack', { by: s.name, byId: s.id, uboatId: u.id, plotId: plot ? plot.id : null, x: plot ? plot.x : u.x, y: plot ? plot.y : u.y });
+      }
+      // A group told to hunt goes for a plot laid by an aircraft close to its convoy.
+      if (plot && !sunkOrGone(u)) huntAircraftPlot(world, plot);
       break;
     }
   }
@@ -476,6 +489,20 @@ export function updateAsw(world) {
   world.uboatPlots = world.uboatPlots.filter((p) => world.t - p.t < life);
 }
 
+
+/** The nearest group told to hunt, with a convoy within reach of the plot, leaves for it. */
+function huntAircraftPlot(world, plot) {
+  const A = world.rules.asw;
+  let best = null;
+  for (const e of world.escorts) {
+    if (e.state !== 'escorting' || e.behaviour !== 'hunt' || e.engage || !canHunt(world, e)) continue;
+    const c = world.convoys.find((x) => x.id === e.escorting);
+    if (!c || distance(c.x, c.y, plot.x, plot.y) > A.aircraftHuntKm) continue;
+    const d = distance(e.x, e.y, plot.x, plot.y);
+    if (!best || d < best.d) best = { e, d };
+  }
+  if (best) startHunt(world, best.e, plot.x, plot.y);
+}
 
 /** The plots a squadron or group made, for the sheets. */
 export function plotsNear(world, x, y, km) {
@@ -491,9 +518,15 @@ export function spotAttacker(world, u, c) {
   if (seenByEscorts(world, u, c.id)) return true;
   const groups = world.escorts.filter((e) => e.state === 'escorting' && e.escorting === c.id);
   if (!groups.length) return false;
-  if (world.rng.next() >= A.pSpotAttacker * Math.min(1, groups.reduce((n, e) => n + e.ships, 0) / 4)) return false;
-  const plot = addPlot(world, u, 'seen', groups[0].name, 0.5);
-  if (plot) plot.byId = groups[0].id;
-  seeUboat(world, u, { by: groups[0].name, byId: groups[0].id, kind: 'escort', how: 'seen' });
+  // A group with a radar set picks up the boat on the surface far more surely than lookouts
+  // who have only the flash of the torpedo to go by.
+  const fitted = groups.find((e) => e.radar) || null;
+  const p = fitted ? A.radar.pSpotAttacker : A.pSpotAttacker;
+  if (world.rng.next() >= p * Math.min(1, groups.reduce((n, e) => n + e.ships, 0) / 4)) return false;
+  const by = fitted || groups[0];
+  const how = fitted ? 'radar' : 'seen';
+  const plot = addPlot(world, u, how, by.name, 0.5);
+  if (plot) plot.byId = by.id;
+  seeUboat(world, u, { by: by.name, byId: by.id, kind: 'escort', how });
   return true;
 }

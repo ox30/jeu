@@ -86,7 +86,7 @@ function uboatHeld(world, u, obs) {
     if (d <= A.asdicKm * k) return true;
     if (under) return false;
     if (d <= (day ? A.lookoutDayKm : A.lookoutNightKm) * k) return true;
-    const radar = world.scenario.escortRadar ? A.radar : null;
+    const radar = e.radar ? A.radar : null;
     return Boolean(radar && d <= radar.surfaceKm * k);
   }
   if (obs.kind === 'squadron') {

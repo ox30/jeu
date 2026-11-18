@@ -299,6 +299,8 @@ const LEVELS = {
   escortEngaged: 'alert',
   depthChargePass: 'warning',
   escortChargesOut: 'warning',
+  aircraftAttack: 'warning',
+  escortRadar: 'success',
   uboatSighted: 'warning',
   scenarioEvent: 'alert',
   mruReady: 'success',

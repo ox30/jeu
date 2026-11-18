@@ -9,6 +9,7 @@ import { drawAmmo, drawFuel, sortieFuel } from './logistics.js';
 import { guidanceHeading } from './control.js';
 import { pilotsKilled } from './crews.js';
 import { chaseHeading } from './engagement.js';
+import { completeEntity } from './entities.js';
 
 /** Characteristics of an aircraft type: a fighter, or a patrol aircraft. */
 export function aircraftSpec(world, type) {
@@ -20,7 +21,7 @@ export function createSquadron(world, def) {
   const type = aircraftSpec(world, def.type);
   if (!type) throw new Error(`squadron ${def.id}: unknown aircraft ${def.type}`);
   const altFt = def.altitudeFt ?? world.rules.squadron.defaultAltitudeFt;
-  return {
+  return completeEntity('squadron', {
     kind: 'squadron',
     id: def.id,
     name: def.name,
@@ -85,7 +86,7 @@ export function createSquadron(world, def) {
     returnReason: null,
     nothingSeen: new Set(),
     watch: new Map(), // raids being approached, to tell the player when one is missed
-  };
+  }, world);
 }
 
 export function isFlying(s) {
@@ -284,6 +285,7 @@ function land(world, s) {
   s.timer = world.rules.squadron.refuelMinutes * 60 * airfieldDelayFactor(world, field);
   s.returnReason = null;
   s.speedMode = 'cruise';
+  s.uboatAttacks = 0; // rearmed for its next sortie (asw.js)
   emit(world, 'landed', { squadron: s.name, squadronId: s.id, airfield: field.name });
 }
 
