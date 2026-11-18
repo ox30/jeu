@@ -81,6 +81,17 @@ test('a game of the Atlantic saved by 2.6.1 keeps its convoys, its numbers and i
     assert.equal(c.schedule, null, `${c.name}: schedule`);
     assert.equal(typeof c.rangeAlerted, 'boolean', `${c.name}: rangeAlerted`);
   }
+  // Escort groups saved before the depth charges (2.8): full racks, full patterns, and the
+  // length of a hunt, which the player set then, is gone.
+  assert.ok(saved.snap.escorts.every((e) => 'huntHours' in e && !('charges' in e)), 'a save of before the depth charges');
+  for (const e of w.escorts) {
+    assert.equal(e.chargesMax, 40 * e.ships, `${e.name}: stock`);
+    assert.equal(e.charges, e.chargesMax, `${e.name}: full racks`);
+    assert.equal(e.pattern, 'full');
+    assert.equal(e.chargesOut, false);
+    assert.ok(!('huntHours' in e), `${e.name}: no hunt hours`);
+    if (e.state === 'hunting' && !e.huntStay) assert.ok(e.huntUntil - w.t <= w.rules.asw.engagement.searchS, 'a hunt under way ends with a search');
+  }
   // The game keeps what it was begun with: HX 100 and the Anson of 502 Sqn, at Aldergrove.
   assert.ok(w.convoys.some((c) => c.name === 'HX 100'), 'HX 100 is still HX 100');
   assert.equal(w.squadrons.find((s) => s.id === '502').type, 'Anson');

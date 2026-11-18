@@ -15,8 +15,8 @@ import {
   activePoint, addRulerLeg, addTypedLeg, cancelConfirm, cancelEditLeg, centreOn, changeAltitude,
   changePointAltitude, clearPointAltitude, deletePoint, findUnit, goView, orderAdmiraltyRoute,
   orderAlertChecked, orderBoost, orderBreakOff, orderCancelSchedule, orderClearPlan, orderConvoySpeed,
-  orderCover, orderDissolve, orderEndAction, orderEscortBehaviour, orderEscortHome, orderExitChannel,
-  orderFormationAlert, orderHome, orderHuntHours, orderHuntPlot, orderHuntStop, orderIntercept, orderJoin,
+  orderCover, orderDissolve, orderEndAction, orderEscortBehaviour, orderEscortHome, orderEscortPattern, orderExitChannel,
+  orderFormationAlert, orderHome, orderHuntPlot, orderHuntStop, orderIntercept, orderJoin,
   orderLaunchWaiting, orderLeave, orderLeaveFormationOf, orderMerge, orderMinStock, orderNewFormation,
   orderOffer, orderOrbit, orderPurchase, orderRally, orderRemoveLeg, orderRoe, orderRosterAdd,
   orderRosterCopy, orderRosterOverride, orderRosterRemove, orderRosterResume, orderSail, orderScheduleJoin,
@@ -487,6 +487,9 @@ function onPanelClick(app, e) {
     case 'escort-behaviour':
       if (unit) orderEscortBehaviour(app, unit, b.dataset.behaviour);
       break;
+    case 'escort-pattern':
+      if (unit) orderEscortPattern(app, unit, b.dataset.pattern);
+      break;
     case 'formation-new': {
       const f = unit ? orderNewFormation(app, unit) : null;
       if (f) openFormations(app, { focus: f.id });
@@ -599,9 +602,6 @@ function onPanelChange(app, e) {
     const f = formationById(app.world, target.dataset.id);
     const day = inputValue(`rally-dep-day-${target.dataset.unit}`);
     if (f) orderRally(app, f, { kind: 'departure', unitId: target.dataset.unit, text: target.value, dayOffset: day === '' ? null : Number(day) });
-  } else if (target.dataset.change === 'hunt-hours') {
-    const e = app.world.escorts.find((x) => x.id === target.dataset.id);
-    if (e) orderHuntHours(app, e, target.value);
   } else if (target.dataset.change === 'ship-end') {
     const e = app.world.escorts.find((x) => x.id === target.dataset.id);
     if (e) orderShipEnd(app, e, target.value);

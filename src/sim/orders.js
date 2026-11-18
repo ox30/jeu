@@ -12,7 +12,7 @@ import { projectPlan, resolveClock } from './navigation.js';
 import { airfieldDelayFactor, isOperational } from './sites.js';
 import { distance } from './geo.js';
 import { sendEscortHome } from './naval.js';
-import { endHunt, startHunt } from './asw.js';
+import { canHunt, endHunt, startHunt } from './asw.js';
 import { interceptChance } from './control.js';
 import { ALERT_STATES, changeAlert, scrambleSeconds, strength, tire } from './crews.js';
 import { dispatchTrain } from './logistics.js';
@@ -617,19 +617,23 @@ export function setEscortBehaviour(world, e, behaviour) {
   return true;
 }
 
-/** How long its hunts last (hours), set when the player sends it hunting. */
-export function setHuntHours(world, e, hours) {
-  const h = Number(hours);
-  if (!Number.isFinite(h) || h <= 0 || h > 48) return false;
-  e.huntHours = h;
-  if (e.state === 'hunting' && !e.huntStay && e.huntUntil !== null) e.huntUntil = world.t + h * 3600;
+/**
+ * How it spends its depth charges: 'full' patterns, or 'light' ones (half the charges a pass,
+ * less chance of a kill). A standing order, like « Rester » and « Chasser ».
+ */
+export function setEscortPattern(world, e, pattern) {
+  if (pattern !== 'full' && pattern !== 'light') return false;
+  e.pattern = pattern;
   return true;
 }
 
-/** Sends the group to hunt a U-boat plot, for the hours set. */
+/**
+ * Sends the group to hunt a U-boat plot. It needs more depth charges than the third it keeps
+ * for its convoy.
+ */
 export function huntPlot(world, e, plotId) {
   const p = world.uboatPlots.find((x) => x.id === plotId);
-  if (!p || e.dry) return false;
+  if (!p || e.dry || !canHunt(world, e)) return false;
   if (e.state !== 'atSea' && e.state !== 'escorting' && e.state !== 'waiting' && e.state !== 'hunting') return false;
   // A new hunt: the one going on stops (its report is closed), the way into port too.
   if (e.state === 'hunting') endHunt(world, e, false, 'order');

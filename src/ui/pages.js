@@ -136,12 +136,16 @@ function navalCard(app, rep) {
   const from = formatTime(ms(rep.start));
   const to = rep.end !== null ? formatTime(ms(rep.end)) : t('reports.ongoing');
   const outcome = rep.end === null ? 'ongoing' : rep.result || 'brokenOff';
-  const passes = rep.passes.map((p, i) => `<li><span class="when">${escapeHtml(formatTime(ms(p.t)))}</span> ${escapeHtml(t('reports.naval.pass', { n: i + 1 }))} : ${escapeHtml(t(`reports.naval.passResult.${p.result}`))}</li>`);
+  // A pass of an earlier version has no count of charges; a dry pass used none.
+  const charges = (p) => (p.used === undefined ? '' : p.used === 0 ? ` (${t('reports.naval.dry')})` : ` (${t('reports.naval.charges', { n: p.used })})`);
+  const passes = rep.passes.map((p, i) => `<li><span class="when">${escapeHtml(formatTime(ms(p.t)))}</span> ${escapeHtml(t('reports.naval.pass', { n: i + 1 }))} : ${escapeHtml(t(`reports.naval.passResult.${p.result}`))}${escapeHtml(charges(p))}</li>`);
+  const used = rep.passes.reduce((n, p) => n + (p.used || 0), 0);
   return `<article class="report naval outcome-${outcome}" id="report-${escapeHtml(rep.id)}">
     <header><b>${escapeHtml(t('reports.naval.title', { escort: rep.escort }))}</b> <span class="when">${escapeHtml(from)} – ${escapeHtml(to)}</span>
     <span class="tag">${escapeHtml(t(`reports.naval.outcome.${outcome}`))}</span></header>
     <p class="comp">${escapeHtml(t(rep.convoy ? 'reports.naval.context' : 'reports.naval.contextAlone', { ships: rep.ships, convoy: rep.convoy, how: t(`log.engageHow.${rep.how}`) }))}</p>
     ${passes.length ? `<ol class="passes">${passes.join('')}</ol>` : `<p class="hint">${escapeHtml(t('reports.naval.noPass'))}</p>`}
+    ${used ? `<p class="comp">${escapeHtml(t('reports.naval.chargesTotal', { n: used }))}</p>` : ''}
   </article>`;
 }
 

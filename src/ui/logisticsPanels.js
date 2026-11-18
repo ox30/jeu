@@ -8,7 +8,7 @@ import { distance, unproject } from '../sim/geo.js';
 import { cargoShare } from '../sim/convoy.js';
 import { RESOURCES, fuelDays, fullTrain, inbound, trainHours } from '../sim/logistics.js';
 import { escortStrength, portChoices } from '../sim/naval.js';
-import { huntHours } from '../sim/asw.js';
+import { canHunt } from '../sim/asw.js';
 import { capacityFactor, isOperational } from '../sim/sites.js';
 import { lineCost, offerCost, offers } from '../sim/shipping.js';
 import { button, options, row } from './html.js';
@@ -289,24 +289,38 @@ export function behaviourButtons(e) {
   return `${button('escort-behaviour', t('orders.behaviours.stay'), { id: e.id, kind: 'escort', active: e.behaviour !== 'hunt', extra: ' data-behaviour="stay"' })}${button('escort-behaviour', t('orders.behaviours.hunt'), { id: e.id, kind: 'escort', active: e.behaviour === 'hunt', extra: ' data-behaviour="hunt"' })}`;
 }
 
+/** "Grenades 96/160" (the same words on the sheet, in the unit bar and in the watch reports). */
+export function chargesText(e) {
+  return t('sheet.chargesGauge', { n: e.charges, max: e.chargesMax });
+}
+
+/** « Plein » or « Économe »: how the group spends its depth charges. */
+export function patternButtons(e) {
+  return ['full', 'light'].map((x) => button('escort-pattern', t(`orders.patterns.${x}`), {
+    id: e.id, kind: 'escort', active: (e.pattern || 'full') === x, extra: ` data-pattern="${x}" title="${escapeHtml(t(`orders.patternTitles.${x}`))}"`,
+  })).join('');
+}
+
 /**
- * Hunting U-boats: how long a hunt lasts, the hunt under way with « Interrompre la chasse », the
- * fresh plots to hunt now. With `behaviour`, the Rester / Chasser buttons too.
+ * Facing the U-boats: the depth charges left and how to spend them, the hunt under way with
+ * « Interrompre la chasse », the fresh plots to hunt now. With `behaviour`, the Rester /
+ * Chasser buttons too.
  */
 export function huntLines(app, e, { behaviour = true } = {}) {
   const w = app.world;
-  const hours = huntHours(w, e);
-  const hourList = [1, 2, 3, 4, 6, 8, 12].map((h) => ({ value: String(h), label: t('orders.hours', { n: h }) }));
   const fresh = freshPlots(w, e);
   const hunting = e.state === 'hunting';
+  const spare = canHunt(w, e);
+  const state = e.charges <= 0 ? 'orders.chargesEmpty' : spare ? 'orders.chargesSpare' : 'orders.chargesReserve';
   return [
-    `<div class="order-line">${behaviour ? behaviourButtons(e) : ''}`,
-    `<label class="small">${escapeHtml(t('orders.huntFor'))} <select id="hunt-hours-${escapeHtml(e.id)}" data-change="hunt-hours" data-id="${escapeHtml(e.id)}">${options(hourList, String(hours))}</select></label></div>`,
+    behaviour ? `<div class="order-line">${behaviourButtons(e)}</div>` : '',
     `<p class="hint">${escapeHtml(t('orders.behaviourHint'))}</p>`,
+    `<div class="order-line"><span class="grow${e.charges <= 0 ? ' warn' : ''}">${escapeHtml(chargesText(e))} · ${escapeHtml(t(state))}</span>${patternButtons(e)}</div>`,
+    `<p class="hint">${escapeHtml(t('orders.patternHint'))}</p>`,
     hunting ? `<div class="order-line hunting"><span class="grow">${escapeHtml(huntText(w, e))}</span>${button('hunt-stop', t('orders.huntStop'), { id: e.id, kind: 'escort' })}</div>` : '',
     fresh.length ? `<div class="order-line">${fresh.map((p) => button('hunt-plot', t('orders.huntPlot', {
       time: formatTime(w.startMs + p.t * 1000), km: Math.round(distance(p.x, p.y, e.x, e.y)),
-    }), { id: e.id, kind: 'escort', extra: ` data-plot="${escapeHtml(p.id)}"` })).join('')}</div>` : '',
+    }), { id: e.id, kind: 'escort', disabled: !spare, extra: ` data-plot="${escapeHtml(p.id)}"${spare ? '' : ` title="${escapeHtml(t('orders.errors.chargesReserve'))}"`}` })).join('')}</div>` : '',
   ].join('');
 }
 
@@ -378,13 +392,14 @@ export function escortSheet(app, e) {
     if (c) state += ` · ${t('sheet.joining', { convoy: c.name })}`;
   }
   if (e.state === 'refit') state += ` · ${t('sheet.readyIn', { n: Math.ceil(e.timer / 60) })}`;
-  if (e.state === 'hunting') state += ` · ${t('sheet.huntingUntil', { time: formatTime(w.startMs + e.huntUntil * 1000) })}`;
+  if (e.state === 'hunting') state += ` · ${t(e.engage ? 'sheet.huntingHeld' : 'sheet.huntingUntil', { time: formatTime(w.startMs + e.huntUntil * 1000) })}`;
   const info = [
     `<h3>${escapeHtml(e.name)} <small>${escapeHtml(e.short)}</small></h3>`,
     row(t('sheet.state'), escapeHtml(state)),
     row(t('sheet.composition2'), escapeHtml(e.composition)),
     row(t('sheet.speed'), escapeHtml(t('sheet.speedKn', { n: e.speedKn }))),
     row(t('sheet.endurance'), escapeHtml(t('sheet.enduranceDays', { n: formatNumber(Math.max(0, e.endurance) / 86400, 1) }))),
+    row(t('sheet.charges'), escapeHtml(`${e.charges}/${e.chargesMax} · ${t(`orders.patterns.${e.pattern || 'full'}`)}`)),
     e.state === 'inPort' || e.state === 'refit'
       ? row(t('sheet.airfield'), escapeHtml(w.byId.port.get(e.portId).name))
       : row(t('sheet.position'), escapeHtml(positionText(lat, lon))),
@@ -404,16 +419,17 @@ export function escortSheet(app, e) {
     planUnit: canMove ? e : null,
     orders,
     legForm: canMove,
-    key: `eg:${e.id}:${e.state}:${e.plan.length > 0}:${e.route.length > 0}:${joinable.map((c) => c.id).join(',')}:${app.settings.orders}:${aid}:${app.editingLeg ? app.editingLeg.index : ''}:${e.behaviour}`,
+    key: `eg:${e.id}:${e.state}:${e.plan.length > 0}:${e.route.length > 0}:${joinable.map((c) => c.id).join(',')}:${app.settings.orders}:${aid}:${app.editingLeg ? app.editingLeg.index : ''}:${e.behaviour}:${e.pattern}:${e.charges}`,
   };
 }
 
-/** "En chasse jusqu'à 18:40 · attaque un U-Boot (passe 2)" */
+/** "En chasse : attaque un U-Boot (passe 2)", or the search and the hour it ends. */
 function huntText(w, e) {
   const until = formatTime(w.startMs + e.huntUntil * 1000);
   if (e.engage) {
     const rep = w.navalReports.find((r) => r.id === e.engage.reportId);
-    return t('orders.huntEngaged', { time: until, n: (rep ? rep.passes.length : 0) + 1 });
+    const n = (rep ? rep.passes.length : 0) + 1;
+    return e.huntStay ? t('orders.huntCounterEngaged', { time: until, n }) : t('orders.huntEngaged', { n });
   }
   return t(e.huntStay ? 'orders.huntCounter' : 'orders.huntSearching', { time: until });
 }

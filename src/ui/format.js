@@ -298,6 +298,7 @@ const LEVELS = {
   uboatSunk: 'success',
   escortEngaged: 'alert',
   depthChargePass: 'warning',
+  escortChargesOut: 'warning',
   uboatSighted: 'warning',
   scenarioEvent: 'alert',
   mruReady: 'success',
@@ -338,6 +339,12 @@ export function reportText(world, e) {
 }
 
 /** { text, level } for a simulation event, or null when it is not shown in the journal. */
+// Why a hunt ended, when the U-boat was not sunk.
+const HUNT_OVER = {
+  stopped: 'log.escortHuntStopped', tooFar: 'log.escortHuntTooFar', damaged: 'log.escortHuntOverDamaged', lost: 'log.escortHuntOverLost',
+  charges: 'log.escortHuntOverCharges',
+};
+
 // Told once for the whole formation (it takes off, it has gathered): not squadron by squadron.
 const WING_QUIET = new Set(['scrambleOrdered', 'airborne', 'formationJoined']);
 
@@ -447,13 +454,15 @@ export function eventMessage(world, e) {
       break;
     case 'escortHuntOver': {
       if (e.why === 'order') return null; // the order given says it
-      const base = e.sank ? 'log.escortHuntOverSank' : e.why === 'stopped' ? 'log.escortHuntStopped' : e.why === 'tooFar' ? 'log.escortHuntTooFar' : 'log.escortHuntOver';
+      const base = e.sank ? 'log.escortHuntOverSank' : HUNT_OVER[e.why] || 'log.escortHuntOver';
       key = e.convoy || e.why === 'tooFar' ? base : `${base}Alone`;
       break;
     }
     case 'escortHunting':
-      if (!e.hours) return null; // a counter-attack near the convoy: the attack says it
       if (!e.convoy) key = 'log.escortHuntingAlone';
+      break;
+    case 'escortChargesOut':
+      if (!e.convoy) key = 'log.escortChargesOutAlone';
       break;
     case 'escortEngaged':
       p.how = t(`log.engageHow.${e.how}`);
@@ -461,7 +470,10 @@ export function eventMessage(world, e) {
       break;
     case 'depthChargePass':
       if (e.result === 'sunk') return null; // the sinking says it
-      key = `log.depthChargePass.${e.result}`;
+      // A dry pass (the racks are empty) keeps the U-boat down and nothing more.
+      key = e.used === 0 && e.result === 'nothing' ? 'log.depthChargePass.dry' : `log.depthChargePass.${e.result}`;
+      p.left = e.left ?? '';
+      p.of = e.of ?? '';
       break;
     case 'straggler':
       p.kind = e.tanker ? t('log.stragglerTanker') : t('log.stragglerFreighter');

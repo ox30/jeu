@@ -142,6 +142,7 @@
     "errors": {
       "heading": "Cap invalide : un nombre entre 0 et 360.",
       "dry": "Plus de mazout : le groupe ne peut que rentrer au port (vous pouvez choisir lequel).",
+      "chargesReserve": "Il ne reste que la réserve de grenades gardée pour le convoi : pas de chasse avant de réarmer au port.",
       "format": "Fin non comprise. Exemples : 6, 1 h 30, 14:20, J5, 56N 12O.",
       "square": "Ce carré n'existe pas sur la grille.",
       "time": "Heure invalide.",
@@ -208,7 +209,19 @@
       "stay": "Rester avec le convoi",
       "hunt": "Chasser les contacts"
     },
-    "behaviourHint": "Rester : le groupe garde son poste et n'attaque qu'un U-Boot tout près du convoi (30 min au plus). Chasser : il quitte le convoi pour un contact frais, le temps choisi, puis revient seul ; le convoi est moins protégé pendant ce temps. Tout ordre interrompt une chasse.",
+    "behaviourHint": "Rester : le groupe garde son poste et n'attaque qu'un U-Boot tout près du convoi (30 min et 15 km au plus). Chasser : il quitte le convoi pour un contact frais et revient seul : U-Boot coulé ou touché, contact perdu, ou grenades tombées au tiers gardé pour le convoi. Le convoi est moins protégé pendant ce temps. Tout ordre interrompt une chasse.",
+    "patterns": {
+      "full": "Plein",
+      "light": "Économe"
+    },
+    "patternTitles": {
+      "full": "Grenadage plein : dix grenades par passe",
+      "light": "Grenadage économe : cinq grenades par passe, moins de chances de couler"
+    },
+    "patternHint": "Grenadage plein : dix grenades par passe. Économe : cinq, avec moins de chances de couler ou de toucher, mais deux fois plus de passes. À vide, le groupe passe encore, à blanc : le U-Boot reste en plongée et perd le convoi, sans rien risquer. Les grenades se refont au port, avec le mazout.",
+    "chargesSpare": "de quoi chasser",
+    "chargesReserve": "réserve du convoi : plus de chasse",
+    "chargesEmpty": "épuisées : passes à blanc",
     "formation": "Big Wing",
     "followLeader": "Voler avec {name}",
     "leaveFormation": "Quitter la formation",
@@ -266,18 +279,18 @@
     "rosterUnchanged": "état inchangé",
     "fromH": "De H+",
     "hours": "{n} h",
-    "huntFor": "chasse de",
     "huntStop": "Interrompre la chasse",
     "huntPlot": "Chasser le contact de {time} ({km} km)",
     "go": "Y aller",
     "portChoice": "{port} · {km} km · {h} h",
-    "huntEngaged": "En chasse jusqu'à {time} : attaque un U-Boot (passe {n}).",
+    "huntEngaged": "En chasse : attaque un U-Boot (passe {n}), tant que le contact tient.",
+    "huntCounterEngaged": "Riposte près du convoi : attaque un U-Boot (passe {n}), jusqu'à {time} au plus.",
     "huntCounter": "Riposte près du convoi, jusqu'à {time} au plus.",
-    "huntSearching": "En chasse jusqu'à {time} : recherche du contact.",
+    "huntSearching": "En chasse : recherche du contact jusqu'à {time}.",
     "shipEnd": {
       "stop": "S'arrêter et attendre",
       "hold": "Garder le cap",
-      "hunt": "Chasser sur place ({n} h)",
+      "hunt": "Chercher un U-Boot sur place",
       "escort": "Rejoindre {convoy}",
       "port": "Entrer au port : {port}"
     },
@@ -418,7 +431,10 @@
     "reachSubmerged": "En plongée, jusqu'à",
     "uplotHint": "Les deux cercles grandissent avec l'âge du plot : en tirets, ce que le U-Boot peut avoir parcouru en surface (17 nœuds) ; en pointillé, sous l'eau (5 nœuds, au plus 70 milles avant de devoir refaire surface).",
     "stragglerHint": "Un navire tombé derrière son convoi : seul, sans escorte, une proie facile. Il suit la même route, plus lentement. Un groupe d'escorte peut le rejoindre.",
-    "huntingUntil": "chasse un contact jusqu'à {time}",
+    "huntingUntil": "cherche un contact jusqu'à {time}",
+    "huntingHeld": "attaque un U-Boot",
+    "charges": "Grenades",
+    "chargesGauge": "Grenades {n}/{max}",
     "inFormation": "en formation avec {name}",
     "visual": "contact direct",
     "visualBy": "Contact direct : en vue de {by} depuis {time}",
@@ -539,6 +555,7 @@
       "convoySighted": "Convoi pisté par un U-Boot",
       "convoyInEscortRange": "Convoi à portée des escortes",
       "escortLowFuel": "Escorte à court de carburant",
+      "escortChargesOut": "Escorte sans grenades",
       "escortDry": "Escorte à sec",
       "convoyStopped": "Navires arrêtés avant la côte",
       "convoyWaiting": "Navires en attente d'ordres",
@@ -730,8 +747,16 @@
     "patrolBounced": "{squadron} surprise par l'escorte du raid {raid} : un appareil abattu ({left} restant(s)).",
     "uboatSighted": "{by} : U-Boot repéré ({source}), il plonge.",
     "uboatPlot": "",
-    "escortHunting": "{escort} quitte {convoy} pour chasser un U-Boot pendant {hours} h.",
-    "escortHuntOver": "{escort} : fin de la chasse, il rejoint {convoy}.",
+    "escortHunting": "{escort} quitte {convoy} pour chasser un U-Boot.",
+    "escortHuntOver": "{escort} : fin de la riposte, il reprend son poste près de {convoy}.",
+    "escortHuntOverLost": "{escort} : contact perdu, recherche sans résultat ; il rejoint {convoy}.",
+    "escortHuntOverLostAlone": "{escort} : contact perdu, recherche sans résultat.",
+    "escortHuntOverDamaged": "{escort} a touché un U-Boot, qui rompt ; il rejoint {convoy}.",
+    "escortHuntOverDamagedAlone": "{escort} a touché un U-Boot, qui rompt.",
+    "escortHuntOverCharges": "{escort} n'a plus que sa réserve de grenades : il cesse la chasse et rejoint {convoy}.",
+    "escortHuntOverChargesAlone": "{escort} n'a plus que sa réserve de grenades : il cesse la chasse.",
+    "escortChargesOut": "{escort} n'a plus de grenades : près de {convoy}, il ne peut plus que faire plonger. À vous de décider s'il rentre réarmer.",
+    "escortChargesOutAlone": "{escort} n'a plus de grenades : il ne peut plus que faire plonger. À vous de décider s'il rentre réarmer.",
     "escortHuntOverSank": "{escort} a coulé un U-Boot et rejoint {convoy}.",
     "straggler": "Un {kind} de {convoy} a décroché : il navigue seul derrière le convoi.",
     "uboatSunkBy": "{by} coule un U-Boot !",
@@ -812,8 +837,8 @@
     "rallyDone": "{formation} : rassemblement terminé.",
     "atRendezvous": "{squadron} est au rendez-vous de {formation} et tourne en attendant.",
     "rosterResumed": "Effectifs : {squadron} reprend son planning quotidien, {state}.",
-    "escortHuntingAlone": "{escort} part chasser un U-Boot pendant {hours} h.",
-    "escortHuntOverAlone": "{escort} : fin de la chasse.",
+    "escortHuntingAlone": "{escort} part chasser un U-Boot.",
+    "escortHuntOverAlone": "{escort} : fin de la riposte.",
     "escortHuntStopped": "{escort} interrompt la chasse et rejoint {convoy}.",
     "escortHuntStoppedAlone": "{escort} interrompt la chasse.",
     "escortHuntTooFar": "{escort} ne s'éloigne pas plus de {convoy} et reprend son poste.",
@@ -828,9 +853,10 @@
       "flash": "repéré à l'éclair de son tir"
     },
     "depthChargePass": {
-      "nothing": "{escort}, passe {pass} : grenades, pas de résultat visible.",
-      "damaged": "{escort}, passe {pass} : gazole et débris à la surface, l'U-Boot est touché ; il rompt et rentre.",
-      "lost": "{escort}, passe {pass} : contact perdu.",
+      "nothing": "{escort}, passe {pass} : grenades, pas de résultat visible (reste {left}/{of}).",
+      "dry": "{escort}, passe {pass} : à blanc, plus de grenades ; l'U-Boot reste en plongée.",
+      "damaged": "{escort}, passe {pass} : gazole et débris à la surface, l'U-Boot est touché ; il rompt et rentre (reste {left}/{of}).",
+      "lost": "{escort}, passe {pass} : contact perdu (reste {left}/{of}).",
       "sunk": "{escort}, passe {pass} : U-Boot coulé !"
     },
     "brokeOffOrdered": "{units} : désengagé du raid {raid}, en attente d'ordres.",
@@ -1337,6 +1363,9 @@
         "sunk": "coulé"
       },
       "noPass": "Pas encore de passe : le groupe s'approche.",
+      "charges": "{n} grenades",
+      "dry": "à blanc",
+      "chargesTotal": "Grenades lancées : {n}.",
       "outcome": {
         "ongoing": "en cours",
         "sunk": "coulé",
@@ -1618,6 +1647,11 @@
       "title": "Escorte à court",
       "text": "{escort} doit rentrer se ravitailler : {convoy} n'a plus d'escorte.",
       "alone": "{escort} doit rentrer se ravitailler."
+    },
+    "escortChargesOut": {
+      "title": "Grenades épuisées",
+      "text": "{escort} n'a plus de grenades près de {convoy} : il fait encore plonger, mais ne coulera plus rien. Le laisser, ou le renvoyer réarmer ?",
+      "alone": "{escort} n'a plus de grenades : il fait encore plonger, mais ne coulera plus rien. Le laisser, ou le renvoyer réarmer ?"
     },
     "escortDry": {
       "title": "Escorte à sec",

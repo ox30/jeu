@@ -20,7 +20,7 @@ export const ALERT_GROUPS = [
     id: 'sea',
     speeds: {
       uboatAttack: 1, convoyBombed: 1, escortEngaged: 1, uboatSighted: 1, convoySighted: 1, straggler: 1,
-      convoyInEscortRange: 1, escortLowFuel: 1, escortDry: 1, convoyStopped: 1, convoyWaiting: 1, condorSighted: 1, condorAttack: 1,
+      convoyInEscortRange: 1, escortLowFuel: 1, escortDry: 1, escortChargesOut: 1, convoyStopped: 1, convoyWaiting: 1, condorSighted: 1, condorAttack: 1,
     },
   },
   { id: 'bases', speeds: { siteOut: 600, noFuel: 600, noAmmo: 600, lowFuel: 600, scheduleDelayed: 600 } },
@@ -155,6 +155,14 @@ const RULES = {
     params: { escort: e.escort, convoy: e.convoy },
     variant: e.convoy ? 'text' : 'alone',
     focus: e.convoyId ? convoyAt(w, e.convoyId, e.x, e.y) : convoyAt(w, e.escortId, e.x, e.y),
+  }),
+  // Racks empty: the group can only keep a U-boat down. It stays with its convoy unless told to go.
+  escortChargesOut: (w, e) => ({
+    level: 'warning',
+    key: `chargesOut:${e.escortId}`,
+    params: { escort: e.escort, convoy: e.convoy },
+    variant: e.convoy ? 'text' : 'alone',
+    focus: convoyAt(w, e.escortId, e.x, e.y),
   }),
   escortDry: (w, e) => ({
     level: 'danger',

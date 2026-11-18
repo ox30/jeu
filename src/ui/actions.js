@@ -4,9 +4,9 @@ import { t } from '../core/i18n.js';
 import { bearing, distance, simplifyPolyline } from '../sim/geo.js';
 import { contactEstimate } from '../sim/query.js';
 import {
-  addLeg, clearPlan, departConvoy, setExitChannel, setShipBoost, setShipSpeedPct, setSpeedPct, editShipRoute, editableRoute, escortHome, joinConvoy, leaveConvoy, removeLeg, removeRoutePoint, returnToBase, routeCanExtend, routeConvoy, scramble, sendTrain, setAltitude, setCover, setEndAction, setMinStock, setOrbit, setPointAltitude, setRoute, setSpeed, setVector, updateLeg, interceptRaid, setAlert, setConvoySpeed, setEscortBehaviour, setZigzag, followSquadron, leaveFormation, planGroundRoute, huntPlot, setHuntHours,
+  addLeg, clearPlan, departConvoy, setExitChannel, setShipBoost, setShipSpeedPct, setSpeedPct, editShipRoute, editableRoute, escortHome, joinConvoy, leaveConvoy, removeLeg, removeRoutePoint, returnToBase, routeCanExtend, routeConvoy, scramble, sendTrain, setAltitude, setCover, setEndAction, setMinStock, setOrbit, setPointAltitude, setRoute, setSpeed, setVector, updateLeg, interceptRaid, setAlert, setConvoySpeed, setEscortBehaviour, setZigzag, followSquadron, leaveFormation, planGroundRoute, huntPlot, setEscortPattern,
 } from '../sim/orders.js';
-import { stopHunt } from '../sim/asw.js';
+import { canHunt, stopHunt } from '../sim/asw.js';
 import { setShipEndAction } from '../sim/naval.js';
 import { buyOffer, setPurchase } from '../sim/shipping.js';
 import { feetOf, squadronSpeed } from '../sim/squadron.js';
@@ -475,17 +475,18 @@ export function orderHuntStop(app, escort) {
   app.dirtyPanels = true;
 }
 
-/** Off to hunt a fresh U-boat plot, for the hours set. */
+/** Off to hunt a fresh U-boat plot (not with the depth charges down to the convoy's reserve). */
 export function orderHuntPlot(app, escort, plotId) {
   const groups = groupsOf(app, escort);
   if (groups.some((e) => e.dry)) sheetMessage(app, t('orders.errors.dry'));
+  else if (groups.some((e) => !canHunt(app.world, e))) sheetMessage(app, t('orders.errors.chargesReserve'));
   for (const e of groups) huntPlot(app.world, e, plotId);
   app.dirtyPanels = true;
 }
 
-/** How long the group's hunts last; a hunt under way is timed again from now. */
-export function orderHuntHours(app, escort, hours) {
-  for (const e of groupsOf(app, escort)) setHuntHours(app.world, e, Number(hours));
+/** Full or light depth-charge patterns, a standing order of the group (and of its support group). */
+export function orderEscortPattern(app, escort, pattern) {
+  for (const e of groupsOf(app, escort)) setEscortPattern(app.world, e, pattern);
   app.dirtyPanels = true;
 }
 

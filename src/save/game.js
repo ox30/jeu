@@ -22,7 +22,7 @@ const SQUADRON_DEFAULTS = () => ({
 });
 const SHIP_DEFAULTS = () => ({
   formation: null, followEscort: null, followSlot: 0, waitForGroup: false, leftConvoy: null, schedule: null, lateFor: null,
-  huntHours: null, huntPath: null, huntGoal: null, huntStay: false, engage: null, endAction: { kind: 'stop' }, routeEnded: false, exitChannel: null, boost: false, boostKn: null,
+  huntPath: null, huntGoal: null, huntStay: false, engage: null, endAction: { kind: 'stop' }, routeEnded: false, exitChannel: null, boost: false, boostKn: null,
   dry: false, dryKn: null,
 });
 const WORLD_DEFAULTS = () => ({
@@ -134,6 +134,14 @@ export function restore(world, snap, addMobileRadar = null) {
   for (const e of world.escorts) {
     fillDefaults(e, SHIP_DEFAULTS());
     if (e.berthed === undefined) e.berthed = e.state === 'inPort' || e.state === 'refit';
+    // A group saved before the depth charges (2.8) gets full racks and full patterns; the
+    // length of its hunts, which the player used to set, is gone. A hunt under way then goes
+    // on at most for the time of a search.
+    fillMissingFields('escort', e, world);
+    if ('huntHours' in e) {
+      delete e.huntHours;
+      if (e.state === 'hunting' && !e.huntStay) e.huntUntil = Math.min(e.huntUntil ?? Infinity, world.t + world.rules.asw.engagement.searchS);
+    }
   }
   // Convoys and installations saved by an earlier version get the fields added since.
   for (const c of world.convoys) fillMissingFields('convoy', c, world);

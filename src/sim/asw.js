@@ -3,7 +3,9 @@
 // of an escort within a couple of kilometres; radar comes in 1941. Every sighting leaves a
 // plot on the table: its age gives two circles, how far the boat may have gone on the
 // surface and under water. A U-boat that is seen dives, and loses its convoy. An escort
-// group told to hunt leaves its convoy to chase a fresh contact for a few hours.
+// group told to hunt leaves its convoy to chase a fresh contact, as long as it holds it and
+// has depth charges to spare. Sinking costs depth charges: a group that has none left can
+// only keep a U-boat down.
 // The U-boat command, for its part, moves the patrol areas toward the convoy routes.
 
 import { bearing, distance, stepAlong, unproject } from './geo.js';
@@ -14,8 +16,36 @@ import { forgetUboat, putPlot, seeUboat } from './contact.js';
 import { clearAtSea, seaPath } from './searoute.js';
 import { WATCHING } from './sight.js';
 import { sendEscortHome } from './naval.js';
+import { declareFields } from './entities.js';
 
 const NM_KM = 1.852;
+
+// Depth charges: a stock by group (so many a ship), filled in port with the fuel, and the
+// standing order on how to spend it: full patterns, or light ones (half the charges, less
+// chance of a kill).
+declareFields('escort', (e, world) => {
+  const E = world.rules.asw.engagement;
+  e.chargesMax = E.chargesPerShip * e.ships;
+  e.charges = e.chargesMax;
+  e.pattern = 'full'; // full | light
+  e.chargesOut = false; // told once that the racks are empty (until it rearms)
+});
+
+/** Depth charges a hunt must leave on board: a third of the stock, for the convoy's defence. */
+export function huntReserve(world, e) {
+  return e.chargesMax * world.rules.asw.engagement.huntReserve;
+}
+
+/** Enough depth charges to leave the convoy and hunt? */
+export function canHunt(world, e) {
+  return e.charges > huntReserve(world, e);
+}
+
+/** Port: the racks are filled again, with the bunkers. */
+export function rearm(e) {
+  e.charges = e.chargesMax;
+  e.chargesOut = false;
+}
 
 export function isSubmerged(world, u) {
   return u.submergedUntil > world.t;
@@ -104,17 +134,19 @@ function attackUboat(world, u, p, by, x, y) {
 // A group that holds a U-boat (ASDIC, or seen close by) attacks it: a depth-charge pass every
 // ten minutes, each of which may sink it, damage it (it then makes for home) or lose it (it
 // went deep, turned away). A group told to stay with its convoy attacks only what comes
-// close, for half an hour at most, then takes station again; one told to hunt leaves its
-// convoy for a fresh contact, for the time set when it was launched (three hours by default),
-// and comes back on its own. Every order given to a hunting group ends the hunt.
+// close, for half an hour at most, then takes station again. One told to hunt leaves its
+// convoy for a fresh contact and comes back on its own: the U-boat sunk or damaged, the
+// contact lost (and not found again after a short search), or its depth charges down to the
+// third it keeps for the convoy. Every order given to a hunting group ends the hunt.
 
-/** How long (hours) a hunt of this group lasts. */
-export function huntHours(world, e) {
-  return e.huntHours || world.rules.asw.huntHours;
+/** Seconds a hunt may last before it has reached (x, y) and searched there. */
+function huntLimitS(world, e, x, y) {
+  // The way by sea is at most half as long again as the straight line, or the hunt is not worth it.
+  return (distance(e.x, e.y, x, y) / e.speed) * 1.5 + world.rules.asw.engagement.searchS;
 }
 
 /** The group leaves to hunt around (x, y): for its convoy if it has one, or on its own. */
-export function startHunt(world, e, x, y, { hours = huntHours(world, e), stay = false, quiet = false } = {}) {
+export function startHunt(world, e, x, y, { stay = false, quiet = false } = {}) {
   const A = world.rules.asw;
   if (e.state === 'escorting') e.huntFor = e.escorting;
   else if (e.state !== 'hunting') e.huntFor = e.joinTarget || null;
@@ -126,14 +158,18 @@ export function startHunt(world, e, x, y, { hours = huntHours(world, e), stay = 
   e.huntPath = null;
   e.huntGoal = null;
   e.huntStay = stay;
-  e.huntUntil = world.t + (stay ? A.engagement.stayMaxS : hours * 3600);
+  e.huntUntil = world.t + (stay ? A.engagement.stayMaxS : huntLimitS(world, e, x, y));
   e.route = [];
   e.plan = [];
   e.legState = null;
-  if (!quiet) emit(world, 'escortHunting', { escort: e.name, escortId: e.id, convoy: world.convoys.find((c) => c.id === e.huntFor)?.name || '', hours: stay ? 0 : hours, x, y });
+  if (!quiet) emit(world, 'escortHunting', { escort: e.name, escortId: e.id, convoy: world.convoys.find((c) => c.id === e.huntFor)?.name || '', x, y });
 }
 
-/** The hunt is over (time up, U-boat sunk, or an order): back to the convoy, or waiting. */
+/**
+ * The hunt is over: back to the convoy, or waiting. `why`: sunk, damaged, lost (the contact,
+ * and the search after it), charges (down to the reserve), time and tooFar (a counter-attack
+ * near the convoy), order, stopped, fuel.
+ */
 export function endHunt(world, e, sank = false, why = 'time') {
   const convoyId = e.huntFor;
   if (e.engage) closeEngagement(world, e, sank ? 'sunk' : 'brokenOff');
@@ -197,10 +233,16 @@ function steerTo(world, e, tx, ty, dt) {
   e.course = h;
 }
 
+/** A U-boat hit and on its way home is out of the fight: the groups let it go. */
+function brokenOff(u) {
+  return Boolean(u.damaged && u.state === 'leaving');
+}
+
 /** A group holds a U-boat: the attack begins (a pass at once, then every ten minutes). */
 export function engage(world, e, u, how) {
-  if (e.engage || u.state === 'sunk' || u.state === 'gone') return;
-  if (e.state !== 'hunting') startHunt(world, e, u.x, u.y, { stay: e.behaviour !== 'hunt', quiet: true });
+  if (e.engage || u.state === 'sunk' || u.state === 'gone' || brokenOff(u)) return;
+  // Told to stay, or down to its reserve of depth charges: a short counter-attack near the convoy.
+  if (e.state !== 'hunting') startHunt(world, e, u.x, u.y, { stay: e.behaviour !== 'hunt' || !canHunt(world, e), quiet: true });
   const convoy = world.convoys.find((c) => c.id === e.huntFor);
   const report = {
     id: `N${world.nextNavalReportId++}`,
@@ -233,24 +275,58 @@ function closeEngagement(world, e, result) {
   e.engage = null;
 }
 
+/** The contact is lost: the group searches where it last held it, for a while. */
+function loseContact(world, e, u) {
+  const rep = world.navalReports.find((r) => r.id === e.engage.reportId);
+  if (rep && !rep.result) rep.result = 'lost';
+  closeEngagement(world, e, 'lost');
+  e.huntX = u.x;
+  e.huntY = u.y;
+  if (!e.huntStay) e.huntUntil = world.t + world.rules.asw.engagement.searchS;
+}
+
+/**
+ * The depth charges of one pass: { used, kill, damage }, the two factors applied to the
+ * chances of a full pattern. A light pattern is half the charges for less than the full
+ * chance; a rack nearly empty gives what it has; an empty one gives a dry pass, which keeps
+ * the U-boat down and can neither sink nor damage it.
+ */
+export function patternOf(world, e) {
+  const E = world.rules.asw.engagement;
+  const light = e.pattern === 'light';
+  const want = light ? E.patternLight : E.patternFull;
+  const used = Math.min(want, e.charges);
+  const share = used / want;
+  return { used, kill: share * (light ? E.lightKillFactor : 1), damage: share * (light ? E.lightDamageFactor : 1) };
+}
+
 /** One depth-charge pass on the U-boat held: sunk, damaged, lost, or nothing seen. */
 function depthChargePass(world, e, u) {
   const E = world.rules.asw.engagement;
   const rng = world.rng;
   const rep = world.navalReports.find((r) => r.id === e.engage.reportId);
   const pass = (rep ? rep.passes.length : 0) + 1;
-  const pKill = Math.min(0.9, E.pKillPerShip * e.ships * (u.damaged ? E.damagedKillFactor : 1));
-  const pDamage = Math.min(0.9, E.pDamagePerShip * e.ships);
+  const pattern = patternOf(world, e);
+  e.charges -= pattern.used;
+  const pKill = Math.min(0.9, E.pKillPerShip * e.ships) * pattern.kill;
+  const pDamage = Math.min(0.9, E.pDamagePerShip * e.ships) * pattern.damage;
   const pLose = Math.max(E.pLoseMin, E.pLoseBase - E.pLosePerShip * e.ships);
   let result = 'nothing';
   const roll = rng.next();
   if (roll < pKill) result = 'sunk';
-  else if (!u.damaged && roll < pKill + pDamage) result = 'damaged';
+  else if (roll < pKill + pDamage) result = 'damaged';
   else if (rng.next() < pLose) result = 'lost';
-  if (rep) rep.passes.push({ t: world.t, result });
+  if (rep) rep.passes.push({ t: world.t, result, used: pattern.used });
   emit(world, 'depthChargePass', {
-    escort: e.name, escortId: e.id, pass, result, report: e.engage.reportId, x: u.x, y: u.y,
+    escort: e.name, escortId: e.id, pass, result, used: pattern.used, left: e.charges, of: e.chargesMax, report: e.engage.reportId, x: u.x, y: u.y,
   });
+  if (e.charges <= 0 && !e.chargesOut) {
+    // The racks are empty: from now on it can only keep a U-boat down. No order to go home:
+    // that is for the player to decide.
+    e.chargesOut = true;
+    const convoy = world.convoys.find((c) => c.id === e.huntFor);
+    emit(world, 'escortChargesOut', { escort: e.name, escortId: e.id, convoy: convoy ? convoy.name : '', convoyId: convoy ? convoy.id : null, x: e.x, y: e.y });
+  }
   if (result === 'sunk') {
     u.state = 'sunk';
     world.stats.uboatsSunk++;
@@ -261,22 +337,26 @@ function depthChargePass(world, e, u) {
     return;
   }
   if (result === 'damaged') {
-    // Oil on the water: hit, it breaks off its patrol and makes for home, under water.
+    // Oil on the water: hit, it breaks off its patrol and makes for home, under water. The
+    // group has done its work and goes back to its convoy.
     u.damaged = true;
     u.state = 'leaving';
     u.target = null;
     dive(world, u, 6);
     if (rep) rep.result = 'damaged';
+    endHunt(world, e, false, 'damaged');
+    return;
   }
   if (result === 'lost') {
-    if (rep && !rep.result) rep.result = 'lost';
-    closeEngagement(world, e, 'lost');
-    // The search goes on where it was last held.
-    e.huntX = u.x;
-    e.huntY = u.y;
+    loseContact(world, e, u);
     return;
   }
   dive(world, u, 1); // kept down
+  // A hunt stops at the third of the stock kept for the convoy's defence.
+  if (!e.huntStay && !canHunt(world, e)) {
+    endHunt(world, e, false, 'charges');
+    return;
+  }
   e.engage.nextPass = world.t + E.passEveryS;
 }
 
@@ -284,9 +364,14 @@ function depthChargePass(world, e, u) {
 export function stepHunt(world, e, dt) {
   const A = world.rules.asw;
   const u = e.engage ? world.uboats.find((x) => x.id === e.engage.uboatId) : null;
-  if (e.engage && (!u || sunkOrGone(u))) closeEngagement(world, e, 'lost');
-  if (world.t >= e.huntUntil) {
-    endHunt(world, e, false, 'time');
+  if (e.engage && (!u || sunkOrGone(u))) {
+    closeEngagement(world, e, 'lost');
+    if (!e.huntStay) e.huntUntil = world.t + A.engagement.searchS;
+  }
+  // A counter-attack near the convoy is short; a hunt lasts as long as the contact is held,
+  // then the time of a search where it was lost (or where the plot was).
+  if ((e.huntStay || !e.engage) && world.t >= e.huntUntil) {
+    endHunt(world, e, false, e.huntStay ? 'time' : 'lost');
     return;
   }
   // A group that only countered close to its convoy goes back when it strays too far.
@@ -304,18 +389,16 @@ export function stepHunt(world, e, dt) {
     if (world.t >= e.engage.nextPass) {
       // The attack needs the boat within ASDIC range; otherwise the group closes in first.
       if (distance(e.x, e.y, held.x, held.y) <= A.asdicKm * 1.5) depthChargePass(world, e, held);
-      else if (world.t - e.engage.nextPass > 2 * A.engagement.passEveryS) {
-        // Twenty minutes without getting over it: it got away.
-        const rep = world.navalReports.find((r) => r.id === e.engage.reportId);
-        if (rep && !rep.result) rep.result = 'lost';
-        closeEngagement(world, e, 'lost');
-      }
+      // Twenty minutes without getting over it: it got away.
+      else if (world.t - e.engage.nextPass > 2 * A.engagement.passEveryS) loseContact(world, e, held);
     }
     return;
   }
+  // On the spot: the search lasts so long, no more.
+  if (!e.huntStay && distance(e.x, e.y, e.huntX, e.huntY) <= A.asdicKm) e.huntUntil = Math.min(e.huntUntil, world.t + A.engagement.searchS);
   // Searching: a U-boat within ASDIC range is found, and attacked.
   for (const x of world.uboats) {
-    if (sunkOrGone(x)) continue;
+    if (sunkOrGone(x) || brokenOff(x)) continue;
     if (distance(e.x, e.y, x.x, x.y) > A.asdicKm * 1.5) continue;
     const pl = addPlot(world, x, 'asdic', e.name, 0.3);
     if (pl) pl.byId = e.id;
@@ -354,7 +437,8 @@ export function updateAsw(world) {
       if (plot) plot.byId = e.id;
       seeUboat(world, u, { by: e.name, byId: e.id, kind: 'escort', how: seen.source });
       dive(world, u, A.diveHours);
-      const attack = !e.engage && distance(e.x, e.y, u.x, u.y) <= A.counterKm;
+      const fair = !brokenOff(u); // a boat hit and going home is let go
+      const attack = fair && !e.engage && distance(e.x, e.y, u.x, u.y) <= A.counterKm;
       if (!held) {
         u.asdicReportAt = world.t;
         emit(world, 'uboatSighted', {
@@ -368,7 +452,7 @@ export function updateAsw(world) {
       }
       // Close enough: the group attacks it with depth charges.
       if (attack) engage(world, e, u, seen.source);
-      else if (e.state === 'escorting' && e.behaviour === 'hunt' && plot) startHunt(world, e, plot.x, plot.y);
+      else if (fair && e.state === 'escorting' && e.behaviour === 'hunt' && plot && canHunt(world, e)) startHunt(world, e, plot.x, plot.y);
       break;
     }
     if (sunkOrGone(u)) continue;

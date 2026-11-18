@@ -28,6 +28,8 @@ const SEA = {
   simple: {}, // one escort group a convoy, with the game's own defaults
   rester: { behaviour: 'stay' },
   chasser: { behaviour: 'hunt' },
+  'rester-econome': { behaviour: 'stay', pattern: 'light' },
+  'chasser-econome': { behaviour: 'hunt', pattern: 'light' },
   soigne: { behaviour: 'hunt', air: 'cover' },
   'deux-avions': { buy: [{ id: 'hudson', day: 0 }, { id: 'catalina', day: 0 }] },
 };

@@ -8,7 +8,7 @@ import { formatDate, formatShortDate, formatTime } from '../core/time.js';
 import { distance, unproject } from '../sim/geo.js';
 import { gridRef } from '../sim/grid.js';
 import { convoyRemainingKm, currentSpeed, fullKnots, shipThrottle } from '../sim/convoy.js';
-import { huntHours, isSubmerged, reachKm } from '../sim/asw.js';
+import { isSubmerged, reachKm } from '../sim/asw.js';
 import { shipEndChoices } from '../sim/naval.js';
 import { legTarget } from '../sim/navigation.js';
 import { editableRoute, endChoices, planTrack } from '../sim/orders.js';
@@ -28,7 +28,7 @@ import { drawProfile } from '../render/profile.js';
 import { button, options, row, setHtml } from './html.js';
 import { devRaids, isRaidActive, raidLine, uboatLine, uboatReturnText } from './dev.js';
 import {
-  convoyCargoRows, coverButtons, escortSheet, exitLines, homePortLine, huntLines, joinLines, renderLogistics, stockBlock, stockOrders, trainSheet,
+  chargesText, convoyCargoRows, coverButtons, escortSheet, exitLines, homePortLine, huntLines, joinLines, renderLogistics, stockBlock, stockOrders, trainSheet,
 } from './logisticsPanels.js';
 import { isActive } from '../sim/raid.js';
 import { altitudeControl, cmdButton, cmdGroup, kmhText, section, speedControl } from './commands.js';
@@ -433,16 +433,15 @@ function shipEndLine(app, e) {
   if (e.kind !== 'escort') return '';
   if (!(e.route.length || e.plan.length) || e.homeward || e.joinTarget || e.state === 'escorting') return '';
   const w = app.world;
-  const list = shipEndChoices(w, e).map((a) => ({ value: a.id ? `${a.kind}:${a.id}` : a.kind, label: shipEndText(w, e, a) }));
+  const list = shipEndChoices(w, e).map((a) => ({ value: a.id ? `${a.kind}:${a.id}` : a.kind, label: shipEndText(w, a) }));
   const a = e.endAction || { kind: 'stop' };
   const current = a.id ? `${a.kind}:${a.id}` : a.kind;
   return `<div class="order-line"><label class="grow">${escapeHtml(t('orders.endAction'))} <select id="ship-end-${escapeHtml(e.id)}" data-change="ship-end" data-id="${escapeHtml(e.id)}">${options(list, current)}</select></label></div>`;
 }
 
-function shipEndText(w, e, a) {
+function shipEndText(w, a) {
   if (a.kind === 'escort') return t('orders.shipEnd.escort', { convoy: w.convoys.find((c) => c.id === a.id)?.name || '' });
   if (a.kind === 'port') return t('orders.shipEnd.port', { port: w.byId.port.get(a.id)?.name || '' });
-  if (a.kind === 'hunt') return t('orders.shipEnd.hunt', { n: huntHours(w, e) });
   return t(`orders.shipEnd.${a.kind}`);
 }
 
@@ -1021,7 +1020,7 @@ function escortPanel(app, e) {
   return {
     group: 'escort',
     title,
-    summary: escapeHtml(`${escortStateText(w, e)} · ${t('unit.shipsShort', { n: e.ships })} · ${t('sheet.enduranceDays', { n: formatNumber(Math.max(0, e.endurance) / 86400, 1) })}`),
+    summary: escapeHtml(`${escortStateText(w, e)} · ${t('unit.shipsShort', { n: e.ships })} · ${t('sheet.enduranceDays', { n: formatNumber(Math.max(0, e.endurance) / 86400, 1) })} · ${chargesText(e)}`),
     bar: member ? '' : seaBar(app, e),
     tabs,
   };
@@ -1067,7 +1066,7 @@ function memberRows(app, f) {
       extra = `${t('unit.aircraftShort', { n: u.aircraft, total: u.aircraftStart })} · ${t('unit.ammoShort', { n: Math.round(u.ammo * 100) })}${fuel}${level !== 'fresh' ? ` · ${t(`sheet.fatigueLevels.${level}`)}` : ''}`;
     } else {
       state = escortStateText(w, u);
-      extra = `${t('unit.shipsShort', { n: u.ships })} · ${t('sheet.enduranceDays', { n: formatNumber(Math.max(0, u.endurance) / 86400, 1) })}`;
+      extra = `${t('unit.shipsShort', { n: u.ships })} · ${t('sheet.enduranceDays', { n: formatNumber(Math.max(0, u.endurance) / 86400, 1) })} · ${chargesText(u)}`;
     }
     const kind = f.kind === 'air' ? 'squadron' : 'escort';
     return `<li class="member${i === 0 ? ' leader' : ''}"><span class="member-name">${i === 0 ? '★ ' : ''}${escapeHtml(u.name)}</span>

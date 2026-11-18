@@ -79,7 +79,7 @@ function buildActions(rnd, world) {
     joinConvoy: () => { const e = pick(w.escorts); const c = pick(w.convoys); if (e && c) O.joinConvoy(w, e, c.id); },
     leaveConvoy: () => { const e = pick(w.escorts); if (e) O.leaveConvoy(w, e); },
     setEscortBehaviour: () => { const e = pick(w.escorts); if (e) O.setEscortBehaviour(w, e, pick(['stay', 'hunt'])); },
-    setHuntHours: () => { const e = pick(w.escorts); if (e && O.setHuntHours) O.setHuntHours(w, e, pick([1, 3, 12, 0, 99])); },
+    setEscortPattern: () => { const e = pick(w.escorts); if (e && O.setEscortPattern) O.setEscortPattern(w, e, pick(['full', 'light', 'none'])); },
     huntPlot: () => { const e = pick(w.escorts); const p = pick(w.uboatPlots); if (e && p) O.huntPlot(w, e, p.id); },
     stopHunt: () => { const e = pick(w.escorts); if (e) asw.stopHunt(w, e); },
     escortHome: () => { const e = pick(w.escorts); if (e) O.escortHome(w, e, rnd() < 0.5 ? null : (pick(w.ports) || {}).id); },

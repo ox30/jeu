@@ -18,7 +18,8 @@ export const SEA_DEFAULTS = {
   groups: 1, // groups per convoy
   sendKm: 1800, // a group sails when the convoy is within this distance of an escort base
   behaviour: null, // stay | hunt (null: the group's own default)
-  huntHours: null, // hours of a hunt, while the game has that setting
+  pattern: null, // full | light depth-charge patterns (null: the group's own default)
+  rearm: false, // a group whose racks are empty is sent home, and another takes its place
   zigzag: false,
   purchase: null, // share of the cargo bought, while the game has that setting
   buy: [], // aircraft bought: [{ id: 'hudson', day: 0 }]
@@ -73,7 +74,7 @@ export function runSea(cfg = {}) {
           .sort((a, b) => distance(a.x, a.y, cv.x, cv.y) - distance(b.x, b.y, cv.x, cv.y))[0];
         if (!free) break;
         if (c.behaviour) O.setEscortBehaviour(w, free, c.behaviour);
-        if (c.huntHours !== null && O.setHuntHours) O.setHuntHours(w, free, c.huntHours);
+        if (c.pattern && O.setEscortPattern) O.setEscortPattern(w, free, c.pattern);
         if (!O.joinConvoy(w, free, cv.id)) break;
         n++;
       }
