@@ -22,11 +22,16 @@ travaux est dans `docs/journal-m2.7-m2.10.md`.
   et fatigue*. Chaque leçon a son petit scénario et ses réglages ; elle se joue d'une traite
   et ne remplace pas la partie en cours. Pendant une démonstration, l'instructeur a la main :
   la boîte de la leçon dit « Regardez… » et aucun ordre ne part.
-- **Équilibre** : ne rien faire perd nettement dans tous les scénarios ; jouer simple gagne
-  environ quatre fois sur cinq en Standard ; jouer soigné gagne en Réaliste, pas forcément du
-  premier coup. Kanalkampf demande aussi des avions abattus et une chasse gardée ; Adlertag
+- **Équilibre**, mesuré au joueur automatique sur trente graines par conduite : ne rien faire
+  perd toujours ; jouer simple en Standard gagne 23, 22 et 25 fois sur 30 (Kanalkampf,
+  Adlertag, 15 septembre) ; jouer soigné en Réaliste gagne 20, 27 et 20 fois sur 30, donc pas
+  forcément du premier coup. Kanalkampf demande aussi des avions abattus (30), une chasse
+  gardée et des convois mieux livrés (80 % pour les HX, 70 % pour le convoi côtier) ; Adlertag
   compte les heures où ses aérodromes et ses radars sont hors service sur toute la semaine,
-  et ses bases ont moins de carburant d'avance.
+  et ses bases ont moins de carburant d'avance ; le 15 septembre demande 32 avions abattus.
+  Les seuils se rejugent sans rejouer avec `tools/bot/thresholds.mjs`. Deux limites connues,
+  dites au journal : en campagne, le 15 septembre est plus dur que seul ; dans l'Atlantique,
+  jouer soigné en Réaliste ne gagne qu'une fois sur deux.
 - **Fatigue** : l'Alerte 5 min fatigue un peu, Disponible 30 min repose peu, le Repos repose.
   Des escadrilles laissées toute la semaine à cinq minutes finissent fatiguées : la relève de
   nuit compte. En échange, voler fatigue moins qu'avant (4 points par heure de vol et 1 par
@@ -129,6 +134,11 @@ Mesures au joueur automatique (10 graines par conduite) : 42 à 59 arrêts par p
 d'Atlantique avec les réglages par défaut, contre 50 à 147 avant ; Rester et Chasser gagnent
 9 fois sur 10 en Standard, 5 et 2 fois sur 10 en Réaliste (Chasser gagnait 10 fois sur 10).
 Le détail est au journal, section « Porte du M2.8 ».
+
+Vérifié au M2.10 sur dix graines neuves (11 à 20) : 44 à 66 arrêts par partie (moyenne 54, dix
+parties sur cent au-delà de 60) ; sur les vingt graines, Rester et Chasser gagnent 17 fois sur
+20 en Standard, 9 et 7 fois sur 20 en Réaliste, et le jeu soigné 19 et 10 fois sur 20. Le
+détail est au journal, « L'Atlantique sur dix graines neuves ».
 
 ## Nouveautés du M2.7
 
@@ -569,7 +579,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 376 tests, environ quatre minutes
+npm test          # les 385 tests, environ quatre minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : leçons, pages, fiches, corrections, quarts, menu, interface

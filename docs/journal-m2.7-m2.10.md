@@ -1060,3 +1060,300 @@ En Réaliste, le joueur automatique gagne aussi en jouant simple (8 à 9 sur 10)
 le Réaliste dur pour un joueur (plots en retard, pas d'aide, ordres au cap) ne le gêne pas.
 La campagne en Réaliste jouée simplement de bout en bout n'est jamais gagnée : le 15
 septembre demande alors d'engager en masse.
+
+### 19 novembre, 6 h 10 à 9 h 30 — relecture du M2.10 par un agent neuf
+
+Un agent qui n'avait pas vu le travail a relu le lot au commit `6154cd9`, contre les critères
+du document (C6 à C9, I5, I6, I10, « à chaque lot », porte du lot). Arrêté une fois par la
+limite d'usage, puis repris. Il a joué les leçons, les écrans à 1 024 px, les piles, les
+alertes, rechargé cinq sauvegardes réelles de la 2.9.0, et rejoué la mesure sur des graines
+neuves.
+
+**Ce qu'il confirme** : lint propre ; 376 tests verts ; `dist/index.html` identique à la
+construction ; essais de fumée par partie (tutoriel 42 vérifications, interface 29, menus 90,
+quarts 19, scénarios 12, page construite 8) ; le fichier de la mesure, par 13 parties rejouées ;
+C8 (aides des fiches) ; C9 pour les repères, les onglets, le glisser et le tactile ; les taux
+et la cible d'I6 ; le déterminisme ; cinq sauvegardes 2.9.0 qui se chargent et se rejouent.
+
+**Ce qu'il trouve** : aucun point bloquant, neuf points majeurs, une série de mineurs.
+
+| N° | Constat | Suite |
+| --- | --- | --- |
+| 1 | Après une leçon, une nouvelle partie lancée du menu détruisait sans question la partie gardée | Corrigé (`d360975`) : la question est posée pour la partie gardée, et une copie de sécurité est prise |
+| 2 | L'essai de fumée complet était rouge (« plaques empilées », écrit avant les piles) alors que la CI le lance en entier | Corrigé : l'étape est récrite sur les piles ; l'essai complet est rejoué avant la livraison |
+| 3 | « Plus de carburant » se fermait aussitôt (tenue pour répondue dès 1 t en stock) | Corrigé : répondue par un train de carburant en route, ou quand plus aucune escadrille n'attend |
+| 4 | Une décision vieille de six heures de jeu disparaissait sans être comptée | Corrigé : une décision ne vieillit pas ; une information jamais vue passe au journal, non lue |
+| 5 | L'équilibre ne tient que sur les graines 1 à 10 (graines neuves : Kanalkampf Standard simple 12 sur 20, Adlertag 14 sur 20, 15 septembre Réaliste soigné 5 sur 10) | Mesure reprise sur 30 graines, puis 20 de plus ; deux seuils retouchés (voir plus bas) |
+| 6 | « 15 septembre : garder le réglage actuel » non tenu (40 → 32 avions) ; « soigné » y était devenu « en masse » sans le dire | Écart gardé, expliqué et posé comme question ; conduites nommées pour ce qu'elles font (`soigne` = en masse ce jour-là, `prudent` à côté) |
+| 7 | À 1 024 px, fiche ouverte : bandeau d'alerte de 260 × 324 px sur la carte ; la boîte de leçon passait de 88 px sous la fiche | Corrigé : bandeau 260 × 98 px, boîte de leçon à côté de la fiche |
+| 8 | Leçon 1 : faire décoller le 111 Sqn pendant la démonstration sautait les étapes « décollez » et « altitude » | Corrigé : pendant une démonstration l'instructeur a la main ; les conditions se comptent depuis l'étape |
+| 9 | Sous 1 250 px les mots sous les pictogrammes étaient cachés, alors qu'ils tiennent à 1 024 px | Corrigé : mots gardés ; « Non enregistré » réduit à son signe ⚠ à ces largeurs |
+| 10 | L'alerte d'un raid ne se fermait que si un trait finissait sur le raid ; elle revenait pour un raid qui avait bombardé | Corrigé : un ordre de décoller donné pendant l'alerte y répond ; un raid qui a bombardé n'a plus rien à décider |
+| 11 | « Voir » fermait une décision | Corrigé : « Voir » montre l'endroit, la décision reste |
+| 12 | Au-delà de quatre alertes, ce n'était pas la plus ancienne qui partait au journal | Corrigé : numéro d'ordre des alertes ; les plus anciennes non lues partent |
+| 13 | « Effectifs » offert là où il n'y a aucune escadrille de chasse (Atlantique, leçon 3) | Corrigé |
+| 14 | Convoi empilé : plus une cible de tracé ; tout convoi escorté réduit à « 2 » et deux noms ; glisser depuis une pile fermée sans réponse | Corrigé : les unités d'une pile restent des cibles ; un convoi avec son escorte garde son repère et sa plaque ; la carte dit pourquoi rien ne se trace |
+| 15 | Fins de leçon : « Exporter » offert ; scénario de leçon épuisé = « Objectifs non atteints », puis « Rejouer » sans instructeur ; textes à côté de l'écran ; leçon 1 à 5,3 minutes | Corrigé (détail plus bas) |
+| 16 | Textes : restes du tutoriel unique, « menu du haut », touches J et ? absentes de la liste, aide muette sur les piles et les décisions | Corrigé |
+| 17 | `tests/crews.test.js` : borne calculée depuis la règle qu'elle vérifie | Corrigé : borne chiffrée, des deux côtés |
+| 18 | `outS` et `held` ajoutés sans nouveau format de sauvegarde | Vérifié sans danger (lus avec une valeur par défaut) ; note dans `src/save/migrate.js` |
+| 19 | La page écrivait `world.ended` ; « Vue » ne se fermait pas avec Échap ; une big wing qui se rassemble faisait une pile d'elle-même | Corrigé |
+
+### 19 novembre, 9 h 40 à 12 h 30 — suites de la relecture
+
+Commits `d360975` et `6d0c04d`, puis ceux qui suivent. Par thème :
+
+- **Alertes (C6).** Une alerte « à décider » ne vieillit plus ; une information que personne
+  n'a vue passe au journal comme non lue au lieu de disparaître. Chaque alerte porte un
+  numéro d'ordre : au-delà de quatre en attente, ce sont les plus anciennes non lues qui
+  partent au journal, et une alerte chassée du bandeau avant d'avoir pu être lue (moins
+  d'une seconde et demie) reprend sa place dans la file. « Voir » ne ferme que les
+  informations. L'alerte d'un raid se ferme quand une escadrille qui était au sol reçoit
+  l'ordre de décoller (bouton, touche ou tracé, avec ou sans trait jusqu'au raid), et quand le
+  raid a bombardé. Les alertes de stock se tiennent pour répondues par un train en route.
+  Quatre tests de plus dans `tests/alertqueue.test.js` ; le test du carburant, qui décrivait
+  le défaut, est récrit sur la condition que la simulation applique.
+- **Leçons (I10).** Les étapes de démonstration portent `handsOff` dans `data/tutorial.json` :
+  la boîte dit « Regardez… », et un ordre demandé par une touche, un bouton de fiche ou un
+  tracé ne part pas ; la boîte dit pourquoi pendant quelques secondes. Les autres étapes
+  d'attente disent « Le temps passe… », et « À vous… » ne s'affiche plus que quand c'est
+  vrai. Les conditions `airborne` (en montée ou en vol, pas sur le retour) et `seenSince`
+  (vu depuis le début de l'étape) remplacent ce qui laissait sauter deux étapes. Un scénario
+  de leçon qui s'achève avant la leçon ouvre « La leçon s'arrête ici » : pas de verdict, rien
+  d'enregistré dans la campagne, **et la partie gardée dans le navigateur n'est plus
+  retirée** (le même défaut que le n° 1, par un autre chemin) ; « Rejouer la leçon » la
+  redonne avec son instructeur. Textes : les minutes du bilan se comptent sur les heures
+  affichées (« 12:18 … 12:23 » fait cinq minutes) ; « Envoyer EG 1 (Liverpool) » comme sur
+  le bouton ; la fatigue s'affiche maintenant sous le nom de l'escadrille dès qu'elle est
+  fatiguée, ce que la leçon 4 montre du doigt ; le convoi d'une leçon sans dollars n'est plus
+  « payé 0 million ». Leçon 1 raccourcie de 435 à 395 mots.
+- **Piles (C9).** Un convoi et son escorte gardent le repère du convoi (navires, cap) et sa
+  plaque (navires, nœuds), avec le nombre et, dessous, « avec EG 2 » : c'est la vue la plus
+  courante de la mer, elle ne doit rien perdre. Les unités d'une pile restent des cibles
+  pour le tracé d'un autre groupe. Un glisser depuis une pile fermée ne trace toujours rien et
+  ne prend toujours rien en main (c'est la règle du document), mais la carte le dit pendant
+  quatre secondes : « 2 unités ici : cliquez pour choisir laquelle, puis tracez sa route ».
+  Les escadrilles d'une big wing en rassemblement comptent pour une unité : seule, la wing
+  n'est plus une pile ; avec une autre escadrille, elle a un onglet.
+- **Largeur 1 024 px.** Le bandeau d'alerte se replie sur ses boutons (260 × 98 px au lieu
+  de 260 × 324) ; la boîte de leçon se loge à côté de la fiche ; les mots restent sous les
+  pictogrammes ; « Non enregistré » se réduit à ⚠ (sa bulle et le journal disent le reste),
+  faute de quoi la barre passait sur deux lignes à Adlertag.
+- **Divers.** « Effectifs » demande une escadrille de chasse. « Vue » se ferme avec Échap. La
+  page n'écrit plus dans le monde de la simulation pour dire qu'une leçon est finie
+  (`app.dropped`). Aide : piles, décisions, compteur du bouton Journal, touches J et ? ; plus
+  de « tutoriel guidé » ni de « menu du haut ».
+
+**Deux vérifications de l'essai de fumée ont changé de forme, pas d'exigence.** « Un glisser
+depuis une pile fermée ne donne aucun ordre » reste telle quelle, et une vérification
+s'ajoute (la carte le dit). La durée d'une leçon se juge maintenant à cinq minutes au plus
+(cinq et demie avant) : 4,9 · 3,7 · 3,6 · 3,3 minutes à une première lecture.
+
+**Un test a changé de borne parce que la règle a changé.** « Une heure de vol fatigue » :
+plus de 5 points avant le lot (7 par heure de vol et 2 par décollage), entre 4,5 et 5,5
+points maintenant (4 et 1). C'est le déplacement voulu par I6 : la fatigue vient moins des
+sorties et davantage des heures passées en alerte. La borne est de nouveau un chiffre, et
+elle encadre des deux côtés.
+
+### 19 novembre, 10 h 45 à 11 h 40 — l'équilibre repris sur 30 graines, vérifié sur 20 autres
+
+Le relecteur avait raison sur le fond : les seuils du lot avaient été choisis et mesurés sur
+les mêmes dix graines. Pour sortir de là sans rejouer à chaque essai, un outil joue les
+batailles une fois et garde ce que mesure chaque objectif, quelle que soit sa barre ; les
+mêmes parties se rejugent ensuite sous d'autres seuils en une seconde
+(`tools/bot/thresholds.mjs`, versé au dépôt ; les chiffres ci-dessous viennent de sa première
+version, hors dépôt, sur les mêmes parties). Sous les seuils du jeu, ses verdicts sont ceux
+du jeu pour les 910 parties, sans exception.
+
+Collecte : 630 parties sur les graines 1 à 30 (toutes les lignes des trois batailles), puis
+280 sur les graines 31 à 50, jamais vues pendant le réglage (les lignes qui portent les trois
+règles). Victoires, sur le nombre de parties :
+
+| Bataille, seuil | Conduite | Graines 1 à 30 | Graines 31 à 50 | Les 50 |
+| --- | --- | --- | --- | --- |
+| Kanalkampf, CW à 75 % (le lot) | Standard, simple | 20 sur 30 | 12 sur 20 | 32 (64 %) |
+| | Réaliste, soigné | 18 sur 30 | 12 sur 20 | 30 (60 %) |
+| **Kanalkampf, CW à 70 %** | Standard, rien | 0 sur 30 | 0 sur 20 | 0 |
+| | Standard, simple | 23 sur 30 | 16 sur 20 | **39 (78 %)** |
+| | Standard, sans chasse | 0 sur 30 | 0 sur 20 | 0 |
+| | Réaliste, simple | 17 sur 30 | 14 sur 20 | 31 (62 %) |
+| | Réaliste, soigné | 20 sur 30 | 14 sur 20 | **34 (68 %)** |
+| Kanalkampf, CW à 66 % | Standard, simple | 25 sur 30 | 17 sur 20 | 42 (84 %) |
+| | Réaliste, soigné | 24 sur 30 | 16 sur 20 | 40 (80 %) |
+| **Adlertag, chasse à 45 % (le lot)** | Standard, rien | 0 sur 30 | 0 sur 20 | 0 |
+| | Standard, simple | 22 sur 30 | 16 sur 20 | **38 (76 %)** |
+| | Standard, sans ravitaillement | 0 sur 30 | 0 sur 20 | 0 |
+| | Réaliste, simple | 26 sur 30 | 18 sur 20 | 44 (88 %) |
+| | Réaliste, soigné | 27 sur 30 | 20 sur 20 | **47 (94 %)** |
+| Adlertag, chasse à 44 % | Standard, simple | 26 sur 30 | 17 sur 20 | 43 (86 %) |
+| | Standard, sans ravitaillement | 2 sur 30 | 0 sur 20 | 2 |
+| **15 septembre, 32 avions (le lot)** | Standard, rien | 0 sur 30 | 0 sur 20 | 0 |
+| | Standard, simple | 25 sur 30 | 13 sur 20 | **38 (76 %)** |
+| | Réaliste, simple | 21 sur 30 | 16 sur 20 | 37 (74 %) |
+| | Réaliste, soigné (en masse) | 20 sur 30 | 14 sur 20 | **34 (68 %)** |
+| 15 septembre, 40 avions (le document) | Standard, simple | 12 sur 30 | 5 sur 20 | 17 (34 %) |
+| | Réaliste, simple | 10 sur 30 | 11 sur 20 | 21 (42 %) |
+| | Réaliste, soigné (en masse) | 20 sur 30 | 14 sur 20 | 34 (68 %) |
+
+Ce que j'en fais :
+
+- **Kanalkampf : le convoi côtier CW se livre à 70 % au lieu de 75 %** (13 navires sur 18 au
+  lieu de 14). À 75 %, jouer simple ne gagnait que 64 fois sur cent : c'était trop dur, et
+  les dix premières graines (8 sur 10) le cachaient. À 70 %, 78 % ; les graines neuves donnent
+  16 sur 20. À 66 % on irait à 84 %, mais le document demandait de *relever* ce seuil (il
+  était à 50 %) : je garde la barre la plus haute qui tient la règle.
+- **Adlertag : rien ne change.** 76 % sur 50 graines, 16 sur 20 sur les neuves : les 14 sur
+  20 du relecteur étaient le bas de la fourchette. Un point de moins (44 %) donnerait 86 % et
+  laisserait gagner deux parties sans aucun train.
+- **15 septembre : 32 avions, l'écart au document reste.** Le document dit « garder le réglage
+  actuel », c'est-à-dire 40 avions. Avec la mesure corrigée des avions abattus (I1), 40 avions
+  ne laisse gagner le jeu simple en Standard que 34 fois sur cent, contre la règle « environ
+  quatre fois sur cinq » du même document. Les deux consignes ne tiennent pas ensemble ; j'ai
+  gardé la règle d'équilibre, qui est aussi la porte du lot, et changé un seul chiffre. C'est
+  la première question du compte rendu : revenir à 40 tient en une ligne de
+  `data/scenarios/quinze-septembre.json`.
+- **« Soigné » le 15 septembre.** La conduite qui gagne ce jour-là en Réaliste est d'engager
+  en masse, comme le dit l'aide du scénario ; la prudence qui gagne à Adlertag (deux
+  escadrilles par raid, chasses libres laissées) y gagne 18 fois sur 30 à 32 avions et 4 fois
+  sur 30 à 40. Le joueur automatique le dit maintenant : `soigne` est « en masse » ce
+  jour-là, et la conduite `prudent` reste dans la matrice pour montrer l'écart.
+
+Sur les 50 graines, les trois règles, bataille par bataille : ne rien faire, 0 sur 50 partout ;
+jouer simple en Standard, 78 %, 76 % et 76 % ; jouer soigné en Réaliste, 68 %, 94 % et 68 %.
+
+### Mesure finale du M2.10 (19 novembre, 11 h 50 à 12 h 25)
+
+Joueur automatique, **30 graines par conduite** pour les trois batailles et la campagne : 720
+parties au commit `4f9af6a` (copie figée, `tools/bot/out/m2.10-final.jsonl`), sans une erreur.
+« Avant » est la mesure du M2.9 sur les graines 1 à 10, identique à celle du M2.8.
+
+| Scénario | Préréglage | Conduite | Avant (1 à 10) | Après (1 à 10) | Après (11 à 30) | Après (1 à 30) | Objectifs manqués après |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Kanalkampf | Standard | rien | 0 sur 10 | 0 sur 10 | 0 sur 20 | **0 sur 30** | convois, avions abattus |
+| Kanalkampf | Standard | simple | 10 sur 10 | 8 sur 10 | 15 sur 20 | **23 sur 30** | un convoi 6 fois, avions abattus 1 fois |
+| Kanalkampf | Standard | sans chasse | 10 sur 10 | 0 sur 10 | 0 sur 20 | 0 sur 30 | avions abattus 30 fois, convois 12 fois |
+| Kanalkampf | Réaliste | simple | 10 sur 10 | 8 sur 10 | 9 sur 20 | 17 sur 30 | un convoi 9 fois, avions abattus 5 fois |
+| Kanalkampf | Réaliste | soigné | 10 sur 10 | 9 sur 10 | 11 sur 20 | **20 sur 30** | un convoi 9 fois, avions abattus 1 fois |
+| Adlertag | Standard | rien | 0 sur 10 | 0 sur 10 | 0 sur 20 | **0 sur 30** | heures hors service, avions abattus, convoi |
+| Adlertag | Standard | simple | 9 sur 10 | 8 sur 10 | 14 sur 20 | **22 sur 30** | chasse 8 fois |
+| Adlertag | Standard | sans ravitaillement | 10 sur 10 | 0 sur 10 | 0 sur 20 | 0 sur 30 | panne sèche 26 fois |
+| Adlertag | Standard | 1 par raid | 5 sur 10 | 1 sur 10 | 0 sur 20 | 1 sur 30 | avions abattus 28 fois, heures hors service 18 fois |
+| Adlertag | Standard | 2 par raid | 9 sur 10 | 7 sur 10 | 18 sur 20 | 25 sur 30 | avions abattus 3 fois, heures hors service 2 fois |
+| Adlertag | Standard | 4 par raid | 2 sur 10 | 1 sur 10 | 0 sur 20 | 1 sur 30 | chasse 29 fois |
+| Adlertag | Réaliste | simple | 10 sur 10 | 9 sur 10 | 17 sur 20 | 26 sur 30 | chasse 4 fois |
+| Adlertag | Réaliste | soigné | 10 sur 10 | 10 sur 10 | 17 sur 20 | **27 sur 30** | heures hors service 3 fois |
+| 15 septembre | Standard | rien | 0 sur 10 | 0 sur 10 | 0 sur 20 | **0 sur 30** | avions abattus, docks |
+| 15 septembre | Standard | simple | 5 sur 10 | 8 sur 10 | 17 sur 20 | **25 sur 30** | avions abattus 5 fois |
+| 15 septembre | Standard | 2 par raid | 4 sur 10 | 8 sur 10 | 12 sur 20 | 20 sur 30 | avions abattus 8 fois, docks 2 fois |
+| 15 septembre | Standard | 4 par raid | 10 sur 10 | 10 sur 10 | 20 sur 20 | 30 sur 30 | — |
+| 15 septembre | Réaliste | simple | 7 sur 10 | 8 sur 10 | 13 sur 20 | 21 sur 30 | avions abattus 9 fois |
+| 15 septembre | Réaliste | soigné (en masse ce jour-là) | 9 sur 10 | 9 sur 10 | 11 sur 20 | **20 sur 30** | chasse 10 fois |
+| 15 septembre | Réaliste | prudent (le « soigné » d'avant) | 1 sur 10 | 5 sur 10 | 13 sur 20 | 18 sur 30 | avions abattus 12 fois |
+| Campagne | Standard | simple | 0 sur 10 | 5 sur 10 | 3 sur 20 | 8 sur 30 | 16 chaînes arrivent au 15 septembre |
+| Campagne | Réaliste | simple | 0 sur 10 | 0 sur 10 | 0 sur 20 | 0 sur 30 | 14 chaînes arrivent au 15 septembre |
+| Campagne | Réaliste | soigné | 0 sur 10 | 8 sur 10 | 5 sur 20 | 13 sur 30 | 18 chaînes arrivent au 15 septembre |
+| Campagne | Réaliste | simple, puis en masse le 15 | 4 sur 10 | 6 sur 10 | 4 sur 20 | 10 sur 30 | 14 chaînes arrivent au 15 septembre |
+
+(« Avant », la conduite en masse du 15 septembre gagnait 9 fois sur 10 et la conduite prudente
+1 fois sur 10 : la seconde s'appelait alors « soigné ».)
+
+**La campagne est trois victoires de suite, sans rejouer une bataille perdue** : avec des
+batailles gagnées trois fois sur quatre, une chaîne sur deux arrive au bout, pas davantage.
+Mais la mesure montre autre chose, que les dix premières graines cachaient : **en campagne, le
+15 septembre est plus dur que seul**. La chasse y commence avec ce qu'Adlertag a laissé
+(75 à 79 % en Standard, 60 à 72 % en Réaliste) et les 32 avions à abattre ne changent pas.
+Jouer simple y gagne 8 fois sur 16 en Standard et jamais en Réaliste (0 sur 14) ; engager en
+masse y gagne 13 fois sur 18. L'objectif de chasse est déjà mesuré sur les avions présents au
+début (I1) ; celui des avions abattus ne l'est pas. Je n'y touche pas dans ce lot — c'est une
+règle, pas un seuil — et je le pose en question au compte rendu.
+
+**Atlantique** : le lot n'y change rien (`git diff` vide sur `src/sim`, les règles et le
+scénario depuis la mesure du M2.9) ; les 100 parties mesurées au commit `efc6bb7` sont
+identiques une à une à celles du M2.8.
+
+**Autres mesures, machine au repos** : pas de simulation le plus long, 15,1 ms sur dix parties
+(aucun au-delà de 20 ms ; `tools/bot/perf.mjs`) ; 59,6 images par seconde à ×14 400, fiche
+ouverte ou non, aucune image au-delà de 50 ms (`tools/smoke/fps.mjs`).
+
+### 19 novembre, 12 h 25 à 12 h 55 — l'Atlantique sur dix graines neuves
+
+Ce qui valait pour les batailles aériennes valait pour la mer : le réglage du M2.8 avait été
+fait et mesuré sur les graines 1 à 10. J'ai donc rejoué les dix conduites sur les graines 11
+à 20 (100 parties, même commit ; `tools/bot/out/m2.10-atl.jsonl`). Le lot M2.10 ne change
+rien à la mer : c'est une vérification du M2.8, faite ici parce que la porte du M2.10 dit
+« partout ».
+
+| Préréglage | Conduite | Graines 1 à 10 | Graines 11 à 20 | Les 20 | Avec le seuil du document (8 %) |
+| --- | --- | --- | --- | --- | --- |
+| Standard | rien | 0 sur 10 | 0 sur 10 | **0 sur 20** | 0 sur 20 |
+| Standard | simple (Rester, le défaut) | 9 sur 10 | 8 sur 10 | **17 sur 20** | 18 sur 20 |
+| Standard | Chasser | 9 sur 10 | 8 sur 10 | 17 sur 20 | 19 sur 20 |
+| Standard | Chasser, grenadage économe | 8 sur 10 | 9 sur 10 | 17 sur 20 | 18 sur 20 |
+| Standard | soigné | 9 sur 10 | 10 sur 10 | 19 sur 20 | 20 sur 20 |
+| Standard | deux avions achetés le premier jour | 3 sur 10 | 0 sur 10 | 3 sur 20 | 3 sur 20 |
+| Réaliste | Rester | 5 sur 10 | 4 sur 10 | 9 sur 20 | 10 sur 20 |
+| Réaliste | Chasser | 2 sur 10 | 5 sur 10 | 7 sur 20 | 14 sur 20 |
+| Réaliste | soigné | 7 sur 10 | 3 sur 10 | **10 sur 20** | 15 sur 20 |
+
+Arrêts par partie : 42 à 59 sur les graines 1 à 10 en Standard (moyenne 51), 44 à 66 sur les
+graines 11 à 20 (moyenne 54) ; en Réaliste 47 à 61, puis 44 à 64. **Sur les cent parties
+neuves, dix dépassent la cible de 60 arrêts, de un à six arrêts.**
+
+Ce que cela dit, sans fard :
+
+- « Ne rien faire perd » et « jouer simple gagne environ quatre fois sur cinq en Standard »
+  tiennent dans l'Atlantique sur vingt graines (0 et 17 sur 20).
+- « Aucune conduite sûre de gagner » tient aussi : la meilleure est à 19 sur 20.
+- **« Jouer soigné gagne en Réaliste » n'y tient qu'à moitié : 10 sur 20.** Les dix premières
+  graines disaient 7 sur 10. Les pertes de cette conduite tournent autour du seuil (de 3,9 à
+  9,8 %, médiane 7,5 %) : un navire de plus ou de moins fait le verdict.
+- Le seuil du document, 8 %, que j'avais abaissé à 7,5 % au M2.8 pour qu'aucune conduite ne
+  gagne à coup sûr, donnerait 15 sur 20 au jeu soigné en Réaliste, mais 20 sur 20 au jeu
+  soigné en Standard. Aucun seuil unique ne tient les deux à la fois ; l'idée C de l'audit
+  (bronze, argent, or), remise à plus tard, est faite pour cela.
+- La cible de 30 à 60 arrêts du M2.8 est tenue en moyenne (51 à 54), pas par chaque partie.
+
+Je ne retouche pas la mer à la dernière heure : un nouveau réglage demande une règle, pas un
+seuil, puis 200 parties de quarante secondes à chaque essai. C'est dit au compte rendu, avec
+les chiffres, et posé en question.
+
+### Porte du M2.10
+
+Critère du document : « les trois règles d'équilibre tenues partout ; tutoriel joué de bout en
+bout ».
+
+- **Tutoriel joué de bout en bout : tenu.** L'essai de fumée joue les quatre leçons du menu à
+  leur dernière étape, avec les gestes d'un élève (tracé, train, stock minimum, bouton du
+  rapport de quart, consigne, repos, rappel), et les marque faites. Durées : 4,9 · 3,7 · 3,6 ·
+  3,3 minutes à une première lecture.
+- **Ne rien faire perd nettement, dans chaque scénario : tenu.** 0 sur 50 dans les trois
+  batailles, 0 sur 20 dans l'Atlantique.
+- **Jouer simple gagne environ quatre fois sur cinq en Standard : tenu de près, par le bas.**
+  Kanalkampf 39 sur 50, Adlertag 38 sur 50, 15 septembre 38 sur 50, Atlantique 17 sur 20.
+- **Jouer soigné gagne en Réaliste, pas forcément au premier essai : tenu dans les trois
+  batailles, à moitié dans l'Atlantique.** Kanalkampf 34 sur 50, Adlertag 47 sur 50,
+  15 septembre 34 sur 50 ; Atlantique 10 sur 20.
+- **À chaque lot** : branche `m2.10` et demande de fusion ; 385 tests, lint et
+  construction de `dist/index.html` verts ; aucun test affaibli (une borne a suivi une règle
+  changée exprès, voir plus haut) ; déterminisme (mêmes graine et ordres, même monde,
+  sauvegarde et reprise comprises) ; joueur automatique avant et après, sur 30 graines et non
+  10 pour les batailles ; 10 000 ordres au hasard par scénario, avec sauvegardes et reprises ;
+  essai de fumée complet (223 vérifications, développement et fichier unique ouvert
+  depuis le disque) ; README à jour.
+
+**La porte est franchie pour l'essentiel, avec trois réserves que je ne veux pas enrober** :
+le jeu simple en Standard est plutôt à trois fois sur quatre qu'à quatre fois sur cinq ; le
+15 septembre tient sa règle au prix d'un écart au document (32 avions au lieu de 40) ; et
+dans l'Atlantique, jouer soigné en Réaliste ne gagne qu'une fois sur deux sur vingt graines.
+
+**Ce qui reste ouvert dans ce lot** : en campagne, le 15 septembre est plus dur que seul (les
+avions à abattre ne suivent pas la chasse reportée) ; les suites de la relecture n'ont pas été
+relues par un second agent ; à 1 024 px, fiche ouverte, il reste 284 px de carte ; aucun
+humain n'a joué l'équilibre, qui est mesuré au joueur automatique.
+
+**Écarts au document, pour le compte rendu** : 15 septembre à 32 avions ; conduite « soignée »
+en masse ce jour-là ; convoi côtier de Kanalkampf à 70 % ; Adlertag en heures hors service
+cumulées et bases à 40 % de carburant ; vol moins fatigant ; alertes à décider qui se ferment
+à l'ordre et que « Voir » ne ferme pas ; convoi escorté en pile qui garde sa plaque ; mot de
+la carte sur un glisser depuis une pile fermée ; pas d'ordre pendant une démonstration ;
+Effectifs masqué sans escadrille de chasse ; tutoriel d'origine remplacé par quatre leçons.
