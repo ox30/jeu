@@ -5,7 +5,7 @@
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatTime } from '../core/time.js';
 import { distance, unproject } from '../sim/geo.js';
-import { cargoShare } from '../sim/convoy.js';
+import { cargoShare, plannedExit } from '../sim/convoy.js';
 import { RESOURCES, fuelDays, fullTrain, inbound, trainHours } from '../sim/logistics.js';
 import { escortStrength, portChoices } from '../sim/naval.js';
 import { canHunt } from '../sim/asw.js';
@@ -424,15 +424,23 @@ export function joinLines(app, e) {
   ].join('');
 }
 
-/** In port: the way out (roads or a channel); `sail`: the « Appareiller » button with it. */
+/**
+ * In port: the way out as the first step of the group's orders (none, the roads, a channel).
+ * Chosen here, it stands under « Route et étapes », where it is taken away, drawn longer and
+ * given its end. `sail`: the « Appareiller » button with it.
+ */
 export function exitLines(app, e, { sail = true } = {}) {
   const w = app.world;
   const port = w.byId.port.get(e.portId);
   const channels = (port && port.approaches) || [];
-  const list = [{ value: '', label: t('orders.exitRoads') }, ...channels.map((a) => ({ value: a.name, label: t('orders.exitChannel', { name: a.name }) }))];
+  const list = [
+    { value: '', label: t('orders.exitNone') },
+    { value: 'roads', label: t('orders.exitRoads') },
+    ...channels.map((a) => ({ value: a.name, label: t('orders.exitChannel', { name: a.name }) })),
+  ];
   return `<div class="order-line">${sail ? button('sail', t('orders.escortSail'), { id: e.id, kind: 'escort' }) : ''}
-    ${channels.length ? `<label class="small">${escapeHtml(t('orders.exitBy'))} <select id="exit-channel-${escapeHtml(e.id)}" data-change="exit-channel" data-id="${escapeHtml(e.id)}">${options(list, e.exitChannel || '')}</select></label>` : ''}</div>
-    <p class="hint">${escapeHtml(t('orders.exitHint'))}</p>`;
+    ${channels.length ? `<label class="small">${escapeHtml(t('orders.exitBy'))} <select id="exit-channel-${escapeHtml(e.id)}" data-change="exit-channel" data-id="${escapeHtml(e.id)}">${options(list, plannedExit(e) || '')}</select></label>` : ''}</div>
+    <p class="hint">${escapeHtml(t(channels.length ? 'orders.exitHint' : 'orders.exitHintNoChannel'))}</p>`;
 }
 
 export function escortSheet(app, e) {

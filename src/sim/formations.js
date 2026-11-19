@@ -84,6 +84,7 @@ function hearsLeader(world, e, leader) {
 /** A follower flies to its leader and keeps station (the big wing mechanics, silently). */
 export function linkToLeader(s, leader) {
   s.route = [];
+  if (s.kind === 'escort') s.routeHead = 0;
   s.plan = [];
   s.legState = null;
   s.vector = null;
@@ -518,9 +519,11 @@ function updateNaval(world, f) {
       if (e.state === 'inPort') leavePort(world, e, goal[0], goal[1]);
       if (e.state === 'waiting') e.state = 'atSea';
       // Its own route (one it had before joining) gives way to the leader's; the channel out
-      // of port is kept.
-      if (e.state === 'atSea' && e.route.length > (e.routeLocked || 0)) {
-        e.route = [];
+      // of port is kept (its `routeHead` points; in a game saved before 2.10.3, a route that
+      // was all way out was all « locked »).
+      const wayOut = Math.max(Math.min(e.routeHead || 0, e.route.length), e.destination ? 0 : Math.min(e.routeLocked || 0, e.route.length));
+      if (e.state === 'atSea' && e.route.length > wayOut) {
+        e.route = e.route.slice(0, Math.min(e.routeHead || 0, e.route.length));
         e.routeLocked = 0;
       }
       e.plan = [];

@@ -5,7 +5,7 @@
 
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatDate, formatShortDate, formatTime } from '../core/time.js';
-import { distance, unproject } from '../sim/geo.js';
+import { distance, polylineLength, unproject } from '../sim/geo.js';
 import { gridRef } from '../sim/grid.js';
 import { convoyRemainingKm, currentSpeed, fullKnots, shipThrottle } from '../sim/convoy.js';
 import { shownPosition } from '../sim/comms.js';
@@ -369,13 +369,44 @@ function interceptBlock(app, s) {
   return `<div class="order-line intercepts">${buttons.join('')}</div><p class="hint">${escapeHtml(t('orders.interceptHint'))}</p>`;
 }
 
+/**
+ * The way out of port at the head of an escort group's orders (its exit step): what it is and
+ * how far it leads, with a cross to take it away while the group is in port; then the line
+ * drawn after it, with its own cross. What follows (legs, the end) is listed below as usual.
+ */
+function exitStepBlock(app, e) {
+  if (e.kind !== 'escort') return '';
+  const head = Math.min(e.routeHead || 0, e.route.length);
+  if (!head) return '';
+  const inPort = e.state === 'inPort';
+  // The exit it was given, in port or under way. None given: the way out its line or its
+  // order chose by itself (a line drawn from port, a convoy to meet).
+  const exit = e.exitChannel || (e.exitPlanned ? 'roads' : null);
+  const name = exit === 'roads' ? t('orders.exitStepRoads') : exit ? t('orders.exitStepChannel', { name: exit }) : t(inPort ? 'orders.exitAuto' : 'orders.exitUnderWay');
+  const wayOut = e.route.slice(0, head);
+  const line = e.route.slice(head);
+  const cross = (title) => ({ id: e.id, kind: 'escort', extra: ` title="${escapeHtml(title)}"`, cls: 'icon' });
+  const rows = [`<li class="exit-step"><span class="leg-text">${escapeHtml(name)}</span>
+    <span class="leg-status">${escapeHtml(kmText(polylineLength([[e.x, e.y], ...wayOut])))}</span>${inPort ? button('exit-remove', '×', cross(t('orders.exitRemove'))) : ''}</li>`];
+  if (line.length) {
+    rows.push(`<li><span class="leg-text">${escapeHtml(t('orders.lineStep', { n: line.length, s: line.length > 1 ? 's' : '' }))}</span>
+      <span class="leg-status">${escapeHtml(kmText(polylineLength([wayOut[head - 1], ...line])))}</span>${button('line-remove', '×', cross(t('orders.lineRemove')))}</li>`);
+  }
+  const headings = app.world.settings.orders === 'headings';
+  return `<div class="sub">${escapeHtml(t('orders.exitTitle'))}</div><ul class="legs steps">${rows.join('')}</ul>
+    ${inPort ? `<p class="hint">${escapeHtml(t(headings ? 'orders.exitStepHintHeadings' : 'orders.exitStepHint'))}</p>` : ''}`;
+}
+
 /** The list of legs (or the route being followed) of a unit. */
 function planList(app, u) {
   const w = app.world;
   const moving = u.kind === 'squadron' ? isFlying(u) : u.state === 'atSea';
-  const parts = [`<div class="sub">${escapeHtml(t('orders.plan'))}</div>`];
-  if (u.route && u.route.length && !u.plan.length) {
-    parts.push(`<p class="hint">${escapeHtml(t('orders.followingRoute', { n: u.route.length, s: u.route.length > 1 ? 's' : '' }))}</p>`);
+  // (An escort group's way out of port is its exit step, listed first: not a line of the player's.)
+  const head = u.kind === 'escort' ? Math.min(u.routeHead || 0, u.route.length) : 0;
+  const own = u.route ? u.route.length - head : 0;
+  const parts = [exitStepBlock(app, u), `<div class="sub">${escapeHtml(t('orders.plan'))}</div>`];
+  if (own > 0 && !u.plan.length) {
+    parts.push(`<p class="hint">${escapeHtml(t(moving ? 'orders.followingRoute' : 'orders.waitingRoute', { n: own, s: own > 1 ? 's' : '' }))}</p>`);
   } else if (!u.plan.length) {
     parts.push(`<p class="hint">${escapeHtml(moving ? t('orders.noLeg') : t('orders.noLegReady'))}</p>`);
   } else {
@@ -449,7 +480,9 @@ function shipEndLine(app, e) {
   const list = shipEndChoices(w, e).map((a) => ({ value: a.id ? `${a.kind}:${a.id}` : a.kind, label: shipEndText(w, a) }));
   const a = e.endAction || { kind: 'stop' };
   const current = a.id ? `${a.kind}:${a.id}` : a.kind;
-  return `<div class="order-line"><label class="grow">${escapeHtml(t('orders.endAction'))} <select id="ship-end-${escapeHtml(e.id)}" data-change="ship-end" data-id="${escapeHtml(e.id)}">${options(list, current)}</select></label></div>`;
+  // With nothing after its way out of port, the end is the end of that way out.
+  const bare = !e.plan.length && e.route.length > 0 && (e.routeHead || 0) >= e.route.length;
+  return `<div class="order-line"><label class="grow">${escapeHtml(t(bare ? 'orders.endActionExit' : 'orders.endAction'))} <select id="ship-end-${escapeHtml(e.id)}" data-change="ship-end" data-id="${escapeHtml(e.id)}">${options(list, current)}</select></label></div>`;
 }
 
 function shipEndText(w, a) {
@@ -941,7 +974,7 @@ function sailBlock(app, c) {
   if (c.schedule && !c.schedule.join) {
     return `<div class="order-line scheduled"><span class="grow">${escapeHtml(t('orders.sailScheduled', { time: clockText(w, c.schedule.at) }))}${c.schedule.delayed ? ` · ${escapeHtml(t('orders.waiting'))}` : ''}</span>
       ${button('schedule-cancel', t('orders.cancel'), { id: c.id, kind: c.kind })}</div>
-      <p class="hint">${escapeHtml(t('orders.sailScheduledHint'))}</p>`;
+      <p class="hint">${escapeHtml(t(c.kind === 'escort' ? 'orders.sailScheduledHintEscort' : 'orders.sailScheduledHint'))}</p>`;
   }
   if (c.schedule && c.schedule.join) {
     const f = formationById(w, c.schedule.join);
@@ -1029,13 +1062,18 @@ function escortPanel(app, e) {
       section(app, 'home', t('sec.home'), ordersBox(homePortLine(app, e))),
     ].join('');
   } else {
+    // In port the route comes right under the way out and the sailing: the exit step chosen
+    // there is listed here, to be drawn longer and given its end.
+    const route = es.planUnit ? routeSection(app, e) : '';
+    const inPort = e.state === 'inPort';
     cmd = [
-      e.state === 'inPort' || e.state === 'refit' ? section(app, 'port', t('sec.port'), ordersBox(e.state === 'inPort' ? exitLines(app, e, { sail: false }) : '', sailBlock(app, e))) : '',
+      inPort || e.state === 'refit' ? section(app, 'port', t('sec.port'), ordersBox(inPort ? exitLines(app, e, { sail: false }) : '', sailBlock(app, e))) : '',
+      inPort ? route : '',
       commsLines(app, e) ? section(app, 'comms', t('sec.comms'), ordersBox(commsLines(app, e))) : '',
       section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, e))),
       e.state === 'refit' ? '' : section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, e, { behaviour: false }))),
       atSea ? section(app, 'home', t('sec.home'), ordersBox(homePortLine(app, e))) : '',
-      es.planUnit ? routeSection(app, e) : '',
+      inPort ? '' : route,
       section(app, 'group', t('sec.group'), ordersBox(joinGroupBlock(app, e), formationLine(app, e)), false),
     ].join('');
   }
@@ -1236,10 +1274,11 @@ function formationPanel(app, f) {
     cmd = [
       planned ? `<p class="hint">${escapeHtml(t('rally.underWay'))}</p>` : '',
       !planned && leader.state === 'inPort' ? section(app, 'port', t('sec.port'), ordersBox(exitLines(app, leader, { sail: false }), sailBlock(app, leader))) : '',
+      canMove && leader.state === 'inPort' ? routeSection(app, leader) : '',
       section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, leader))),
       section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, leader, { behaviour: false }))),
       atSea ? section(app, 'home', t('sec.home'), ordersBox(homePortLine(app, leader))) : '',
-      canMove ? routeSection(app, leader) : '',
+      canMove && leader.state !== 'inPort' ? routeSection(app, leader) : '',
       section(app, 'manage', t('sec.manage'), ordersBox(manage, `<p class="hint">${escapeHtml(t('unit.groupHint'))}</p>`), false),
     ].join('');
   }

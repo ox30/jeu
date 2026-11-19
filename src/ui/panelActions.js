@@ -7,7 +7,7 @@ import {
   activePoint, addRulerLeg, addTypedLeg, cancelConfirm, cancelEditLeg, centreOn, changeAltitude,
   changePointAltitude, clearPointAltitude, deletePoint, findUnit, orderAdmiraltyRoute,
   orderAlertChecked, orderAskPosition, orderBoost, orderBreakOff, orderCancelSchedule, orderClearPlan, orderCommsCancel, orderCommsCarry,
-  orderCover, orderDissolve, orderEndAction, orderEscortBehaviour, orderEscortHome, orderEscortPattern, orderExitChannel,
+  orderCover, orderDissolve, orderDropLine, orderEndAction, orderEscortBehaviour, orderEscortHome, orderEscortPattern, orderExitChannel,
   orderHome, orderHuntPlot, orderHuntStop, orderIntercept, orderJoin,
   orderLaunchWaiting, orderLeave, orderLeaveFormationOf, orderMerge, orderMinStock, orderNewFormation,
   orderOffer, orderOrbit, orderRally, orderRemoveLeg, orderRoe, orderRosterAdd,
@@ -119,6 +119,9 @@ export const PANEL_ACTIONS = {
   },
   'add-ruler-leg': (app, { unit }) => unit && addRulerLeg(app, unit),
   'clear-plan': (app, { unit }) => unit && orderClearPlan(app, unit),
+  // The exit step of a group in port, and the line drawn after it.
+  'exit-remove': (app, { unit }) => unit && unit.kind === 'escort' && orderExitChannel(app, unit, ''),
+  'line-remove': (app, { unit }) => unit && unit.kind === 'escort' && orderDropLine(app, unit),
   'remove-leg': (app, { unit, b }) => unit && orderRemoveLeg(app, unit, Number(b.dataset.index)),
 
   // ---- ships ----
@@ -263,6 +266,9 @@ export const PANEL_CHANGES = {
   'exit-channel': (app, { id, target }) => {
     const e = app.world.escorts.find((x) => x.id === id);
     if (e) orderExitChannel(app, e, target.value);
+    // The step chosen shows at once under « Route et étapes »: a list left open would hold
+    // the sheet as it was.
+    target.blur();
   },
   'roster-override': (app, { sq, target }) => sq && orderRosterOverride(app, sq, target.checked),
   'rally-wait': (app, { id, target }) => {

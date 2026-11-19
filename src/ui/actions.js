@@ -4,7 +4,7 @@ import { t } from '../core/i18n.js';
 import { bearing, distance, simplifyPolyline } from '../sim/geo.js';
 import { contactEstimate } from '../sim/query.js';
 import {
-  addLeg, clearPlan, departConvoy, setExitChannel, setSpeedPct, editableRoute, removeLeg, removeRoutePoint, returnToBase, routeCanExtend, scramble,
+  addLeg, clearPlan, departConvoy, setSpeedPct, editableRoute, removeLeg, removeRoutePoint, returnToBase, routeCanExtend, scramble,
   sendTrain, setAltitude, setCover, setEndAction, setMinStock, setOrbit, setPointAltitude, setRoute, setSpeed, setVector, updateLeg, interceptRaid,
   setAlert, followSquadron, leaveFormation, planGroundRoute,
 } from '../sim/orders.js';
@@ -13,7 +13,7 @@ import { cancelOrder, carryByShip, requestPosition, sendOrder, shownPosition } f
 import { clockHour } from '../sim/watch.js';
 import { buyOffer } from '../sim/shipping.js';
 import { feetOf, squadronSpeed } from '../sim/squadron.js';
-import { currentSpeed, legSpeed, shipThrottle } from '../sim/convoy.js';
+import { currentSpeed, legSpeed, planExit, shipThrottle } from '../sim/convoy.js';
 import { parseLegEnd } from '../sim/navigation.js';
 import { deployMru } from '../sim/mru.js';
 import { animateTo, toScreen, toWorld, viewFrame } from '../render/camera.js';
@@ -471,10 +471,26 @@ export function orderSail(app, convoy) {
   app.dirtyPanels = true;
 }
 
-/** How a group (its support group) goes out of port: the roads, or a channel. */
-export function orderExitChannel(app, escort, name) {
-  for (const e of groupsOf(app, escort)) setExitChannel(app.world, e, name || null);
+/**
+ * The way out of port as the first step of a group's orders (of every group of its support
+ * group): 'roads', the name of a channel, or nothing to take the step away.
+ */
+export function orderExitChannel(app, escort, choice) {
+  let dropped = false;
+  for (const e of groupsOf(app, escort)) {
+    const done = planExit(app.world, e, choice || null);
+    if (e === escort && done.ok && done.dropped && choice) dropped = true;
+  }
+  // The line drawn after the old way out could not be joined to the new one by sea.
+  if (dropped) sheetMessage(app, t('orders.exitLineDropped'));
   app.dirtyPanels = true;
+}
+
+/** The line drawn after the way out of port is taken away; the way out (the exit step) stays. */
+export function orderDropLine(app, escort) {
+  const sent = shipOrder(app, escort, 'editRoute', []);
+  app.dirtyPanels = true;
+  return sent.ok;
 }
 
 /** The groups an order goes to: the support group of `escort`, or the group alone. */
@@ -791,7 +807,7 @@ export function deletePoint(app, u, index) {
   } else {
     const pts = routeCopy(u);
     if (index < 0 || index >= pts.length) return false;
-    if (pts.length === 1 && !u.destination) {
+    if (pts.length === 1 && !u.destination && !(u.routeHead > 0)) {
       sheetMessage(app, t('orders.errors.lastPoint'));
       return false;
     }
@@ -805,6 +821,7 @@ export function deletePoint(app, u, index) {
 /** A line drawn from the end of a route lengthens it. */
 export function extendRoute(app, u, screenPoints) {
   if (!routeCanExtend(u)) return false;
+  // (From the ring at the end of an exit step: the route so far is all way out, and stays.)
   const simplified = simplifyPolyline(screenPoints, 3);
   const added = simplified.slice(1).map(([sx, sy]) => [...toWorld(app.camera, sx, sy), null]);
   if (!added.length) return false;

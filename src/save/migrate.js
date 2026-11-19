@@ -29,6 +29,13 @@ export class SaveError extends Error {
 // the campaign cut it to the fighters carried over; absent = the count is the scenario's).
 // The objectives come back as they were saved: a campaign battle begun before 2.10.2 keeps
 // the count it began with.
+// Version 2.10.3 too: two fields on an escort group, declared with their defaults
+// (declareFields, naval.js): `routeHead` (the points of its charted way out of port, at the
+// head of its route; absent = 0) and `exitPlanned` (an exit step given in port; absent =
+// false). What 2.10.2 wrote in their place — the way out counted in `routeLocked`, a channel
+// chosen kept as a bare name — is read again as 2.10.3 keeps it at the first step of the game
+// (adoptWayOut, convoy.js): a group that waited in port with its channel sails, a group going
+// down its channel has its line back in the player's hands. No migration, nothing lost.
 // A new part of the world, or a field that cannot be defaulted, takes a new number and a
 // migration here (the check of the parts in src/save/game.js refuses a « complete » save
 // that lacks one).

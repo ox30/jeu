@@ -5,7 +5,7 @@ import { clockColorIndex, formatTime } from '../core/time.js';
 import { FOOT_M, distance, greatCircle, headingOf, polylineLength, project, scaleX, sphereKm } from '../sim/geo.js';
 import { columnLetter } from '../sim/grid.js';
 import { solveIntercept } from '../sim/intercept.js';
-import { editableRoute, navigationEnd, planTrack, routeCanExtend } from '../sim/orders.js';
+import { editableRoute, navigationEnd, planTrack, routeCanExtend, wayOutEnd } from '../sim/orders.js';
 import { contactEstimate, nearestContact, visiblePlots } from '../sim/query.js';
 import { feetOf, isFlying, squadronSpeed } from '../sim/squadron.js';
 import { currentSpeed } from '../sim/convoy.js';
@@ -993,10 +993,15 @@ function drawEscorts(ctx, cam, app, alpha) {
       const c = world.convoys.find((x) => x.id === e.huntFor);
       if (c && selected) pencilLine(ctx, [[sx, sy], shipScreen(app, cam, c, alpha).slice(0, 2)], { color: 'rgba(79, 96, 112, 0.5)', width: 1, dash: [2, 5], arrow: false });
     }
-    if (e.state === 'atSea' || e.state === 'waiting') {
+    // In port, what waits for the order to sail (the group in hand, or one with its hour
+    // set): its exit step and the line after it, or its legs from the end of the way out.
+    const waiting = e.state === 'inPort' && (selected || Boolean(e.schedule));
+    if (e.state === 'atSea' || e.state === 'waiting' || waiting) {
       if (e.route.length) {
-        pencilLine(ctx, [[sx, sy], ...e.route.map(([x, y]) => toScreen(cam, x, y))], { color: 'rgba(79, 96, 112, 0.8)', width: 1.4, dash: [6, 5] });
-        if (selected && e.endAction && e.endAction.kind !== 'stop' && !e.homeward) {
+        // (In hand in port: the pencil of the legs, heavier than the chart's own channel under it.)
+        const style = waiting && selected ? { color: 'rgba(47, 79, 111, 0.9)', width: 2, dash: [7, 4] } : { color: 'rgba(79, 96, 112, 0.8)', width: 1.4, dash: [6, 5] };
+        pencilLine(ctx, [[sx, sy], ...e.route.map(([x, y]) => toScreen(cam, x, y))], style);
+        if (selected && !e.plan.length && e.endAction && e.endAction.kind !== 'stop' && !e.homeward) {
           const [lx, ly] = toScreen(cam, e.route[e.route.length - 1][0], e.route[e.route.length - 1][1]);
           ctx.font = `italic 11px ${FONTS.serif}`;
           ctx.textAlign = 'left';
@@ -1004,7 +1009,9 @@ function drawEscorts(ctx, cam, app, alpha) {
           ctx.fillStyle = 'rgba(47, 79, 111, 0.95)';
           ctx.fillText(shipEndLabel(world, e), lx + 10, ly + 12);
         }
-      } else {
+      }
+      // (A group leaving port by its way out has its legs after it: both are drawn.)
+      if (!e.route.length || (e.plan.length && (waiting || e.routeHead >= e.route.length))) {
         drawPlanTrack(ctx, cam, app, e, selected);
       }
       if (e.joinTarget) {
@@ -1993,9 +2000,16 @@ function drawRouteEditor(ctx, cam, app, alpha) {
     }
   }
   if (app.world.settings.orders === 'headings') return;
-  const pts = editableRoute(u);
-  if (!pts) return;
-  const [ux, uy] = unitScreen(cam, u, alpha);
+  const pts = editableRoute(u) || [];
+  // An escort group's way out of port (its exit step, the channel it is going down) has no
+  // point of the player's to move, but its end is where the route is drawn longer from.
+  const tip = pts.length ? null : wayOutEnd(u);
+  if (!pts.length && !tip) return;
+  // What comes before the first point of the player's: the end of the way out, or the unit.
+  const first = pts.length ? u.route.indexOf(pts[0]) : u.route.length;
+  const lead = first > 0 ? u.route[first - 1] : null;
+  const [ux, uy] = lead ? toScreen(cam, lead[0], lead[1]) : unitScreen(cam, u, alpha);
+  const fromWorld = lead ? [lead[0], lead[1]] : [u.x, u.y];
   const drag = app.routeDrag && app.routeDrag.id === u.id && app.routeDrag.kind === u.kind ? app.routeDrag : null;
   const screen = pts.map((p) => toScreen(cam, p[0], p[1]));
   if (drag) {
@@ -2026,7 +2040,7 @@ function drawRouteEditor(ctx, cam, app, alpha) {
       ctx.moveTo(mx, my - 3);
       ctx.lineTo(mx, my + 3);
       ctx.stroke();
-      app.hits.push({ kind: 'routeMid', unitKind: u.kind, id: u.id, index: i, x: mx, y: my, wx: (pts[i][0] + (i ? pts[i - 1][0] : u.x)) / 2, wy: (pts[i][1] + (i ? pts[i - 1][1] : u.y)) / 2, r: 7, priority: -1 });
+      app.hits.push({ kind: 'routeMid', unitKind: u.kind, id: u.id, index: i, x: mx, y: my, wx: (pts[i][0] + (i ? pts[i - 1][0] : fromWorld[0])) / 2, wy: (pts[i][1] + (i ? pts[i - 1][1] : fromWorld[1])) / 2, r: 7, priority: -1 });
     }
     prev = [x, y];
   });
@@ -2057,8 +2071,10 @@ function drawRouteEditor(ctx, cam, app, alpha) {
   });
   // Ring beyond the last point: drag from it to draw the route longer.
   if (routeCanExtend(u)) {
-    const [lx, ly] = screen[screen.length - 1];
-    const [px, py] = screen.length > 1 ? screen[screen.length - 2] : [ux, uy];
+    const [lx, ly] = screen.length ? screen[screen.length - 1] : toScreen(cam, tip[0], tip[1]);
+    // (With nothing of the player's yet, the ring stands beyond the end of the way out.)
+    const wayBack = u.route.length > 1 ? u.route[u.route.length - 2] : null;
+    const [px, py] = screen.length > 1 ? screen[screen.length - 2] : screen.length ? [ux, uy] : wayBack ? toScreen(cam, wayBack[0], wayBack[1]) : unitScreen(cam, u, alpha);
     const len = Math.hypot(lx - px, ly - py) || 1;
     const kx = lx + ((lx - px) / len) * 20;
     const ky = ly + ((ly - py) / len) * 20;

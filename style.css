@@ -347,6 +347,8 @@ button {
 .legs li .leg-text { font-family: "Courier New", Courier, monospace; font-weight: bold; }
 .legs li .leg-status { color: var(--ink-soft); font-style: italic; margin-left: 4px; }
 .legs li.current .leg-text { color: var(--raf-blue); }
+/* The way out of port at the head of a group's orders, and the line after it: not numbered legs. */
+ul.legs.steps { list-style: none; padding-left: 0; }
 .orders button.icon, .legs button.icon { padding: 0 6px; margin-left: 4px; font-size: 13px; line-height: 16px; background: transparent; border: 1px solid #b9a77f; border-radius: 3px; }
 .message { margin: 4px 0; padding: 4px 6px; border-radius: 3px; font-size: 12px; }
 .message.warning { background: #f6e3b8; color: #6b4408; border: 1px solid #d9b56a; }

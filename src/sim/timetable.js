@@ -162,7 +162,10 @@ function runWing(world, f) {
 
 // ---- scheduled sailings ----
 
-/** A convoy or an escort group in port sails at `at` with the route or legs it has. */
+/**
+ * A convoy or an escort group in port sails at `at` with the route or legs it has; a group
+ * with nothing prepared goes out to the roads.
+ */
 export function scheduleSail(world, c, at) {
   if (!Number.isFinite(at) || (c.state !== 'inPort' && c.state !== 'refit')) return null;
   c.schedule = { id: nextId(world), at: Math.round(at), delayed: false };
@@ -197,7 +200,10 @@ function runSail(world, c) {
     c.schedule = null; // already at sea
     return;
   }
-  if (c.plan.length) {
+  if (c.kind === 'escort' || c.plan.length) {
+    // An escort group sails at its hour as it does on « Appareiller »: by its exit step and
+    // what follows it (a line, legs), or out to the roads when nothing was prepared, to wait
+    // there for orders. (Until 2.10.2 a group with neither line nor legs never left.)
     c.schedule = null;
     departConvoy(world, c);
   } else if (c.route.length) {

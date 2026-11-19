@@ -6,7 +6,7 @@ import { KNOT_KMH, bearing, distance, headingVector, polylineLength, project, un
 import { clearAtSea, fieldJoin, seaKmToPort, seaPath } from './searoute.js';
 import { emit } from './events.js';
 import { solveIntercept } from './intercept.js';
-import { acceptingPorts, currentSpeed, stepShip } from './convoy.js';
+import { acceptingPorts, adoptWayOut, currentSpeed, stepShip } from './convoy.js';
 import { canHunt, dive, endHunt, engage, isSubmerged, rearm, spotAttacker, startHunt, stepHunt, willCounter } from './asw.js';
 import { callBoats, noteConvoy } from './bdu.js';
 import { inClosedWaters, moveTo, openForUboat, steerUboat, uboatSpot } from './uboatnav.js';
@@ -84,7 +84,12 @@ declareFields('escort', (e, world) => {
 declareFields('escort', (e) => {
   e.berthed = e.state === 'inPort' || e.state === 'refit'; // alongside: leaving takes escortGroups.sailDelayH to cast off
   e.leftConvoy = null; // convoy it was ordered to leave: it does not take station again by itself
-  e.exitChannel = null; // how it goes out of port: null (the roads) or a channel's name
+  // Its exit step, given in port (convoy.js, planExit): the channel it goes out by (null: the
+  // roads), and whether a step was given at all. `routeHead`: the first points of its route
+  // that are its charted way out of port, which the player cannot move.
+  e.exitChannel = null;
+  e.exitPlanned = false;
+  e.routeHead = 0;
   e.boost = false; // sprinting above its sea speed (endurance burnt faster)
   e.boostKn = null;
   e.dry = false; // out of fuel: into port at a crawl (dryKn)
@@ -150,6 +155,10 @@ function enterPort(world, e, port) {
   e.x = port.x;
   e.y = port.y;
   e.route = [];
+  e.routeHead = 0;
+  // The exit step was this sortie's: the next one is prepared afresh.
+  e.exitChannel = null;
+  e.exitPlanned = false;
   e.plan = [];
   e.legState = null;
   e.destination = null;
@@ -164,6 +173,7 @@ function join(world, e, c) {
   e.escorting = c.id;
   e.joinTarget = null;
   e.route = [];
+  e.routeHead = 0;
   e.plan = [];
   e.legState = null;
   emit(world, 'escortJoined', { escort: e.name, escortId: e.id, convoy: c.name, convoyId: c.id });
@@ -255,6 +265,7 @@ export function sendEscortHome(world, e, portId = null) {
   e.homeward = true;
   if (way) {
     e.route = way.route;
+    e.routeHead = 0;
     e.routeLocked = way.locked;
     e.destination = port.id;
   }
@@ -352,6 +363,7 @@ function steerForConvoy(world, e) {
     const path = seaPath(world, [e.x, e.y], [c.x, c.y]);
     if (path && path.length > 1) {
       e.route = path.slice(0, -1);
+      e.routeHead = 0;
       e.routeLocked = 0;
     }
   }
@@ -417,6 +429,8 @@ export function updateEscort(world, e, dt) {
   e.px = e.x;
   e.py = e.y;
   const R = world.rules.escortGroups;
+  // (A way out of port written by a game saved before 2.10.3 is read as it is now kept.)
+  adoptWayOut(world, e);
   if (e.state === 'refit' || e.state === 'inPort') {
     stayInPort(world, e, dt);
     return;

@@ -177,6 +177,7 @@ function followRoute(world, u, dt, onArrive) {
       u.y = wy;
       remaining -= d;
       u.route.shift();
+      if (u.routeHead > 0) u.routeHead--; // one point less of its charted way out of port
       if (u.routeLocked > u.route.length) u.routeLocked = u.route.length;
     } else {
       u.x += (dx / d) * remaining;
@@ -209,6 +210,7 @@ function checkPilot(world, u) {
       if (distance(u.x, u.y, gx, gy) > N.pilotKm) continue;
       u.route = approach.points.map(([x, y]) => [x, y]);
       u.routeLocked = u.route.length;
+      if (u.kind === 'escort') u.routeHead = 0;
       u.plan = [];
       u.legState = null;
       u.destination = port.id;
@@ -434,19 +436,108 @@ export function harbourOf(world, u) {
  * How an escort group in port goes out (route points from the harbour): to the roads, close
  * to the port; or, when the player chose a channel (e.exitChannel, « Nord de l'Irlande »), down
  * that channel to its far end; or, toward a line drawn from port starting at (x, y), down the
- * channels until the open sea reaches it.
+ * channels until the open sea reaches it. The roads asked for as an exit step (e.exitPlanned
+ * without a channel) are the roads, wherever the line drawn after them leads.
  */
 export function harbourWayOut(world, e, x = null, y = null) {
   const port = world.byId.port.get(e.portId);
   if (!port) return [];
   const channel = e.exitChannel ? (port.approaches || []).find((a) => a.name === e.exitChannel) : null;
   if (channel) return channel.points.slice(0, -1).reverse().map(([px, py]) => [px, py]);
-  if (x !== null && y !== null) {
+  if (!e.exitPlanned && x !== null && y !== null) {
     const out = channelOut(world, port, x, y);
     if (out.length) return out;
   }
   const roads = harbourExit(world, e.portId, x, y);
   return roads ? [roads] : [];
+}
+
+/** How many of the first points of a route follow a charted channel of a port, outward. */
+export function chartedRun(world, route) {
+  if (!route.length) return 0;
+  const same = (p, q) => Math.abs(p[0] - q[0]) < 1e-9 && Math.abs(p[1] - q[1]) < 1e-9;
+  let best = 0;
+  for (const port of world.byId.port.values()) {
+    for (const a of port.approaches || []) {
+      const out = a.points.slice(0, -1).reverse();
+      const i = out.findIndex((p) => same(p, route[0]));
+      if (i < 0) continue;
+      let n = 0;
+      while (i + n < out.length && n < route.length && same(out[i + n], route[n])) n++;
+      best = Math.max(best, n);
+    }
+  }
+  return best;
+}
+
+/**
+ * A game saved before 2.10.3 counted a group's way out of port in `routeLocked`, with the
+ * way into port and at the wrong end, and kept the channel chosen as a bare name. Both are
+ * read again as what they now are: the head of the route (`routeHead`), and in port an exit
+ * step. Nothing of a game of today matches (there a lock always has its port, a channel
+ * chosen is always a step). Returns true when something was read again.
+ */
+export function adoptWayOut(world, e) {
+  if (e.kind !== 'escort') return false;
+  const oldStep = e.state === 'inPort' && Boolean(e.exitChannel) && !e.exitPlanned;
+  const oldLock = (e.routeLocked || 0) > 0 && !e.destination && !(e.routeHead > 0) && e.route.length > 0;
+  if (!oldStep && !oldLock) return false;
+  if (oldStep && !e.route.length) return planExit(world, e, e.exitChannel).ok;
+  const run = chartedRun(world, e.route);
+  if (oldStep) {
+    // (A route waiting in port that follows no channel: the name alone meant nothing.)
+    e.exitPlanned = run > 0;
+    if (!run) e.exitChannel = null;
+    e.routeHead = run;
+    e.routeLocked = e.destination ? Math.min(e.routeLocked || 0, e.route.length - run) : 0;
+  } else {
+    e.routeHead = Math.min(run, e.routeLocked);
+    e.routeLocked = 0;
+  }
+  return true;
+}
+
+/** The exit step of a group in port: null (none), 'roads', or the name of a channel. */
+export function plannedExit(e) {
+  if (e.kind !== 'escort' || e.state !== 'inPort') return null;
+  return e.exitChannel || (e.exitPlanned ? 'roads' : null);
+}
+
+/**
+ * The way out of port as the first step of a group's orders, given in port: 'roads' (just
+ * off the port), the name of a channel (down it to its far end), or null to take the step
+ * away. The step is the head of the route that waits in port for the order to sail
+ * (« Appareiller », or the hour of a scheduled sailing): `routeHead` points the player cannot
+ * move. A line drawn after it is kept and joined by sea to the new way out; taking the
+ * step away takes that line with it (it started at its end). Legs prepared stay as they are:
+ * they start where the way out ends. Returns { ok, reason, kept, dropped }.
+ */
+export function planExit(world, e, choice) {
+  if (e.kind !== 'escort' || e.state !== 'inPort') return { ok: false, reason: 'state' };
+  const port = world.byId.port.get(e.portId);
+  const channels = (port && port.approaches) || [];
+  if (choice && choice !== 'roads' && !channels.some((a) => a.name === choice)) return { ok: false, reason: 'channel' };
+  // What was drawn after the way out (its end in a port included: it is found again).
+  const line = e.route.slice(Math.min(e.routeHead || 0, e.route.length)).map(([x, y]) => [x, y]);
+  const bare = () => {
+    e.routeHead = e.route.length;
+    e.routeLocked = 0;
+    e.destination = null;
+    e.homeward = false;
+  };
+  if (!choice) {
+    e.exitChannel = null;
+    e.exitPlanned = false;
+    e.route = [];
+    bare();
+    return { ok: true, kept: false, dropped: line.length > 0 };
+  }
+  e.exitChannel = choice === 'roads' ? null : choice;
+  e.exitPlanned = true;
+  if (line.length && !e.plan.length && routeConvoy(world, e, line).ok) return { ok: true, kept: true, dropped: false };
+  e.route = harbourWayOut(world, e);
+  bare();
+  return { ok: true, kept: false, dropped: line.length > 0 && !e.plan.length };
 }
 
 function applyApproach(world, c, full) {
@@ -482,7 +573,7 @@ function applyApproach(world, c, full) {
  * A route ending close to a British port is extended into the port.
  * Returns { ok, reason, at, destination }.
  */
-export function routeConvoy(world, c, points) {
+export function routeConvoy(world, c, points, { keepHead = false } = {}) {
   if (c.state === 'arrived' || c.state === 'lost' || c.state === 'refit') return { ok: false, reason: 'arrived' };
   if (c.dry) return { ok: false, reason: 'dry' }; // out of fuel: only « Rentrer au port »
   if (c.state === 'escorting' && c.kind !== 'escort') return { ok: false, reason: 'arrived' };
@@ -498,6 +589,9 @@ export function routeConvoy(world, c, points) {
   if (c.kind === 'escort' && c.state === 'inPort') {
     const out = harbourWayOut(world, c, pts[0][0], pts[0][1]);
     if (out.length) roads = out;
+  } else if (c.kind === 'escort' && keepHead && c.routeHead > 0 && c.route.length >= c.routeHead) {
+    // Still on its charted way out of port, and only the line after it is changed: it keeps it.
+    roads = c.route.slice(0, c.routeHead).map(([x, y]) => [x, y]);
   } else if (c.kind === 'escort' && !clearAtSea(world, [c.x, c.y], pts[0], 0.5)) {
     // A group still in a harbour (at the roads, say): out by the charted channel first.
     const port = harbourOf(world, c);
@@ -544,8 +638,12 @@ export function routeConvoy(world, c, points) {
 
   c.route = pts;
   c.routeVersion = (c.routeVersion || 0) + 1; // a new routing signal (the B-Dienst may read it)
-  c.routeLocked = Math.max(locked, roads ? roads.length : 0);
+  c.routeLocked = locked;
   if (c.kind === 'escort') {
+    // The charted way out is the head of the route: its points are not the player's to move.
+    // (Until 2.10.2 it was counted with the way into port, at the wrong end: a group that
+    // left port on a line drawn could have neither a point moved nor its route lengthened.)
+    c.routeHead = roads ? roads.length : 0;
     c.homeward = Boolean(destination);
     // A route drawn for a group with a convoy, or hunting, takes it away: it does not take
     // station again with that convoy by itself; and the hunt is over.
@@ -559,8 +657,9 @@ export function routeConvoy(world, c, points) {
   }
   c.plan = [];
   c.legState = null;
-  // A sailing ordered for later: the route waits in port until then (timetable.js).
-  if (!(c.schedule && c.state === 'inPort')) c.state = 'atSea';
+  // A sailing ordered for later, or an exit step given in port: the route waits there for
+  // its hour, or for the order to sail (timetable.js, planExit above).
+  if (!(c.state === 'inPort' && (c.schedule || c.exitPlanned))) c.state = 'atSea';
   c.destination = destination ? destination.id : null;
   if (c.kind === 'escort') c.joinTarget = null;
   const etaMs = world.startMs + (world.t + polylineLength(full) / routeSpeed(c)) * 1000;
@@ -574,10 +673,20 @@ export function routeConvoy(world, c, points) {
   return { ok: true, destination };
 }
 
-/** Points of a ship's route that the player can move: all but the channel into port. */
-export function editablePoints(c) {
+/** How a route is made: `head` points of the way out of port, the line, `locked` points into port. */
+function routeParts(c) {
   const locked = Math.min(c.routeLocked || 0, c.route.length);
-  return c.route.slice(0, c.route.length - locked);
+  const head = Math.min(c.routeHead || 0, c.route.length - locked);
+  return { head, locked };
+}
+
+/**
+ * Points of a ship's route that the player can move: all but the charted way out of port (the
+ * first `routeHead` points of an escort group) and the channel into port (the last ones).
+ */
+export function editablePoints(c) {
+  const { head, locked } = routeParts(c);
+  return c.route.slice(head, c.route.length - locked);
 }
 
 /**
@@ -586,13 +695,23 @@ export function editablePoints(c) {
  */
 export function editShipRoute(world, c, points) {
   if (c.state !== 'atSea' && c.state !== 'inPort' && c.state !== 'waiting') return { ok: false, reason: 'arrived' };
-  const locked = Math.min(c.routeLocked || 0, c.route.length);
-  if (!c.destination || !locked) return routeConvoy(world, c, points);
+  const { head, locked } = routeParts(c);
+  if (!points.length && head) {
+    // The line after the way out is taken away: the way out stays, and ends the route.
+    c.route = c.route.slice(0, head);
+    c.routeLocked = 0;
+    c.destination = null;
+    c.homeward = false;
+    c.routeVersion = (c.routeVersion || 0) + 1;
+    return { ok: true, destination: null };
+  }
+  if (!c.destination || !locked) return routeConvoy(world, c, points, { keepHead: true });
   const tail = c.route.slice(c.route.length - locked);
-  const route = [...points.map(([x, y]) => [x, y]), ...tail];
+  const route = [...c.route.slice(0, head), ...points.map(([x, y]) => [x, y]), ...tail];
   const rules = world.rules.convoy;
-  const full = [[c.x, c.y], ...route];
-  const skipStart = c.state === 'inPort' && !c.anchored ? rules.harbourMarginKm : 0;
+  // From the end of the way out on (the harbour channel is charted), or from the ship.
+  const full = head ? route.slice(head - 1) : [[c.x, c.y], ...route];
+  const skipStart = !head && c.state === 'inPort' && !c.anchored ? rules.harbourMarginKm : 0;
   const land = world.terrain.findLandOnRoute(full, skipStart, rules.harbourMarginKm);
   if (land) {
     emit(world, 'convoyRouteRejected', { convoy: c.name, convoyId: c.id, x: land[0], y: land[1], unitKind: c.kind });

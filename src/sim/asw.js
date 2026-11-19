@@ -192,6 +192,7 @@ export function startHunt(world, e, x, y, { stay = false, quiet = false } = {}) 
   e.huntStay = stay;
   e.huntUntil = world.t + (stay ? A.engagement.stayMaxS : huntLimitS(world, e, x, y));
   e.route = [];
+  e.routeHead = 0;
   e.plan = [];
   e.legState = null;
   if (!quiet) emit(world, 'escortHunting', { escort: e.name, escortId: e.id, convoy: world.convoys.find((c) => c.id === e.huntFor)?.name || '', x, y });

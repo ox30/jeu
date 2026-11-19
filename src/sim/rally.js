@@ -292,6 +292,7 @@ function sailMember(world, f, e) {
   } else {
     e.state = 'atSea';
     e.route = [[p.x, p.y]];
+    e.routeHead = 0;
     e.routeLocked = 0;
   }
   e.plan = [];
@@ -350,6 +351,7 @@ function depart(world, f, p, slow) {
     if (leader.state === 'waiting') leader.state = 'atSea';
     if (r.route.length) {
       leader.route = r.route.map(([x, y]) => [x, y]);
+      leader.routeHead = 0;
       leader.routeLocked = 0;
     }
     for (const e of membersOf(world, f).slice(1)) {
@@ -456,6 +458,7 @@ function updateOne(world, f) {
       } else if (u.state === 'atSea' && distance(u.x, u.y, leader.x, leader.y) <= SEA_RALLY_KM) {
         u.lateFor = null;
         u.route = [];
+        u.routeHead = 0;
       } else if (u.state === 'atSea' || u.state === 'waiting') behind++;
       else u.lateFor = null;
     }

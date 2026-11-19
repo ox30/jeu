@@ -7,7 +7,7 @@ import { disengage } from './combat.js';
 import {
   aircraftSpec, airfieldsAround, applyEndAction, applyPointAltitude, isFlying, squadronSpeed, startReturn,
 } from './squadron.js';
-import { channelOut, currentSpeed as currentSpeedOf, editShipRoute, editablePoints, fullKnots, harbourWayOut, legSpeed, routeConvoy } from './convoy.js';
+import { channelOut, currentSpeed as currentSpeedOf, editShipRoute, editablePoints, fullKnots, harbourWayOut, legSpeed, planExit, routeConvoy } from './convoy.js';
 import { projectPlan, resolveClock } from './navigation.js';
 import { airfieldDelayFactor, isOperational } from './sites.js';
 import { distance } from './geo.js';
@@ -17,7 +17,7 @@ import { interceptChance } from './control.js';
 import { ALERT_STATES, changeAlert, scrambleSeconds, strength, tire } from './crews.js';
 import { dispatchTrain } from './logistics.js';
 
-export { editShipRoute, routeConvoy };
+export { editShipRoute, planExit, routeConvoy };
 
 function copyLegs(legs) {
   return (legs || []).map((leg) => ({ ...leg, end: leg.end ? { ...leg.end } : null }));
@@ -184,17 +184,38 @@ export function editableRoute(u) {
     const moving = u.state === 'airborne' || u.state === 'scrambling';
     return moving && u.route.length ? u.route : null;
   }
-  if ((u.kind === 'convoy' || u.kind === 'escort') && u.state === 'atSea' && u.route.length) {
+  if (shipRouteOpen(u)) {
     const pts = editablePoints(u);
     return pts.length ? pts : null;
   }
   return null;
 }
 
+/**
+ * A ship's route the player can work on: at sea, or the route of an escort group that waits
+ * in port (its exit step and the line after it, until the order to sail).
+ */
+function shipRouteOpen(u) {
+  if (u.kind !== 'convoy' && u.kind !== 'escort') return false;
+  return u.route.length > 0 && (u.state === 'atSea' || (u.kind === 'escort' && u.state === 'inPort'));
+}
+
 /** Ships whose route goes into port keep their channel: no point can be added beyond it. */
 export function routeCanExtend(u) {
   if (u.kind === 'squadron') return true;
   return !(u.destination && (u.routeLocked || 0) > 0);
+}
+
+/**
+ * Where a ship's route can be drawn longer from, when none of its points is the player's to
+ * move: the end of the way out of port an escort group is given (its exit step, or the
+ * channel it is going down). [x, y], or null.
+ */
+export function wayOutEnd(u) {
+  if (!shipRouteOpen(u) || u.kind !== 'escort' || !routeCanExtend(u)) return null;
+  if (editablePoints(u).length) return null;
+  const p = u.route[u.route.length - 1];
+  return [p[0], p[1]];
 }
 
 /** Where the current route or legs of a squadron end, or null (no end, or open leg). */
@@ -348,9 +369,10 @@ function speedFn(world, u) {
 export function planTrack(world, u, legs = u.plan) {
   const N = world.rules.navigation;
   let start = null;
-  if (u.kind === 'escort' && u.state === 'inPort' && legs.length) {
-    // An escort group goes out to the roads (or down the channel chosen); its legs start there.
-    const out = harbourWayOut(world, u);
+  if (u.kind === 'escort' && legs.length && (u.state === 'inPort' || u.route.length)) {
+    // An escort group goes out to the roads, or by the way out it was given (its exit step:
+    // the route that waits in port, or the one it is following out); its legs start there.
+    const out = u.route.length ? u.route : harbourWayOut(world, u);
     if (out.length) {
       let km = 0;
       let prev = [u.x, u.y];
@@ -407,10 +429,18 @@ function takePlan(world, u, legs) {
     u.route = [];
     u.vector = null;
   } else {
-    u.route = [];
+    // An escort group in port keeps the way out it was given (its exit step): the legs start
+    // at its end. The line drawn after it gives way to the legs, as any route does.
+    const inPort = u.kind === 'escort' && u.state === 'inPort';
+    u.route = inPort ? u.route.slice(0, Math.min(u.routeHead || 0, u.route.length)) : [];
     if (u.kind === 'escort') {
       u.joinTarget = null;
       u.homeward = false;
+      u.routeHead = u.route.length; // what is left is its way out, or nothing
+      if (inPort) {
+        u.routeLocked = 0;
+        u.destination = null;
+      }
     }
     if (u.state === 'atSea' || u.state === 'waiting') {
       if (!u.plan.length) u.legState = null;
@@ -492,21 +522,26 @@ export function clearPlan(world, u) {
  */
 export function sailEscort(world, e) {
   if (e.kind !== 'escort' || e.state !== 'inPort') return false;
-  e.route = harbourWayOut(world, e);
-  e.routeLocked = e.route.length;
+  if (!e.route.length) {
+    // Nothing waiting in port (no exit step, no line): out to the roads, the way out all its route.
+    e.route = harbourWayOut(world, e);
+    e.routeHead = e.route.length;
+    e.routeLocked = 0;
+    e.destination = null;
+    e.homeward = false;
+  }
   e.state = 'atSea';
   e.legState = null;
-  e.destination = null;
-  e.homeward = false;
   emit(world, 'convoySailed', { convoy: e.name, convoyId: e.id, unitKind: e.kind });
   return true;
 }
 
-/** The way out of port for a group: null (the roads) or the name of a channel. */
+/**
+ * The way out of port for a group, as its exit step (planExit, convoy.js): the name of a
+ * channel, or null to take the step away. Returns the channel kept, or null.
+ */
 export function setExitChannel(world, e, name) {
-  const port = e.portId ? world.byId.port.get(e.portId) : null;
-  e.exitChannel = name && port && (port.approaches || []).some((a) => a.name === name) ? name : null;
-  return e.exitChannel;
+  return planExit(world, e, name || null).ok ? e.exitChannel : null;
 }
 
 /** A convoy (or an escort group) in port sails on its plan. */
@@ -569,9 +604,13 @@ export function leavePort(world, e, x, y) {
   e.state = 'atSea';
   e.destination = null;
   e.legState = null;
-  // Down the charted channel until the open sea leads to (x, y).
+  // An order to go now (a convoy to meet, a leader to follow) takes the place of what was
+  // prepared in port: down the charted channel until the open sea leads to (x, y).
+  e.exitChannel = null;
+  e.exitPlanned = false;
   e.route = channelOut(world, port, x, y);
-  e.routeLocked = e.route.length;
+  e.routeHead = e.route.length;
+  e.routeLocked = 0;
 }
 
 /** The group sails (or turns) to meet a convoy and take station with it. */
@@ -590,6 +629,7 @@ export function joinConvoy(world, e, convoyId) {
   else {
     e.state = 'atSea';
     e.route = [];
+    e.routeHead = 0;
   }
   e.joinTarget = convoyId;
   e.leftConvoy = null;
