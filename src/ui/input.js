@@ -18,6 +18,7 @@ import {
   scrambleSquadron, select,
   revealSelection, selectedFormation, selectedSquadron, selectedUnit, setActivePoint, orderBoost, togglePause,
 } from './actions.js';
+import { viewOffered } from './offered.js';
 import { membersOf } from '../sim/formations.js';
 import { answerShown } from './questions.js';
 import { speedIndexOfKey } from './keys.js';
@@ -302,6 +303,9 @@ export function attachInput(app) {
 
   window.addEventListener('keydown', (e) => {
     app.unlockAudio();
+    // On the main menu the keys of the game do nothing: no order, no speed, no answer given
+    // unseen to a question (the menu has its own Escape).
+    if (app.onMenu) return;
     const target = e.target;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) return;
     if (document.querySelector('dialog[open]')) return;
@@ -328,11 +332,11 @@ export function attachInput(app) {
     } else if (speedIndex >= 0) {
       requestSpeed(app, speedIndex);
     } else if (key === 'a' || key === 'A') {
-      goView(app, 'atlantic');
+      if (viewOffered(app, 'atlantic')) goView(app, 'atlantic');
     } else if (key === 'g' || key === 'G') {
-      goView(app, 'england');
+      if (viewOffered(app, 'england')) goView(app, 'england');
     } else if (key === 'l' || key === 'L') {
-      goView(app, 'britain');
+      if (viewOffered(app, 'britain')) goView(app, 'britain');
     } else if (key === 'r' || key === 'R') {
       app.setTool(app.tool === 'ruler' ? null : 'ruler');
     } else if (key === 'c' || key === 'C') {

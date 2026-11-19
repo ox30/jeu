@@ -8,8 +8,8 @@ import { escapeHtml, t } from '../core/i18n.js';
 import { formatShortDate, formatTime, parseGameDate } from '../core/time.js';
 import { VERSION } from '../core/version.js';
 import { campaignChain, nextInChain, saveCampaign, scenarioIds, scenarioStatus, trainingId } from './campaign.js';
-import { autosave, exportGame, gameInProgress, importText, loadEntry, manualSave, newGame, saveCurrent, saveErrorText } from './game.js';
-import { openHelp, openSettings } from './dialogs.js';
+import { autosave, exportGame, gameInProgress, loadEntry, manualSave, newGame, readEntry, readFileText, resumeRead, saveCurrent, saveErrorText } from './game.js';
+import { openEnd, openHelp, openSettings } from './dialogs.js';
 import { dateTimeText, realDurationText } from './format.js';
 import { CURRENT } from '../save/store.js';
 import { saveSettings } from '../save/settings.js';
@@ -62,17 +62,21 @@ export function playLengthText(minutes) {
 }
 
 /** Asks a question in a small dialog: resolves true (the `yes` button) or false. */
-export function confirmDialog(app, { heading, text, yes, no = null, danger = false }) {
+export function confirmDialog(app, { heading, text, yes, no = null, danger = false, extra = null }) {
   const dlg = app.el.dlgConfirm;
   return new Promise((resolve) => {
+    // `extra`: a third button ({ label, run }) that does something without answering; what
+    // `run` returns is shown under the buttons.
     dlg.innerHTML = `
       <form method="dialog" class="confirm">
         <h2>${esc(heading)}</h2>
         <p>${esc(text)}</p>
         <div class="dialog-buttons">
           <button type="button" data-confirm="no" class="secondary">${esc(no || t('menu.cancel'))}</button>
+          ${extra ? `<button type="button" data-confirm="extra" class="secondary">${esc(extra.label)}</button>` : ''}
           <button type="button" data-confirm="yes"${danger ? ' class="danger"' : ''}>${esc(yes)}</button>
         </div>
+        <p class="message" data-confirm-message hidden></p>
       </form>`;
     const done = (answer) => {
       dlg.onclose = null;
@@ -81,6 +85,16 @@ export function confirmDialog(app, { heading, text, yes, no = null, danger = fal
     };
     dlg.querySelector('[data-confirm="yes"]').addEventListener('click', () => done(true));
     dlg.querySelector('[data-confirm="no"]').addEventListener('click', () => done(false));
+    if (extra) {
+      dlg.querySelector('[data-confirm="extra"]').addEventListener('click', async () => {
+        const said = await extra.run();
+        const msg = dlg.querySelector('[data-confirm-message]');
+        if (msg && said) {
+          msg.hidden = false;
+          msg.textContent = said;
+        }
+      });
+    }
     dlg.oncancel = (e) => {
       e.preventDefault();
       done(false);
@@ -109,18 +123,43 @@ function gameLine(g) {
 }
 
 /**
+ * The game in hand is kept as an automatic save before something replaces it. When that
+ * fails (a storage full or closed), the player is told and asked again, with the export of
+ * the game at hand: the promise « elle sera gardée » is not one the game breaks in silence.
+ * Resolves false when the player would rather not lose it.
+ */
+async function keepBeforeReplacing(app) {
+  const g = currentGame(app);
+  const r = await autosave(app);
+  if (r.ok || r.code === 'nothing') return true;
+  return confirmDialog(app, {
+    heading: t('menu.notKept.heading'),
+    text: t('menu.notKept.text', { game: g ? gameLine(g) : '' }),
+    yes: t('menu.notKept.yes'),
+    danger: true,
+    extra: {
+      label: t('save.export'),
+      run: async () => {
+        const result = await exportGame(app);
+        return result === 'saved' ? t('menu.notKept.exported') : result === 'failed' ? t('save.exportError') : '';
+      },
+    },
+  });
+}
+
+/**
  * Before a game under way is replaced (a new game, a save loaded, a file imported): asks,
  * and keeps the game replaced as an automatic save. Resolves false when the player says no.
+ * (A lesson of the tutorial is left without a word: it is not a game that is kept.)
  */
 async function mayReplace(app) {
-  if (!gameInProgress(app)) return true;
+  if (!gameInProgress(app) || app.tutorial) return true;
   const g = currentGame(app);
   const ok = await confirmDialog(app, {
     heading: t('menu.replace.heading'), text: t('menu.replace.text', { game: gameLine(g) }), yes: t('menu.replace.yes'),
   });
   if (!ok) return false;
-  await autosave(app);
-  return true;
+  return keepBeforeReplacing(app);
 }
 
 /** Closes the main menu: the game in hand is on the page again. */
@@ -140,9 +179,9 @@ function leaveMenu(app) {
 /** Starts a scenario from the menu (asking first when a game under way would be replaced). */
 async function play(app, scenarioId, { tutorial = false } = {}) {
   if (!(await mayReplace(app))) return;
+  // (The game begins as newGame leaves it: running, or stopped on the first step of a lesson.)
   newGame(app, scenarioId, { tutorial });
   leaveMenu(app);
-  app.paused = false;
 }
 
 /** Back to the game in hand, or to the one kept in the browser. */
@@ -155,6 +194,11 @@ async function continueGame(app) {
       showMainMenu(app, 'home', saveErrorText(r));
       return;
     }
+    // A game that comes back from the browser waits for the player, like any game loaded.
+    leaveMenu(app);
+    app.paused = true;
+    if (app.world.ended) openEnd(app);
+    return;
   }
   leaveMenu(app);
   if (app.menuWasRunning) {
@@ -190,7 +234,13 @@ function homePage(app, message) {
       <button type="button" data-menu="help">${esc(t('menu.help'))}</button>
     </div>
     ${message ? `<p class="message">${esc(message)}</p>` : ''}
-    <p class="hint mm-note">${esc(t('menu.note'))}</p>`;
+    ${storageWarning(app)}
+    ${app.saveProblem && app.store.available ? '' : `<p class="hint mm-note">${esc(t(app.store.available ? 'menu.note' : 'menu.noStorage'))}</p>`}`;
+}
+
+/** A write that failed is told on the menu too, until one succeeds. */
+function storageWarning(app) {
+  return app.saveProblem && app.store.available ? `<p class="message" data-save-problem>${esc(t('save.errors.storage'))}</p>` : '';
 }
 
 /**
@@ -299,6 +349,7 @@ function loadPage(app, message) {
       <label class="file-button">${esc(t('save.import'))}<input type="file" accept=".json,application/json" data-import hidden></label>
     </div>
     ${app.store.available ? '' : `<p class="message">${esc(t('menu.noStorage'))}</p>`}
+    ${storageWarning(app)}
     ${message ? `<p class="message">${esc(message)}</p>` : ''}`;
 }
 
@@ -313,6 +364,8 @@ export function showMainMenu(app, page = 'home', message = '') {
     app.dirtyHud = true;
   }
   app.menuPage = page;
+  // (Another page of the game may have saved since this one last looked.)
+  app.store.refresh();
   const body = page === 'campaign' ? campaignPage(app) : page === 'scenarios' ? scenariosPage(app) : page === 'load' ? loadPage(app, message) : homePage(app, message);
   box.innerHTML = `
     <div class="mm-page mm-${page}">
@@ -330,6 +383,18 @@ export function showMainMenu(app, page = 'home', message = '') {
   box.scrollTop = 0;
   const first = box.querySelector('.mm-main') || box.querySelector('button');
   if (first && !document.querySelector('dialog[open]')) first.focus({ preventScroll: true });
+}
+
+/** After a save was put in place of the game in hand: on to the game, which waits for the player. */
+function loaded(app, r) {
+  if (!r.ok) {
+    showMainMenu(app, 'load', saveErrorText(r));
+    return;
+  }
+  leaveMenu(app);
+  app.paused = true;
+  // A game that was over shows how it ended.
+  if (app.world.ended) openEnd(app);
 }
 
 /** The clicks and changes of the main menu page (wired once). */
@@ -353,14 +418,14 @@ export function attachMenu(app) {
       showMainMenu(app, app.menuPage);
     } else if (d.play) await play(app, d.play, { tutorial: Boolean(d.tutorial) });
     else if (d.load) {
-      if (d.load !== CURRENT || gameInProgress(app)) {
-        if (!(await mayReplace(app))) return;
+      // Read and checked first: a save that cannot be loaded asks nothing and replaces nothing.
+      const read = await readEntry(app, d.load);
+      if (!read.ok) {
+        showMainMenu(app, 'load', saveErrorText(read));
+        return;
       }
-      const r = await loadEntry(app, d.load);
-      if (r.ok) {
-        leaveMenu(app);
-        app.paused = true; // a game loaded waits for the player
-      } else showMainMenu(app, 'load', saveErrorText(r));
+      if (!(await mayReplace(app))) return;
+      loaded(app, resumeRead(app, read.read, { keep: d.load !== CURRENT }));
     } else if (d.delete) {
       const entry = app.store.entry(d.delete);
       if (!entry) return;
@@ -384,12 +449,14 @@ export function attachMenu(app) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const text = await file.text();
+    e.target.value = ''; // the same file can be chosen again
+    const read = readFileText(app, text);
+    if (!read.ok) {
+      showMainMenu(app, 'load', saveErrorText(read));
+      return;
+    }
     if (!(await mayReplace(app))) return;
-    const r = importText(app, text);
-    if (r.ok) {
-      leaveMenu(app);
-      app.paused = true;
-    } else showMainMenu(app, 'load', saveErrorText(r));
+    loaded(app, resumeRead(app, read.read));
   });
   // Escape goes back: to the first page, or to the game in hand.
   window.addEventListener('keydown', (e) => {
@@ -400,7 +467,7 @@ export function attachMenu(app) {
   });
 }
 
-/** Leaves the game for the main menu: the game is saved first. */
+/** Leaves the game for the main menu: the game is saved first (a write that fails is told there). */
 export function goToMainMenu(app) {
   saveCurrent(app);
   showMainMenu(app, 'home');
@@ -414,7 +481,7 @@ export async function restartGame(app) {
       heading: t('menu.restart.heading'), text: t('menu.restart.text', { played: realDurationText(played) }), yes: t('menu.restart.yes'), danger: true,
     });
     if (!ok) return false;
-    await autosave(app);
+    if (!(await keepBeforeReplacing(app))) return false;
   }
   newGame(app);
   return true;

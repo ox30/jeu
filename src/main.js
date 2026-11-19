@@ -18,10 +18,11 @@ import { loadSettings, saveSettings } from './save/settings.js';
 import { createStore, CURRENT } from './save/store.js';
 import { collectElements } from './ui/elements.js';
 import { centreOn, select } from './ui/actions.js';
+import { toolOffered } from './ui/offered.js';
 import { carryFor, loadCampaign, scenarioIds, setCampaignData } from './ui/campaign.js';
 import { exportGame, gameInProgress, loadEntry, newGame, saveCurrent, saveErrorText } from './ui/game.js';
 import { handleEvents } from './ui/gameEvents.js';
-import { attachMenu, goToMainMenu, hideMainMenu, markTutorialDone, nextScenarioFor, openGameMenu, restartGame, showMainMenu } from './ui/menu.js';
+import { attachMenu, goToMainMenu, hideMainMenu, markTutorialDone, nextScenarioFor, openGameMenu, showMainMenu } from './ui/menu.js';
 import { startLoop } from './ui/loop.js';
 import { attachPanels } from './ui/panelActions.js';
 import { applySheet, attachSheetGrip, resize } from './ui/sheet.js';
@@ -115,6 +116,7 @@ function createApp(el, data, settings, terrain) {
     if (leader) centreOn(app, leader.x, leader.y, f.kind === 'air' ? 1.5 : 0.6);
   };
   app.setTool = (tool) => {
+    if (tool === 'ruler' && !toolOffered(app, 'ruler')) return; // not a tool of this scenario
     app.tool = tool;
     if (!tool) app.ruler = null;
     app.canvas.style.cursor = tool === 'ruler' || tool === 'rally' ? 'crosshair' : 'grab';
@@ -122,6 +124,7 @@ function createApp(el, data, settings, terrain) {
     app.dirtyPanels = true;
   };
   app.toggleRadarCover = () => {
+    if (!toolOffered(app, 'radarCover')) return;
     settings.radarCover = !settings.radarCover;
     saveSettings(settings);
     app.dirtyHud = true;
@@ -146,10 +149,10 @@ function createApp(el, data, settings, terrain) {
     return ok;
   };
   app.onTutorialDone = () => markTutorialDone();
-  app.restartAsking = () => restartGame(app);
   app.nextScenario = () => nextScenarioFor(app);
   app.toMainMenu = () => goToMainMenu(app);
   app.reloadCurrent = () => loadEntry(app, CURRENT);
+  app.gameInProgress = () => gameInProgress(app);
   try {
     app.scheduleHintSeen = localStorage.getItem('jeu-1940.scheduleHint.v1') === '1';
   } catch {
@@ -238,7 +241,6 @@ async function start() {
     const contact = app.world.contacts.get(raidId);
     return contact ? contactEstimate(app.world, contact) : null;
   };
-  app.gameInProgress = () => gameInProgress(app);
   window.__game = app;
 
   startLoop(app);

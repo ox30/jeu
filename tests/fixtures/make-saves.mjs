@@ -1,6 +1,8 @@
 // Makes the saved games kept as fixtures, from a checkout of an EARLIER version of the game
 // (2.6.1: git worktree add ../jeu-2.6.1 95379ee) with this repository's tools/bot copied into it:
 //   node tests/fixtures/make-saves.mjs /path/to/jeu-2.6.1 2.6.1
+// or from this checkout itself when a version is the first of a new format of save
+// (2.9.0, format 2: node tests/fixtures/make-saves.mjs . 2.9.0).
 // Each file is a game as that version saved it (the `snap` of its browser save), gzipped.
 // The tests restore them with the current code (tests/oldsaves.test.js).
 import { mkdirSync, writeFileSync } from 'node:fs';

@@ -35,6 +35,9 @@ const settle = async (page) => {
 async function tutorial(page) {
   await page.click('#menu [data-menu="training"]');
   await page.waitForSelector('#coach:not([hidden])');
+  // (Review of 2.9: launched from the menu, the lesson ran while its first step said « le temps est arrêté ».)
+  await sleep(1200);
+  note(await game(page, () => window.__game.paused && window.__game.world.t === 0), 'tutorial: launched from the menu, the lesson waits on its first step, the clock stopped');
   await page.click('#coach [data-coach="next"]');
   await sleep(300);
   await page.click('#unit-bar [data-action="admiralty"]');
@@ -831,9 +834,12 @@ async function menus(page, errors) {
       await closeDialogs(page);
       await sleep(350);
     }
-    const autos = await game(page, () => window.__game.store.entries().filter((e) => e.kind === 'auto').map((e) => Math.floor(e.t / 86400)));
-    note(autos.length === 5, 'saves: five automatic saves are kept', autos.join(' '));
+    // (Of this game: the games played before it in this test keep their newest one each.)
+    const autos = await game(page, () => window.__game.store.entries().filter((e) => e.kind === 'auto' && e.gameId === window.__game.gameId).map((e) => Math.floor(e.t / 86400)));
+    note(autos.length === 5, 'saves: the last five automatic saves of the game are kept', autos.join(' '));
     note(new Set(autos).size === autos.length, 'saves: one a game day');
+    const others = await game(page, () => window.__game.store.entries().filter((e) => e.kind === 'auto' && e.gameId !== window.__game.gameId).map((e) => e.gameId));
+    note(others.length >= 1 && others.length <= 5 && new Set(others).size === others.length, 'saves: and the newest of each game played before it, five games at most', `${others.length}`);
     // A battle of one day: every two game hours.
     await game(page, () => window.__game.restart('quinze-septembre'));
     await settle(page);
@@ -852,9 +858,12 @@ async function menus(page, errors) {
     await game(page, () => window.__game.toMainMenu());
     await page.click('#menu [data-menu="load"]');
     const mark = await fingerprint(page);
+    const savesNow = () => game(page, () => window.__game.store.entries().map((e) => e.id).sort().join(' '));
+    const kept = await savesNow();
+    let asked = 0;
     const refuse = async (text, label, expected) => {
       await page.setInputFiles('#menu [data-import]', { name: 'partie.json', mimeType: 'application/json', buffer: Buffer.from(text) });
-      await confirmAnswer(page, true);
+      if (await confirmAnswer(page, true)) asked++;
       await sleep(250);
       const said = await game(page, () => document.querySelector('#menu .message:last-of-type')?.textContent || '');
       note(expected.test(said) && (await fingerprint(page)) === mark, label, said.slice(0, 70));
@@ -867,6 +876,26 @@ async function menus(page, errors) {
       return JSON.stringify({ game: 'jeu-1940', snap: { version: 2, scenario: snap.scenario, t: 10, rng: 1, squadrons: 'none' } });
     });
     await refuse(broken, 'saves: a damaged game is refused, and the game in hand is untouched', /abîmée/);
+    // A real save with one line of its journal and one of its parts spoilt (review of 2.9: the
+    // first replaced the game in hand while saying it had not; the second loaded, then stopped).
+    const spoilt = await game(page, async () => {
+      const { buildSave } = await import('./src/ui/game.js');
+      const save = JSON.parse(JSON.stringify(buildSave(window.__game)));
+      const journal = { ...save, journal: [null, ...save.journal] };
+      const part = { ...save, snap: { ...save.snap, formations: null } };
+      return { journal: JSON.stringify(journal), part: JSON.stringify(part), lines: save.journal.length };
+    });
+    await refuse(spoilt.part, 'saves: a save with a part of the wrong kind is refused, naming the part', /abîmée \(la partie « formations »/);
+    note(asked === 0, 'saves: a file refused asks nothing first (« Remplacer ? » comes after the file is checked)', `${asked} question(s)`);
+    note((await savesNow()) === kept, 'saves: and leaves the saves as they were (no automatic save for a file refused)');
+    // The journal with a line that is nothing: the line is left out, the game loads whole.
+    await page.setInputFiles('#menu [data-import]', { name: 'partie.json', mimeType: 'application/json', buffer: Buffer.from(spoilt.journal) });
+    note(await confirmAnswer(page, true), 'saves: a file that can be loaded asks before it replaces the game in hand');
+    await page.waitForFunction(() => !window.__game.onMenu, null, { timeout: 8000 }).catch(() => {});
+    note((await fingerprint(page)) === mark && await game(page, (n) => window.__game.logEntries.length === n + 1 && window.__game.paused, spoilt.lines),
+      'saves: a journal with a spoilt line loads without it, and the game waits for the player');
+    await game(page, () => window.__game.toMainMenu());
+    await page.click('#menu [data-menu="load"]');
     // A file exported by the game itself loads.
     await page.click('#menu [data-menu="home"]');
     await page.click('#menu [data-menu="continue"]');
@@ -909,6 +938,60 @@ async function menus(page, errors) {
     });
     await sleep(400);
     note(!(await page.isVisible('#save-problem')), 'saves: the warning goes when a save succeeds');
+    // On the main menu too; and a game that could not be kept is not replaced in silence
+    // (review of 2.9: « elle sera gardée parmi les sauvegardes automatiques », then nothing).
+    await game(page, () => {
+      Storage.prototype.setItem = () => { throw new Error('QuotaExceededError'); };
+      window.__game.stepWorld(60);
+      window.__game.paused = true;
+    });
+    await settle(page);
+    const held = await fingerprint(page);
+    await game(page, () => window.__game.toMainMenu());
+    await sleep(200);
+    note(await page.isVisible('#menu [data-save-problem]'), 'saves: a failed save is told on the main menu');
+    note(!(await page.isVisible('#menu .mm-note')), 'saves: and the menu no longer says the game is kept in the browser');
+    await shot(page, 'menu-storage-full');
+    await page.click('#menu [data-menu="scenarios"]');
+    await page.click('#menu [data-play="kanalkampf"]');
+    note(await confirmAnswer(page, true), 'saves: replacing the game asks first');
+    await page.waitForFunction(() => document.getElementById('dlg-confirm').open, null, { timeout: 5000 }).catch(() => {});
+    const second = await game(page, () => (document.getElementById('dlg-confirm').open ? document.getElementById('dlg-confirm').textContent : ''));
+    note(/n'a pas pu être gardée/.test(second) && /Exporter/.test(second) && /Remplacer quand même/.test(second),
+      'saves: a game that could not be kept says so before it is replaced, with the export at hand', second.replace(/\s+/g, ' ').slice(0, 90));
+    await shot(page, 'not-kept');
+    await confirmAnswer(page, false);
+    note((await fingerprint(page)) === held && await game(page, () => window.__game.onMenu), 'saves: « Annuler » keeps the game in hand');
+    await game(page, () => {
+      Storage.prototype.setItem = window.__setItem;
+      window.__game.save();
+    });
+    await page.click('#menu [data-menu="home"]');
+    await sleep(150);
+    note(!(await page.isVisible('#menu [data-save-problem]')), 'saves: the warning leaves the menu once a save succeeds');
+    await page.click('#menu [data-menu="continue"]');
+    await sleep(200);
+  });
+  await step('menu: the keys of the game do nothing under the main menu', async () => {
+    // (Review of 2.9: key 3 on the menu set the game going behind it, to its end if left there.)
+    await game(page, () => { window.__game.paused = true; });
+    await settle(page);
+    await game(page, () => window.__game.toMainMenu());
+    const state = () => game(page, () => {
+      const a = window.__game;
+      return { t: a.world.t, paused: a.paused, onMenu: a.onMenu, tool: a.tool || null, cover: Boolean(a.settings.radarCover), scale: Math.round(a.camera.scale * 1000), speed: a.speed };
+    });
+    const s0 = await state();
+    for (const key of ['3', '6', 'r', 'c', 'a', 'l', 'g', '+']) await page.keyboard.press(key);
+    await sleep(1500);
+    const s1 = await state();
+    note(JSON.stringify(s1) === JSON.stringify(s0), 'menu: speed, ruler, radar cover, views and zoom keys change nothing under the menu', `${JSON.stringify(s0)} → ${JSON.stringify(s1)}`);
+    // Space on « Continuer » (it has the focus) is the button's own key: back to the game, still stopped.
+    await page.focus('#menu [data-menu="continue"]');
+    await page.keyboard.press('Space');
+    await sleep(400);
+    const s2 = await state();
+    note(!s2.onMenu && s2.paused && s2.t === s0.t, 'menu: Space on « Continuer » goes back to the game, and does not start its clock', JSON.stringify(s2));
   });
   await step('menu: the end of a game', async () => {
     await game(page, () => {
@@ -932,15 +1015,31 @@ async function menus(page, errors) {
       return { open: dlg.open, buttons: [...dlg.querySelectorAll('[data-end]')].map((b) => b.dataset.end), text: dlg.textContent };
     });
     note(end.open && end.buttons.includes('replay') && end.buttons.includes('menu'), 'end: Rejouer and Menu principal', end.buttons.join(' '));
-    if (/Victoire|réussi/i.test(end.text)) note(end.buttons.includes('next') && /Adlertag/.test(end.text), 'end: « Scénario suivant » after a victory of the campaign');
+    note(/Victoire|réussi/i.test(end.text), 'end: the game decreed won ends in a victory', end.text.replace(/\s+/g, ' ').slice(0, 80));
+    note(end.buttons.includes('next') && /Adlertag/.test(end.text), 'end: « Scénario suivant » after a victory of the campaign');
     note(/Préréglage/.test(end.text) || /commencée en/.test(end.text), 'end: the preset of the game is told');
     await shot(page, 'end');
-    if (end.buttons.includes('next')) {
-      await page.click('#dlg-end [data-end="next"]');
-      await sleep(500);
-      note(await game(page, () => window.__game.world.scenario.id === 'adlertag' && !window.__game.onMenu), 'end: the next scenario of the campaign is launched');
-      await settle(page);
-    }
+    // A game that is over, exported then imported: it shows how it ended, not a silent map.
+    const over = await game(page, async () => {
+      const { buildSave } = await import('./src/ui/game.js');
+      return JSON.stringify(buildSave(window.__game));
+    });
+    await page.click('#dlg-end [data-end="menu"]');
+    await sleep(300);
+    await page.click('#menu [data-menu="load"]');
+    await page.setInputFiles('#menu [data-import]', { name: 'finie.json', mimeType: 'application/json', buffer: Buffer.from(over) });
+    await page.waitForFunction(() => !window.__game.onMenu, null, { timeout: 8000 }).catch(() => {});
+    await sleep(400);
+    const again = await game(page, () => {
+      const dlg = document.getElementById('dlg-end');
+      return { open: dlg.open, ended: window.__game.world.ended, text: dlg.textContent, buttons: [...dlg.querySelectorAll('[data-end]')].map((b) => b.dataset.end) };
+    });
+    note(again.open && again.ended && /Victoire|réussi/i.test(again.text), 'end: a finished game imported shows its end screen');
+    note(again.buttons.includes('next'), 'end: with « Scénario suivant » still at hand', again.buttons.join(' '));
+    await page.click('#dlg-end [data-end="next"]');
+    await sleep(500);
+    note(await game(page, () => window.__game.world.scenario.id === 'adlertag' && !window.__game.onMenu), 'end: the next scenario of the campaign is launched');
+    await settle(page);
     note(await game(page, () => window.__game.store.current() === null || window.__game.store.current().scenario !== 'kanalkampf'), 'end: a game that is over is no longer « Continuer »');
   });
   note(errors.length === before, 'menu: no console error', errors.slice(before, before + 2).join(' | '));

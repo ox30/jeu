@@ -25,12 +25,17 @@ travaux est dans `docs/journal-m2.7-m2.10.md`.
   partie remplacée est gardée parmi les sauvegardes automatiques.
 - **Écran de fin** : Rejouer, Scénario suivant quand la campagne a une suite, Menu principal.
 - **Sauvegardes** : la partie en cours, une sauvegarde automatique par jour de jeu (toutes les
-  deux heures de jeu dans une bataille d'une journée, les cinq dernières gardées), des
-  sauvegardes manuelles, l'export et l'import d'un fichier. Une sauvegarde contient la partie,
-  ses réglages et tout son journal, rapports de quart compris. Elle porte un numéro de format :
-  une migration par version, une validation avant chargement, et un message clair pour un
-  fichier abîmé ou trop récent. Les parties de la version 2.6.1 se chargent. Un enregistrement
-  qui échoue (stockage plein, navigation privée) s'affiche dans la barre du haut.
+  deux heures de jeu dans une bataille d'une journée ; les cinq dernières de la partie en
+  cours sont gardées, et la dernière de chacune des cinq parties d'avant), des sauvegardes
+  manuelles, l'export et l'import d'un fichier. Une sauvegarde contient la partie, ses
+  réglages et tout son journal, rapports de quart compris. Elle porte un numéro de format : une
+  migration par version, une validation avant chargement (chaque partie de la sauvegarde est
+  du bon genre, puis la sauvegarde est essayée dix minutes de jeu sur un monde à part) et un
+  message clair pour un fichier abîmé ou trop récent : rien n'est demandé ni remplacé avant
+  que le fichier soit vérifié. Les parties de la version 2.6.1 se chargent. Un enregistrement
+  qui échoue (stockage plein, navigation privée) s'affiche dans la barre du haut et au menu
+  principal ; une partie qui n'a pas pu être gardée le dit avant d'être remplacée, export à
+  portée de main. Les leçons du tutoriel ne s'enregistrent pas.
 - **Les réglages appartiennent à la partie** : copiés dans la partie à son lancement,
   enregistrés avec elle, changés en cours de route par un ordre que le journal note. Le
   préréglage peut changer en cours de partie : l'écran de fin et la campagne le disent
@@ -514,7 +519,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 335 tests, environ trois minutes
+npm test          # les 350 tests, environ quatre minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : tutoriel, pages, fiches, corrections, quarts

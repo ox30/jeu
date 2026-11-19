@@ -811,8 +811,112 @@ sauvegarde pèse 610 000 caractères en fin de partie (536 lignes de journal, 47
 quart) ; la partie en cours et cinq sauvegardes automatiques occupent 860 000 caractères, loin
 de la limite du navigateur (environ 5 millions) ; écrire la partie en cours prend 14 ms.
 
-**Choix à signaler** : le journal gardé dans une sauvegarde est limité aux 2 000 dernières
-lignes (une partie entière en écrit quelques centaines) ; les durées estimées des cartes de
-scénario sont des estimations de ma part, à corriger avec le chrono de jeu ; le scénario
-d'entraînement suit le calendrier de Kanalkampf, donc une sauvegarde automatique par jour de
-jeu.
+**Choix à signaler** : les durées estimées des cartes de scénario sont des estimations de ma
+part, à corriger avec le chrono de jeu ; le scénario d'entraînement suit le calendrier de
+Kanalkampf, donc une sauvegarde automatique par jour de jeu. (Le journal gardé dans une
+sauvegarde était d'abord limité à 2 000 lignes : la relecture a montré qu'une semaine
+d'Adlertag peut en écrire 2 400. La limite n'est plus qu'un garde-fou, à 20 000 lignes.)
+
+### Mesure après le M2.9 (19 novembre, 3 h 40)
+
+Le M2.9 ne change pas la simulation : la mesure doit donner les mêmes parties qu'après le M2.8.
+Les 340 parties (10 graines par conduite, campagne comprise) rejouées au commit `4d9c9b1` sont
+**identiques une à une** à celles du M2.8 : même issue, mêmes pertes, mêmes arrêts, mêmes
+objectifs (`tools/bot/out/m2.9.jsonl` comparé à `m2.8.jsonl`, hors durées de calcul). Les
+tableaux du M2.8 valent donc pour le M2.9 : arrêts de l'Atlantique 42 à 59 en Standard, 47 à
+61 en Réaliste ; aucune conduite de l'Atlantique à 10 sur 10.
+
+Autres mesures : 59,9 images par seconde à ×14 400 sans image au-delà de 50 ms ; pas de
+simulation le plus long 4,5 à 8,7 ms (mesuré seul) ; 10 000 ordres au hasard par scénario sans
+problème, réglages de partie compris.
+
+### 19 novembre, 3 h 45 à 5 h 50 — relecture du M2.9 par un agent neuf, et ses suites
+
+Un agent qui n'avait pas vu le travail a relu le lot contre les critères du document, avec ses
+propres scripts (interrompu une fois par une limite de débit, puis repris). Verdict : la porte
+tient (chaque scénario se lance, se sauvegarde et se recharge depuis le menu, à l'identique) ;
+**5 défauts majeurs, 8 mineurs**, aucun bloquant. Tous sont traités, chacun avec son test
+(`tests/review29.test.js`, `tests/store.test.js`, essai de fumée) :
+
+1. **Les touches du jeu restaient actives sous le menu principal** (le menu n'est plus une
+   boîte de dialogue : la garde ne jouait plus). La touche 3 faisait tourner la partie
+   derrière le menu, jusqu'à sa fin ; Entrée répondait à une question sans la montrer.
+   Corrigé : sous le menu, les touches du jeu ne font rien et la boucle n'avance pas.
+2. **La leçon lancée depuis le menu n'était pas en pause** à sa première étape, qui dit « le
+   temps est arrêté ». Corrigé. Suite : une partie lancée dont l'horloge est encore à sa
+   première minute compte comme commencée après une minute passée dessus (des ordres
+   préparés en pause sont une partie à garder).
+3. **Stockage plein : rien au menu, et une partie remplacée perdue malgré la promesse.**
+   Corrigé : l'échec s'affiche au menu principal tant qu'aucun enregistrement n'a réussi ;
+   quand la partie à remplacer n'a pas pu être gardée, le jeu le dit et redemande, avec
+   l'export à portée de main (« Remplacer quand même »).
+4. **La partie remplacée était évincée par les sauvegardes automatiques de la suivante.**
+   « Les cinq dernières » sont maintenant celles de la partie en cours ; chaque partie d'avant
+   garde sa plus récente (cinq parties au plus). C'est une lecture du document, à confirmer.
+5. **Un fichier au journal abîmé remplaçait la partie en cours en disant le contraire.**
+   Corrigé : le journal et les notes d'un fichier sont nettoyés à la lecture, et rien de la
+   page ne change avant que la sauvegarde soit entièrement remise en place.
+6. **Validation trop courte** : des fichiers abîmés se chargeaient puis arrêtaient le jeu.
+   Deux contrôles de plus avant de charger : chaque partie de la sauvegarde doit être du genre
+   que le jeu y garde (liste, table, nombre, fiche à entrées fixes), par comparaison avec un
+   monde neuf du même scénario ; puis la sauvegarde est essayée dix minutes de jeu sur un monde
+   à part. Sur 150 variantes abîmées par scénario (chaque partie retirée, vidée ou changée de
+   genre) : 141 à 145 refusées avec une phrase en français, les autres sont des parties saines
+   ou sans effet. Contre-épreuve : 3 424 instantanés de parties entières du joueur
+   automatique, passés par JSON, tous acceptés.
+7. **Un enregistrement raté sur stockage plein effaçait une sauvegarde automatique** : celle
+   qui fait de la place est remise si la place ne suffit pas.
+8. **L'import demandait « Remplacer ? » avant de vérifier le fichier**, et faisait une
+   sauvegarde automatique pour rien. Le fichier est vérifié d'abord.
+9. **Préréglage nommé de deux façons** quand seul le report de campagne s'écarte du
+   préréglage : la partie est nommée dès le départ par la règle du jeu (le report, fixé au
+   lancement, n'entre pas dans le nom).
+10. **Outils et vues d'un scénario** : seuls les boutons étaient masqués. Les touches, les
+    liens des fiches et les pages demandent maintenant au même endroit (`src/ui/offered.js`).
+    Reste : la `zone` déclarée ne sert que de repli pour la vue de départ.
+11. **Journal limité à 2 000 lignes** : voir ci-dessus.
+12. **Deux pages du jeu sur le même stockage s'écrasaient ; un index illisible effaçait tout.**
+    L'index est relu avant chaque écriture, les numéros ne sont plus redonnés, et un index
+    perdu est refait à partir des sauvegardes, qui portent chacune leur ligne.
+13. **Textes de l'ancien menu** corrigés ; six clés sans usage retirées.
+
+Notes de la relecture, traitées aussi : une leçon n'est plus enregistrée (elle revenait sans
+son instructeur) ; phrase pour un enregistrement impossible après une erreur ; une partie
+terminée importée montre son écran de fin ; une partie reprise depuis le navigateur attend le
+joueur en pause ; l'aide ouverte depuis le menu sans partie en cours n'a plus d'onglet « Ce
+scénario » ; code mort retiré ; l'essai de fumée vérifie « Scénario suivant » sans condition.
+
+**Laissé tel quel, à trancher par Florian** : « Ombre de la nuit » et « Vitesse des alertes »
+restent des réglages du joueur (affichage), pas de la partie ; « Recommencer », « Rejouer » et
+« Scénario suivant » partent des réglages choisis au lancement, pas de ceux que la partie avait
+à la fin.
+
+**Un test existant adapté, sans l'affaiblir** : `tests/campaign.test.js` imitait une partie de
+la version 2.6.1 en retirant deux valeurs d'un instantané au format courant. Un tel instantané
+est maintenant refusé (il lui manque des parties) ; l'imitation porte donc le numéro de format
+de ce qu'elle imite (format 1). Ce qu'elle vérifie n'a pas changé.
+
+**Règle pour la suite** : ajouter une partie au monde, ou une entrée à l'une de ses fiches
+(compteurs, réserves…), demande un nouveau numéro de format et sa migration ; sinon les
+sauvegardes du format en cours seraient refusées. `tests/oldsaves.test.js` charge une
+sauvegarde de chaque format pour le rappeler.
+
+### Porte du M2.9
+
+Critère du document : « chaque scénario se lance, se sauvegarde et se recharge depuis le menu ».
+
+- **Tenu.** L'essai de fumée lance les cinq scénarios depuis le menu, les sauvegarde par ☰,
+  revient au menu, laisse la partie avancer, recharge la sauvegarde : l'empreinte du monde
+  rechargé (scénario, horloge, dés, unités, préréglage) est celle du monde sauvegardé. Le
+  relecteur l'a vérifié de son côté dans les cinq scénarios, parties rejouées ensuite à
+  l'identique, et avec des parties faites par la vraie version 2.8 et par la 2.6.1.
+- **À chaque lot** : branche `m2.9` et demande de fusion ; 350 tests, lint, construction de
+  `dist/index.html` ; déterminisme (mêmes graine et ordres, même monde, sauvegarde, reprise et
+  changement de préréglage compris) ; joueur automatique avant et après sur 10 graines par
+  conduite : 340 parties identiques ; 10 000 ordres au hasard par scénario ; essai de fumée
+  complet (149 vérifications, développement et fichier unique ouvert depuis le disque) ;
+  README à jour.
+- **Ce qui reste ouvert dans ce lot** : la `zone` d'un scénario ne pilote rien d'autre que le
+  repli de la vue de départ ; la validation ne descend pas dans chaque champ de chaque unité
+  (l'essai de dix minutes et le garde-fou de la boucle prennent le relais) ; les navigateurs
+  autres que Chrome n'ont pas été essayés (stockage plein réel, absence de compression).

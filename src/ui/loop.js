@@ -20,10 +20,10 @@ import { tickPlayClock } from './summary.js';
 
 const MAX_STEPS_PER_FRAME = 6000;
 
-/** The steps of simulation this frame owes, at the chosen speed. */
-function advance(app, dtReal) {
+/** The steps of simulation this frame owes, at the chosen speed. Never under the main menu. */
+export function advance(app, dtReal) {
   const world = app.world;
-  if (app.paused || world.ended || app.crash) return;
+  if (app.paused || app.onMenu || world.ended || app.crash) return;
   app.accumulator += dtReal * app.speed;
   const wanted = Math.min(Math.floor(app.accumulator), MAX_STEPS_PER_FRAME);
   let done = 0;

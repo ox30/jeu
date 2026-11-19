@@ -287,7 +287,11 @@ function helpImage(app, name) {
 /** The help, in tabs: this scenario, the sheet, the air, the sea, time and alerts, games and settings, the keys. */
 export function openHelp(app) {
   const dlg = app.el.dlgHelp;
-  const tab = HELP_TABS.includes(app.helpTab) ? app.helpTab : 'scenario';
+  // From the main menu with no game in hand there is no « this scenario » to speak of: the
+  // help opens on the games and their settings.
+  const noGame = Boolean(app.onMenu) && !(app.gameInProgress && app.gameInProgress());
+  const tabs = noGame ? HELP_TABS.filter((id) => id !== 'scenario') : HELP_TABS;
+  const tab = tabs.includes(app.helpTab) ? app.helpTab : noGame ? 'games' : 'scenario';
   const list = (items) => `<ol>${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
   const bodies = {
     scenario: list(helpSteps(app)),
@@ -301,8 +305,8 @@ export function openHelp(app) {
   dlg.innerHTML = `
     <form method="dialog" class="help-page">
       <h2>${escapeHtml(t('help.title'))}</h2>
-      <nav class="settings-tabs" role="tablist">${HELP_TABS.map((id) => `<button type="button" role="tab" data-htab="${id}" class="${id === tab ? 'active' : ''}">${escapeHtml(t(`help.tabs.${id}`))}</button>`).join('')}</nav>
-      ${HELP_TABS.map((id) => `<section class="help-pane" data-hpane="${id}"${id === tab ? '' : ' hidden'}>${bodies[id]}</section>`).join('')}
+      <nav class="settings-tabs" role="tablist">${tabs.map((id) => `<button type="button" role="tab" data-htab="${id}" class="${id === tab ? 'active' : ''}">${escapeHtml(t(`help.tabs.${id}`))}</button>`).join('')}</nav>
+      ${tabs.map((id) => `<section class="help-pane" data-hpane="${id}"${id === tab ? '' : ' hidden'}>${bodies[id]}</section>`).join('')}
       <div class="dialog-buttons"><button value="close">${escapeHtml(t('help.close'))}</button></div>
     </form>`;
   dlg.querySelector('.settings-tabs').addEventListener('click', (e) => {
