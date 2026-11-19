@@ -28,6 +28,7 @@ import { allViewZones } from '../sim/sight.js';
 import { drawNight } from './night.js';
 import { pendingOrders, shownPosition } from '../sim/comms.js';
 import { activeMember, findStacks, indexStacks, stackConvoy, stackKey, stackOfSelection, stackRole } from '../ui/stacks.js';
+import { patrolZone, shownAsZone } from '../ui/patrolZone.js';
 
 const DEG = Math.PI / 180;
 
@@ -1104,7 +1105,9 @@ function drawViewZones(ctx, cam, app, alpha) {
   const mode = app.settings.viewZones || 'selected';
   if (mode === 'none') return;
   const chosen = mode === 'selected' ? chosenUnits(app) : [];
-  const zones = allViewZones(app.world, mode, chosen);
+  // (A patrol drawn as the zone it covers has its circle there, not round the aircraft.)
+  const wings = formationIndex(app.world, 'air');
+  const zones = allViewZones(app.world, mode, chosen).filter((z) => !(z.unit.kind === 'squadron' && zoneOf(app, z.unit, wings)));
   if (!zones.length) return;
   // Labels for the unit chosen (its leader for a formation), not for every unit on the map.
   const named = mode === 'selected' && chosen.length ? chosen[0].unit : null;
@@ -1633,6 +1636,143 @@ function drawRallies(ctx, cam, app) {
   }
 }
 
+// ---- patrol zones (idea B of the audit) ----------------------------------------------
+
+let watchTile = null;
+let watchDpr = 0;
+
+/**
+ * The hatching of a zone that is watched: thin blue lines, on the other slant than the red
+ * ones of the direction-finding zones, anchored on the map so that it moves with it.
+ */
+function watchHatch(ctx, cam, dpr) {
+  if (typeof document === 'undefined') return null;
+  if (!watchTile || watchDpr !== dpr) {
+    const n = Math.max(1, Math.round(8 * dpr));
+    watchTile = document.createElement('canvas');
+    watchTile.width = n;
+    watchTile.height = n;
+    const g = watchTile.getContext('2d');
+    g.strokeStyle = 'rgba(44, 74, 124, 0.6)';
+    g.lineWidth = dpr;
+    g.beginPath();
+    g.moveTo(-1, n + 1);
+    g.lineTo(n + 1, -1);
+    g.moveTo(-1, 1);
+    g.lineTo(1, -1);
+    g.moveTo(n - 1, n + 1);
+    g.lineTo(n + 1, n - 1);
+    g.stroke();
+    watchDpr = dpr;
+  }
+  const pattern = ctx.createPattern(watchTile, 'repeat');
+  const [ox, oy] = toScreen(cam, 0, 0);
+  if (pattern && pattern.setTransform) pattern.setTransform(new DOMMatrix().translateSelf(ox, oy).scaleSelf(1 / dpr));
+  return pattern;
+}
+
+/**
+ * Where the zone of a patrol stands on the screen. Over a convoy it is the place the table
+ * gives the convoy (its estimate, under radio silence): the patrol must not betray more.
+ */
+function zoneAnchor(app, cam, zone, alpha) {
+  if (zone.kind === 'cover') {
+    const convoy = app.world.convoys.find((c) => c.id === zone.convoy);
+    if (convoy) return shipScreen(app, cam, convoy, alpha).slice(0, 2);
+  }
+  return toScreen(cam, zone.anchor[0], zone.anchor[1]);
+}
+
+/** Is this squadron drawn as its zone? (A squadron of a formation, or the unit in hand, never.) */
+function zoneOf(app, sq, wings) {
+  const m = wings.get(sq.id) || null;
+  if (m || !shownAsZone(app, sq, isSelected(app, 'squadron', sq.id))) return null;
+  return patrolZone(app.world, sq);
+}
+
+/**
+ * At sea and from ×600 on, the zones the patrols of Coastal Command cover, under the units:
+ * the circle watched (hatched when the patrol sees now, empty by night without radar), the
+ * band watched on the way there, and the way itself. Their marks are drawn with the
+ * squadrons (zoneMark). `app.patrolZones` keeps what was drawn, for the tests.
+ */
+function drawPatrolZones(ctx, cam, app, alpha) {
+  app.patrolZones = [];
+  const wings = formationIndex(app.world, 'air');
+  let hatch = null;
+  for (const sq of app.world.squadrons) {
+    const zone = zoneOf(app, sq, wings);
+    if (!zone) continue;
+    hatch = hatch || watchHatch(ctx, cam, app.dpr || 1);
+    const [ax, ay] = zoneAnchor(app, cam, zone, alpha);
+    const r = zone.km * cam.scale;
+    ctx.save();
+    if (zone.path.length > 1) {
+      const pts = zone.path.map(([x, y]) => toScreen(cam, x, y));
+      pts[0] = unitScreen(cam, sq, alpha);
+      if (zone.kind === 'cover') pts[pts.length - 1] = [ax, ay];
+      const band = 2 * zone.sightKm * cam.scale;
+      if (band >= 4 && hatch) {
+        ctx.beginPath();
+        pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+        ctx.strokeStyle = hatch;
+        ctx.lineWidth = band;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalAlpha = 0.55;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      pencilLine(ctx, pts, { color: zone.kind === 'home' ? 'rgba(90, 80, 60, 0.45)' : 'rgba(44, 74, 124, 0.55)', width: 1.2, dash: [2, 4], arrow: zone.kind !== 'home' });
+    }
+    if (r >= 4 && onScreen(cam, ax, ay, r + 20)) {
+      const wide = scaleX(zone.anchor[1]);
+      // What it watches now, hatched: the whole circle by day, the reach of its radar by night.
+      const watched = zone.watchedKm * cam.scale;
+      if (watched >= 2 && hatch) {
+        ctx.beginPath();
+        ctx.ellipse(ax, ay, watched / wide, watched, 0, 0, Math.PI * 2);
+        ctx.fillStyle = hatch;
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.ellipse(ax, ay, r / wide, r, 0, 0, Math.PI * 2);
+      ctx.setLineDash(zone.watchedKm >= zone.km ? [] : [3, 4]);
+      ctx.strokeStyle = 'rgba(44, 74, 124, 0.65)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+    ctx.restore();
+    app.patrolZones.push({ id: sq.id, kind: zone.kind, x: ax, y: ay, r, watched: zone.watchedKm * cam.scale, sees: zone.sees, convoy: zone.convoy });
+  }
+}
+
+/**
+ * The mark of a patrol drawn as its zone: its symbol and a plaque that says what it does,
+ * at the zone, where a click or a line from it finds the squadron. Above the convoy it
+ * covers or the aerodrome it flies home to, so as not to hide them.
+ */
+function zoneMark(ctx, cam, app, sq, zone, alpha) {
+  const world = app.world;
+  const [ax, ay] = zoneAnchor(app, cam, zone, alpha);
+  const mx = ax;
+  const my = zone.kind === 'cover' || zone.kind === 'home' ? ay - 24 : ay;
+  if (!onScreen(cam, mx, my)) return;
+  const role = markRole(app, 'air', 'squadron', sq.id, mx, my, sq.name);
+  if (role === 'hidden') return;
+  if (role === 'faded') ctx.globalAlpha = 0.35;
+  patrolMark(ctx, mx, my, 7, true);
+  if (role === 'faded') {
+    ctx.globalAlpha = 1;
+    return;
+  }
+  const convoy = zone.convoy ? world.convoys.find((c) => c.id === zone.convoy) : null;
+  const what = zone.kind === 'route' && convoy ? 'toCover' : zone.kind;
+  const line = t(`map.zone.${what}`, { name: sq.name, n: sq.aircraft, convoy: convoy ? convoy.name : '' });
+  const box = placePlaque(ctx, app, mx, my, [line], {}, 12);
+  app.hits.push({ kind: 'squadron', id: sq.id, x: mx, y: my, r: 14, priority: 0, box });
+}
+
 // ---- squadrons ---------------------------------------------------------------------
 
 function drawSquadrons(ctx, cam, app, alpha) {
@@ -1644,6 +1784,13 @@ function drawSquadrons(ctx, cam, app, alpha) {
     const m = wings.get(sq.id) || null;
     const f = m ? m.f : null;
     const selected = isSelected(app, 'squadron', sq.id) || Boolean(f && m.index === 0 && isSelected(app, 'formation', f.id));
+    // At sea and at high speed, a patrol of Coastal Command is drawn as the zone it covers
+    // (idea B of the audit): its mark stands at the zone, drawn under the units.
+    const zone = zoneOf(app, sq, wings);
+    if (zone) {
+      zoneMark(ctx, cam, app, sq, zone, alpha);
+      continue;
+    }
     // A squadron in station in its big wing: a small roundel beside the leader, no plaque.
     if (m && m.index > 0 && sq.state === 'airborne' && sq.inFormation && sq.follow === f.members[0]) {
       const [sx, sy] = unitScreen(cam, sq, alpha);
@@ -2150,6 +2297,7 @@ export function drawScene(ctx, app, alpha) {
   if (layer('radars') && app.settings.radarCover && cam.scale > 0.35) drawCoverage(ctx, cam, app.world);
   drawRail(ctx, cam, app);
   drawViewZones(ctx, cam, app, alpha);
+  drawPatrolZones(ctx, cam, app, alpha);
   drawCondorZone(ctx, cam, app);
   drawDfZones(ctx, cam, app);
   drawUboatPlots(ctx, cam, app);

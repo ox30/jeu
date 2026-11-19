@@ -1357,3 +1357,62 @@ cumulées et bases à 40 % de carburant ; vol moins fatigant ; alertes à décid
 à l'ordre et que « Voir » ne ferme pas ; convoi escorté en pile qui garde sa plaque ; mot de
 la carte sur un glisser depuis une pile fermée ; pas d'ordre pendant une démonstration ;
 Effectifs masqué sans escadrille de chasse ; tutoriel d'origine remplacé par quatre leçons.
+
+## Idée B · En mer, la zone de patrouille plutôt que l'avion
+
+Faite en fin de session, les quatre lots livrés, comme le demandait la consigne. Branche
+`idee-b`, partie de `m2.10` ; version 2.10.1. C'est la version « affichage seul » de l'audit
+(une journée de travail estimée) : la simulation fait voler les avions comme avant, et les
+720 parties de la mesure n'ont pas à être rejouées (`git diff m2.10 -- src/sim data/rules.json
+data/scenarios` est vide).
+
+**Le constat de l'audit.** À ×3 600, un avion de patrouille à 250 km/h parcourt 250 km de
+carte par seconde, un convoi à 9 nœuds en parcourt 17 : l'avion clignote, le convoi rampe.
+
+**Ce qui est fait.**
+
+- `src/ui/patrolZone.js`, sans rien de la page : pour une patrouille de Coastal Command en
+  vol, `patrolZone` donne l'endroit où se tient son repère (le convoi qu'elle couvre, le bout
+  de sa route ou de ses étapes, le point où elle orbite, son aérodrome quand elle rentre), le
+  rayon de son cercle (ce qu'elle voit de jour d'un U-Boot en surface, plus le rayon du cercle
+  volé autour d'un convoi), ce qu'elle en surveille en ce moment (tout de jour, la courte
+  portée de son radar ASV la nuit, rien la nuit sans radar ni sur le retour), et le chemin
+  qu'elle suit. `shownAsZone` dit quand on la dessine ainsi : à
+  partir de ×600, jeu en marche ou en pause (l'image ne bascule pas à chaque arrêt), jamais
+  pour l'unité en main, et seulement si la case des Réglages est cochée.
+- La scène dessine les zones sous les unités : cercle bleu, hachuré là où la patrouille voit
+  (sur l'autre pente que les hachures rouges des zones de radiogoniométrie, ancrées sur la
+  carte), contour en pointillé quand elle ne voit pas tout son cercle ; bande hachurée le long
+  du chemin quand elle y voit ; trait pointillé du chemin. Le repère de l'escadrille (son symbole et une plaque qui
+  dit « couvre HX 102 », « va couvrir HX 102 », « en route », « en patrouille », « rentre »)
+  se tient à la zone : c'est là qu'on la clique et qu'on glisse depuis elle. Deux patrouilles
+  sur le même convoi font une pile, comme toutes les unités superposées.
+- **Sous silence radio, la zone d'une patrouille qui couvre un convoi se dessine autour de la
+  position que la table donne au convoi**, pas autour de sa position vraie : l'avion, lui,
+  tournait au-dessus du convoi réel et le trahissait. L'idée B ferme cette fuite à grande
+  vitesse.
+- Réglages, onglet Carte et fiche : « Patrouilles en mer : à partir de ×600, la zone
+  couverte… ». Réglage d'affichage du joueur, hors de la partie et des sauvegardes.
+- Aide (onglet Mer), README.
+
+**Choix.**
+
+- *Coastal Command seulement* (« en mer ») : les sections de guet au-dessus de la Manche
+  gardent leur avion, on les suit à ×10 ou ×60.
+- *La vitesse choisie décide, pas la pause.* Dans l'Atlantique le jeu s'arrête aux relèves
+  sans changer de vitesse : si la pause ramenait les avions, l'image basculerait à chaque
+  arrêt.
+- *L'échelle est la vraie.* Vue de l'Atlantique entier, un cercle de 24 km fait moins de
+  quatre pixels : il n'est pas dessiné, le repère et sa plaque suffisent. Je n'ai pas grossi
+  la zone pour la rendre visible : elle mentirait sur ce qui est surveillé.
+- *L'unité en main retrouve son avion*, sa route et ses carrés : ses ordres en ont besoin.
+
+**Ce qui n'est pas fait.** La version « simulation » de l'idée (trois à quatre jours selon
+l'audit), où la patrouille serait résolue par zone et non par un avion qui vole : rien n'y
+est engagé. Une patrouille qui vole un cap sans fin garde son avion pour repère (cas rare).
+
+**Essais.** `tests/patrolzone.test.js` : six tests (au sol ou chasseur, pas de zone ; sur une
+route ; au-dessus d'un convoi, qui suit le convoi ; en orbite et sur le retour ; la nuit sans
+radar puis avec ; quand elle est dessinée). Essai de fumée : une patrouille envoyée sur un convoi, à
+×3 600 son repère est à côté du convoi et sa zone est là ; à ×60 l'avion ; en main, l'avion ;
+case décochée, l'avion. Captures `patrol-zone` et `patrol-aircraft`.

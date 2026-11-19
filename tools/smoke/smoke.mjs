@@ -1643,6 +1643,85 @@ async function interfaceChecks(page, errors) {
     await settle(page);
     await shot(page, 'stack-convoy');
   });
+  await step('interface: at sea and at high speed, the zone of a patrol rather than the aircraft (idea B)', async () => {
+    await start('hiver-atlantique', { seaComms: 'direct' });
+    const sea = await game(page, async () => {
+      const a = window.__game;
+      const O = await import('./src/sim/orders.js');
+      a.paused = true;
+      // A convoy within reach of the patrols of Northern Ireland, then one of them over it.
+      let c = null;
+      for (let i = 0; i < 30 * 86400 && !c; i += 3600) {
+        a.stepWorld(3600);
+        c = a.world.convoys.find((x) => x.state === 'atSea' && !x.straggler && Math.hypot(x.x - a.world.byId.airfield.get('aldergrove').x, x.y - a.world.byId.airfield.get('aldergrove').y) < 700) || null;
+      }
+      const sq = a.world.squadrons.find((s) => s.role === 'coastal' && s.state === 'ready' && s.airfield === 'aldergrove');
+      if (!c || !sq) return null;
+      O.scramble(a.world, sq, { orbit: true });
+      for (let i = 0; i < 15 * 60 && sq.state !== 'airborne'; i += 60) a.stepWorld(60);
+      const ordered = O.setCover(a.world, sq, c.id);
+      for (let i = 0; i < 300 * 60 && Math.hypot(sq.x - c.x, sq.y - c.y) > 12 && sq.state === 'airborne'; i += 60) a.stepWorld(60);
+      a.selection = null;
+      a.camera.anim = null;
+      a.camera.cx = c.x;
+      a.camera.cy = c.y;
+      a.camera.scale = 1.4;
+      a.speed = 3600;
+      a.dirtyHud = true;
+      return { ordered, convoy: c.id, squadron: sq.id, state: sq.state, cover: sq.cover };
+    });
+    note(Boolean(sea) && sea.ordered && sea.state === 'airborne' && sea.cover === sea.convoy, 'patrol zone: a patrol of Coastal Command is over a convoy', JSON.stringify(sea));
+    if (!sea) return;
+    await settle(page);
+    const seen = (id) => game(page, ([convoyId, squadronId]) => {
+      const a = window.__game;
+      const zone = (a.patrolZones || []).find((z) => z.id === squadronId) || null;
+      const hit = a.hits.find((h) => h.kind === 'squadron' && h.id === squadronId) || null;
+      const pile = a.hits.find((h) => h.kind === 'stack' && h.members.some((m) => m.kind === 'convoy' && m.id === convoyId)) || a.hits.find((h) => h.kind === 'convoy' && h.id === convoyId) || null;
+      const sq = a.world.squadrons.find((s) => s.id === squadronId);
+      const [ax, ay] = a.toScreen(sq.x, sq.y);
+      return {
+        zone: zone ? { kind: zone.kind, r: Math.round(zone.r), sees: zone.sees } : null,
+        toConvoy: hit && pile ? Math.round(Math.hypot(hit.x - pile.x, hit.y - pile.y)) : null,
+        toAircraft: hit ? Math.round(Math.hypot(hit.x - ax, hit.y - ay)) : null,
+        speed: a.speed,
+      };
+    }, id);
+    const fast = await seen([sea.convoy, sea.squadron]);
+    note(Boolean(fast.zone) && fast.zone.kind === 'cover' && fast.zone.r >= 20 && fast.toConvoy !== null && fast.toConvoy <= 30,
+      'patrol zone: at ×3 600 it is drawn as its zone, its mark standing by the convoy', JSON.stringify(fast));
+    await shot(page, 'patrol-zone');
+    // Slow enough to follow the aircraft: the aircraft itself, as before.
+    await game(page, () => {
+      window.__game.speed = 60;
+    });
+    await sleep(300);
+    const slow = await seen([sea.convoy, sea.squadron]);
+    note(slow.zone === null && slow.toAircraft !== null && slow.toAircraft <= 40, 'patrol zone: at ×60 the aircraft itself is drawn, as before', JSON.stringify(slow));
+    await shot(page, 'patrol-aircraft');
+    // The unit in hand keeps its aircraft and its route, whatever the speed; the setting turns the zones off.
+    await game(page, async (id) => {
+      const a = window.__game;
+      a.speed = 3600;
+      const A = await import('./src/ui/actions.js');
+      A.select(a, 'squadron', id);
+    }, sea.squadron);
+    await sleep(300);
+    const inHand = await seen([sea.convoy, sea.squadron]);
+    note(inHand.zone === null && inHand.toAircraft !== null && inHand.toAircraft <= 40, 'patrol zone: the patrol in hand keeps its aircraft', JSON.stringify(inHand));
+    await game(page, async () => {
+      const a = window.__game;
+      const A = await import('./src/ui/actions.js');
+      A.select(a, null, null);
+      a.settings.patrolZones = false;
+    });
+    await sleep(300);
+    const off = await seen([sea.convoy, sea.squadron]);
+    note(off.zone === null, 'patrol zone: the setting « Patrouilles en mer » turns it off', JSON.stringify(off));
+    await game(page, () => {
+      window.__game.settings.patrolZones = true;
+    });
+  });
   note(errors.length === before, 'interface: no console error', errors.slice(before, before + 2).join(' | '));
 }
 

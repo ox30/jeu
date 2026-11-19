@@ -623,6 +623,7 @@
     },
     "autoZoom": "Zoom automatique sur l'Angleterre à l'alerte",
     "nightShadow": "Ombre de la nuit sur la carte : là où le soleil est couché, la table s'assombrit (patrouilles, guetteurs et U-Boote suivent la même nuit)",
+    "patrolZones": "Patrouilles en mer : à partir de ×600, la zone couverte (hachurée) plutôt que l'avion, qui traverserait la carte en une seconde ; l'unité en main garde son avion et sa route",
     "slowOnAlert": "Ralentir le temps à chaque alerte (raid, convoi attaqué, base à sec…)",
     "sound": "Sons (alerte, radio, combats)",
     "note": "Les réglages s'appliquent tout de suite et restent enregistrés dans ce navigateur.",
@@ -1155,7 +1156,14 @@
     "condorZone": "rayon d'action des Condor ({name})",
     "stackMore": " +{n}",
     "stackEscort": "avec {names}",
-    "stackAsk": "{n} unités ici : cliquez pour choisir laquelle, puis tracez sa route"
+    "stackAsk": "{n} unités ici : cliquez pour choisir laquelle, puis tracez sa route",
+    "zone": {
+      "cover": "{name} · {n} · couvre {convoy}",
+      "toCover": "{name} · {n} · va couvrir {convoy}",
+      "route": "{name} · {n} · en route",
+      "station": "{name} · {n} · en patrouille",
+      "home": "{name} · {n} · rentre"
+    }
   },
   "help": {
     "title": "Comment jouer",
@@ -1233,7 +1241,8 @@
       "Autonomie : un groupe rentre de lui-même quand il ne lui reste que de quoi regagner le port le plus proche, plus un jour de marge (« Retour au port » montre la distance et le temps pour chaque port). Si vous le retenez en mer et que son mazout s'épuise, il quitte tout, convoi compris, et se traîne au port le plus proche à 7 nœuds au plus : vous ne pouvez plus que choisir son port.",
       "Le commandement des U-Boote (BdU) tend tous les deux jours une ligne de patrouille en travers de la route que vos convois ont prise ces derniers temps : au début la route de l'Amirauté, plus au sud si vos convois y passent. Le B-Dienst lit une part des messages de routage (Réglages, onglet Partie, 0 à 100 %) : deux U-Boote vont alors attendre le convoi en travers de sa route. Les Fw 200 Condor de Bordeaux couvrent le golfe de Gascogne et l'ouest de l'Irlande (cercle pointillé sur la carte) : ils signalent les convois aux U-Boote et bombardent parfois. Les U-Boote n'entrent ni en mer d'Irlande, ni dans la Manche, le canal de Bristol ou les eaux intérieures des Hébrides (mines, patrouilles) : ils attendent au large et contournent la terre.",
       "Le globe : la carte est plate, mais les distances sont celles du globe ; plus au nord, le chemin est plus court qu'il n'y paraît. Sélectionnez un convoi : la carte montre en pointillé le plus court chemin sur le globe jusqu'aux entrées des chenaux, et la longueur de la route suivie. Une escorte qui tient un U-Boot à l'ASDIC annonce sa profondeur et son cap estimés.",
-      "Un U-Boot vu par un avion ou par une escorte lève une alerte « U-Boot en vue » et ramène le jeu à ×1 ; dans l'Atlantique, au rythme des quarts, il est noté au rapport de la relève et le temps continue. Les deux cercles d'un repère montrent où il peut être, en surface et en plongée ; Réglages, onglet Carte et fiche, « Zones de vue », montre ce que voient vos navires et vos avions."
+      "Un U-Boot vu par un avion ou par une escorte lève une alerte « U-Boot en vue » et ramène le jeu à ×1 ; dans l'Atlantique, au rythme des quarts, il est noté au rapport de la relève et le temps continue. Les deux cercles d'un repère montrent où il peut être, en surface et en plongée ; Réglages, onglet Carte et fiche, « Zones de vue », montre ce que voient vos navires et vos avions.",
+      "Patrouilles de Coastal Command : à ×3 600, un avion traverse 250 km de carte par seconde quand un convoi en parcourt 17. À partir de ×600, une patrouille en vol est donc dessinée par ce qu'elle fait plutôt que par son avion : son repère se tient près du convoi qu'elle couvre, au bout de sa route ou là où elle orbite, sa plaque dit « couvre HX 102 », « en route », « en patrouille » ou « rentre », et son cercle est tracé en bleu, hachuré là où elle voit : tout le cercle de jour, la courte portée de son radar ASV la nuit, rien la nuit sans radar. Le geste ne change pas : cliquez le repère pour ouvrir la fiche, glissez depuis lui pour tracer une route ; l'unité en main retrouve son avion, sa route et ses carrés. À ×60 et en dessous, l'avion lui-même est dessiné. Réglages, onglet Carte et fiche, pour s'en passer."
     ],
     "time": [
       "Les alertes ralentissent le temps : un raid ramène à ×10 ; en mer, toute alerte ramène à ×1 (on décide, puis on accélère) ; une base à ×600. Chaque vitesse se règle dans Réglages, onglet Temps et alertes. Pendant une action ennemie, une vitesse élevée demande confirmation (réglable).",

@@ -8,9 +8,22 @@ avec un menu principal, un tutoriel en quatre leçons et une aide illustrée.
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.10.0** (lot M2.10, interface, équilibre et tutoriel). Les décisions qui guident les
-lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md` (fichier du projet) ; le journal des
-travaux est dans `docs/journal-m2.7-m2.10.md`.
+**Version 2.10.1** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit). Les
+décisions qui guident les lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md` (fichier du
+projet) ; le journal des travaux est dans `docs/journal-m2.7-m2.10.md`.
+
+## Nouveauté de la 2.10.1 : la zone de patrouille plutôt que l'avion (idée B)
+
+À ×3 600, un avion de patrouille traverse 250 km de carte par seconde quand un convoi en
+parcourt 17 : l'avion clignotait. **À partir de ×600, une patrouille de Coastal Command en vol
+est dessinée par ce qu'elle fait** : son repère se tient près du convoi qu'elle couvre, au bout
+de sa route ou là où elle orbite ; sa plaque dit « couvre HX 102 », « en route », « en
+patrouille » ou « rentre » ; son cercle est tracé en bleu, hachuré là où elle voit (tout le
+cercle de jour, la courte portée de son radar ASV la nuit, rien la nuit sans radar). Rien
+d'autre ne change : la simulation fait voler l'avion comme avant, le
+repère se clique et se glisse comme l'avion, l'unité en main retrouve son avion et sa route,
+et à ×60 ou moins l'avion lui-même est dessiné. Une case des Réglages (Carte et fiche) rend
+l'ancien affichage.
 
 ## Nouveautés du M2.10
 
@@ -579,7 +592,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 385 tests, environ quatre minutes
+npm test          # les 391 tests, environ quatre minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : leçons, pages, fiches, corrections, quarts, menu, interface

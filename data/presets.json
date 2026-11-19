@@ -126,6 +126,7 @@
     "rosterHours": "24",
     "watchStops": "decision",
     "nightShadow": true,
+    "patrolZones": true,
     "viewZones": "selected",
     "volume": 80,
     "lowRes": false,

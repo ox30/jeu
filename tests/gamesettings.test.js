@@ -29,7 +29,7 @@ test('the world keeps its own copy of the game settings, and nothing of the disp
   assert.equal(w.presetStart, 'realistic');
   for (const k of Object.keys(P.presets.realistic)) assert.equal(w.settings[k], P.presets.realistic[k], k);
   assert.equal(w.settings.watchStops, P.options.watchStops);
-  for (const k of ['sheetW', 'volume', 'scenario', 'sound', 'nightShadow', 'lowRes']) assert.ok(!(k in w.settings), `${k} is display`);
+  for (const k of ['sheetW', 'volume', 'scenario', 'sound', 'nightShadow', 'patrolZones', 'lowRes']) assert.ok(!(k in w.settings), `${k} is display`);
   // The player changes his own settings afterwards: the game under way is not touched.
   mine.detection = 'exact';
   mine.fatigue = 'off';
