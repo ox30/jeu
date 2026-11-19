@@ -31,13 +31,13 @@ export function handleEvents(app, events) {
     let report = (e.type === 'raidReport' || e.type === 'combatReport') && app.world.reports.has(e.raidId) ? e.raidId : null;
     // A depth-charge attack: its journal lines open its report.
     if ((e.type === 'escortEngaged' || e.type === 'depthChargePass') && e.report) report = e.report;
-    if (msg) addLogEntry(app, msg.text, msg.level, e.t, { report });
+    const logId = msg ? addLogEntry(app, msg.text, msg.level, e.t, { report }) : null;
     addEffectsForEvent(app, e);
     if (RADIO.has(e.type) || (e.type === 'raidSighted' && e.kind === 'squadron')) playRadio(app);
     else if (e.type === 'combatRound') playGuns(app);
     else if (e.type === 'siteHit' || e.type === 'shipsSunk') playBombs(app);
     // Every event that needs the player raises an alert and slows the game (alertRules.js).
-    const alert = alertForEvent(app, e);
+    const alert = alertForEvent(app, e, logId);
     if (e.type === 'uboatAttack' || e.type === 'convoyBombed' || e.type === 'escortEngaged') app.lastNavalAttack = e.t;
     if (e.type === 'raidDetected') {
       if (alert && app.settings.autoZoom && app.camera.scale < 0.6) goView(app, 'england');
@@ -85,7 +85,7 @@ function seaStop(app, e) {
   // (The attack has just given a sure point: the convoy is where it is drawn.)
   const c = app.world.convoys.find((x) => x.id === e.convoyId);
   raiseAlert(app, {
-    type: 'seaStop', t: app.world.t, level: 'danger', pause: true, variant: e.sunk > 0 ? 'text' : 'missed',
+    type: 'seaStop', t: app.world.t, level: 'danger', pause: true, decision: true, variant: e.sunk > 0 ? 'text' : 'missed',
     params: { convoy: e.convoy, n: e.sunk },
     focus: c ? { x: c.x, y: c.y, kind: 'convoy', id: c.id } : { x: e.x, y: e.y },
   });

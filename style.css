@@ -90,6 +90,31 @@ button {
 
 .only-small { display: none !important; }
 
+/* The tools: a pictogram, a short word under it when there is room, the name and the key in the tooltip. */
+#hud .tools { flex-wrap: nowrap; gap: 3px; }
+#hud button.tool, #hud #btn-pause {
+  position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; min-width: 40px; min-height: 38px; padding: 3px 5px; line-height: 1;
+}
+#hud button.tool[hidden] { display: none; }
+#hud .tool svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+#hud .tool-glyph { font: bold 17px/19px Georgia, serif; height: 19px; }
+#hud #btn-pause .tool-glyph { font: 13px/19px "Courier New", Courier, monospace; letter-spacing: -1px; }
+#hud .tool-label { font-size: 10px; letter-spacing: 0.02em; white-space: nowrap; }
+#hud .tool-count {
+  position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  background: #b3261e; color: #fff; font: bold 11px/16px Georgia, serif; text-align: center; box-shadow: 0 0 0 1px #1b150e;
+}
+#hud .tool-count[hidden] { display: none; }
+.hud-pop { position: relative; display: inline-flex; }
+.pop-menu {
+  position: absolute; top: calc(100% + 5px); left: 0; z-index: 30; display: flex; flex-direction: column; gap: 3px;
+  min-width: 170px; padding: 6px; background: var(--wood); border: 1px solid #8a7350; border-radius: 4px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+.pop-menu[hidden] { display: none; }
+#hud .pop-menu button { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; padding: 6px 9px; font-size: 13px; }
+.pop-menu kbd { font: bold 11px "Courier New", Courier, monospace; border: 1px solid #8a7350; border-radius: 3px; padding: 0 4px; opacity: 0.85; }
+
 /* Laptop widths: the top bar stays on one line. */
 @media (max-width: 1700px) {
   #hud { gap: 6px 10px; padding: 5px 10px; }
@@ -100,6 +125,20 @@ button {
   #date { font-size: 12px; }
   #hud button { padding: 3px 6px; font-size: 12.5px; }
   .speeds button { padding: 3px 4px !important; }
+  #hud button.tool, #hud #btn-pause { min-width: 36px; padding: 3px 4px; }
+}
+
+/* Narrow laptops and tablets (1 024 px wide): pictograms alone, and the bar still on one line. */
+@media (max-width: 1250px) {
+  #hud { gap: 5px 8px; padding: 4px 8px; }
+  #hud .tool-label { display: none; }
+  #hud button.tool, #hud #btn-pause { min-width: 32px; min-height: 32px; padding: 3px; }
+  .hud-title { max-width: 112px; }
+  .hud-title strong { display: none; }
+  #clock { width: 40px; height: 40px; }
+  .hud-date { min-width: 0; }
+  #time { font-size: 18px; }
+  .speeds button { font-size: 12px !important; padding: 3px !important; }
 }
 
 /* ---------- map ---------- */
@@ -133,6 +172,8 @@ button {
 .alert[hidden] { display: none; }
 .alert strong { letter-spacing: 0.12em; white-space: nowrap; }
 #alert-text { flex: 1 1 auto; min-width: 0; }
+.alert-kind { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; border: 1px solid #f0b8a0; border-radius: 3px; padding: 1px 5px; white-space: nowrap; }
+.alert-kind[hidden] { display: none; }
 .alert-buttons { display: flex; gap: 6px; white-space: nowrap; }
 .alert button {
   background: #fff3e0; color: #7c1f18; border: none; border-radius: 3px; padding: 3px 10px; font-weight: bold;
@@ -421,6 +462,8 @@ dialog .keys { font-size: 12px; color: var(--ink-soft); }
 h2.foldable { cursor: pointer; user-select: none; }
 .log-section.collapsed h2.foldable .fold { transform: rotate(-90deg); }
 .log-section.collapsed #log { display: none; }
+/* The lines of the alerts that were not read: shown when the Journal button opens the journal on them. */
+.log li.unread { background: #fbe6c8; box-shadow: inset 3px 0 0 #b3261e; padding-left: 7px; }
 .log li.has-report { cursor: pointer; }
 .log li.has-report:hover { text-decoration: underline dotted; }
 

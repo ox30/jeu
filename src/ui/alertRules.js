@@ -243,6 +243,59 @@ const RULES = {
 };
 
 /**
+ * The alerts that ask for an order (C6 of the audit): they stay on the screen until the order
+ * is given or the player closes them. The others are information: they fade by themselves.
+ */
+export const DECISION_ALERTS = new Set([
+  'raidDetected', 'convoyInEscortRange', 'escortLowFuel', 'escortDry', 'escortChargesOut', 'convoyStopped', 'convoyWaiting',
+  'straggler', 'noFuel', 'noAmmo', 'lowFuel', 'seaStop',
+]);
+
+const inPortOrHomeward = (e) => !e || e.homeward || e.state === 'inPort' || e.state === 'refit';
+const fieldOf = (w, a) => (a.focus && a.focus.kind === 'site' ? w.sites.get(a.focus.id) : null);
+
+// What answers a decision: the order it asked for has been given (or no longer can be).
+const ANSWERED = {
+  raidDetected: (w, a) => w.squadrons.some((s) => s.state !== 'ready' && s.state !== 'lost'
+    && ((s.intercept && s.intercept.raidId === a.focus.raidId) || s.attackRaid === a.focus.raidId || s.engagedRaid === a.focus.raidId)),
+  convoyInEscortRange: (w, a) => {
+    const c = w.convoys.find((x) => x.id === a.focus.id);
+    return !c || c.state !== 'atSea' || w.escorts.some((e) => e.joinTarget === c.id || e.escorting === c.id);
+  },
+  escortLowFuel: (w, a) => inPortOrHomeward(w.escorts.find((e) => e.id === a.unitId)),
+  escortDry: (w, a) => {
+    const e = w.escorts.find((x) => x.id === a.unitId);
+    return !e || e.state === 'inPort' || e.state === 'refit';
+  },
+  escortChargesOut: (w, a) => {
+    const e = w.escorts.find((x) => x.id === a.unitId);
+    return inPortOrHomeward(e) || e.charges > 0;
+  },
+  convoyStopped: (w, a) => {
+    const c = w.convoys.find((x) => x.id === a.focus.id);
+    return !c || c.state !== 'atSea' || c.route.length > 0 || c.plan.length > 0;
+  },
+  convoyWaiting: (w, a) => {
+    const c = w.convoys.find((x) => x.id === a.focus.id);
+    return !c || c.state !== 'waiting';
+  },
+  noFuel: (w, a) => {
+    const f = fieldOf(w, a);
+    return Boolean(f) && f.stocks.fuel >= 1;
+  },
+  lowFuel: (w, a) => {
+    const f = fieldOf(w, a);
+    return Boolean(f) && w.trains.some((tr) => tr.to === f.key && tr.cargo && tr.cargo.fuel > 0);
+  },
+};
+
+/** Has the order this alert asked for been given? (An information is never « answered ».) */
+export function alertAnswered(world, a) {
+  const check = a.decision ? ANSWERED[a.type] : null;
+  return Boolean(check && check(world, a));
+}
+
+/**
  * The alert an event calls for, or null. `memory` (a Map) remembers when each alert was
  * last given, in game seconds, so that the same one stays quiet for a while.
  */
@@ -255,7 +308,7 @@ export function alertFor(world, e, memory) {
   const last = memory.get(a.key);
   if (last !== undefined && (!a.quiet || world.t - last < a.quiet)) return null;
   memory.set(a.key, world.t);
-  return { type: e.type, t: world.t, variant: 'text', ...a };
+  return { type: e.type, t: world.t, variant: 'text', decision: DECISION_ALERTS.has(e.type), unitId: e.escortId || e.convoyId || null, ...a };
 }
 
 /** The event types that call the player (for the documentation and the tests). */

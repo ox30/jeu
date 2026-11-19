@@ -23,20 +23,22 @@
         <div id="speeds" class="speeds" data-i18n-title="hud.speedTitle"></div>
         <div id="speed-confirm" class="speed-confirm" hidden role="alertdialog"></div>
       </div>
-      <div class="hud-group">
-        <button type="button" id="btn-atlantic" data-i18n="hud.atlantic"></button>
-        <button type="button" id="btn-britain" data-i18n="hud.britain"></button>
-        <button type="button" id="btn-england" data-i18n="hud.england"></button>
-      </div>
-      <div class="hud-group">
-        <button type="button" id="btn-ruler" data-i18n="hud.ruler"></button>
-        <button type="button" id="btn-radar" data-i18n="hud.radarShort" data-i18n-title="hud.radarCover"></button>
-        <button type="button" id="btn-reports" data-i18n="hud.reports"></button>
-        <button type="button" id="btn-formations" data-i18n="hud.formations" data-i18n-title="hud.formationsTitle"></button>
-        <button type="button" id="btn-roster" data-i18n="hud.roster"></button>
-        <button type="button" id="btn-cards" data-i18n="hud.cards"></button>
-        <button type="button" id="btn-help" data-i18n="hud.help"></button>
-        <button type="button" id="btn-menu" class="menu-button" data-i18n-title="menu.openTitle" data-i18n-label="menu.open">☰</button>
+      <!-- The tools: a pictogram each, its name and its key in the tooltip, a short word under
+           it when there is room (hud.js fills them). -->
+      <div class="hud-group tools" id="hud-tools">
+        <span class="hud-pop">
+          <button type="button" id="btn-view" class="tool" aria-haspopup="true" aria-expanded="false"></button>
+          <span id="view-menu" class="pop-menu" role="menu" hidden></span>
+        </span>
+        <button type="button" id="btn-ruler" class="tool"></button>
+        <button type="button" id="btn-radar" class="tool"></button>
+        <button type="button" id="btn-formations" class="tool"></button>
+        <button type="button" id="btn-roster" class="tool"></button>
+        <button type="button" id="btn-reports" class="tool"></button>
+        <button type="button" id="btn-cards" class="tool"></button>
+        <button type="button" id="btn-journal" class="tool"></button>
+        <button type="button" id="btn-help" class="tool"></button>
+        <button type="button" id="btn-menu" class="tool"></button>
         <button type="button" id="save-problem" class="save-problem" data-i18n="menu.saveProblem" data-i18n-title="save.errors.storage" hidden></button>
         <button type="button" id="btn-panel" class="only-small" data-i18n="hud.panel"></button>
       </div>
@@ -46,6 +48,7 @@
       <canvas id="map"></canvas>
       <div id="alert" class="alert" hidden role="alert">
         <strong id="alert-title" data-i18n="alert.title"></strong>
+        <span id="alert-kind" class="alert-kind" data-i18n="alert.decision" data-i18n-title="alert.decisionTitle" hidden></span>
         <span id="alert-text"></span>
         <span id="alert-more" class="alert-more" hidden></span>
         <span class="alert-buttons">

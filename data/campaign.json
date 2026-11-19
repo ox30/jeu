@@ -6,9 +6,9 @@
   "airBattles": ["kanalkampf", "adlertag", "quinze-septembre"],
   "viewsNote": "Vues de la carte, en degrés : longitudes puis latitudes. Chaque scénario dit lesquelles il propose (map.views), sa vue de départ (map.view) et sa zone (map.zone).",
   "views": {
-    "atlantic": { "lon": [-67, 13], "lat": [38.5, 64] },
-    "britain": { "lon": [-6.8, 2.4], "lat": [49.9, 56.4] },
-    "england": { "lon": [-3.9, 3.0], "lat": [49.45, 52.75] }
+    "atlantic": { "key": "A", "lon": [-67, 13], "lat": [38.5, 64] },
+    "britain": { "key": "L", "lon": [-6.8, 2.4], "lat": [49.9, 56.4] },
+    "england": { "key": "G", "lon": [-3.9, 3.0], "lat": [49.45, 52.75] }
   },
   "cardsNote": "Durée estimée d'une partie, en minutes de jeu réel (de… à…). Ce sont des estimations, à corriger avec le chrono de fin de partie.",
   "cards": {

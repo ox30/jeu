@@ -26,7 +26,7 @@ import { startLoop } from './ui/loop.js';
 import { attachPanels } from './ui/panelActions.js';
 import { applySheet, attachSheetGrip, resize } from './ui/sheet.js';
 import { attachTutorial } from './ui/tutorial.js';
-import { initAlert } from './ui/alerts.js';
+import { initAlert, openJournal } from './ui/alerts.js';
 import { createSignals, onWatchClick } from './ui/watchPanel.js';
 import { initQuestions } from './ui/questions.js';
 import { loadDev, saveDev } from './ui/dev.js';
@@ -176,6 +176,7 @@ function wireTopBar(app) {
   el.btnFormations.addEventListener('click', () => openFormations(app));
   el.btnRoster.addEventListener('click', () => openRoster(app));
   el.btnHelp.addEventListener('click', () => openHelp(app));
+  el.btnJournal.addEventListener('click', () => openJournal(app));
 }
 
 async function start() {

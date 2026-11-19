@@ -23,6 +23,8 @@ import { answerShown } from './questions.js';
 import { speedIndexOfKey } from './keys.js';
 import { pickHit, unitsUnder } from './hit.js';
 import { isFlying } from '../sim/squadron.js';
+import { openJournal } from './alerts.js';
+import { openHelp } from './dialogs.js';
 
 const UNIT_KINDS = new Set(['squadron', 'convoy', 'airfield', 'escort', 'rally']);
 const HANDLE_KINDS = new Set(['routePoint', 'routeMid', 'routeExtend']);
@@ -88,6 +90,13 @@ function isSelectedHit(app, h, proxy) {
 /** What is under the pointer: for a drag that starts there (`proxy`), or for a plain click. */
 function hitTest(app, x, y, pad, proxy = true) {
   return pickHit(app.hits, x, y, pad, (h) => isSelectedHit(app, h, proxy));
+}
+
+/** The view a key calls (A, L, G…: each view tells its key in data/campaign.json). */
+function viewOfKey(app, key) {
+  if (key.length !== 1) return null;
+  const views = app.data.campaign.views;
+  return Object.keys(views).find((name) => views[name].key && views[name].key.toLowerCase() === key.toLowerCase()) || null;
 }
 
 export function attachInput(app) {
@@ -327,16 +336,16 @@ export function attachInput(app) {
       togglePause(app);
     } else if (speedIndex >= 0) {
       requestSpeed(app, speedIndex);
-    } else if (key === 'a' || key === 'A') {
-      goView(app, 'atlantic');
-    } else if (key === 'g' || key === 'G') {
-      goView(app, 'england');
-    } else if (key === 'l' || key === 'L') {
-      goView(app, 'britain');
+    } else if (viewOfKey(app, key)) {
+      goView(app, viewOfKey(app, key));
     } else if (key === 'r' || key === 'R') {
       app.setTool(app.tool === 'ruler' ? null : 'ruler');
     } else if (key === 'c' || key === 'C') {
       app.toggleRadarCover();
+    } else if (key === 'j' || key === 'J') {
+      openJournal(app);
+    } else if (key === '?') {
+      openHelp(app);
     } else if (key === 'Escape') {
       app.drawing = null;
       app.ruler = null;

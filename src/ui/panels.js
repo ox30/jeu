@@ -80,6 +80,9 @@ export function addLogEntry(app, text, level = 'info', gameT = app.world.t, opts
   }
   const li = document.createElement('li');
   li.className = `log-${level}`;
+  // A number for the line, so that an alert not read can point at it (alerts.js).
+  app.logSeq = (app.logSeq || 0) + 1;
+  li.dataset.logId = String(app.logSeq);
   li.innerHTML = `<time>${time}</time> ${escapeHtml(text)}`;
   if (opts.report) {
     li.dataset.report = opts.report;
@@ -101,6 +104,7 @@ export function addLogEntry(app, text, level = 'info', gameT = app.world.t, opts
     app.logTotal--;
     if (!entries.children.length && lastGroup !== app.logGroup) lastGroup.remove();
   }
+  return app.logSeq;
 }
 
 /** Clears the journal (new scenario). */

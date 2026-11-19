@@ -48,7 +48,52 @@
     "cards": "Fiches",
     "formations": "Formations",
     "formationsTitle": "Grouper des escadrilles en big wing, ou des groupes d'escorte en groupe de soutien",
-    "roster": "Effectifs"
+    "roster": "Effectifs",
+    "toolKey": "{name} ({key})",
+    "spaceKey": "Espace",
+    "tools": {
+      "view": {
+        "name": "Vues de la carte",
+        "word": "Vue"
+      },
+      "ruler": {
+        "name": "Règle",
+        "word": "Règle"
+      },
+      "radar": {
+        "name": "Couverture radar et observateurs",
+        "word": "Radar"
+      },
+      "formations": {
+        "name": "Formations : grouper des escadrilles en big wing, ou des groupes d'escorte en groupe de soutien",
+        "word": "Formations"
+      },
+      "roster": {
+        "name": "Effectifs : les états d'alerte de chaque escadrille, heure par heure",
+        "word": "Effectifs"
+      },
+      "reports": {
+        "name": "Rapports de combat",
+        "word": "Rapports"
+      },
+      "cards": {
+        "name": "Fiches techniques des avions et des navires",
+        "word": "Fiches"
+      },
+      "journal": {
+        "name": "Journal des opérations",
+        "word": "Journal"
+      },
+      "help": {
+        "name": "Aide",
+        "word": "Aide"
+      },
+      "menu": {
+        "name": "Menu de la partie : reprendre, sauvegarder, réglages, recommencer, menu principal",
+        "word": "Menu"
+      }
+    },
+    "journalUnread": "{name} : {n} alerte(s) non lue(s)"
   },
   "panel": {
     "objectives": "Objectifs",
@@ -296,7 +341,7 @@
       "min5": "Alerte (5 min)",
       "cockpit": "Cockpit (2 min)"
     },
-    "alertHint": "Le délai d'un état, c'est le temps pour être en l'air après l'ordre de décoller. Monter d'un cran prend la différence (du repos à l'alerte : 1 h 55) ; descendre est immédiat.",
+    "alertHint": "Le délai d'un état, c'est le temps pour être en l'air après l'ordre de décoller. Monter d'un cran prend la différence (du repos à l'alerte : 1 h 55) ; descendre est immédiat. Seul le Repos repose vraiment : Disponible repose peu, l'Alerte fatigue un peu, le Cockpit davantage.",
     "convoySpeed": "Vitesse",
     "speedBest": "{n} nœuds (le maximum)",
     "speedHint": "Au maximum, des navires lents décrochent et deviennent des traînards. À {n} nœuds ou moins, le convoi reste groupé. Le zigzag gêne les U-Boote mais ralentit d'environ 15 %.",
@@ -714,7 +759,11 @@
     "enemyDown": "Abattre au moins {count} avions ennemis (aujourd'hui {n})",
     "siteDamageBelow": "Garder {site} sous {max} % de dégâts (aujourd'hui {n} %)",
     "tonnageDelivered": "Décharger dans les ports au moins {fuel} t de carburant et {materiel} t de matériel (aujourd'hui {nf} t et {nm} t)",
-    "shipLossesBelow": "Perdre moins de {share} % des navires marchands partis (aujourd'hui {n} %, {sunk} sur {sailed})"
+    "shipLossesBelow": "Perdre moins de {share} % des navires marchands partis (aujourd'hui {n} %, {sunk} sur {sailed})",
+    "outOfServiceBelow": {
+      "airfields": "Les {total} bases de secteur : moins de {hours} h hors service au total (aujourd'hui {n} h)",
+      "radars": "Les {total} stations radar : moins de {hours} h hors service au total (aujourd'hui {n} h)"
+    }
   },
   "log": {
     "scenarioStart": "Prise de service. Le convoi {convoy} attend vos ordres à {port} : tracez sa route sur la carte de l'Atlantique, ou donnez-lui des étapes.",
@@ -1026,7 +1075,9 @@
     "text": "Raid {raid} · {count} appareils · {alt} · {where}",
     "show": "Voir",
     "close": "Fermer l'alerte",
-    "more": "+{n} en attente"
+    "more": "+{n} en attente",
+    "decision": "À décider",
+    "decisionTitle": "Cette alerte attend un ordre : elle reste affichée jusqu'à ce qu'il soit donné, ou jusqu'à ce que vous la fermiez."
   },
   "map": {
     "admiraltyRoute": "Route recommandée par l'Amirauté",
@@ -1106,7 +1157,7 @@
       "Logistique : les convois déchargent carburant et matériel dans les ports. Envoyez des trains vers les bases (carburant) et les usines (matériel), ou fixez un stock minimum dans la fiche d'une base : les trains partent seuls. Sans carburant, une escadrille ne refait pas le plein. Les usines remplacent les avions perdus.",
       "Défense : à l'alerte, faites décoller une escadrille vers le raid, réglez son altitude (↑ ↓) pour arriver au-dessus. En Arcade, « Intercepter » (ou glisser jusqu'au raid) laisse le contrôleur la guider : sa chance dépend de la couverture radar. Le trait pointillé d'un raid manqué donne l'écart ; chaque raid finit par un rapport, rangé dans « Rapports ».",
       "Tracés : cliquez une unité pour ouvrir sa fiche et voir les carrés de sa route. Glissez un carré pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. En fin de tracé, l'escadrille orbite, sauf si vous choisissez autre chose dans la section « Route et étapes » de sa fiche (se poser si le tracé finit dans la bulle d'un aérodrome).",
-      "Victoire si les convois livrent l'essentiel de leur cargaison, si 4 bases sur 5 sont en service et si la chasse garde 60 % de ses avions le 24 juillet. Défaite immédiate si toutes les bases restent sans carburant 24 heures."
+      "Victoire si les convois HX livrent 80 % de leur cargaison et le convoi côtier CW 75 %, si 30 avions ennemis sont abattus, si 4 bases sur 5 sont en service et si la chasse garde 90 % de ses avions le 24 juillet. C'est le dilemme de Dowding : engager assez pour protéger les convois et faire payer l'ennemi, sans user la chasse. Défaite immédiate si toutes les bases restent sans carburant 24 heures."
     ],
     "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle (la croix de son encart l'efface) · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler, puis fermer la fiche · ↑ ↓ : altitude (de l'unité choisie, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : boost (avion ou navire) · O : orbiter · P : rentrer · D : rompre le combat (désengager le raid en cours) · Question à l'écran : Entrée = oui (au rendez-vous : le choix du plan), Échap = non (au rendez-vous : partir)",
     "close": "Compris",
@@ -1123,12 +1174,13 @@
         "Adlertag, 12-18 août 1940. La Luftwaffe vise d'abord les radars de la côte (Dover, Rye, Pevensey, Ventnor), puis les aérodromes. Un radar détruit ouvre un trou dans la couverture : placez la station mobile (onglet Installations, « Déployer ») quand elle arrive.",
         "Les raids sans bombardiers, très haut et rapides, sont des chasses libres de Bf 109 : elles cherchent à user vos escadrilles. Gardez vos forces pour les bombardiers. L'état d'alerte (repos 2 h, disponible 30 min, alerte 5 min, cockpit 2 min) règle le délai de décollage et la fatigue ; la page Effectifs le programme.",
         "Les bases de secteur (Biggin Hill, Kenley, Hornchurch, North Weald, Tangmere, Middle Wallop, Northolt) doivent rester en service. Sans munitions ni carburant, une base ne réarme plus : surveillez les stocks et les trains depuis Chilmark et les ports.",
-        "Victoire si 5 bases de secteur sur 7 et 7 radars sur 9 sont en service le 18 août au soir, si 90 avions ennemis sont abattus, si la chasse garde la moitié de ses avions et si le HX 62 livre 60 % de sa cargaison."
+        "Victoire si les sept bases de secteur restent moins de 10 heures hors service au total et les neuf radars moins de 36 heures, si 90 avions ennemis sont abattus, si la chasse garde 45 % de ses avions et si le HX 62 livre 60 % de sa cargaison. Chaque raid qui passe compte : une base est réparée en quelques heures, un radar en plus d'un jour.",
+        "Le carburant des bases ne tient pas la semaine : commandez des trains depuis les ports ou fixez un stock minimum dans la fiche de chaque base (onglet Installations). Une base à sec ne fait plus décoller personne."
       ],
       "quinze-septembre": [
         "15 septembre 1940, une seule journée. Deux grandes vagues visent les docks de Londres, vers 11 h et vers 14 h, précédées de chasses libres.",
         "Contre une escorte de cent chasseurs, engagez beaucoup d'escadrilles sur le même raid : la pression de l'escorte se partage entre elles. Les cinq escadrilles de Duxford peuvent voler en « Big Wing » : groupez-les dans « Formations » (menu du haut). Elles décollent ensemble, se rassemblent au-dessus du chef — ce qui prend du temps — puis volent à la vitesse des Hurricane.",
-        "Victoire si 40 avions ennemis sont abattus, si les docks restent sous 50 % de dégâts et si la chasse garde 70 % de ses avions."
+        "Victoire si 32 avions ennemis sont abattus, si les docks restent sous 50 % de dégâts et si la chasse garde 70 % de ses avions."
       ],
       "hiver-atlantique": [
         "Hiver 1941, du 10 janvier au 31 mars. Les convois HX (Halifax, tous les cinq jours) et SC (Sydney, tous les huit jours, plus lents) partent seuls sur la route de l'Amirauté. Changez-la pour contourner les U-Boote repérés ; mais le commandement allemand apprend où passent vos convois, et une route trop au sud est vite guettée à son tour, sous les Condor de Bordeaux.",
@@ -1158,6 +1210,7 @@
     "air": [
       "Face à l'ennemi (barre de commandes) : en Défense, une escadrille n'attaque pas d'elle-même et demande l'autorisation quand elle voit un raid ; en Attaque (le défaut), elle attaque les raids qui arrivent et demande avant de poursuivre un raid qui rentre ; en Attaque et poursuite, elle poursuit sans demander jusqu'à mi-Manche, puis demande. Une question passe le jeu à ×1 et y reste ; sans réponse en 60 s, c'est non. Une seule question par raid et par escadrille ; on peut couper les questions dans Réglages. Un tracé qui finit sur un raid, ou « Intercepter », vaut autorisation. « Rompre H05 » dans la barre de commandes (touche D) sort l'unité du combat : elle tourne sur place et laisse ce raid tranquille jusqu'à un nouvel ordre sur lui. Passer à une attitude plus prudente retire les autorisations déjà données : une escadrille qui poursuivait rompt au round suivant.",
       "Les états d'alerte : Repos (2 h : le personnel peut être n'importe où), Disponible (30 min), Alerte (5 min), Cockpit (2 min). Le délai est le temps pour être en l'air après l'ordre de décoller ; monter d'un état prend la différence (du repos à l'alerte : 1 h 55), descendre est immédiat. Un état choisi à la main dans la fiche garde la main sur le planning jusqu'à « Retour au planning ».",
+      "La fatigue : le vol et les combats fatiguent. Au sol, seul le Repos repose vraiment ; Disponible repose peu, l'Alerte à 5 minutes fatigue un peu, le Cockpit davantage. Une escadrille laissée en alerte jour et nuit finit fatiguée en une semaine : elle se bat moins bien et perd plus d'avions. Mettez vos escadrilles au repos la nuit (page Effectifs : un plan qui se répète chaque jour) ou relevez-les à tour de rôle.",
       "La page Effectifs (menu du haut, ou « Programmation des effectifs… » dans une fiche) montre chaque aérodrome et ses escadrilles : le plan de chaque jour (de 00:00 à 24:00, il se répète), ou, case cochée, un plan d'exception pour les prochaines 24 h en heures H (H0 – H+6 repos, H+6 – H+9 alerte…), la frise des 24 heures à venir, et de quoi copier un plan vers d'autres escadrilles. La durée de l'exception se règle dans Réglages.",
       "Programmer : « Décollage programmé » (ou « Appareillage programmé ») donne l'ordre à l'heure dite, avec la route tracée depuis la base ou les étapes préparées ; l'heure saisie est celle de l'ordre, le délai de l'état d'alerte s'y ajoute. « Rejoindre une formation » fait partir une escadrille à son heure pour rejoindre une big wing (ou un groupe de soutien).",
       "Formations (menu du haut) : groupez des escadrilles en big wing, ou des groupes d'escorte en groupe de soutien. La formation devient une seule unité, avec une fiche et les mêmes ordres pour tous ; son chef (★) mène, le suivant prend la relève. Les fiches techniques (menu du haut) donnent vitesses, plafonds et autonomies.",
