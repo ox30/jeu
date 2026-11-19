@@ -7,12 +7,12 @@
 
 import { t } from '../core/i18n.js';
 import { VERSION } from '../core/version.js';
-import { createWorld } from '../sim/world.js';
+import { createWorld, step } from '../sim/world.js';
 import { drainEvents } from '../sim/events.js';
 import { setFrame, viewFrame } from '../render/camera.js';
 import { snapshot, restore } from '../save/game.js';
 import { saveSettings } from '../save/settings.js';
-import { SaveError, readSave, readSaveText } from '../save/migrate.js';
+import { SaveError, readSave, readSaveText, soundJournal, soundMeta } from '../save/migrate.js';
 import { CURRENT } from '../save/store.js';
 import { carryFor, scenarioIds } from './campaign.js';
 import { handleEvents } from './gameEvents.js';
@@ -26,10 +26,28 @@ function scenarioById(app, id) {
   return app.data.scenarios.find((s) => s.id === id) || null;
 }
 
-/** A game is in hand: begun or resumed, and not over. */
+/** Real time after which a game launched and still at its first minute counts as begun. */
+export const BEGUN_AFTER_MS = 60000;
+
+/**
+ * A game is in hand: resumed, or launched and begun, and not over. Begun: its clock has
+ * moved, or the player has spent a minute on it (orders prepared with the clock stopped at
+ * the first minute are a game to keep too). The world the page shows behind the main menu
+ * before anything is launched is not a game.
+ */
 export function gameInProgress(app) {
   const w = app.world;
-  return !w.ended && !app.crash && (w.t > 0 || Boolean(app.resumed));
+  if (w.ended || app.crash) return false;
+  if (app.resumed || w.t > 0) return true;
+  return Boolean(app.launched) && Boolean(app.playClock) && app.playClock.totalMs >= BEGUN_AFTER_MS;
+}
+
+/**
+ * Is this game written in the browser? A lesson of the tutorial is not: it is played in one
+ * go, and a lesson resumed would come back without its instructor.
+ */
+function keptInBrowser(app) {
+  return gameInProgress(app) && !app.tutorial;
 }
 
 /** Seconds of game between two automatic saves: a game day, or two hours in a battle of one day. */
@@ -49,7 +67,6 @@ function gameMeta(app) {
     gameId: app.gameId,
     signalsRead: [...app.signals.read],
     gameMs: app.world.startMs + app.world.t * 1000,
-    tutorial: Boolean(app.tutorial),
   };
 }
 
@@ -72,7 +89,7 @@ function noteWrite(app, result) {
 /** Keeps the game under way in the browser, at once. */
 export function saveCurrent(app) {
   // After an error, or once the game is over, what was kept stays as it is.
-  if (app.world.ended || app.crash || !gameInProgress(app)) return { ok: false, code: 'nothing' };
+  if (!keptInBrowser(app)) return { ok: false, code: 'nothing' };
   app.lastSaveT = app.world.t;
   app.lastSaveReal = performance.now();
   return noteWrite(app, app.store.writeCurrent(buildSave(app)));
@@ -80,20 +97,21 @@ export function saveCurrent(app) {
 
 /** An automatic save of the game as it is now (the last five are kept). */
 export async function autosave(app) {
-  if (app.world.ended || app.crash || !gameInProgress(app)) return { ok: false, code: 'nothing' };
+  if (!keptInBrowser(app)) return { ok: false, code: 'nothing' };
   return noteWrite(app, await app.store.add('auto', buildSave(app)));
 }
 
 /** A save the player asked for, kept until deleted. */
 export async function manualSave(app) {
-  if (app.crash) return { ok: false, code: 'nothing' };
+  // (Not a lesson of the tutorial either: its little scenario is not one a save can come back to.)
+  if (app.crash || app.tutorial) return { ok: false, code: 'nothing' };
   return noteWrite(app, await app.store.add('manual', buildSave(app)));
 }
 
 /** Called every frame: the game under way every quarter of a game hour, the automatic save when its period turns. */
 export function tickSaves(app, now) {
   const world = app.world;
-  if (world.ended || app.crash || !gameInProgress(app)) return;
+  if (!keptInBrowser(app)) return;
   // A long game with all its reports is heavier to write: less often in real time.
   const gapMs = (app.store.current()?.chars || 0) > 400000 ? 20000 : 4000;
   if (world.t - (app.lastSaveT ?? 0) >= 900 && now - (app.lastSaveReal ?? 0) > gapMs) saveCurrent(app);
@@ -121,8 +139,8 @@ function freshPage(app) {
   app.signals = createSignals();
   Object.assign(app, {
     selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0, unlocked: null,
-    saveProblem: null,
   });
+  // (A write that failed stays told, from one game to the next, until one succeeds.)
   clearLog(app);
   app.dirtyPanels = true;
   app.dirtyHud = true;
@@ -149,8 +167,10 @@ export function newGame(app, scenarioId = null, { tutorial = false } = {}) {
   app.playClock = createPlayClock();
   app.gameId = newGameId();
   app.resumed = false;
+  app.launched = true;
   app.world = createWorld({
     scenario: data.scenario, rules: data.rules, settings, terrain: app.terrain, carry: carryFor(app.campaign, data.scenario.id, settings.carry),
+    presets: data.presets,
   });
   freshPage(app);
   frameScenario(app);
@@ -161,34 +181,71 @@ export function newGame(app, scenarioId = null, { tutorial = false } = {}) {
   return true;
 }
 
-/**
- * A saved game (read and checked: readSave) replaces the one in hand. Throws a SaveError when
- * it cannot be restored; the game in hand is then left as it was.
- */
-export function resumeSave(app, saved) {
+/** Game seconds a save is played for, on a world of its own, before it is trusted. */
+const TRIAL_S = 600;
+
+/** A world of the save's scenario with the save put back on it. Throws a SaveError. */
+function worldOf(app, saved) {
   const { data, settings } = app;
   const sc = scenarioById(app, saved.snap.scenario);
   if (!sc) throw new SaveError('unknownScenario', saved.snap.scenario);
   // Built as a new game of this scenario would be, with what the campaign carries over (its
   // own settings come back with it; a save of before 2.9 takes the player's).
   const carryMode = (saved.snap.settings && saved.snap.settings.carry) || settings.carry;
-  const w = createWorld({ scenario: sc, rules: data.rules, settings, terrain: app.terrain, carry: carryFor(app.campaign, sc.id, carryMode) });
+  const w = createWorld({
+    scenario: sc, rules: data.rules, settings, terrain: app.terrain, carry: carryFor(app.campaign, sc.id, carryMode), presets: data.presets,
+  });
   drainEvents(w);
-  restore(w, saved.snap, (world, def) => app.addMobileRadar && app.addMobileRadar(world, def));
+  try {
+    restore(w, saved.snap, (world, def) => app.addMobileRadar && app.addMobileRadar(world, def));
+  } catch (err) {
+    if (err instanceof SaveError) throw err;
+    console.warn('save not restored', err);
+    throw new SaveError('damaged', 'restore');
+  }
+  return w;
+}
+
+/**
+ * Tries a save out before it replaces anything: put back on a world of its own and played
+ * for ten game minutes. A file whose parts are each of the right kind but do not hold
+ * together stops there, and not in the player's game. Throws a SaveError (damaged).
+ */
+export function tryOutSave(app, saved) {
+  const probe = worldOf(app, saved);
+  try {
+    for (let i = 0; i < TRIAL_S && !probe.ended; i++) step(probe, 1);
+  } catch (err) {
+    console.warn('save refused at its trial', err);
+    throw new SaveError('damaged', 'trial');
+  }
+}
+
+/**
+ * A saved game (read and checked: readSave) replaces the one in hand. Throws a SaveError when
+ * it cannot be restored; the game in hand is then left as it was.
+ */
+export function resumeSave(app, saved) {
+  const { data, settings } = app;
+  // Everything is made ready first: nothing of the page changes before the save is whole.
+  const w = worldOf(app, saved);
+  const meta = soundMeta(saved.meta) || {};
+  const journal = soundJournal(saved.journal);
+  const playClock = createPlayClock(meta.playClock);
   // Restored: from here on the game in hand is this one.
-  data.scenario = sc;
-  settings.scenario = sc.id;
+  data.scenario = w.scenario;
+  settings.scenario = w.scenario.id;
   saveSettings(settings);
   stopTutorial(app);
   app.world = w;
   app.resumed = true;
-  const meta = saved.meta || {};
-  app.playClock = createPlayClock(meta.playClock);
+  app.launched = true;
+  app.playClock = playClock;
   app.gameId = meta.gameId || newGameId();
   freshPage(app);
   for (const id of meta.signalsRead || []) app.signals.read.add(id);
-  for (const entry of saved.journal || []) addLogEntry(app, entry.text, entry.level, entry.t, { report: entry.report, replay: true });
-  app.logEntries = [...(saved.journal || [])];
+  for (const entry of journal) addLogEntry(app, entry.text, entry.level, entry.t, { report: entry.report, replay: true });
+  app.logEntries = journal;
   addLogEntry(app, t('log.gameResumed'), 'info', w.t);
   frameScenario(app);
   app.autoSlot = autosaveSlot(w);
@@ -201,37 +258,72 @@ export function resumeSave(app, saved) {
 function failure(err) {
   if (err instanceof SaveError) return { ok: false, code: err.code, detail: err.detail };
   console.warn('save not loaded', err);
-  return { ok: false, code: 'damaged', detail: String((err && err.message) || err).slice(0, 80) };
+  return { ok: false, code: 'damaged', detail: 'restore' };
+}
+
+/**
+ * A save of the browser read, checked and tried out, without touching the game in hand:
+ * { ok, read } or { ok: false, code, detail }.
+ */
+export async function readEntry(app, id) {
+  try {
+    const read = readSave(await app.store.read(id), scenarioIds());
+    tryOutSave(app, read);
+    return { ok: true, read };
+  } catch (err) {
+    return failure(err);
+  }
+}
+
+/** The same for the text of a file. */
+export function readFileText(app, text) {
+  try {
+    const read = readSaveText(text, scenarioIds());
+    tryOutSave(app, read);
+    return { ok: true, read };
+  } catch (err) {
+    return failure(err);
+  }
+}
+
+/**
+ * The game read (readEntry, readFileText) replaces the one in hand and becomes the game under
+ * way: { ok } or { ok: false, code, detail }. `keep`: false for the game under way itself,
+ * which is already written.
+ */
+export function resumeRead(app, read, { keep = true } = {}) {
+  try {
+    resumeSave(app, read);
+    if (keep) saveCurrent(app);
+    return { ok: true };
+  } catch (err) {
+    return failure(err);
+  }
 }
 
 /** Loads a save of the browser by its id: { ok } or { ok: false, code, detail }. */
 export async function loadEntry(app, id) {
-  try {
-    const read = readSave(await app.store.read(id), scenarioIds());
-    resumeSave(app, read);
-    // The game loaded becomes the game under way.
-    if (id !== CURRENT) saveCurrent(app);
-    return { ok: true };
-  } catch (err) {
-    return failure(err);
-  }
+  const r = await readEntry(app, id);
+  return r.ok ? resumeRead(app, r.read, { keep: id !== CURRENT }) : r;
 }
 
 /** Loads a game from the text of a file: { ok } or { ok: false, code, detail }. */
 export function importText(app, text) {
-  try {
-    resumeSave(app, readSaveText(text, scenarioIds()));
-    saveCurrent(app);
-    return { ok: true };
-  } catch (err) {
-    return failure(err);
-  }
+  const r = readFileText(app, text);
+  return r.ok ? resumeRead(app, r.read) : r;
 }
 
 /** The sentence of a refusal (save.errors.<code>). */
 export function saveErrorText(result) {
   const key = `save.errors.${result.code}`;
-  const text = t(key, { detail: result.detail || '' });
+  // What is wrong with a damaged save, in plain words (save.details): a reason the game
+  // knows, else the part of the save that is missing or of the wrong kind.
+  let detail = result.detail || '';
+  if (result.code === 'damaged' && detail) {
+    const plain = `save.details.${detail}`;
+    detail = t(plain) !== plain ? t(plain) : t('save.details.part', { part: detail });
+  }
+  const text = t(key, { detail });
   return text === key ? t('save.errors.damaged', { detail: result.code }) : text;
 }
 

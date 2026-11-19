@@ -16,10 +16,17 @@ export const GAME_SETTING_KEYS = [
 // Fixed when the game begins: what the campaign carried over cannot be undone half-way.
 const FIXED = new Set(['carry']);
 
-/** The game's own copy of the settings it is created with ({ preset, …the keys above }). */
-export function copyGameSettings(settings = {}) {
+/**
+ * The game's own copy of the settings it is created with ({ preset, …the keys above }). With
+ * the table of the presets, the game is named as it will be all along: by the preset whose
+ * values it has, what is fixed when it begins left aside (a player on Standard who carries
+ * nothing over in the campaign begins a Standard game, not a « custom » one that an order
+ * would then rename Standard).
+ */
+export function copyGameSettings(settings = {}, presets = null) {
   const out = { preset: settings.preset ?? 'custom' };
   for (const k of GAME_SETTING_KEYS) if (settings[k] !== undefined) out[k] = settings[k];
+  if (presets && presets.presets) out.preset = matchingPreset(out, presets, FIXED);
   return out;
 }
 

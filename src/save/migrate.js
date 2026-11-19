@@ -106,16 +106,53 @@ export function readSaveText(text, scenarios = null) {
   return readSave(data, scenarios);
 }
 
+/**
+ * The journal of a save, with the lines the page can show: a text, its level, its hour, the
+ * report it opens. A line that is none of that (a file damaged, or edited by hand) is left out
+ * rather than refusing the whole game for it.
+ */
+export function soundJournal(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const e of list) {
+    if (!e || typeof e !== 'object' || typeof e.text !== 'string') continue;
+    out.push({
+      text: e.text,
+      level: typeof e.level === 'string' ? e.level : 'info',
+      t: finite(e.t) ? e.t : 0,
+      report: typeof e.report === 'string' || finite(e.report) ? e.report : null,
+    });
+  }
+  return out;
+}
+
+/** What belongs to the game without being the simulation, each part of the kind the page expects. */
+export function soundMeta(meta) {
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null;
+  const clock = meta.playClock && typeof meta.playClock === 'object' ? meta.playClock : null;
+  const out = {
+    playClock: clock ? { totalMs: finite(clock.totalMs) ? Math.max(0, clock.totalMs) : 0, pausedMs: finite(clock.pausedMs) ? Math.max(0, clock.pausedMs) : 0 } : null,
+    gameId: typeof meta.gameId === 'string' && meta.gameId ? meta.gameId : null,
+    signalsRead: Array.isArray(meta.signalsRead) ? meta.signalsRead.filter((x) => typeof x === 'string' || finite(x)) : [],
+    gameMs: finite(meta.gameMs) ? meta.gameMs : null,
+  };
+  if (typeof meta.preset === 'string') out.preset = meta.preset;
+  return out;
+}
+
 /** The same for a save already parsed (from the browser's storage, or a file). */
 export function readSave(data, scenarios = null) {
   if (!data || typeof data !== 'object' || !data.snap || (data.game !== undefined && data.game !== 'jeu-1940')) throw new SaveError('notAGame');
+  // Written in the current format, a save has every part a game keeps (game.js checks it).
+  const complete = snapVersion(data.snap) === SNAP_VERSION;
   const snap = migrate(data.snap);
   const problem = validate(snap, scenarios);
   if (problem) throw problem;
   return {
     snap,
-    meta: data.meta && typeof data.meta === 'object' ? data.meta : null,
-    journal: Array.isArray(data.journal) ? data.journal : [],
+    complete,
+    meta: soundMeta(data.meta),
+    journal: soundJournal(data.journal),
     madeBy: typeof data.madeBy === 'string' ? data.madeBy : null,
     savedAt: finite(data.savedAt) ? data.savedAt : null,
   };

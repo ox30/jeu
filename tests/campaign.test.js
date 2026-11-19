@@ -127,6 +127,8 @@ test('a save made before 2.7 takes the fighters of the start from the world it i
   const old = JSON.parse(JSON.stringify(snapshot(w)));
   delete old.fightersAtStart;
   delete old.carry;
+  // (With the number of its format: a save of the current one that lacked a part would be refused.)
+  old.version = 1;
   const back = restore(makeWorld('standard', {}, 'adlertag'), old);
   assert.equal(back.fightersAtStart, w.fightersAtStart, 'the relief arrived since is counted');
   assert.equal(fighterShare(back), fighterShare(w));

@@ -9,6 +9,7 @@ import { playBombs, playGuns, playRadio } from './sound.js';
 import { alertForEvent, raiseAlert } from './alerts.js';
 import { ALERT_TYPES } from './alertRules.js';
 import { goView } from './actions.js';
+import { viewOffered } from './offered.js';
 import { openWatch } from './watchPanel.js';
 import { questionAsked } from './questions.js';
 import { tutorialEvent } from './tutorial.js';
@@ -40,7 +41,7 @@ export function handleEvents(app, events) {
     const alert = alertForEvent(app, e, logId);
     if (e.type === 'uboatAttack' || e.type === 'convoyBombed' || e.type === 'escortEngaged') app.lastNavalAttack = e.t;
     if (e.type === 'raidDetected') {
-      if (alert && app.settings.autoZoom && app.camera.scale < 0.6) goView(app, 'england');
+      if (alert && app.settings.autoZoom && app.camera.scale < 0.6 && viewOffered(app, 'england')) goView(app, 'england');
     } else if (e.type === 'seaStop') {
       seaStop(app, e);
     } else if (e.type === 'watchReport') {

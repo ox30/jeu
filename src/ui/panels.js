@@ -41,9 +41,12 @@ import {
 } from './format.js';
 import { applySheetHelp } from './sheetHelp.js';
 import { activeMember, memberSelection, stackOfSelection } from './stacks.js';
+import { toolOffered } from './offered.js';
 
 const MAX_LOG = 300; // lines shown on the page
-const MAX_KEPT = 2000; // lines kept for the saved game (a whole air battle, weeks of the sea)
+// Lines kept for the saved game: all of them (the longest game measured, a week of Adlertag
+// in Arcade with six squadrons a raid, writes about 2 400). The limit is only a guard.
+const MAX_KEPT = 20000;
 
 function isSel(app, kind, id) {
   return app.selection && app.selection.kind === kind && app.selection.id === id;
@@ -820,9 +823,11 @@ function alertBlock(app, s) {
 
 /** « Retour au planning » when the state was set by hand, and the page of the plans. */
 export function rosterLinks(app, s, field = null) {
-  return `<div class="order-line">${s && s.alertManual ? button('roster-resume', t('orders.rosterResume'), { id: s.id, kind: 'squadron' }) : ''}${button('open-roster', t('orders.openRoster'), {
-    id: s ? s.id : '', kind: 'squadron', extra: field ? ` data-field="${escapeHtml(field)}"` : '',
-  })}</div>`;
+  // (The page of the plans only where the scenario offers it: offered.js.)
+  const page = toolOffered(app, 'roster')
+    ? button('open-roster', t('orders.openRoster'), { id: s ? s.id : '', kind: 'squadron', extra: field ? ` data-field="${escapeHtml(field)}"` : '' })
+    : '';
+  return `<div class="order-line">${s && s.alertManual ? button('roster-resume', t('orders.rosterResume'), { id: s.id, kind: 'squadron' }) : ''}${page}</div>`;
 }
 
 /** The first time the player schedules something: a word on the alert states. */
@@ -1186,7 +1191,7 @@ function formationPanel(app, f) {
   if (!leader) return null;
   const air = f.kind === 'air';
   const total = members.reduce((n, u) => n + (air ? u.aircraft : u.ships), 0);
-  const manage = `<div class="order-line">${button('formation-manage', t('unit.manage'), { id: f.id })}${button('formation-dissolve', t('unit.dissolve'), { id: f.id })}</div>`;
+  const manage = `<div class="order-line">${toolOffered(app, 'formations') ? button('formation-manage', t('unit.manage'), { id: f.id }) : ''}${button('formation-dissolve', t('unit.dissolve'), { id: f.id })}</div>`;
   const headings = app.world.settings.orders === 'headings';
   const planned = f.rally && f.rally.phase !== 'plan' && f.rally.phase !== 'gone';
   let cmd;

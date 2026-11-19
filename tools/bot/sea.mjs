@@ -28,6 +28,7 @@ export const SEA_DEFAULTS = {
   route: 'admiralty', // admiralty | north | south
   boost: false, // convoys at their best speed (stragglers)
   days: null,
+  probe: null, // a function called every game minute with the world, for a closer look
 };
 
 const ROUTES = {
@@ -123,6 +124,7 @@ export function runSea(cfg = {}) {
 
   while (!w.ended && w.t < endT) {
     step(w, 1);
+    if (c.probe && w.t % 60 === 0) c.probe(w);
     if (w.events.length) {
       noteInterruptions(w, w.events, tally);
       for (const e of w.events) {

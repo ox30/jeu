@@ -4,7 +4,7 @@ import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatDate, formatTime } from '../core/time.js';
 import { drawClock } from '../render/clock.js';
 import { SPEEDS, cancelSpeed, confirmSpeed, goView, requestSpeed, togglePause } from './actions.js';
-import { fatigueOn } from '../sim/crews.js';
+import { toolOffered, viewOffered } from './offered.js';
 import { unreadAlerts } from './alerts.js';
 
 const icon = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${d}</svg>`;
@@ -56,7 +56,7 @@ function fillViews(app) {
   const el = app.el;
   const map = app.world.scenario.map || {};
   const views = app.data.campaign.views;
-  const names = (map.views || Object.keys(views)).filter((name) => views[name]);
+  const names = (map.views || Object.keys(views)).filter((name) => views[name] && viewOffered(app, name));
   const key = names.join(',');
   if (el.viewMenu.dataset.views === key) return;
   el.viewMenu.dataset.views = key;
@@ -135,16 +135,14 @@ export function updateHud(app, ms) {
   el.btnRuler.classList.toggle('active', app.tool === 'ruler');
   el.btnRadar.classList.toggle('active', Boolean(app.settings.radarCover));
   // The views and the tools this scenario declares (its « map » block): the others are hidden.
-  const map = app.world.scenario.map || {};
-  const offered = (list, name) => !list || list.includes(name);
+  // (offered.js: the keys and the links of the sheets ask the same question.)
   fillViews(app);
-  el.btnRuler.hidden = !offered(map.tools, 'ruler');
-  el.btnRadar.hidden = !offered(map.tools, 'radarCover') || !app.world.radars.length;
-  el.btnReports.hidden = !offered(map.tools, 'reports');
-  el.btnFormations.hidden = !offered(map.tools, 'formations');
-  // The duty rosters only matter when the pilots tire (I6 of the audit).
-  el.btnRoster.hidden = !offered(map.tools, 'roster') || !fatigueOn(app.world);
-  el.btnCards.hidden = !offered(map.tools, 'cards');
+  el.btnRuler.hidden = !toolOffered(app, 'ruler');
+  el.btnRadar.hidden = !toolOffered(app, 'radarCover');
+  el.btnReports.hidden = !toolOffered(app, 'reports');
+  el.btnFormations.hidden = !toolOffered(app, 'formations');
+  el.btnRoster.hidden = !toolOffered(app, 'roster');
+  el.btnCards.hidden = !toolOffered(app, 'cards');
   // A save that failed stays told until one succeeds.
   el.saveProblem.hidden = !app.saveProblem;
   // The alerts that went to the journal without having been shown (alerts.js).

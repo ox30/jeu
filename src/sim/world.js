@@ -47,7 +47,7 @@ function placedPath(path) {
   return path.map(([lon, lat]) => project(lon, lat));
 }
 
-export function createWorld({ scenario, rules, settings, terrain, carry = null }) {
+export function createWorld({ scenario, rules, settings, terrain, carry = null, presets = null }) {
   const startMs = parseGameDate(scenario.start);
   const ports = scenario.ports.map((p) => ({
     ...placed(p),
@@ -58,6 +58,8 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
   const factories = (scenario.factories || []).map(placed);
   const depots = (scenario.depots || []).map(placed);
   const sites = new Map();
+  // (`presets`: the table of the presets, so that the game is named by its own rule from the start.)
+  const gameSettings = copyGameSettings(settings || {}, presets);
 
   const world = {
     t: 0,
@@ -66,8 +68,8 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
     rules,
     // The game's own copy: the player's settings can change afterwards without touching it
     // (gameSettings.js). The preset it begins with is kept for the end of the game.
-    settings: copyGameSettings(settings),
-    presetStart: (settings && settings.preset) ?? 'custom',
+    settings: gameSettings,
+    presetStart: gameSettings.preset,
     terrain,
     rng: createRandom(scenario.seed ?? 1),
     scenario,

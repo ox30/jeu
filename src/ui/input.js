@@ -18,6 +18,7 @@ import {
   scrambleSquadron, select,
   revealSelection, selectedFormation, selectedSquadron, selectedUnit, setActivePoint, orderBoost, togglePause,
 } from './actions.js';
+import { viewOffered } from './offered.js';
 import { membersOf } from '../sim/formations.js';
 import { answerShown } from './questions.js';
 import { speedIndexOfKey } from './keys.js';
@@ -104,11 +105,14 @@ function hitTest(app, x, y, pad, proxy = true) {
   return pickHit(app.hits, x, y, pad, (h) => isSelectedHit(app, h, proxy));
 }
 
-/** The view a key calls (A, L, G…: each view tells its key in data/campaign.json). */
+/**
+ * The view a key calls (A, L, G…: each view tells its key in data/campaign.json), among those
+ * the scenario offers (offered.js).
+ */
 function viewOfKey(app, key) {
   if (key.length !== 1) return null;
   const views = app.data.campaign.views;
-  return Object.keys(views).find((name) => views[name].key && views[name].key.toLowerCase() === key.toLowerCase()) || null;
+  return Object.keys(views).find((name) => views[name].key && views[name].key.toLowerCase() === key.toLowerCase() && viewOffered(app, name)) || null;
 }
 
 export function attachInput(app) {
@@ -337,6 +341,9 @@ export function attachInput(app) {
 
   window.addEventListener('keydown', (e) => {
     app.unlockAudio();
+    // On the main menu the keys of the game do nothing: no order, no speed, no answer given
+    // unseen to a question (the menu has its own Escape).
+    if (app.onMenu) return;
     const target = e.target;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) return;
     if (document.querySelector('dialog[open]')) return;

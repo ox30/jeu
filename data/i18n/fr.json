@@ -36,13 +36,11 @@
     "england": "Angleterre",
     "ruler": "Règle",
     "radarCover": "Couverture radar et observateurs (touche C)",
-    "settings": "Réglages",
     "help": "Aide",
     "panel": "Panneau",
     "paused": "EN PAUSE",
     "grid": "Grille",
     "britain": "Grande-Bretagne",
-    "scenario": "Menu",
     "reports": "Rapports",
     "radarShort": "Radar",
     "cards": "Fiches",
@@ -1213,7 +1211,7 @@
       "Dessous, l'onglet Commandes : ses sections suivent l'état de l'unité (au sol, en vol, au port, en mer). Un clic sur leur titre les replie ou les rouvre, et elles restent comme vous les laissez. À côté, État et Fiche technique ; une formation a aussi Rassemblement et Membres.",
       "Réglages, onglet Carte et fiche : la fiche à droite, à gauche ou en bas de la carte. Tirez son bord pour l'élargir (ou la grandir en bas). La croix ou Échap la ferme ; ⌖ centre la carte sur l'unité.",
       "Tracés : glissez depuis une unité pour tracer sa route. Glissez un carré de la route pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. La section « Route et étapes » donne la courbe de montée, un cap direct, la fin de tracé et les étapes au cap. Maj + glisser mesure (règle) ; la croix de son encart l'efface.",
-      "Chaque raid se termine par un rapport, rangé dans « Rapports », avec ce que la RAF en sait : le premier plot, la composition une fois le raid vu, les bombes tombées ; chaque attaque à la grenade d'un groupe d'escorte aussi. La partie est gardée dans le navigateur ; « Menu », puis « Campagne », permet de l'exporter dans un fichier."
+      "Chaque raid se termine par un rapport, rangé dans « Rapports », avec ce que la RAF en sait : le premier plot, la composition une fois le raid vu, les bombes tombées ; chaque attaque à la grenade d'un groupe d'escorte aussi. La partie est gardée dans le navigateur ; le bouton ☰, puis « Exporter la partie », en fait un fichier."
     ],
     "air": [
       "Face à l'ennemi (barre de commandes) : en Défense, une escadrille n'attaque pas d'elle-même et demande l'autorisation quand elle voit un raid ; en Attaque (le défaut), elle attaque les raids qui arrivent et demande avant de poursuivre un raid qui rentre ; en Attaque et poursuite, elle poursuit sans demander jusqu'à mi-Manche, puis demande. Une question passe le jeu à ×1 et y reste ; sans réponse en 60 s, c'est non. Une seule question par raid et par escadrille ; on peut couper les questions dans Réglages. Un tracé qui finit sur un raid, ou « Intercepter », vaut autorisation. « Rompre H05 » dans la barre de commandes (touche D) sort l'unité du combat : elle tourne sur place et laisse ce raid tranquille jusqu'à un nouvel ordre sur lui. Passer à une attitude plus prudente retire les autorisations déjà données : une escadrille qui poursuivait rompt au round suivant.",
@@ -1245,9 +1243,9 @@
     "games": [
       "Le jeu s'ouvre sur le menu principal. Continuer reprend la dernière partie ; Campagne montre la chaîne de l'Âge I et ce qui est gagné ; Scénarios donne une carte par bataille, avec son enjeu, ses dates et sa durée estimée ; Entraînement lance le tutoriel guidé ; Charger retrouve les parties gardées.",
       "En jeu, le bouton ☰ ouvre Reprendre, Sauvegarder, Exporter, Réglages de la partie, Aide, Recommencer et Menu principal. Revenir au menu principal garde la partie : « Continuer » la reprend où elle en était.",
-      "Sauvegardes : la partie en cours est gardée dans ce navigateur à mesure que l'on joue. S'y ajoutent une sauvegarde automatique par jour de jeu (toutes les deux heures de jeu dans une bataille d'une journée), dont les cinq dernières sont gardées, et vos sauvegardes manuelles (☰, Sauvegarder). Tout est dans « Charger », au menu principal. En Réaliste, ces points de reprise permettent de rejouer une journée sans tout refaire.",
+      "Sauvegardes : la partie en cours est gardée dans ce navigateur à mesure que l'on joue. S'y ajoutent une sauvegarde automatique par jour de jeu (toutes les deux heures de jeu dans une bataille d'une journée) : les cinq dernières de la partie en cours sont gardées, et la dernière de chacune des parties d'avant (cinq au plus). Enfin vos sauvegardes manuelles (☰, Sauvegarder), gardées jusqu'à ce que vous les supprimiez. Tout est dans « Charger », au menu principal. En Réaliste, ces points de reprise permettent de rejouer une journée sans tout refaire.",
       "Une sauvegarde contient la partie, ses réglages et tout son journal, rapports de quart compris. Le fichier exporté se recharge par Charger, « Importer une partie ». Un fichier abîmé, ou venu d'une version plus récente, est refusé avec sa raison, sans toucher à la partie en cours ; les parties enregistrées depuis la version 2.6.1 se chargent.",
-      "Si le navigateur ne peut plus enregistrer (stockage plein, navigation privée), « Non enregistré » s'affiche dans la barre du haut et le journal le dit : exportez la partie dans un fichier.",
+      "Si le navigateur ne peut plus enregistrer (stockage plein, navigation privée), « Non enregistré » s'affiche dans la barre du haut, le journal et le menu principal le disent : exportez la partie dans un fichier. Une partie que l'on s'apprête à remplacer et qui n'a pas pu être gardée le dit aussi, avant de disparaître. Les leçons du tutoriel ne s'enregistrent pas : elles se jouent d'une traite.",
       "Les réglages qui changent les règles (préréglage, détection, carburant, fatigue, B-Dienst, communications en mer, arrêt aux relèves…) appartiennent à la partie : fixés au lancement, ils se changent en cours de route par ☰, Réglages de la partie, et le journal note chaque changement. Si le préréglage change, l'écran de fin et la campagne le disent : « commencée en Réaliste, terminée en Standard ». Le report de campagne reste celui du départ. Les réglages d'affichage (son, ombre de la nuit, place de la fiche…) restent ceux du joueur.",
       "Lancer une autre partie ou en charger une demande confirmation quand une partie est en cours ; Recommencer aussi, dès dix minutes de jeu. La partie remplacée est gardée parmi les sauvegardes automatiques."
     ]
@@ -1499,7 +1497,7 @@
     "hiver-atlantique": {
       "title": "Hiver dans l'Atlantique, 1941",
       "stake": "Amener carburant et matériel à travers les meutes de U-Boote, en perdant moins de 7,5 % des navires.",
-      "text": "10 janvier - 31 mars 1941. Les convois HX partent d'Halifax tous les cinq jours, les SC, plus lents, de Sydney tous les huit jours. Les meutes de U-Boote les guettent au sud de l'Islande, la nuit, en surface. Quatre groupes d'escorte et le Coastal Command doivent les ramener. La Grande-Bretagne paie comptant ce qu'elle achète en Amérique : réglez la part de la cargaison que vous achetez, ou commandez des avions de patrouille. À Washington, le Congrès débat du prêt-bail."
+      "text": "10 janvier - 31 mars 1941. Les convois HX partent d'Halifax tous les cinq jours, les SC, plus lents, de Sydney tous les huit jours. Les meutes de U-Boote les guettent au sud de l'Islande, la nuit, en surface. Quatre groupes d'escorte et le Coastal Command doivent les ramener. La Grande-Bretagne paie comptant ce qu'elle achète en Amérique : chaque convoi chargé entame la réserve de dollars, et les avions de patrouille commandés là-bas se paient en dollars et en tonnes de cargaison. À Washington, le Congrès débat du prêt-bail."
     },
     "locked": "Se débloque en gagnant le scénario précédent de la campagne.",
     "lecon-intercepter": {
@@ -1682,12 +1680,8 @@
     }
   },
   "save": {
-    "title": "Partie en cours",
-    "text": "La partie est enregistrée toute seule dans ce navigateur et reprend où vous l'avez laissée. Vous pouvez aussi l'emporter dans un fichier.",
     "export": "Exporter la partie (.json)",
     "import": "Importer une partie…",
-    "restart": "Recommencer ce scénario",
-    "importError": "Ce fichier n'est pas une partie de ce jeu, ou il vient d'une autre version.",
     "errors": {
       "notAGame": "Ce fichier n'est pas une partie de ce jeu : il ne peut pas être chargé.",
       "tooNew": "Cette partie a été enregistrée par une version plus récente du jeu : mettez le jeu à jour pour la charger.",
@@ -1695,9 +1689,20 @@
       "unknownScenario": "Cette partie est celle d'un scénario que cette version du jeu ne connaît pas ({detail}).",
       "wrongScenario": "Cette partie est celle d'un autre scénario ({detail}) : elle ne peut pas être reprise ici.",
       "storage": "L'enregistrement a échoué : le stockage de ce navigateur est plein ou fermé. Exportez la partie dans un fichier pour ne pas la perdre.",
-      "missing": "Cette sauvegarde n'existe plus dans ce navigateur : elle a peut-être été effacée."
+      "missing": "Cette sauvegarde n'existe plus dans ce navigateur : elle a peut-être été effacée.",
+      "nothing": "Cette partie a été arrêtée par une erreur : elle ne s'enregistre plus dans le navigateur. Exportez-la dans un fichier pour la garder."
     },
-    "exportError": "L'export n'a pas pu se faire ici. Le jeu reste enregistré dans ce navigateur."
+    "exportError": "L'export n'a pas pu se faire ici. Le jeu reste enregistré dans ce navigateur.",
+    "details": {
+      "note": "Ce qui ne va pas dans une sauvegarde abîmée (save.errors.damaged), en clair.",
+      "trial": "elle s'arrête sur une erreur dès qu'on la joue",
+      "restore": "elle ne se laisse pas remettre en place",
+      "unreadable": "son contenu est illisible",
+      "clock": "l'heure du jeu manque",
+      "dice": "le tirage au sort manque",
+      "no scenario": "le scénario manque",
+      "part": "la partie « {part} » manque ou n'est pas ce qu'elle doit être"
+    }
   },
   "mru": {
     "title": "Stations radar mobiles",
@@ -2463,7 +2468,7 @@
       "minutes": "{a} à {b} min",
       "range": "{a} à {b}"
     },
-    "loadIntro": "La partie en cours, les cinq dernières sauvegardes automatiques (une par jour de jeu, toutes les deux heures de jeu dans une bataille d'une journée) et vos sauvegardes manuelles. Charger une sauvegarde remplace la partie en cours, qui est d'abord gardée parmi les sauvegardes automatiques.",
+    "loadIntro": "La partie en cours, ses cinq dernières sauvegardes automatiques (une par jour de jeu, toutes les deux heures de jeu dans une bataille d'une journée), la dernière de chacune des parties d'avant (cinq au plus) et vos sauvegardes manuelles. Charger une sauvegarde remplace la partie en cours, qui est d'abord gardée parmi les sauvegardes automatiques.",
     "noSaves": "Aucune sauvegarde dans ce navigateur pour l'instant.",
     "noStorage": "Ce navigateur ne laisse pas le jeu enregistrer (navigation privée, ou page ouverte dans un cadre fermé) : seul l'export dans un fichier garde une partie.",
     "kinds": {
@@ -2513,13 +2518,19 @@
     "trainingIntro": "Quatre leçons courtes, chacune sur sa petite situation. Elles se jouent avec leurs propres réglages (Standard), sans toucher aux vôtres ni à votre partie en cours.",
     "lessonPlay": "Commencer",
     "lessonAgain": "Refaire",
-    "lessonDone": "Faite"
+    "lessonDone": "Faite",
+    "notKept": {
+      "heading": "La partie en cours n'a pas pu être gardée",
+      "text": "Le stockage de ce navigateur est plein ou fermé : la partie en cours ({game}) n'a pas pu être mise parmi les sauvegardes automatiques. Si vous la remplacez, elle sera perdue. Exportez-la d'abord dans un fichier pour la garder.",
+      "yes": "Remplacer quand même",
+      "exported": "Partie exportée dans un fichier."
+    }
   },
   "crash": {
     "title": "Le jeu s'est arrêté sur une erreur",
     "text": "La partie est en pause. Exportez-la pour la garder ou pour signaler le problème.",
-    "textSaved": "La dernière sauvegarde automatique de cette partie est intacte : vous pouvez la reprendre.",
-    "textNoSave": "Cette partie n'a pas encore de sauvegarde automatique.",
+    "textSaved": "Son dernier enregistrement dans ce navigateur est intact : vous pouvez la reprendre de là.",
+    "textNoSave": "Cette partie n'avait pas encore été enregistrée dans ce navigateur.",
     "where": {
       "simulation": "Erreur dans la simulation, à {time} (heure du jeu) :",
       "display": "Erreur dans l'affichage, à {time} (heure du jeu) :"

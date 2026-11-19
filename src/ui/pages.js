@@ -7,6 +7,7 @@ import { FOOT_M } from '../sim/geo.js';
 import { knownOutcome, reportTotals } from '../sim/reports.js';
 import { aircraftSpec } from '../sim/squadron.js';
 import { countText, ftText } from './format.js';
+import { toolOffered } from './offered.js';
 
 /** Opens a dialog as a page; the game pauses while it is open when the setting asks. */
 export function showPage(app, dlg) {
@@ -150,6 +151,7 @@ function navalCard(app, rep) {
 }
 
 export function openReports(app, focus = null) {
+  if (!toolOffered(app, 'reports')) return; // not a tool of this scenario
   const dlg = app.el.dlgReports;
   app.reportsOpened = true;
   const w = app.world;
@@ -297,6 +299,7 @@ export function unitCardHtml(world, u) {
 
 /** Cards of the aircraft and ships, with the numbers the game uses. */
 export function openCards(app, focus = null) {
+  if (!toolOffered(app, 'cards')) return; // not a tool of this scenario
   const dlg = app.el.dlgCards;
   const R = app.world.rules;
   const section = (title, html) => `<section class="card-section"><h3>${escapeHtml(title)}</h3><div class="cards">${html}</div></section>`;

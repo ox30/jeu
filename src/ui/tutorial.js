@@ -279,7 +279,9 @@ export function attachTutorial(app) {
     const b = e.target.closest('[data-coach]');
     if (!b || !app.tutorial) return;
     if (b.dataset.coach === 'quit') {
+      // Left before its end: the lesson is dropped, and the list of the lessons comes back.
       stopTutorial(app);
+      if (app.onTutorialQuit) app.onTutorialQuit();
       return;
     }
     const step = app.tutorial.steps[app.tutorial.index];

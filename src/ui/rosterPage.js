@@ -9,6 +9,7 @@ import { fatigueOn } from '../sim/crews.js';
 import { ALERTS, alertButtons, alertStatus, confirmBox, rosterBlock, timelineHtml } from './panels.js';
 import { button, options } from './html.js';
 import { showPage } from './pages.js';
+import { toolOffered } from './offered.js';
 
 function fieldsWithFighters(w) {
   return w.airfields.filter((f) => w.squadrons.some((s) => s.role === 'fighter' && s.state !== 'lost' && (s.airfield === f.id || s.home === f.id)));
@@ -20,6 +21,7 @@ function squadronsOf(w, fieldId) {
 
 /** Opens the page on an aerodrome, or on the aerodrome of a squadron (which it then shows first). */
 export function openRoster(app, { fieldId = null, squadronId = null } = {}) {
+  if (!toolOffered(app, 'roster')) return; // not a tool of this scenario, or of a game without fatigue
   tutorialFlag(app, 'rosterOpened');
   const w = app.world;
   const s = squadronId ? w.squadrons.find((x) => x.id === squadronId) : null;

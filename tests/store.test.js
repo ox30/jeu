@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeWorld, run } from './helpers.js';
-import { AUTO_KEPT, CURRENT, createStore } from '../src/save/store.js';
+import { AUTO_KEPT, CURRENT, OTHER_GAMES_KEPT, createStore } from '../src/save/store.js';
 import { canCompress, pack, unpack } from '../src/save/pack.js';
 import { SaveError, readSave } from '../src/save/migrate.js';
 import { snapshot } from '../src/save/game.js';
@@ -170,6 +170,135 @@ test('a damaged slot or a lost index does not break the list', async () => {
   const m = await s3.add('manual', saveOf(w));
   storage.removeItem(`jeu-1940.save.v2.${m.id}`);
   assert.equal(createStore({ storage }).entry(m.id), null);
+});
+
+test('a game replaced by another keeps its last automatic save while the new one is played', async () => {
+  // (Review of 2.9: the five kept were the five last of all games, so that a game replaced
+  // « and kept among the automatic saves » was gone after a few days of the next one.)
+  const storage = fakeStorage();
+  let clock = 0;
+  const store = createStore({ storage, now: () => ++clock });
+  const w = makeWorld('standard', {}, 'kanalkampf');
+  for (let day = 1; day <= 3; day++) {
+    run(w, 86400);
+    assert.ok((await store.add('auto', saveOf(w, 'kanal'))).ok);
+  }
+  const lastOfKanal = w.t;
+  const w2 = makeWorld('standard', {}, 'quinze-septembre');
+  for (let i = 0; i < AUTO_KEPT + 3; i++) {
+    run(w2, 7200);
+    assert.ok((await store.add('auto', saveOf(w2, 'sept'))).ok);
+  }
+  const autos = store.entries().filter((e) => e.kind === 'auto');
+  assert.equal(autos.filter((e) => e.gameId === 'sept').length, AUTO_KEPT, 'the last five of the game being played');
+  const kept = autos.filter((e) => e.gameId === 'kanal');
+  assert.equal(kept.length, 1, 'and the newest of the game before it');
+  assert.equal(kept[0].t, lastOfKanal);
+  assert.equal((await store.read(kept[0].id)).snap.scenario, 'kanalkampf');
+  // Back in the first game: it is the one whose five are kept now, the other keeps its newest.
+  for (let i = 0; i < AUTO_KEPT; i++) {
+    run(w, 86400);
+    await store.add('auto', saveOf(w, 'kanal'));
+  }
+  const after = store.entries().filter((e) => e.kind === 'auto');
+  assert.equal(after.filter((e) => e.gameId === 'kanal').length, AUTO_KEPT);
+  assert.equal(after.filter((e) => e.gameId === 'sept').length, 1);
+  assert.equal(after.find((e) => e.gameId === 'sept').t, w2.t);
+  // The games before are not kept for ever: the five saved last.
+  for (let g = 0; g < OTHER_GAMES_KEPT + 3; g++) await store.add('auto', saveOf(w2, `game-${g}`));
+  const games = new Set(store.entries().filter((e) => e.kind === 'auto').map((e) => e.gameId));
+  assert.equal(games.size, OTHER_GAMES_KEPT + 1, 'the game saved last and the five before it');
+  assert.ok(!games.has('kanal') && !games.has('sept') && games.has(`game-${OTHER_GAMES_KEPT + 2}`));
+  // Nothing is left in the storage that the list does not show.
+  assert.equal(storage.keys().filter((k) => k.startsWith('jeu-1940.save.v2.')).length, store.entries().length);
+});
+
+test('a save that fails on a full storage loses nothing of what was there', async () => {
+  // (Review of 2.9: each failed save dropped the oldest automatic save to make room, and did
+  // not put it back when there was still no room.)
+  const w = makeWorld('standard', {}, 'adlertag');
+  run(w, 600);
+  const save = saveOf(w);
+  const one = JSON.stringify({ ...(await pack(JSON.stringify(save))), entry: { id: 'auto-1' } }).length;
+  // Room for three small packed saves and the index.
+  const storage = fakeStorage(one * 3 + 2400);
+  let clock = 0;
+  const store = createStore({ storage, now: () => ++clock });
+  const a = await store.add('auto', save);
+  const b = await store.add('auto', save);
+  const m = await store.add('manual', save);
+  assert.ok(a.ok && b.ok && m.ok);
+  // A game ten times as long does not fit, even with an automatic save dropped.
+  const long = saveOf(w);
+  long.journal = Array.from({ length: 4000 }, (_, i) => ({ text: `Ligne ${i} ${Math.sin(i)} ${Math.cos(i * 7)}`, level: 'info', t: i, report: null }));
+  for (let i = 0; i < 4; i++) {
+    assert.deepEqual(await store.add('auto', long), { ok: false, code: 'storage' });
+    assert.deepEqual(await store.add('manual', long), { ok: false, code: 'storage' });
+  }
+  assert.deepEqual(store.entries().map((e) => e.id).sort(), [a.id, b.id, m.id].sort(), 'the three saves are still listed');
+  for (const id of [a.id, b.id, m.id]) assert.equal((await store.read(id)).snap.t, 600, `${id} can still be read`);
+  // And a page opened afterwards finds them too.
+  assert.equal(createStore({ storage }).entries().length, 3);
+});
+
+test('two pages of the game on the same storage do not overwrite each other', async () => {
+  // (Review of 2.9: each page numbered its saves from its own memory.)
+  const storage = fakeStorage();
+  let clock = 0;
+  const pageA = createStore({ storage, now: () => ++clock });
+  const pageB = createStore({ storage, now: () => ++clock }); // opened before A saves
+  const w = makeWorld('standard', {}, 'adlertag');
+  run(w, 600);
+  const first = await pageA.add('manual', saveOf(w, 'a'));
+  run(w, 600);
+  const second = await pageB.add('manual', saveOf(w, 'b'));
+  assert.ok(first.ok && second.ok);
+  assert.notEqual(first.id, second.id);
+  assert.equal((await pageB.read(first.id)).snap.t, 600, 'the save of the first page is still there');
+  assert.equal((await pageA.read(second.id)).snap.t, 1200);
+  // Each page lists both once it looks again (the menu does, each time it is shown).
+  pageA.refresh();
+  assert.deepEqual(pageA.entries().map((e) => e.id).sort(), [first.id, second.id].sort());
+  // A save deleted in one page does not come back from the other's memory.
+  pageA.remove(first.id);
+  await pageB.add('auto', saveOf(w, 'b'));
+  assert.equal(createStore({ storage }).entry(first.id), null);
+  assert.ok(createStore({ storage }).entry(second.id));
+});
+
+test('an index lost is made again from the saves themselves', async () => {
+  // (Review of 2.9: an unreadable index made the game clear every save away.)
+  const storage = fakeStorage();
+  let clock = 100;
+  const store = createStore({ storage, now: () => ++clock });
+  const w = makeWorld('standard', {}, 'hiver-atlantique');
+  run(w, 3600);
+  const auto = await store.add('auto', saveOf(w, 'g', 120000));
+  const manual = await store.add('manual', saveOf(w, 'g', 120000));
+  assert.ok(store.writeCurrent(saveOf(w, 'g', 120000)).ok);
+  const before = store.entries().map((e) => ({ ...e }));
+  for (const lost of ['garbage', '{"next":3,"entries":', null]) {
+    if (lost === null) storage.removeItem('jeu-1940.saves.v2');
+    else storage.setItem('jeu-1940.saves.v2', lost);
+    const again = createStore({ storage, now: () => ++clock });
+    assert.equal(again.entries().length, 3, `index ${lost}: the three saves are listed again`);
+    for (const was of before) {
+      const e = again.entry(was.id);
+      assert.ok(e, `${was.id} is back`);
+      for (const k of ['kind', 'gameId', 'scenario', 't', 'gameMs', 'playMs', 'preset', 'ended']) assert.deepEqual(e[k], was[k], `${was.id}: ${k}`);
+    }
+    assert.equal((await again.read(auto.id)).snap.t, 3600);
+    // The numbers already given are not given again.
+    const next = await again.add('manual', saveOf(w, 'g'));
+    assert.ok(next.ok && ![auto.id, manual.id].includes(next.id));
+    again.remove(next.id);
+  }
+  // Only what cannot be read at all is cleared away.
+  storage.setItem('jeu-1940.save.v2.man-99', 'half a file {');
+  storage.setItem('jeu-1940.saves.v2', 'garbage');
+  const last = createStore({ storage });
+  assert.equal(last.entries().length, 3);
+  assert.equal(storage.getItem('jeu-1940.save.v2.man-99'), null);
 });
 
 test('the game left by version 2.8 becomes the game under way of this version', async () => {

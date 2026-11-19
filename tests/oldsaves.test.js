@@ -1,6 +1,8 @@
 // Games saved by version 2.6.1 (tests/fixtures, made by make-saves.mjs from a checkout of that
 // version) are restored by the current code and go on: no error, the fields added since are
-// there, and the measure of the fighter objective is the right one.
+// there, and the measure of the fighter objective is the right one. And games saved by 2.9.0,
+// the first version of format 2: a version that adds a part to the world without a new
+// format and its migration would refuse them (save/game.js, shapeProblem), and fail here.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -9,11 +11,12 @@ import { data, getTerrain, scenarioData } from './helpers.js';
 import { createWorld, step } from '../src/sim/world.js';
 import { drainEvents } from '../src/sim/events.js';
 import { restore, snapshot } from '../src/save/game.js';
+import { SNAP_VERSION, readSave } from '../src/save/migrate.js';
 import { addMobileRadar } from '../src/sim/mru.js';
 import { fighterCount, fighterEstablishmentShare, fighterShare } from '../src/sim/objectives.js';
 
-function load(name) {
-  const file = new URL(`./fixtures/save-2.6.1-${name}.json.gz`, import.meta.url);
+function load(name, version = '2.6.1') {
+  const file = new URL(`./fixtures/save-${version}-${name}.json.gz`, import.meta.url);
   return JSON.parse(gunzipSync(readFileSync(file)).toString('utf8'));
 }
 
@@ -104,4 +107,33 @@ test('a game of the Atlantic saved by 2.6.1 keeps its convoys, its numbers and i
   assert.equal(new Set(names()).size, names().length, 'no two convoys with the same name');
   const text = JSON.stringify(snapshot(w));
   assert.equal(JSON.stringify(snapshot(resume({ snap: JSON.parse(text) }, 'standard'))), text);
+});
+
+test('the games saved by 2.9.0 (format 2) load with every part in its place, and go on', () => {
+  const ids = ['m0-july-1940', 'kanalkampf', 'adlertag', 'quinze-septembre', 'hiver-atlantique'];
+  for (const [name, carry] of [['adlertag', null], ['quinze-septembre-campagne', { fighterShare: 0.6, from: 'adlertag' }], ['hiver-atlantique', null]]) {
+    const saved = load(name, '2.9.0');
+    assert.equal(saved.madeBy, '2.9.0');
+    assert.equal(saved.snap.version, 2, `${name}: format 2`);
+    // Read as a file is: the format, the validation, the journal and the notes.
+    const read = readSave(structuredClone(saved), ids);
+    assert.equal(read.complete, SNAP_VERSION === 2, `${name}: a save of the format in use has every part`);
+    // Restored with the settings of another player (Arcade): the game keeps its own.
+    const w = resume(saved, 'arcade', carry);
+    assert.equal(w.settings.preset, saved.snap.settings.preset, `${name}: its preset`);
+    assert.equal(w.presetStart, saved.snap.presetStart);
+    assert.equal(w.t, saved.snap.t);
+    play(w, 86400);
+    assert.ok(w.t > saved.snap.t, `${name}: the game goes on`);
+    for (const [k, v] of Object.entries(w.stats)) if (typeof v === 'number') assert.ok(Number.isFinite(v), `${name}: stats.${k}`);
+    // Saved by this version, it comes back exactly.
+    const text = JSON.stringify(snapshot(w));
+    assert.equal(JSON.stringify(snapshot(resume({ snap: JSON.parse(text) }, 'realistic', carry))), text, `${name}: saved again and restored`);
+  }
+  // What each fixture was made to hold.
+  const a = resume(load('adlertag', '2.9.0'), 'standard');
+  assert.ok(a.squadrons.some((s) => s.id === '266') && a.mru.pending.length === 1 && a.formations.length === 1, 'Adlertag: the relief, the station on its way, the wing');
+  const s = resume(load('hiver-atlantique', '2.9.0'), 'standard');
+  assert.ok(s.watch && s.watch.reports.length > 20 && s.signals.length >= 0, 'the Atlantic: its watch reports');
+  assert.ok(s.escorts.every((e) => Number.isFinite(e.charges)), 'its depth charges');
 });

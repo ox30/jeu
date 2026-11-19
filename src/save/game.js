@@ -1,15 +1,14 @@
 // Saving a game: a snapshot of everything that changes during play, restored onto a world
-// freshly built from the same scenario. Kept in the browser (one game at a time) and
-// exported or imported as a JSON file.
+// freshly built from the same scenario. Where the saves are kept (the browser, a file) is
+// the business of store.js and of the game's page.
 
 import { bringToSea } from '../sim/uboatnav.js';
 import { normalizeRoster } from '../sim/roster.js';
 import { fillMissingFields } from '../sim/entities.js';
 import { LONG_AGO } from '../sim/naval.js';
-import { SNAP_VERSION, SaveError, migrate, validate } from './migrate.js';
+import { SNAP_VERSION, SaveError, migrate, snapVersion, validate } from './migrate.js';
 
 const VERSION = SNAP_VERSION;
-const KEY = 'jeu-1940.game.v1';
 const SITE_FIELDS = ['damage', 'attacks', 'wasOut', 'stocks', 'minStock', 'progress', 'starved', 'dryHours', 'lowWarned'];
 const LISTS = ['convoys', 'escorts', 'uboats', 'squadrons', 'raids', 'dfZones', 'dfPending', 'uboatPlots', 'ferries'];
 const VALUES = ['t', 'nextPlotId', 'nextTrainId', 'stats', 'objectives', 'allDone', 'ended', 'outcome', 'defeatReason',
@@ -47,6 +46,60 @@ function decode(v) {
   return v;
 }
 
+/** What restore makes of a saved value: a list, a table (Map), a set, a record, a number… */
+function kindOf(v) {
+  if (v === null || v === undefined) return 'none';
+  if (Array.isArray(v)) return 'list';
+  if (typeof v === 'object') return v.__map ? 'map' : v.__set ? 'set' : 'record';
+  return typeof v;
+}
+
+// The parts every save has had since the first format.
+const ALWAYS = ['rng', 'sites', 'contacts', 'reports', 'trains', 'railFree', 'convoys', 'escorts', 'uboats', 'squadrons', 'raids', 't', 'stats', 'objectives'];
+// What does not follow from the scenario alone: the losses the campaign carried over are
+// nothing in a game begun outside it, whatever the world it is put back on was built with.
+const MAY_BE_NOTHING = new Set(['carry']);
+// Records whose entries are not all the game's: the settings of a game hold what the player's
+// own held when it began. Only these entries are asked of them.
+const OPEN_RECORDS = { settings: ['preset'] };
+
+/**
+ * Compares a snapshot (migrated) with the one of a world freshly built from the same
+ * scenario: each part must be of the kind the game keeps there, and so must each entry of
+ * the records with fixed entries (the counters, the settings, the reserves…). A save written
+ * in the current format (`complete`) has every part; an older one may lack those added since,
+ * which stay as the new world has them. Returns null when it is sound, or a SaveError
+ * (damaged) naming the part.
+ *
+ * For whoever adds a part to the world or an entry to one of its records: the saves of the
+ * format in use do not have it, and would be refused here. A new part means a new format
+ * number and its migration (migrate.js); tests/oldsaves.test.js loads a save of each format.
+ */
+export function shapeProblem(fresh, snap, complete = false) {
+  for (const [k, model] of Object.entries(fresh)) {
+    if (!(k in snap)) {
+      if (complete || ALWAYS.includes(k)) return new SaveError('damaged', k);
+      continue;
+    }
+    const want = kindOf(model);
+    if (want === 'none') continue; // nothing there as a game begins: it cannot be told
+    const got = kindOf(snap[k]);
+    if (got === 'none' && MAY_BE_NOTHING.has(k)) continue;
+    if (got !== want) return new SaveError('damaged', k);
+    if (want !== 'record') continue;
+    const asked = OPEN_RECORDS[k] || null;
+    for (const [j, sub] of Object.entries(model)) {
+      if (!(j in snap[k])) {
+        if (complete && (!asked || asked.includes(j))) return new SaveError('damaged', `${k}.${j}`);
+        continue;
+      }
+      const wanted = kindOf(sub);
+      if (wanted !== 'none' && kindOf(snap[k][j]) !== wanted) return new SaveError('damaged', `${k}.${j}`);
+    }
+  }
+  return null;
+}
+
 /** Everything that changes during play, as plain data. */
 export function snapshot(world) {
   const sites = [];
@@ -72,7 +125,7 @@ export function snapshot(world) {
 }
 
 /**
- * Puts a snapshot back onto `world`, built from the same scenario. `addMobileRadar(world,
+ * Puts a snapshot back onto `world`, freshly built from the same scenario. `addMobileRadar(world,
  * def)` rebuilds the mobile stations deployed during the game.
  */
 export function restore(world, saved, addMobileRadar = null) {
@@ -82,6 +135,9 @@ export function restore(world, saved, addMobileRadar = null) {
   const problem = validate(snap);
   if (problem) throw problem;
   if (snap.scenario !== world.scenario.id) throw new SaveError('wrongScenario', snap.scenario);
+  // Each part of the kind this world keeps there (as a file gives it: through JSON).
+  const shape = shapeProblem(JSON.parse(JSON.stringify(snapshot(world))), snap, snapVersion(saved) === SNAP_VERSION);
+  if (shape) throw shape;
   // The squadrons a new game of this scenario begins with (the others arrived as reliefs).
   const initialSquadrons = new Set(world.squadrons.map((s) => s.id));
   world.rng.setState(snap.rng);
@@ -156,42 +212,7 @@ export function restore(world, saved, addMobileRadar = null) {
   return world;
 }
 
-/** `meta`: what belongs to the game without being the simulation (the clock of real time played). */
-export function saveToBrowser(world, meta = null) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify({ savedAt: Date.now(), snap: snapshot(world), meta }));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function loadFromBrowser() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    return data && data.snap && data.snap.version === VERSION ? data : null;
-  } catch {
-    return null;
-  }
-}
-
-export function clearBrowserSave() {
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    // ignore
-  }
-}
-
 /** The game as a JSON file to download. */
 export function exportText(world, extra = null) {
   return JSON.stringify({ game: 'jeu-1940', savedAt: Date.now(), snap: snapshot(world), ...(extra || {}) });
-}
-
-export function parseExport(text) {
-  const data = JSON.parse(text);
-  if (!data || data.game !== 'jeu-1940' || !data.snap) throw new Error('save: not a game file');
-  return data;
 }
