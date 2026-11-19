@@ -1822,4 +1822,8 @@ rouvert par la barre, l'onglet et une ligne, identique, puis réglé.
 rapport fermé puis rouvert de quatre façons, la barre à 1 024 px avec son onzième outil, un
 tracé en attente prolongé à la souris depuis son anneau puis repris, une étape en attente),
 sur la version de développement et sur `dist/index.html`. Pas de singe ni de grande mesure
-pour ce tour, comme demandé : la simulation n'a pas changé. Non relu par un agent neuf.
+pour ce tour, comme demandé : la simulation n'a pas changé. Essayé aussi à la souris sur un
+groupe d'escorte en haute mer (tracé en attente, prolongé depuis l'anneau, reçu à la relève,
+puis une étape). Branche `retours-jeu-3`, demande de fusion nº 8, vérifications de GitHub
+vertes (commit adfc2e2, le dernier avant cette ligne). Artefact « Jeu 1940 — travaux de
+Fable » mis à jour (2.10.4) ; compte rendu du projet complété. Non relu par un agent neuf.
