@@ -1985,4 +1985,6 @@ des 34 lignes de la mesure (graine 1). 33 sont identiques à leur référence du
 (victoire ; c'était une défaite avant que la 2.10.2 ne change le compte des avions à abattre
 en campagne). Ce tour ne change donc aucune partie jouée sans ordre de fin.
 
-Branche `retours-jeu-4`, demande de fusion nº 9. Non relu par un agent neuf.
+Branche `retours-jeu-4`, demande de fusion nº 9, vérifications de GitHub vertes (commit
+8ec5aeb, le dernier avant cette ligne). Artefact « Jeu 1940 — travaux de Fable » mis à jour
+(2.10.5) ; compte rendu du projet complété. Non relu par un agent neuf.
