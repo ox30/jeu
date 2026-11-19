@@ -26,6 +26,7 @@ Il vient de l'audit du prototype 2.6.1 et a été versé au dépôt au lot M2.7.
 | `conducts.mjs` | les conduites (façons de jouer) et la matrice de mesure |
 | `run.mjs` | une partie, résultat en une ligne de JSON |
 | `measure.mjs` | la matrice sur plusieurs graines, tableau Markdown |
+| `thresholds.mjs` | les seuils des objectifs rejugés sans rejouer (batailles aériennes) |
 | `perf.mjs` | durée des pas de simulation, une partie à la fois |
 | `monkey.mjs` | ordres au hasard, avec sauvegardes et reprises |
 
@@ -72,6 +73,25 @@ suivantes ; ils ont été repris sur trente graines et vérifiés sur vingt autr
 Les résultats vont dans `tools/bot/out/<nom>.jsonl` (une ligne par partie, non versé au
 dépôt). La matrice complète, 32 lignes sur dix graines, prend environ quarante minutes sur
 deux cœurs.
+
+## Régler un seuil sans rejouer
+
+Changer la barre d'un objectif ne change pas les parties, seulement leur verdict.
+`thresholds.mjs` joue donc les batailles aériennes une fois, garde ce que mesure chaque
+objectif (part de cargaison livrée, avions abattus, chasse restante, heures hors service,
+dégâts), puis rejuge ces mêmes parties sous d'autres barres, en une seconde :
+
+```
+node tools/bot/thresholds.mjs --collect reglage --seeds 30
+node tools/bot/thresholds.mjs --judge reglage --split 10,30
+node tools/bot/thresholds.mjs --judge reglage --set kanalkampf.convoy:cw=0.66,adlertag.fighters=0.44
+node tools/bot/thresholds.mjs --collect reglage --seeds 20 --first 31   # puis vérifier sur des graines neuves
+```
+
+Sous les barres écrites dans les scénarios, l'outil dit combien de ses verdicts diffèrent de
+ceux du jeu : ce doit être zéro. Il ne rejuge que les barres : une défaite par règle du
+scénario (panne sèche, chasse détruite) reste une défaite, et tout changement de la
+simulation demande de rejouer (`--collect` sous un autre nom).
 
 Les durées de pas d'une mesure à deux parties de front ne valent rien : pour les pas, lancer
 `node tools/bot/perf.mjs` seul, sur une machine au repos.
