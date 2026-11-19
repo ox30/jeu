@@ -1,14 +1,14 @@
 // Dialogs: settings, help, success and end of the scenario.
 
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
-import { dateTimeText, objectiveText, realDurationText } from './format.js';
+import { objectiveText, realDurationText } from './format.js';
 import { endSummaryKeys } from './summary.js';
 import { checkDevPassword } from './dev.js';
 import { markHelpSeen, saveSettings } from '../save/settings.js';
 import { GAME_SETTING_KEYS, applyPreset, canSetGameSetting, matchingPreset, setGameSetting } from '../sim/gameSettings.js';
 import { showPage } from './pages.js';
 import { fighterCount } from '../sim/objectives.js';
-import { CHAIN, TRAINING, saveCampaign, scenarioStatus } from './campaign.js';
+import { presetStory } from '../sim/gameSettings.js';
 import { ALERT_GROUPS, defaultAlertSpeed } from './alertRules.js';
 import { setVolume } from './sound.js';
 
@@ -68,7 +68,7 @@ export function openSettings(app, { scope = 'game' } = {}) {
       <nav class="settings-tabs" role="tablist">${SETTINGS_TABS.map((id) => `<button type="button" role="tab" data-stab="${id}" class="${id === tab ? 'active' : ''}">${escapeHtml(t(`settings.tabs.${id}`))}</button>`).join('')}</nav>
       ${pane('game', `
       <p class="hint settings-scope">${escapeHtml(t(inGame ? 'settings.scopeGame' : 'settings.scopeDefaults'))}</p>
-      <label>${escapeHtml(t('settings.preset'))} ${select('preset', matchingPreset(s, presets), presetChoices, 'settings.presets')}</label>
+      <label>${escapeHtml(t('settings.preset'))} ${select('preset', inGame ? app.world.settings.preset : matchingPreset(s, presets), presetChoices, 'settings.presets')}</label>
       <fieldset>
         <label>${escapeHtml(t('settings.detection'))} ${select('detection', s.detection, presets.choices.detection, 'settings.detectionChoices')}</label>
         ${checkbox('falseAlarms', s.falseAlarms, t('settings.falseAlarms'))}
@@ -255,7 +255,7 @@ function devSettings(app, form) {
 
 // Keeps the form in step after a preset change.
 openSettings.refresh = (form, s, presets) => {
-  form.elements.preset.value = matchingPreset(s, presets);
+  form.elements.preset.value = s.preset && [...form.elements.preset.options].some((o) => o.value === s.preset) ? s.preset : matchingPreset(s, presets);
   form.elements.detection.value = s.detection;
   form.elements.interceptAid.value = s.interceptAid;
   form.elements.fuel.value = s.fuel;
@@ -330,6 +330,8 @@ export function openEnd(app) {
   const dlg = app.el.dlgEnd;
   const w = app.world;
   const st = w.stats;
+  const story = presetStory(w);
+  const next = app.nextScenario ? app.nextScenario() : null;
   // The figures of each line; the lines themselves follow the scenario (summary.js).
   const figures = {
     unloaded: { fuel: formatNumber(Math.round(st.unloaded.fuel)), materiel: formatNumber(Math.round(st.unloaded.materiel)) },
@@ -359,175 +361,26 @@ export function openEnd(app) {
       ${objectives ? `<h3>${escapeHtml(t('end.objectives'))}</h3><ul class="end-objectives">${objectives}</ul>` : ''}
       <ul>${lines.join('')}</ul>
       ${played}
+      <p class="end-preset">${escapeHtml(story.changed
+    ? t('menu.presetChanged', { start: t(`settings.presets.${story.start}`), end: t(`settings.presets.${story.end}`) })
+    : t('menu.presetStory', { preset: t(`settings.presets.${story.end}`) }))}</p>
       <div class="dialog-buttons">
-        <button value="replay" type="button" data-replay>${escapeHtml(t('end.replay'))}</button>
-        <button value="close">${escapeHtml(t('end.close'))}</button>
+        <button type="button" data-end="replay">${escapeHtml(t('end.replay'))}</button>
+        ${next ? `<button type="button" data-end="next">${escapeHtml(t('menu.next', { title: t(`scenarios.${next}.title`) }))}</button>` : ''}
+        <button type="button" data-end="menu">${escapeHtml(t('menu.main'))}</button>
+        <button value="close" class="secondary">${escapeHtml(t('end.close'))}</button>
       </div>
     </form>`;
-  dlg.querySelector('[data-replay]').addEventListener('click', () => {
+  // Rejouer, the next scenario of the campaign when a victory has opened it, or the main menu.
+  dlg.querySelector('.dialog-buttons').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-end]');
+    if (!b) return;
     dlg.close();
-    app.restart();
+    if (b.dataset.end === 'replay') app.restart();
+    else if (b.dataset.end === 'next') app.restart(next);
+    else app.toMainMenu();
   });
   dlg.showModal();
-}
-
-/** Choice of scenario: starting one restarts the game. */
-export function openScenarios(app) {
-  const dlg = app.el.dlgScenario;
-  const c = app.campaign;
-  const item = (sc) => {
-    const status = scenarioStatus(c, sc.id);
-    const locked = status === 'locked';
-    const badge = status === 'free' ? t('campaign.training') : t(`campaign.${status}`);
-    const tutorial = sc.id === TRAINING ? `<button type="button" data-tutorial="${escapeHtml(sc.id)}">${escapeHtml(t('campaign.tutorial'))}</button>` : '';
-    return `
-    <li class="${sc.id === app.world.scenario.id ? 'current' : ''} ${status}">
-      <b>${escapeHtml(t(`scenarios.${sc.id}.title`))}</b> <span class="badge ${status}">${escapeHtml(badge)}</span>
-      <p>${escapeHtml(t(locked ? 'scenarios.locked' : `scenarios.${sc.id}.text`))}</p>
-      <div class="scenario-buttons">
-        <button type="button" data-scenario="${escapeHtml(sc.id)}"${locked ? ' disabled' : ''}>${escapeHtml(t('scenarios.play'))}</button>
-        ${tutorial}
-      </div>
-    </li>`;
-  };
-  const chain = CHAIN.map((id) => app.data.scenarios.find((sc) => sc.id === id)).filter(Boolean);
-  const others = app.data.scenarios.filter((sc) => !CHAIN.includes(sc.id));
-  dlg.innerHTML = `
-    <form method="dialog">
-      <h2>${escapeHtml(t('settings.scenarioTitle'))}</h2>
-      <h3>${escapeHtml(t('campaign.title'))}</h3>
-      <p class="hint">${escapeHtml(t('campaign.intro'))}</p>
-      <ul class="scenarios">${chain.map(item).join('')}</ul>
-      <label class="check"><input type="checkbox" data-unlock-all${c.unlockAll ? ' checked' : ''}> ${escapeHtml(t('campaign.unlockAll'))}</label>
-      <ul class="scenarios">${others.map(item).join('')}</ul>
-      <p class="hint">${escapeHtml(t('settings.scenarioNote'))}</p>
-      <h3>${escapeHtml(t('save.title'))}</h3>
-      <p class="hint">${escapeHtml(t('save.text'))}</p>
-      <div class="save-buttons">
-        <button type="button" data-export>${escapeHtml(t('save.export'))}</button>
-        <label class="file-button">${escapeHtml(t('save.import'))}<input type="file" accept=".json,application/json" data-import hidden></label>
-        <button type="button" data-restart>${escapeHtml(t('save.restart'))}</button>
-      </div>
-      <p class="message" data-save-message hidden></p>
-      <div class="dialog-buttons"><button value="close">${escapeHtml(t('settings.close'))}</button></div>
-    </form>`;
-  dlg.querySelector('[data-export]').addEventListener('click', async () => {
-    const result = await app.exportGame();
-    if (result === 'failed') {
-      const msg = dlg.querySelector('[data-save-message]');
-      msg.hidden = false;
-      msg.textContent = t('save.exportError');
-    }
-  });
-  dlg.querySelector('[data-restart]').addEventListener('click', () => {
-    dlg.close();
-    app.restart();
-  });
-  dlg.querySelector('[data-import]').addEventListener('change', async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    const msg = dlg.querySelector('[data-save-message]');
-    try {
-      app.importGame(await file.text());
-      dlg.close();
-    } catch (err) {
-      msg.hidden = false;
-      msg.textContent = t('save.importError');
-      console.warn(err);
-    }
-  });
-  for (const b of dlg.querySelectorAll('[data-scenario]')) {
-    b.addEventListener('click', () => {
-      dlg.close();
-      app.restart(b.dataset.scenario);
-    });
-  }
-  for (const b of dlg.querySelectorAll('[data-tutorial]')) {
-    b.addEventListener('click', () => {
-      dlg.close();
-      app.restart(b.dataset.tutorial, { tutorial: true });
-    });
-  }
-  dlg.querySelector('[data-unlock-all]').addEventListener('change', (e) => {
-    c.unlockAll = e.target.checked;
-    saveCampaign(c);
-    openScenarios(app); // rebuilt in place
-  });
-  showPage(app, dlg);
-}
-
-/**
- * The main menu: carry on with the game in progress, the campaign (its scenarios), the
- * training with its tutorial, a game saved in a file, the settings, the help. The game stands
- * still while it is open; « Continuer » sets it going again as it was.
- */
-export function openMainMenu(app) {
-  const dlg = app.el.dlgMenu;
-  const w = app.world;
-  if (!dlg.open) {
-    app.menuWasRunning = !app.paused && !w.ended;
-    app.paused = true;
-    app.dirtyHud = true;
-  }
-  const inGame = !w.ended && (w.t > 0 || app.resumed);
-  const when = dateTimeText(w.startMs + w.t * 1000);
-  dlg.innerHTML = `
-    <form method="dialog" class="main-menu">
-      <div class="mm-title"><h1>${escapeHtml(t('app.title'))}</h1><p>${escapeHtml(t('app.subtitle'))}</p></div>
-      <div class="mm-buttons">
-        ${inGame ? `<button type="button" class="mm-main" data-menu="continue">${escapeHtml(t('menu.continue'))}<small>${escapeHtml(t('menu.continueText', { scenario: t(`scenarios.${w.scenario.id}.title`), when }))}</small></button>` : ''}
-        <button type="button"${inGame ? '' : ' class="mm-main"'} data-menu="campaign">${escapeHtml(t('menu.campaign'))}<small>${escapeHtml(t('menu.campaignText'))}</small></button>
-        <button type="button" data-menu="training">${escapeHtml(t('menu.training'))}<small>${escapeHtml(t('menu.trainingText'))}</small></button>
-        <label class="mm-file">${escapeHtml(t('menu.load'))}<small>${escapeHtml(t('menu.loadText'))}</small><input type="file" accept=".json,application/json" data-menu-file hidden></label>
-        <div class="mm-row">
-          <button type="button" data-menu="settings">${escapeHtml(t('menu.settings'))}</button>
-          <button type="button" data-menu="help">${escapeHtml(t('menu.help'))}</button>
-        </div>
-      </div>
-      <p class="message" data-menu-message hidden></p>
-      <p class="hint mm-note">${escapeHtml(t('menu.note'))}</p>
-    </form>`;
-  const close = (run) => {
-    dlg.close();
-    if (run && app.menuWasRunning) {
-      app.paused = false;
-      app.accumulator = 0;
-    }
-    app.dirtyHud = true;
-  };
-  dlg.querySelector('[data-menu-file]').addEventListener('change', async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    try {
-      app.importGame(await file.text());
-      close(false);
-    } catch (err) {
-      const msg = dlg.querySelector('[data-menu-message]');
-      msg.hidden = false;
-      msg.textContent = t('save.importError');
-      console.warn(err);
-    }
-  });
-  dlg.querySelector('.mm-buttons').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-menu]');
-    if (!b) return;
-    const what = b.dataset.menu;
-    if (what === 'continue') close(true);
-    else if (what === 'campaign') {
-      close(false);
-      openScenarios(app);
-    } else if (what === 'training') {
-      close(false);
-      app.restart(TRAINING, { tutorial: true });
-    } else if (what === 'settings') openSettings(app);
-    else if (what === 'help') openHelp(app);
-  });
-  // Escape carries on with the game, like « Continuer ».
-  dlg.oncancel = (e) => {
-    e.preventDefault();
-    if (inGame) close(true);
-  };
-  if (!dlg.open) dlg.showModal();
 }
 
 /** Shown once on a small or touch-only screen: the game is made for a computer. */

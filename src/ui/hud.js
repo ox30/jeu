@@ -51,6 +51,20 @@ export function updateHud(app, ms) {
   renderSpeedConfirm(app);
   el.btnRuler.classList.toggle('active', app.tool === 'ruler');
   el.btnRadar.classList.toggle('active', Boolean(app.settings.radarCover));
+  // The views and the tools this scenario declares (its « map » block): the others are hidden.
+  const map = app.world.scenario.map || {};
+  const offered = (list, name) => !list || list.includes(name);
+  el.btnAtlantic.hidden = !offered(map.views, 'atlantic');
+  el.btnBritain.hidden = !offered(map.views, 'britain');
+  el.btnEngland.hidden = !offered(map.views, 'england');
+  el.btnRuler.hidden = !offered(map.tools, 'ruler');
+  el.btnRadar.hidden = !offered(map.tools, 'radarCover') || !app.world.radars.length;
+  el.btnReports.hidden = !offered(map.tools, 'reports');
+  el.btnFormations.hidden = !offered(map.tools, 'formations');
+  el.btnRoster.hidden = !offered(map.tools, 'roster');
+  el.btnCards.hidden = !offered(map.tools, 'cards');
+  // A save that failed stays told until one succeeds.
+  el.saveProblem.hidden = !app.saveProblem;
 }
 
 /** The question asked before a high speed during an enemy action. */

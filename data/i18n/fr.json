@@ -1407,23 +1407,28 @@
   "scenarios": {
     "kanalkampf": {
       "title": "Kanalkampf, juillet 1940",
+      "stake": "Faire passer les convois de la Manche et de l'Atlantique sans user la chasse avant la vraie bataille.",
       "text": "10-24 juillet 1940. Deux convois HX traversent l'Atlantique, un convoi côtier attend dans l'estuaire de la Tamise. Répartissez le carburant et le matériel par le rail, protégez ports, radars, aérodromes et usines, et gardez la chasse en l'air pendant quinze jours."
     },
     "m0-july-1940": {
       "title": "Entraînement, juillet 1940",
+      "stake": "Apprendre les gestes : tracer une route, accélérer le temps, faire décoller, lire un rapport.",
       "text": "Un scénario simple, sans logistique : un convoi à faire traverser, quelques raids à intercepter. Le tutoriel guidé y explique les gestes de base."
     },
     "play": "Jouer",
     "adlertag": {
       "title": "Adlertag, août 1940",
+      "stake": "Tenir une semaine sous les coups portés aux radars et aux aérodromes, en gardant assez de chasseurs.",
       "text": "12-18 août 1940. Göring lance « l'attaque de l'aigle » : la Luftwaffe veut détruire la chasse britannique, au sol et en l'air, avant l'invasion. Elle frappe d'abord les radars de la côte, puis les aérodromes, par vagues venues de Calais, d'Amiens et de Cherbourg. Les chasses libres de Bf 109, très haut, cherchent à attirer vos escadrilles : ne les gaspillez pas. Une station radar mobile arrive en renfort. Tenez les bases de secteur, gardez les radars en service et la chasse en état de se battre."
     },
     "quinze-septembre": {
       "title": "15 septembre 1940",
+      "stake": "Briser en une journée les deux grands raids sur Londres avec ce qui reste de la chasse.",
       "text": "Dimanche 15 septembre 1940. Depuis le 7, la Luftwaffe bombarde Londres. Aujourd'hui, elle lance deux grands raids de jour sur les docks, précédés de chasses libres. Le 11 Group tient le sud-est ; de Duxford, le 12 Group peut envoyer une « Big Wing » de cinq escadrilles : faites-les voler en formation derrière un chef. Protégez les docks et abattez assez d'avions pour montrer que la RAF n'est pas vaincue, sans épuiser la chasse."
     },
     "hiver-atlantique": {
       "title": "Hiver dans l'Atlantique, 1941",
+      "stake": "Amener carburant et matériel à travers les meutes de U-Boote, en perdant moins de 7,5 % des navires.",
       "text": "10 janvier - 31 mars 1941. Les convois HX partent d'Halifax tous les cinq jours, les SC, plus lents, de Sydney tous les huit jours. Les meutes de U-Boote les guettent au sud de l'Islande, la nuit, en surface. Quatre groupes d'escorte et le Coastal Command doivent les ramener. La Grande-Bretagne paie comptant ce qu'elle achète en Amérique : réglez la part de la cargaison que vous achetez, ou commandez des avions de patrouille. À Washington, le Congrès débat du prêt-bail."
     },
     "locked": "Se débloque en gagnant le scénario précédent de la campagne."
@@ -2229,16 +2234,80 @@
   },
   "menu": {
     "continue": "Continuer",
-    "continueText": "{scenario}, {when}",
+    "gameLine": "{scenario} · {when} · {played} de jeu",
     "campaign": "Campagne",
-    "campaignText": "Les scénarios de l'acte I, l'un après l'autre ; sauvegarde dans un fichier",
+    "campaignText": "L'Âge I, bataille après bataille : {won} sur {total} gagnées",
+    "scenarios": "Scénarios",
+    "scenariosText": "Choisir une bataille : enjeu, dates et durée de chacune",
     "training": "Entraînement",
-    "trainingText": "Le scénario d'essai avec le tutoriel guidé",
-    "load": "Charger une partie",
-    "loadText": "Depuis un fichier .json exporté",
+    "trainingText": "Le scénario d'essai, avec le tutoriel guidé",
+    "trainingFirst": "Commencez ici : le tutoriel guidé apprend les gestes en un quart d'heure",
+    "load": "Charger",
+    "loadText": "{n} sauvegarde(s) dans ce navigateur, ou un fichier exporté",
+    "loadNone": "Depuis un fichier exporté (aucune sauvegarde dans ce navigateur)",
     "settings": "Réglages",
     "help": "Aide",
-    "note": "La partie en cours est gardée dans ce navigateur. Le jeu est arrêté tant que ce menu est ouvert ; Échap ou « Continuer » le reprend."
+    "back": "‹ Menu principal",
+    "cancel": "Annuler",
+    "note": "La partie en cours est gardée dans ce navigateur : « Continuer » la reprend où vous l'avez laissée.",
+    "version": "Version {v}",
+    "replay": "Rejouer",
+    "playFree": "Jouer sans le tutoriel",
+    "wonIn": "Gagné en {preset}.",
+    "wonChanged": "Gagné : partie commencée en {start}, terminée en {end}.",
+    "dates": {
+      "day": "{d} {month} {year}",
+      "sameMonth": "{a} – {b} {month} {year}",
+      "span": "{a} {ma} – {b} {mb} {year}"
+    },
+    "length": {
+      "label": "durée estimée : {length}",
+      "min": "{n} min",
+      "h": "{h} h",
+      "hm": "{h} h {m}",
+      "hours": "{a} à {b} h",
+      "minutes": "{a} à {b} min",
+      "range": "{a} à {b}"
+    },
+    "loadIntro": "La partie en cours, les cinq dernières sauvegardes automatiques (une par jour de jeu, toutes les deux heures de jeu dans une bataille d'une journée) et vos sauvegardes manuelles. Charger une sauvegarde remplace la partie en cours, qui est d'abord gardée parmi les sauvegardes automatiques.",
+    "noSaves": "Aucune sauvegarde dans ce navigateur pour l'instant.",
+    "noStorage": "Ce navigateur ne laisse pas le jeu enregistrer (navigation privée, ou page ouverte dans un cadre fermé) : seul l'export dans un fichier garde une partie.",
+    "kinds": {
+      "current": "Partie en cours",
+      "auto": "Automatique",
+      "manual": "Manuelle"
+    },
+    "ended": "terminée",
+    "saveLine": "{when} · {played} de jeu · {preset}",
+    "noPreset": "préréglage inconnu",
+    "savedAt": "Enregistrée le {date} à {time}",
+    "loadThis": "Charger",
+    "delete": "Supprimer",
+    "deleteHeading": "Supprimer cette sauvegarde ?",
+    "deleteText": "{game}. Elle ne pourra pas être retrouvée.",
+    "replace": {
+      "heading": "Remplacer la partie en cours ?",
+      "text": "Une partie est en cours : {game}. Elle sera gardée parmi les sauvegardes automatiques (menu principal, « Charger »).",
+      "yes": "Remplacer"
+    },
+    "restart": {
+      "heading": "Recommencer le scénario ?",
+      "text": "Vous jouez cette partie depuis {played}. Elle sera gardée parmi les sauvegardes automatiques, et le scénario repartira de son début.",
+      "yes": "Recommencer"
+    },
+    "open": "Menu",
+    "openTitle": "Menu de la partie : reprendre, sauvegarder, réglages, recommencer, menu principal",
+    "gameNow": "{when} · {played} de jeu",
+    "resume": "Reprendre",
+    "save": "Sauvegarder",
+    "saved": "Partie sauvegardée ({when}). Elle est dans « Charger », au menu principal.",
+    "gameSettings": "Réglages de la partie",
+    "restartGame": "Recommencer",
+    "main": "Menu principal",
+    "next": "Scénario suivant : {title}",
+    "saveProblem": "⚠ Non enregistré",
+    "presetStory": "Préréglage : {preset}.",
+    "presetChanged": "Partie commencée en {start}, terminée en {end}."
   },
   "crash": {
     "title": "Le jeu s'est arrêté sur une erreur",

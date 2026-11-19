@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div id="menu" class="menu-page" hidden></div>
   <div id="app">
     <header id="hud">
       <div class="hud-title">
@@ -34,9 +35,9 @@
         <button type="button" id="btn-formations" data-i18n="hud.formations" data-i18n-title="hud.formationsTitle"></button>
         <button type="button" id="btn-roster" data-i18n="hud.roster"></button>
         <button type="button" id="btn-cards" data-i18n="hud.cards"></button>
-        <button type="button" id="btn-scenario" data-i18n="hud.scenario"></button>
-        <button type="button" id="btn-settings" data-i18n="hud.settings"></button>
         <button type="button" id="btn-help" data-i18n="hud.help"></button>
+        <button type="button" id="btn-menu" class="menu-button" data-i18n-title="menu.openTitle" data-i18n-label="menu.open">☰</button>
+        <button type="button" id="save-problem" class="save-problem" data-i18n="menu.saveProblem" data-i18n-title="save.errors.storage" hidden></button>
         <button type="button" id="btn-panel" class="only-small" data-i18n="hud.panel"></button>
       </div>
     </header>
@@ -125,7 +126,7 @@
   <dialog id="dlg-success"></dialog>
   <dialog id="dlg-end"></dialog>
   <dialog id="dlg-desktop"></dialog>
-  <dialog id="dlg-scenario"></dialog>
+  <dialog id="dlg-confirm" class="confirm-dialog"></dialog>
   <dialog id="dlg-reports" class="page-dialog"></dialog>
   <dialog id="dlg-watch" class="page-dialog"></dialog>
   <dialog id="dlg-cards" class="page-dialog"></dialog>

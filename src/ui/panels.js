@@ -40,7 +40,8 @@ import {
   objectiveText, positionText, reportText, siteEffectText, siteRepairText, siteStatusText, siteTitle,
 } from './format.js';
 
-const MAX_LOG = 300;
+const MAX_LOG = 300; // lines shown on the page
+const MAX_KEPT = 2000; // lines kept for the saved game (a whole air battle, weeks of the sea)
 
 function isSel(app, kind, id) {
   return app.selection && app.selection.kind === kind && app.selection.id === id;
@@ -56,7 +57,7 @@ export function addLogEntry(app, text, level = 'info', gameT = app.world.t, opts
   if (!opts.replay) {
     app.logEntries = app.logEntries || [];
     app.logEntries.push({ text, level, t: gameT, report: opts.report || null });
-    if (app.logEntries.length > MAX_LOG) app.logEntries.shift();
+    if (app.logEntries.length > MAX_KEPT) app.logEntries.shift();
   }
   const ms = app.world.startMs + gameT * 1000;
   const time = formatTime(ms);

@@ -124,7 +124,11 @@ export function attachTutorial(app) {
       return;
     }
     const step = app.tutorial.steps[app.tutorial.index];
-    if (step.last) stopTutorial(app);
+    if (step.last) {
+      // Played to the end: remembered, so that the menu stops putting the training first.
+      if (app.onTutorialDone) app.onTutorialDone(app.tutorial.lesson);
+      stopTutorial(app);
+    }
     else enter(app, app.tutorial.index + 1);
   });
 }

@@ -8,7 +8,7 @@ avec un menu principal, un tutoriel guidé et une aide illustrée.
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.8.0** (lot M2.8, la mer au rythme des quarts). Les décisions qui guident les
+**Version 2.9.0** (lot M2.9, menu principal, sauvegardes et réglages). Les décisions qui guident les
 lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md` (fichier du projet) ; le journal des
 travaux est dans `docs/journal-m2.7-m2.10.md`.
 

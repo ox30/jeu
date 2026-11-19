@@ -827,3 +827,67 @@ dialog#dlg-watch { width: 760px; }
 .comms .pending-orders .grow { flex: 1 1 140px; }
 .comms .pending-orders small { color: var(--ink-soft); }
 .comms .hint.warn { color: #8a3b1c; font-style: normal; }
+
+/* ---- main menu: a full page, outside the map (M2.9) ---- */
+.menu-page { position: fixed; inset: 0; z-index: 40; overflow-y: auto; background: #2b241a; color: var(--ink); display: flex; justify-content: center; padding: 28px 16px; }
+.menu-page[hidden] { display: none; }
+body.on-menu #app { visibility: hidden; }
+.mm-page { width: min(760px, 100%); background: var(--paper); border: 3px solid #1b150e; border-radius: 6px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); align-self: flex-start; }
+.mm-page.mm-scenarios, .mm-page.mm-load, .mm-page.mm-campaign { width: min(900px, 100%); }
+.mm-page .mm-title { background: #2b241a; color: #f2e9d2; padding: 20px 28px 16px; border-bottom: 3px solid var(--brass); }
+.mm-page .mm-title h1 { margin: 0; font: bold 30px Georgia, serif; letter-spacing: 0.02em; }
+.mm-page .mm-title p { margin: 2px 0 0; font-style: italic; color: #d9c9a3; }
+.mm-body { padding: 18px 28px 8px; }
+.mm-body h2 { margin: 4px 0 6px; font: bold 20px Georgia, serif; }
+.mm-back { display: inline-block; margin: 0 0 8px; padding: 2px 0; font: 14px Georgia, serif; }
+.mm-list { display: flex; flex-direction: column; gap: 8px; }
+.mm-entry { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; background: #f7f0dc; color: var(--ink); border: 1px solid #8a7350; border-radius: 4px; padding: 10px 14px; font: 17px Georgia, serif; cursor: pointer; }
+.mm-entry small { font: normal 13px Georgia, serif; color: var(--ink-soft); }
+.mm-entry:hover { background: #fffaf0; }
+.mm-entry.mm-main, .gm-buttons .mm-main { background: var(--raf-blue); color: #fff; border-color: var(--raf-blue); }
+.mm-entry.mm-main small { color: #dfe7f3; }
+.mm-row { display: flex; gap: 8px; margin-top: 10px; }
+.mm-row > button, .mm-row > .file-button { flex: 1 1 0; text-align: center; background: #f7f0dc; color: var(--ink); border: 1px solid #8a7350; border-radius: 4px; padding: 8px 12px; font: 14px Georgia, serif; cursor: pointer; }
+.mm-note { margin: 12px 0 0; }
+.mm-body .message { margin: 10px 0 0; }
+.mm-foot { padding: 6px 28px 12px; text-align: right; font: italic 12px Georgia, serif; color: var(--ink-soft); }
+.mm-chain, .mm-cards, .mm-saves { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.mm-step, .mm-save { display: flex; align-items: center; gap: 12px; background: #f7f0dc; border: 1px solid #b9a67e; border-radius: 4px; padding: 9px 12px; }
+.mm-step.locked, .mm-card.locked { opacity: 0.6; }
+.mm-num { flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%; background: #2b241a; color: #f2e9d2; display: flex; align-items: center; justify-content: center; font: bold 15px Georgia, serif; }
+.mm-step.won .mm-num { background: #2f6b3a; }
+.mm-step-body, .mm-save-body { flex: 1 1 auto; min-width: 0; }
+.mm-step-body p, .mm-save-body p { margin: 2px 0 0; font-size: 13.5px; }
+.mm-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 10px; }
+.mm-card { background: #f7f0dc; border: 1px solid #b9a67e; border-radius: 4px; padding: 10px 14px; display: flex; flex-direction: column; }
+.mm-card h3 { margin: 0; font: bold 17px Georgia, serif; }
+.mm-card p { margin: 4px 0 0; font-size: 13.5px; }
+.mm-card .mm-dates { color: var(--ink-soft); font-style: italic; }
+.mm-card .mm-stake { font-weight: bold; }
+.mm-card .mm-text { flex: 1 1 auto; }
+.mm-card-buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.mm-save-buttons { display: flex; gap: 6px; flex: 0 0 auto; }
+.mm-save.current { border-color: var(--raf-blue); }
+.badge.current { background: var(--raf-blue); color: #fff; }
+.badge.auto { background: #e7dcc0; }
+.badge.manual { background: #d8e6d0; }
+/* ---- the ☰ menu of a game, the confirmations ---- */
+dialog.menu-dialog { width: min(380px, 94vw); }
+.game-menu { padding: 16px 22px 14px; }
+.game-menu h2 { margin: 0 0 2px; font: bold 19px Georgia, serif; }
+.gm-buttons { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.gm-buttons button { text-align: left; background: #f7f0dc; color: var(--ink); border: 1px solid #8a7350; border-radius: 4px; padding: 8px 12px; font: 15px Georgia, serif; cursor: pointer; }
+.gm-buttons button:hover:not(:disabled) { background: #fffaf0; }
+.gm-buttons .mm-main:hover { background: var(--raf-blue); filter: brightness(1.08); }
+.game-menu .message { margin: 10px 0 0; }
+dialog.confirm-dialog { width: min(460px, 94vw); }
+.confirm h2 { margin-top: 0; }
+button.danger { background: #8b1a1a; color: #fff; border-color: #8b1a1a; }
+.menu-button { font-size: 17px; line-height: 1; padding: 3px 9px; }
+.save-problem { background: #8b1a1a; color: #fff; border-color: #8b1a1a; }
+.settings-scope { margin: 0 0 8px; }
+.end-preset { font-style: italic; color: var(--ink-soft); margin: 6px 0 0; }
+.mm-page .badge { display: inline-block; font: normal 11px Georgia, serif; padding: 1px 7px; border-radius: 8px; margin-left: 6px; background: var(--paper-dark); color: var(--ink-soft); vertical-align: middle; }
+.mm-page .badge.won { background: var(--green); color: #fff; }
+.mm-page .badge.open, .mm-page .badge.current { background: var(--raf-blue); color: #fff; }
+.mm-body .check { display: block; margin-top: 8px; }
