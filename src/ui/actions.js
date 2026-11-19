@@ -318,12 +318,6 @@ export function orderLaunchWaiting(app, f) {
   app.dirtyPanels = true;
 }
 
-/** Readiness of every squadron of the wing on the ground. */
-export function orderFormationAlert(app, f, state) {
-  for (const s of membersOf(app.world, f)) if (s.state === 'ready' || s.state === 'refuelling') setAlert(app.world, s, state);
-  app.dirtyPanels = true;
-}
-
 export function orderNewFormation(app, u) {
   const kind = u.kind === 'squadron' ? 'air' : 'naval';
   const f = newFormation(app.world, kind, u.id, formationDefaultName(app.world, kind, u));
@@ -851,11 +845,6 @@ export function orderIntercept(app, sq, raidId) {
 
 export function orderAlert(app, sq, state) {
   setAlert(app.world, sq, state);
-  app.dirtyPanels = true;
-}
-
-export function orderConvoySpeed(app, c, kn) {
-  shipOrder(app, c, 'convoySpeed', kn >= c.speedKn ? null : kn);
   app.dirtyPanels = true;
 }
 

@@ -7,18 +7,16 @@ import {
   activePoint, addRulerLeg, addTypedLeg, cancelConfirm, cancelEditLeg, centreOn, changeAltitude,
   changePointAltitude, clearPointAltitude, deletePoint, findUnit, orderAdmiraltyRoute,
   orderAlertChecked, orderAskPosition, orderBoost, orderBreakOff, orderCancelSchedule, orderClearPlan, orderCommsCancel, orderCommsCarry,
-  orderConvoySpeed, orderCover, orderDissolve, orderEndAction, orderEscortBehaviour, orderEscortHome, orderEscortPattern, orderExitChannel,
-  orderFormationAlert, orderHome, orderHuntPlot, orderHuntStop, orderIntercept, orderJoin,
+  orderCover, orderDissolve, orderEndAction, orderEscortBehaviour, orderEscortHome, orderEscortPattern, orderExitChannel,
+  orderHome, orderHuntPlot, orderHuntStop, orderIntercept, orderJoin,
   orderLaunchWaiting, orderLeave, orderLeaveFormationOf, orderMerge, orderMinStock, orderNewFormation,
   orderOffer, orderOrbit, orderRally, orderRemoveLeg, orderRoe, orderRosterAdd,
   orderRosterCopy, orderRosterOverride, orderRosterRemove, orderRosterResume, orderSail, orderScheduleJoin,
   orderScheduleSail, orderScheduleTakeoff, orderScheduleWing, orderShipEnd, orderSpeedPct, orderTrain,
-  orderVector, orderZigzag, revealSelection, scrambleSquadron, select, selectedUnit, startEditLeg, toggleBuster,
+  orderVector, orderZigzag, revealSelection, scrambleSquadron, select, selectedUnit, startEditLeg,
 } from './actions.js';
 import { formationById } from '../sim/formations.js';
 import { contactEstimate } from '../sim/query.js';
-import { setSpeed } from '../sim/orders.js';
-import { portChoices } from '../sim/naval.js';
 import { openFormations } from './formationsPage.js';
 import { openRoster } from './rosterPage.js';
 import { openCards, openReports } from './pages.js';
@@ -75,19 +73,6 @@ export const PANEL_ACTIONS = {
   },
   'close-unit': (app) => select(app, null, null),
   'centre-selection': (app) => centreSelection(app),
-  centre: (app, { kind, id, unit }) => {
-    if (kind === 'uplot') {
-      const plot = app.world.uboatPlots.find((p) => p.id === id);
-      if (plot) centreOn(app, plot.x, plot.y, 0.6);
-    } else if (kind === 'raid') {
-      const contact = app.world.contacts.get(id);
-      const plots = contact ? contact.plots.filter((p) => p.visibleAt <= app.world.t) : [];
-      const last = plots[plots.length - 1];
-      if (last) centreOn(app, last.x, last.y, 1.5);
-    } else if (unit) {
-      centreOn(app, unit.x, unit.y, kind === 'convoy' ? 0 : 1.5);
-    }
-  },
   'dev-show': (app, { b }) => centreOn(app, Number(b.dataset.x), Number(b.dataset.y), 0.6),
   cards: (app, { b }) => openCards(app, b.dataset.type),
   'mru-deploy': (app) => app.setTool(app.tool === 'mru' ? null : 'mru'),
@@ -96,10 +81,6 @@ export const PANEL_ACTIONS = {
   scramble: (app, { sq }) => sq && scrambleSquadron(app, sq),
   'alt-up': (app, { sq }) => sq && changeAltitude(app, sq, 1000),
   'alt-down': (app, { sq }) => sq && changeAltitude(app, sq, -1000),
-  'speed-cruise': (app, { sq }) => sq && setSpeed(app.world, sq, 'cruise'),
-  'speed-max': (app, { sq }) => {
-    if (sq && sq.speedMode !== 'max') toggleBuster(app, sq);
-  },
   boost: (app, { unit }) => unit && orderBoost(app, unit),
   vector: (app, { sq }) => {
     const value = Number(inputValue('vector-input'));
@@ -144,14 +125,6 @@ export const PANEL_ACTIONS = {
   leave: (app, { unit }) => unit && orderLeave(app, unit),
   'escort-home': (app, { unit, id, b }) => {
     if (unit) orderEscortHome(app, unit, b.dataset.port || inputValue(`home-port-${id}`));
-    app.portPick = null;
-  },
-  // The sea routes to every port are worked out now, once, not on every refresh.
-  'port-pick': (app, { unit }) => {
-    if (unit) app.portPick = { id: unit.id, t: app.world.t, list: portChoices(app.world, unit) };
-  },
-  'port-pick-close': (app) => {
-    app.portPick = null;
   },
   'hunt-stop': (app, { unit }) => unit && orderHuntStop(app, unit),
   'hunt-plot': (app, { unit, b }) => unit && orderHuntPlot(app, unit, b.dataset.plot),
@@ -238,10 +211,6 @@ export const PANEL_ACTIONS = {
     const f = formationById(app.world, id);
     if (f) orderLaunchWaiting(app, f);
   },
-  'formation-alert': (app, { id, b }) => {
-    const f = formationById(app.world, id);
-    if (f) orderFormationAlert(app, f, b.dataset.alert);
-  },
   'formation-dissolve': (app, { id }) => {
     const f = formationById(app.world, id);
     if (f) orderDissolve(app, f);
@@ -276,10 +245,6 @@ export const PANEL_ACTIONS = {
 /** One entry a `data-change`: a field of a sheet that changed. */
 export const PANEL_CHANGES = {
   'end-action': (app, { sq, target }) => sq && orderEndAction(app, sq, target.value),
-  'convoy-speed': (app, { id, target }) => {
-    const c = app.world.convoys.find((x) => x.id === id);
-    if (c) orderConvoySpeed(app, c, Number(target.value));
-  },
   'rally-dep': (app, { id, target }) => {
     const f = formationById(app.world, id);
     const day = inputValue(`rally-dep-day-${target.dataset.unit}`);

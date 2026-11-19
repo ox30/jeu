@@ -121,7 +121,7 @@ function freshPage(app) {
   app.signals = createSignals();
   Object.assign(app, {
     selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0, unlocked: null,
-    portPick: null, saveProblem: null,
+    saveProblem: null,
   });
   clearLog(app);
   app.dirtyPanels = true;
