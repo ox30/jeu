@@ -14,6 +14,7 @@ import * as mru from '../../src/sim/mru.js';
 import * as combat from '../../src/sim/combat.js';
 import * as asw from '../../src/sim/asw.js';
 import * as settings from '../../src/sim/gameSettings.js';
+import * as convoyMod from '../../src/sim/convoy.js';
 
 const F = sim.formations;
 
@@ -38,6 +39,7 @@ function buildActions(rnd, world) {
   const air = () => w.formations.filter((f) => f.kind === 'air');
   const states = sim.crews.ALERT_STATES;
   const channels = () => [null, 'x', ...w.ports.flatMap((p) => (p.approaches || []).map((a) => a.name))];
+  const convoyEnds = (c) => (convoyMod.convoyEndChoices ? convoyMod.convoyEndChoices(w, c) : []);
   const legEnd = () => pick([
     null,
     { kind: 'duration', s: 600 + rnd() * 7200 },
@@ -119,7 +121,8 @@ function buildActions(rnd, world) {
         pattern: [pick(['full', 'light'])],
         huntPlot: [pick(w.uboatPlots)?.id ?? 'none'],
         huntStop: [],
-        endAction: [pick([{ kind: 'stop' }, { kind: 'hold' }, { kind: 'hunt' }, { kind: 'port', id: port ? port.id : null }])],
+        // (A convoy's own: into a port by one of its channels, the Admiralty's route again.)
+        endAction: [pick([{ kind: 'stop' }, { kind: 'hold' }, { kind: 'hunt' }, { kind: 'port', id: port ? port.id : null }, ...(u.kind === 'convoy' ? convoyEnds(u) : [])])],
         position: [],
       };
       const name = pick(C.ORDER_NAMES);
@@ -139,6 +142,8 @@ function buildActions(rnd, world) {
     stopHunt: () => { const e = pick(w.escorts); if (e) asw.stopHunt(w, e); },
     escortHome: () => { const e = pick(w.escorts); if (e) O.escortHome(w, e, rnd() < 0.5 ? null : (pick(w.ports) || {}).id); },
     setShipEndAction: () => { const e = pick(w.escorts); if (e) sim.naval.setShipEndAction(w, e, pick(sim.naval.shipEndChoices(w, e))); },
+    // The end of a convoy's route (2.10.5): one of its choices, or something that is none.
+    convoyEnd: () => { const c = pick(w.convoys); if (c) sim.naval.setShipEndAction(w, c, pick([...convoyEnds(c), { kind: 'port', id: 'nowhere', via: 'x' }, { kind: 'port', id: (pick(w.ports) || {}).id }, null])); },
     setExitChannel: () => { const e = pick(w.escorts); if (e) O.setExitChannel(w, e, pick(channels())); },
     sendTrain: () => { const a = pick(sites()); const b = pick(sites()); if (a && b) O.sendTrain(w, a.key, b.key, { fuel: rnd() * 120, materiel: rnd() < 0.5 ? rnd() * 60 : 0, ammo: rnd() < 0.3 ? 5 : 0 }); },
     setMinStock: () => { const a = pick(sites()); if (a) O.setMinStock(w, a, pick(['fuel', 'materiel', 'ammo']), pick([null, 0, 20, 60, NaN])); },
@@ -217,6 +222,22 @@ export function wayOutFlaw(w, e) {
   return `has a way out of ${head} points that follows no channel of a port`;
 }
 
+/**
+ * What is wrong with what a convoy was told for the end of its route (2.10.5), or null: it
+ * is one of its choices, a route that goes into a port has none (its end is the port), and
+ * the mark of a route just ended does not outlive the step.
+ */
+export function convoyEndFlaw(w, c) {
+  if (c.routeEnded) return 'keeps the mark of a route that ended';
+  const a = c.endAction;
+  if (!a) return null;
+  const same = (x) => x.kind === a.kind && (x.id || null) === (a.id || null) && (x.via || null) === (a.via || null);
+  if (!convoyMod.convoyEndChoices(w, c).some(same)) return `was told an end that is none of its choices: ${JSON.stringify(a)}`;
+  if (c.destination) return `has an end order (${a.kind}) on a route that goes into ${c.destination}`;
+  if (!['atSea', 'waiting', 'inPort'].includes(c.state)) return `keeps an end order (${a.kind}) though it is ${c.state}`;
+  return null;
+}
+
 function check(w, label, problems) {
   const at = gameClock(w);
   for (const u of [...w.squadrons, ...w.convoys, ...w.escorts, ...w.uboats, ...w.raids]) {
@@ -229,6 +250,8 @@ function check(w, label, problems) {
   }
   for (const c of w.convoys) {
     if (c.ships < 0 || c.cargo.fuel < -1e-6 || c.cargo.materiel < -1e-6) problems.push(`${at} after « ${label} »: bad convoy ${c.id}`);
+    const flaw = convoyEndFlaw(w, c);
+    if (flaw) problems.push(`${at} after « ${label} »: convoy ${c.id} (${c.state}) ${flaw}`);
   }
   // The head of a group's route (2.10.3): its charted way out of port, and nothing else.
   for (const e of w.escorts) {

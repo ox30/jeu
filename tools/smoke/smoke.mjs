@@ -1045,7 +1045,200 @@ async function watches(page, errors) {
     note(s.paused && s.alert && /attaqué/.test(s.title), 'watches: the attack raises its alert, in pause', JSON.stringify(s));
     await shot(page, 'watch-attack');
   });
+  await convoyEnds(page);
   note(errors.length === before, 'watches: no console error', errors.slice(before, before + 2).join(' | '));
+}
+
+/**
+ * (2.10.5) The end of a convoy's route, in its sheet and on the map: what the convoy does by
+ * itself is the choice shown, and every port that takes it is offered by each of its
+ * channels; by radio the choice waits for the relief; told at once, the way it will take is
+ * drawn after the end of its line, and taken there. The coastal convoy of Kanalkampf has its
+ * own port, and its lines that stop off Dover are accepted.
+ */
+async function convoyEnds(page) {
+  /** The sheet of a convoy on its orders: its list « En fin de tracé », and what is said under it. */
+  const sheet = async (id) => {
+    await game(page, async (cid) => {
+      const a = window.__game;
+      const actions = await import('./src/ui/actions.js');
+      a.unitTabs = {};
+      actions.select(a, 'convoy', cid);
+      a.dirtyPanels = true;
+    }, id);
+    await sleep(450);
+    return game(page, async (cid) => {
+      const a = window.__game;
+      const E = await import('./src/ui/convoyEnd.js');
+      const c = a.world.convoys.find((x) => x.id === cid);
+      const sel = document.getElementById(`convoy-end-${cid}`);
+      const way = E.endPreview(a.world, c);
+      const port = way && way.action.kind === 'port' ? a.world.byId.port.get(way.action.id) : null;
+      const last = way && way.points ? way.points[way.points.length - 1] : null;
+      return {
+        label: sel ? sel.closest('label').firstChild.textContent.trim() : '', value: sel ? sel.value : null,
+        options: sel ? [...sel.options].map((o) => o.textContent) : [],
+        hints: [...document.querySelectorAll('#unit-body .hint')].map((x) => `${x.classList.contains('awaited') ? 'awaited|' : ''}${x.textContent}`),
+        end: c.endAction ? E.endValue(c.endAction) : '', destination: c.destination || '', state: c.state, route: c.route.length, locked: c.routeLocked || 0,
+        pending: a.world.signals.filter((s) => s.unitId === cid).map((s) => `${s.name}:${s.via}`),
+        way: way ? { action: E.endValue(way.action), waiting: way.waiting, points: way.points ? way.points.length : 0, toPort: Boolean(port && last && Math.hypot(last[0] - port.x, last[1] - port.y) < 1) } : null,
+      };
+    }, id);
+  };
+  /** The map on (lon, lat) at `scale` px a km, in the part the sheet leaves open. */
+  const view = async (lon, lat, scale) => {
+    await game(page, async ([lo, la, s]) => {
+      const a = window.__game;
+      const G = await import('./src/sim/geo.js');
+      const actions = await import('./src/ui/actions.js');
+      a.camera.scale = s;
+      actions.centreOn(a, ...G.project(lo, la), s);
+    }, [lon, lat, scale]);
+    await sleep(900);
+  };
+  const SOUTH = 'port:liverpool:Canal Saint-Georges';
+
+  await step('convoy end by radio', async () => {
+    await closeDialogs(page);
+    await game(page, () => {
+      const a = window.__game;
+      a.paused = true;
+      if (a.alert) a.alert = null;
+    });
+    // A convoy on the high seas, on a route of its own that goes into port (the Admiralty's).
+    const id = await game(page, async () => {
+      const a = window.__game;
+      const C = await import('./src/sim/comms.js');
+      const c = a.world.convoys.find((x) => x.state === 'atSea' && !x.straggler && x.destination && x.route.length > (x.routeLocked || 0)
+        && C.orderChannel(a.world, x) === 'radio' && !a.world.signals.some((s) => s.unitId === x.id));
+      return c ? c.id : null;
+    });
+    note(Boolean(id), 'convoy end: a convoy on the high seas, bound for a port');
+    if (!id) return;
+    const own = await sheet(id);
+    note(own.label === 'En fin de tracé' && /^port:(liverpool|clyde):/.test(own.value) && own.end === '' && own.hints.some((h) => /sans autre ordre, le convoi y entre de lui-même/.test(h)),
+      'convoy end: on the route the Admiralty gave it, the list shows the port and the channel it takes by itself', JSON.stringify({ value: own.value, end: own.end }));
+    note(['S\'arrêter et attendre', 'Garder le cap', 'Entrer à Liverpool par : Nord de l\'Irlande', 'Entrer à Liverpool par : Canal Saint-Georges', 'Entrer à la Clyde par : Nord de l\'Irlande',
+      'Reprendre la route de l\'Amirauté'].every((x) => own.options.includes(x)) && own.options.length === 6, 'convoy end: every port that takes the convoy is offered by each of its channels', own.options.join(' | '));
+    const other = own.value === SOUTH ? 'port:clyde:Nord de l\'Irlande' : SOUTH;
+    await page.selectOption(`#convoy-end-${id}`, other);
+    await sleep(450);
+    const told = await sheet(id);
+    note(told.pending.includes('endAction:radio') && told.end === '' && told.destination === own.destination && told.value === other
+      && told.hints.some((h) => /^awaited\|En attente : « Entrer à .* », transmis par radio à la relève de \d+ h/.test(h)),
+      'convoy end: by radio the choice waits for the relief, the list shows it and the convoy knows nothing yet', JSON.stringify({ pending: told.pending, value: told.value, end: told.end }));
+    note(Boolean(told.way) && told.way.waiting && told.way.action === other && told.way.toPort,
+      'convoy end: the map draws, in the colour of an order on its way, the way from the end of its line to the port chosen', JSON.stringify(told.way));
+    await view(-10, 54, 0.55);
+    await shot(page, 'convoy-end-radio');
+    const passed = await playUntil(page, (a) => !a.world.signals.some((s) => s.name === 'endAction'), 5);
+    await game(page, () => {
+      const a = window.__game;
+      a.paused = true;
+      for (const d of document.querySelectorAll('dialog[open]')) d.close();
+    });
+    const got = await sheet(id);
+    note(passed && got.end === other && got.destination === '' && got.locked === 0 && got.value === other && !got.hints.some((h) => /^awaited/.test(h)),
+      'convoy end: at the relief the convoy is told; its line no longer goes into the first port by itself, and ends as chosen', JSON.stringify({ end: got.end, destination: got.destination, locked: got.locked }));
+  });
+
+  await step('convoy end carried out', async () => {
+    // A game where orders reach the ships at once, six days on: a convoy in mid-ocean.
+    const kept = await game(page, () => {
+      const a = window.__game;
+      const before = a.settings.seaComms;
+      a.settings.seaComms = 'direct';
+      a.restart('hiver-atlantique');
+      return before;
+    });
+    await settle(page);
+    const id = await game(page, () => {
+      const a = window.__game;
+      a.paused = true;
+      for (let i = 0; i < 4000 && !a.world.convoys.some((c) => c.state === 'atSea'); i++) a.stepWorld(60);
+      for (let i = 0; i < 6 * 24 * 60; i++) a.stepWorld(60);
+      const c = a.world.convoys.find((x) => x.state === 'atSea' && x.type === 'ocean' && !x.straggler);
+      return c ? c.id : null;
+    });
+    await settle(page);
+    note(Boolean(id), 'convoy end: a convoy at sea, six days on');
+    if (!id) return;
+    // A line of two points to the open sea, some 200 km on, as the drawing sends it.
+    const routed = await game(page, async (cid) => {
+      const a = window.__game;
+      const actions = await import('./src/ui/actions.js');
+      const G = await import('./src/sim/geo.js');
+      const c = a.world.convoys.find((x) => x.id === cid);
+      const [lon, lat] = G.unproject(c.x, c.y);
+      const sent = actions.shipOrder(a, c, 'route', [G.project(lon + 1.5, lat - 0.2), G.project(lon + 3, lat - 0.5)]);
+      return { ok: sent.ok, via: sent.via, destination: c.destination || '', lon: Math.round(lon), lat: Math.round(lat) };
+    }, id);
+    const open = await sheet(id);
+    note(routed.ok && routed.via === 'direct' && open.value === 'stop' && open.destination === '' && !open.way && !open.hints.some((h) => /sans autre ordre/.test(h)),
+      'convoy end: a line that ends in the open sea ends in a stop, told nothing', JSON.stringify({ routed, value: open.value }));
+    await page.selectOption(`#convoy-end-${id}`, SOUTH);
+    await sleep(450);
+    const told = await sheet(id);
+    note(told.end === SOUTH && told.value === SOUTH && told.destination === '' && told.route === 2,
+      'convoy end: « Entrer à Liverpool par : Canal Saint-Georges » is taken at once, and the line is left as drawn', JSON.stringify({ end: told.end, route: told.route }));
+    note(Boolean(told.way) && !told.way.waiting && told.way.toPort && told.way.points >= 9,
+      'convoy end: the map draws the way from the end of the line to the entrance of that channel and up it', JSON.stringify(told.way));
+    await view((routed.lon - 7) / 2, 52, 0.22);
+    await shot(page, 'convoy-end-chosen');
+    const done = await playUntil(page, (a) => a.world.events.some((e) => e.type === 'convoyEndAction'), 30);
+    await game(page, () => {
+      const a = window.__game;
+      a.paused = true;
+      for (const d of document.querySelectorAll('dialog[open]')) d.close();
+    });
+    const after = await sheet(id);
+    const said = await game(page, () => [...document.querySelectorAll('#log li')].some((li) => /fin de sa route, il fait route vers Liverpool par l'entrée du chenal \(Canal Saint-Georges\)/.test(li.textContent)));
+    note(done && after.destination === 'liverpool' && after.end === '' && after.state === 'atSea' && said,
+      'convoy end: at the end of its line the convoy makes for the entrance of the channel chosen, and the journal says so', JSON.stringify({ destination: after.destination, state: after.state, said }));
+    await view((routed.lon - 7) / 2, 52, 0.22);
+    await shot(page, 'convoy-end-done');
+    await game(page, (v) => {
+      window.__game.settings.seaComms = v;
+    }, kept);
+  });
+
+  await step('convoy end of the coastal convoy', async () => {
+    await game(page, () => {
+      window.__game.restart('kanalkampf');
+    });
+    await settle(page);
+    await game(page, () => {
+      window.__game.paused = true;
+    });
+    const id = await game(page, () => (window.__game.world.convoys.find((c) => c.type === 'coastal') || {}).id || null);
+    note(Boolean(id), 'convoy end: Kanalkampf has its coastal convoy');
+    if (!id) return;
+    const inPort = await sheet(id);
+    note(inPort.value === null, 'convoy end: at anchor with nothing prepared, there is no end to choose');
+    // Out of the Thames and round the North Foreland, to stop off Dover: a line the game
+    // refused until 2.10.4 (it sent it straight to Spithead, across Kent).
+    const routed = await game(page, async (cid) => {
+      const a = window.__game;
+      const actions = await import('./src/ui/actions.js');
+      const c = a.world.convoys.find((x) => x.id === cid);
+      const sent = actions.shipOrder(a, c, 'route', c.admiraltyRoute.slice(1, 5).map(([x, y]) => [x, y]));
+      return { ok: sent.ok, state: c.state, route: c.route.length, destination: c.destination || '' };
+    }, id);
+    note(routed.ok && routed.state === 'atSea' && routed.route === 4 && routed.destination === '', 'convoy end: a line of the coastal convoy that stops off Dover is accepted as drawn', JSON.stringify(routed));
+    const open = await sheet(id);
+    note(open.options.join(' | ') === 'S\'arrêter et attendre | Garder le cap | Entrer à Southampton par : Spithead | Reprendre la route de l\'Amirauté' && open.value === 'stop',
+      'convoy end: the coastal convoy is offered its own port, Southampton by Spithead, and no ocean port', open.options.join(' | '));
+    await page.selectOption(`#convoy-end-${id}`, 'port:southampton:Spithead');
+    await sleep(450);
+    const told = await sheet(id);
+    note(told.end === 'port:southampton:Spithead' && Boolean(told.way) && told.way.toPort && told.way.points >= 7,
+      'convoy end: the way to Southampton is drawn round the land, by sea', JSON.stringify(told.way));
+    await view(0.2, 50.95, 2.3);
+    await shot(page, 'convoy-end-coastal');
+    const done = await playUntil(page, (a) => a.world.events.some((e) => e.type === 'convoyEndAction' || e.type === 'convoyRouteRejected'), 14);
+    const after = await sheet(id);
+    note(done && after.destination === 'southampton' && after.end === '', 'convoy end: off Dover the coastal convoy makes for Spithead and Southampton', JSON.stringify({ destination: after.destination, state: after.state }));
+  });
 }
 
 /** Answers the confirmation dialog when it is open (yes or no); returns whether it was. */
