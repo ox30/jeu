@@ -1472,17 +1472,21 @@
     {
       "type": "convoyDelivered",
       "convoy": "hx55",
-      "share": 0.6
+      "share": 0.8
     },
     {
       "type": "convoyDelivered",
       "convoy": "hx57",
-      "share": 0.6
+      "share": 0.8
     },
     {
       "type": "convoyDelivered",
       "convoy": "cw",
-      "share": 0.5
+      "share": 0.75
+    },
+    {
+      "type": "enemyDown",
+      "count": 30
     },
     {
       "type": "basesOperational",
@@ -1497,7 +1501,7 @@
     },
     {
       "type": "fighterStrength",
-      "share": 0.6
+      "share": 0.9
     }
   ],
   "defeat": {

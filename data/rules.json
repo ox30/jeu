@@ -348,7 +348,7 @@
     "giveUpS": 600
   },
   "crews": {
-    "note": "Pilotes, fatigue et alerte au sol. Réglage « fatigue » : off (Arcade), on (Standard), losses (Réaliste, pilotes tués). États d'alerte : délai pour être en l'air (repos 2 h, disponible 30 min, alerte 5 min, cockpit 2 min) et fatigue par heure ; monter d'un cran prend la différence des délais.",
+    "note": "Pilotes, fatigue et alerte au sol. Réglage « fatigue » : off (Arcade), on (Standard), losses (Réaliste, pilotes tués). États d'alerte : délai pour être en l'air (repos 2 h, disponible 30 min, alerte 5 min, cockpit 2 min) et fatigue par heure ; monter d'un cran prend la différence des délais. Depuis le 2.10 (I6), seul le repos repose vraiment : l'alerte à 5 minutes fatigue un peu, la disponibilité à 30 minutes repose peu. Le vol fatigue moins qu'avant, pour qu'une escadrille laissée une semaine en alerte à 5 minutes finisse fatiguée, pas épuisée dès le troisième jour.",
     "alert": {
       "rest": {
         "scrambleS": 7200,
@@ -356,20 +356,20 @@
       },
       "min30": {
         "scrambleS": 1800,
-        "fatiguePerHour": -5
+        "fatiguePerHour": -1
       },
       "min5": {
         "scrambleS": 300,
-        "fatiguePerHour": -2
+        "fatiguePerHour": 0.1
       },
       "cockpit": {
         "scrambleS": 120,
         "fatiguePerHour": 3
       }
     },
-    "fatiguePerFlightHour": 7,
-    "fatiguePerCombatRound": 2.5,
-    "fatiguePerScramble": 2,
+    "fatiguePerFlightHour": 4,
+    "fatiguePerCombatRound": 1.5,
+    "fatiguePerScramble": 1,
     "tiredAt": 60,
     "exhaustedAt": 85,
     "effectAtMax": 0.45,

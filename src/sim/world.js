@@ -22,7 +22,7 @@ import { createTimetable, updateTimetable } from './timetable.js';
 import { updateRallies } from './rally.js';
 import { createGrid } from './grid.js';
 import { createSite, repairSites } from './sites.js';
-import { checkDefeat, checkObjectives, createObjectives, fighterCount, finalize } from './objectives.js';
+import { checkDefeat, checkObjectives, createObjectives, fighterCount, finalize, tallyObjectives } from './objectives.js';
 import { createLogistics, updateLogistics, updateTrains } from './logistics.js';
 import {
   ageDfZones, checkEscortRange, createEscortGroup, createUboat, initialIntelligence, updateEscort, updateUboat,
@@ -231,6 +231,7 @@ export function step(world, dt = 1) {
   if (world.t % minute === 0) {
     updateDetection(world);
     repairSites(world, minute);
+    tallyObjectives(world, minute);
     updateLogistics(world, minute);
     updateCrews(world, minute);
     updatePatrols(world);

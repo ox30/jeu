@@ -5,7 +5,15 @@
 const AIR = {
   rien: { idle: true }, // no order at all
   simple: { perRaid: 2, scale: true }, // two squadrons a raid, more against a big one
-  soigne: { perRaid: 2, scale: true, ignoreHigh: true, nightRest: true }, // and: sweeps left alone, rest at night
+  // Carefully: sweeps left alone, rest at night — and on 15 September, as its briefing asks,
+  // everything in mass (the battle of one day is won by committing: the mirror of Adlertag).
+  soigne: {
+    perRaid: 2,
+    scale: true,
+    ignoreHigh: true,
+    nightRest: true,
+    byScenario: { 'quinze-septembre': { perRaid: 6, scale: false, ignoreHigh: false, answers: { engage: true, pursue: true, beyond: true } } },
+  },
   'sans-chasse': { perRaid: 0 }, // convoys and trains only: the fighters stay on the ground
   'sans-ravitaillement': { perRaid: 2, scale: true, minStocks: false }, // no order to the trains
   '1-par-raid': { perRaid: 1 },

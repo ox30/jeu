@@ -5,7 +5,7 @@ import { formatShortDate, formatTime } from '../core/time.js';
 import { FOOT_M } from '../sim/geo.js';
 import { siteRules, siteStatus } from '../sim/sites.js';
 import { cargoShare } from '../sim/convoy.js';
-import { basesInService, enemyDown, fighterShare, radarsInService, shipLosses, tonnesDelivered } from '../sim/objectives.js';
+import { basesInService, enemyDown, fighterShare, outOfServiceHours, radarsInService, shipLosses, tonnesDelivered } from '../sim/objectives.js';
 
 /** "30+" for an estimated count (rounded down to 5), the exact number otherwise. */
 /** The name proposed for a new formation: "Big Wing Duxford", "Groupe de soutien 2". */
@@ -236,6 +236,12 @@ export function objectiveText(world, o) {
       return t('objectives.radarsOperational', { min: o.min, total: o.radars.length, n: radarsInService(world, o) });
     case 'enemyDown':
       return t('objectives.enemyDown', { count: o.count, n: enemyDown(world) });
+    case 'outOfServiceBelow': {
+      const h = outOfServiceHours(o);
+      return t(`objectives.outOfServiceBelow.${o.radars ? 'radars' : 'airfields'}`, {
+        hours: o.hours, total: (o.radars || o.airfields).length, n: formatNumber(h, h > 0 && h < 10 ? 1 : 0),
+      });
+    }
     case 'siteDamageBelow': {
       const site = world.sites.get(o.site);
       return t('objectives.siteDamageBelow', { site: site ? site.longName || site.name : o.site, max: o.max, n: site ? Math.round(site.damage) : 0 });

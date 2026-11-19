@@ -11,7 +11,9 @@ export function play(scenario, conduct, preset, seed, extra = {}) {
   if (!table) throw new Error(`unknown scenario: ${scenario}`);
   const cfg = typeof conduct === 'string' ? table[conduct] : conduct;
   if (!cfg) throw new Error(`unknown conduct for ${scenario}: ${conduct}`);
-  const full = { ...cfg, scenario, ...(preset ? { preset } : {}), ...(seed !== null && seed !== undefined ? { seed } : {}), ...extra };
+  // (A conduct can differ by battle: `byScenario`, in a single battle as in the campaign.)
+  const own = scenario === 'campagne' ? {} : (cfg.byScenario && cfg.byScenario[scenario]) || {};
+  const full = { ...cfg, ...own, scenario, ...(preset ? { preset } : {}), ...(seed !== null && seed !== undefined ? { seed } : {}), ...extra };
   if (scenario === 'campagne') return runChain(full);
   return SEA_SCENARIOS.includes(scenario) ? runSea(full) : runAir(full);
 }

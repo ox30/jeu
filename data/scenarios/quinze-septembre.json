@@ -1241,7 +1241,7 @@
   "objectives": [
     {
       "type": "enemyDown",
-      "count": 40
+      "count": 32
     },
     {
       "type": "siteDamageBelow",

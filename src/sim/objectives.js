@@ -8,7 +8,7 @@ import { cargoShare } from './convoy.js';
 import { isOperational } from './sites.js';
 
 export function createObjectives(world, defs) {
-  return defs.map((o) => ({ ...o, done: false, failed: false }));
+  return defs.map((o) => ({ ...o, done: false, failed: false, ...(o.type === 'outOfServiceBelow' ? { outS: 0 } : {}) }));
 }
 
 /** Fighter aircraft of the squadrons: { now, establishment }. */
@@ -50,6 +50,30 @@ export function radarsInService(world, o) {
     const r = world.byId.radar.get(id);
     return r && isOperational(world, r);
   }).length;
+}
+
+/** The installations an objective lists (aerodromes and radar stations). */
+function listedSites(world, o) {
+  const fields = (o.airfields || []).map((id) => world.byId.airfield.get(id));
+  const radars = (o.radars || []).map((id) => world.byId.radar.get(id));
+  return [...fields, ...radars].filter(Boolean);
+}
+
+/** Hours out of service so far, summed over the installations the objective lists. */
+export function outOfServiceHours(o) {
+  return (o.outS || 0) / 3600;
+}
+
+/**
+ * Called once a minute: every listed installation out of service adds to its objective's
+ * count. (An aerodrome is repaired within hours: what the battle costs is the time it was
+ * out, not how it stands on the last evening.)
+ */
+export function tallyObjectives(world, dt) {
+  for (const o of world.objectives) {
+    if (o.type !== 'outOfServiceBelow' || o.failed) continue;
+    for (const site of listedSites(world, o)) if (!isOperational(world, site)) o.outS = (o.outS || 0) + dt;
+  }
 }
 
 export function enemyDown(world) {
@@ -99,6 +123,10 @@ function evaluate(world, o, atEnd) {
       const site = world.sites.get(o.site);
       return atEnd ? Boolean(site) && site.damage <= o.max : null;
     }
+    case 'outOfServiceBelow':
+      // Lost as soon as the count is over; won only by lasting to the end.
+      if (outOfServiceHours(o) > o.hours) return false;
+      return atEnd ? true : null;
     case 'tonnageDelivered': {
       const d = tonnesDelivered(world);
       if (d.fuel >= (o.fuel || 0) && d.materiel >= (o.materiel || 0)) return true;

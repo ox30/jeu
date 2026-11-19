@@ -38,7 +38,9 @@ test('fatigue grows in the air and falls at rest; a tired squadron fights less w
   const f0 = sq.fatigue;
   scramble(world, sq, { orbit: true });
   run(world, 3600);
-  assert.ok(sq.fatigue > f0 + 5, `tired by an hour in the air (${sq.fatigue})`);
+  // (An hour in the air and its take-off: 4 + 1 points since 2.10, 7 + 2 before.)
+  const R = world.rules.crews;
+  assert.ok(sq.fatigue > f0 + 0.9 * (R.fatiguePerFlightHour + R.fatiguePerScramble), `tired by an hour in the air (${sq.fatigue})`);
   sq.fatigue = 90;
   assert.ok(formFactor(world, sq) < 0.7);
   const rest = world.squadrons.find((s) => s.id === '74');
@@ -46,6 +48,25 @@ test('fatigue grows in the air and falls at rest; a tired squadron fights less w
   setAlert(world, rest, 'rest');
   run(world, 3 * 3600);
   assert.ok(rest.fatigue < 30, `rested (${rest.fatigue})`);
+});
+
+test('I6: on the ground only rest really rests; five-minute readiness tires a little', () => {
+  const world = makeKanalkampf('standard', { fatigue: 'on' });
+  const [rest, min30, min5, cockpit] = world.squadrons.filter((s) => s.role === 'fighter');
+  setAlert(world, rest, 'rest');
+  setAlert(world, min30, 'min30');
+  setAlert(world, min5, 'min5');
+  setAlert(world, cockpit, 'cockpit');
+  for (const s of [rest, min30, min5, cockpit]) s.fatigue = 50;
+  run(world, 10 * 3600);
+  assert.ok(rest.fatigue === 0, `ten hours of rest clear the fatigue (${rest.fatigue})`);
+  assert.ok(min30.fatigue < 50 && min30.fatigue >= 35, `thirty-minute readiness rests a little (${min30.fatigue})`);
+  assert.ok(min5.fatigue > 50 && min5.fatigue <= 55, `five-minute readiness tires a little (${min5.fatigue})`);
+  assert.ok(cockpit.fatigue > min5.fatigue + 10, `the cockpit tires more (${cockpit.fatigue})`);
+  // The order of the states is the order of what they cost.
+  const A = world.rules.crews.alert;
+  assert.ok(A.rest.fatiguePerHour < A.min30.fatiguePerHour && A.min30.fatiguePerHour < 0);
+  assert.ok(A.min5.fatiguePerHour > 0 && A.min5.fatiguePerHour < A.cockpit.fatiguePerHour);
 });
 
 test('Réaliste: pilots are killed with their aircraft; replacements arrive later', () => {

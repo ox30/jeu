@@ -780,7 +780,7 @@
       "lon": 0.033,
       "lat": 51.331,
       "stocks": {
-        "fuel": 90,
+        "fuel": 36,
         "ammo": 14
       },
       "sector": true
@@ -791,7 +791,7 @@
       "lon": 0.205,
       "lat": 51.538,
       "stocks": {
-        "fuel": 90,
+        "fuel": 36,
         "ammo": 14
       },
       "sector": true
@@ -802,7 +802,7 @@
       "lon": -0.095,
       "lat": 51.305,
       "stocks": {
-        "fuel": 90,
+        "fuel": 36,
         "ammo": 14
       },
       "sector": true
@@ -813,7 +813,7 @@
       "lon": -0.117,
       "lat": 51.356,
       "stocks": {
-        "fuel": 60,
+        "fuel": 24,
         "ammo": 10
       }
     },
@@ -823,7 +823,7 @@
       "lon": -0.418,
       "lat": 51.553,
       "stocks": {
-        "fuel": 40,
+        "fuel": 16,
         "ammo": 6
       },
       "sector": true
@@ -834,7 +834,7 @@
       "lon": 0.154,
       "lat": 51.721,
       "stocks": {
-        "fuel": 80,
+        "fuel": 32,
         "ammo": 12
       },
       "sector": true
@@ -845,7 +845,7 @@
       "lon": 0.27,
       "lat": 52.0,
       "stocks": {
-        "fuel": 40,
+        "fuel": 16,
         "ammo": 6
       },
       "sector": true
@@ -856,7 +856,7 @@
       "lon": -0.706,
       "lat": 50.846,
       "stocks": {
-        "fuel": 90,
+        "fuel": 36,
         "ammo": 14
       },
       "sector": true
@@ -867,7 +867,7 @@
       "lon": -1.57,
       "lat": 51.139,
       "stocks": {
-        "fuel": 90,
+        "fuel": 36,
         "ammo": 14
       },
       "sector": true
@@ -898,7 +898,7 @@
       "lon": 1.153,
       "lat": 51.112,
       "stocks": {
-        "fuel": 30,
+        "fuel": 12,
         "ammo": 4
       }
     },
@@ -918,7 +918,7 @@
       "lon": 0.597,
       "lat": 51.303,
       "stocks": {
-        "fuel": 20,
+        "fuel": 8,
         "ammo": 0
       }
     },
@@ -1772,8 +1772,8 @@
   ],
   "objectives": [
     {
-      "type": "basesOperational",
-      "min": 5,
+      "type": "outOfServiceBelow",
+      "hours": 10,
       "airfields": [
         "biggin_hill",
         "kenley",
@@ -1785,8 +1785,8 @@
       ]
     },
     {
-      "type": "radarsOperational",
-      "min": 7,
+      "type": "outOfServiceBelow",
+      "hours": 36,
       "radars": [
         "bawdsey",
         "canewdon",
@@ -1805,7 +1805,7 @@
     },
     {
       "type": "fighterStrength",
-      "share": 0.5
+      "share": 0.45
     },
     {
       "type": "convoyDelivered",
