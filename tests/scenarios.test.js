@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { data, makeWorld, run, runTo } from './helpers.js';
+import { data, makeWorld, run, runTo, scenarioData } from './helpers.js';
 import { restore, snapshot } from '../src/save/game.js';
 import { buyOffer, crossingHours, lineCost, offerArrival, offerInCargo, offers, tonnageForecast } from '../src/sim/shipping.js';
 import { followSquadron, scramble } from '../src/sim/orders.js';
@@ -283,11 +283,11 @@ test('Code 6, N8: scenarios, campaign, views and maps are data, and every scenar
   assert.ok(campaign.chain.every((id) => campaign.scenarios.includes(id)));
 });
 
-test('Code 6: the lessons of the tutorial are data the game can read', async () => {
+test('Code 6, I10: the lessons of the tutorial are data the game can read', async () => {
   const { readFileSync: read } = await import('node:fs');
   const tutorial = JSON.parse(read(new URL('../data/tutorial.json', import.meta.url), 'utf8'));
-  const { CONDITION_NAMES, holds, lessonFor } = await import('../src/ui/tutorial.js');
-  assert.ok(tutorial.lessons.length >= 1);
+  const { CONDITION_NAMES, ORDER_NAMES, holds, lessonById, lessonFor } = await import('../src/ui/tutorial.js');
+  assert.equal(tutorial.lessons.length, 4);
   const known = new Set(CONDITION_NAMES);
   const check = (c) => {
     for (const [name, arg] of Object.entries(c)) {
@@ -296,16 +296,42 @@ test('Code 6: the lessons of the tutorial are data the game can read', async () 
     }
   };
   for (const lesson of tutorial.lessons) {
-    assert.ok(scenarioIds().includes(lesson.scenario), `${lesson.id}: scenario ${lesson.scenario}`);
-    assert.ok(lesson.steps.length >= 3);
+    // Its own small scenario, written on one of the battles, with settings the game knows.
+    const sc = scenarioData(lesson.scenario);
+    assert.equal(sc.id, lesson.scenario);
+    for (const k of ['title', 'stake', 'text']) assert.ok(data.fr.scenarios[sc.id][k], `${sc.id}: its ${k}`);
+    assert.deepEqual(sc.objectives, [], `${sc.id}: a lesson is led by its steps, not by objectives`);
+    assert.ok(!('base' in sc) && sc.ports.length > 0, `${lesson.id}: resolved on its base`);
+    for (const [key, value] of Object.entries(lesson.settings || {})) {
+      const choices = data.presets.choices[key];
+      assert.ok(choices ? choices.includes(value) : typeof value === 'boolean', `${lesson.id}: setting ${key} = ${value}`);
+    }
+    assert.ok(lesson.minutes[0] >= 3 && lesson.minutes[1] <= 5, `${lesson.id}: three to five minutes`);
+    assert.ok(lesson.steps.length >= 5);
     assert.ok(lesson.steps[lesson.steps.length - 1].last, 'the last step ends the lesson');
     for (const step of lesson.steps) {
-      for (const k of ['title', 'text']) assert.ok(typeof data.fr.tutorial[step.id][k] === 'string', `tutorial.${step.id}.${k}`);
+      for (const k of ['title', 'text']) assert.ok(typeof data.fr.tutorial.lessons[lesson.id].steps[step.id][k] === 'string', `${lesson.id}.${step.id}.${k}`);
       assert.ok(step.manual || step.done, `${step.id}: a button or a condition to go on`);
       if (step.done) check(step.done);
+      for (const entry of step.do || []) {
+        if (entry.when) check(entry.when);
+        assert.ok(!entry.order || ORDER_NAMES.some((name) => name in entry.order), `${lesson.id}.${step.id}: an order the instructor knows`);
+      }
+      // What fills the text is said in the text, and comes from an event or a mark of the lesson.
+      const text = data.fr.tutorial.lessons[lesson.id].steps[step.id].text;
+      for (const name of [...Object.keys(step.times || {}), ...Object.keys(step.gaps || {})]) assert.ok(text.includes(`{${name}}`), `${lesson.id}.${step.id}: {${name}} in its text`);
+      for (const [from, to] of Object.values(step.gaps || {})) assert.ok(step.times[from] && step.times[to], `${lesson.id}.${step.id}: a gap between two known hours`);
     }
+    // The units and installations the steps name exist in the scenario of the lesson.
+    const w = makeWorld('standard', lesson.settings || {}, lesson.scenario);
+    for (const step of lesson.steps) {
+      const sel = step.select;
+      if (sel && sel.site) assert.ok(w.sites.get(sel.site), `${lesson.id}.${step.id}: ${sel.site}`);
+      if (sel && sel.id) assert.ok(w.squadrons.some((x) => x.id === sel.id) || w.escorts.some((x) => x.id === sel.id), `${lesson.id}.${step.id}: unit ${sel.id}`);
+    }
+    assert.equal(lessonFor(tutorial, lesson.scenario).id, lesson.id);
+    assert.equal(lessonById(tutorial, lesson.id).scenario, lesson.scenario);
   }
-  assert.equal(lessonFor(tutorial, 'm0-july-1940').id, 'basics');
   assert.equal(lessonFor(tutorial, 'adlertag'), null);
   // The conditions are read as the lesson reads them.
   const w = makeWorld('standard', {}, 'm0');

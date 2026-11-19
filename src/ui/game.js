@@ -20,7 +20,7 @@ import { addLogEntry, clearLog } from './panels.js';
 import { resetAlerts } from './alerts.js';
 import { createSignals } from './watchPanel.js';
 import { createPlayClock, newGameId } from './summary.js';
-import { startTutorial, stopTutorial } from './tutorial.js';
+import { lessonFor, startTutorial, stopTutorial } from './tutorial.js';
 
 function scenarioById(app, id) {
   return app.data.scenarios.find((s) => s.id === id) || null;
@@ -130,14 +130,21 @@ function freshPage(app) {
 
 /** A new game: of `scenarioId`, or of the scenario in hand again. With `tutorial`, its lesson begins. */
 export function newGame(app, scenarioId = null, { tutorial = false } = {}) {
-  const { data, settings } = app;
+  const { data } = app;
+  let { settings } = app;
   if (scenarioId) {
     const sc = scenarioById(app, scenarioId);
     if (!sc) return false;
     data.scenario = sc;
-    settings.scenario = sc.id;
-    saveSettings(settings);
+    // (The scenario of a lesson is not « the last scenario played ».)
+    if (!lessonFor(data.tutorial, sc.id)) {
+      settings.scenario = sc.id;
+      saveSettings(settings);
+    }
   }
+  // A lesson is played with its own settings, over Standard, whatever the player's are.
+  const lesson = tutorial ? lessonFor(data.tutorial, data.scenario.id) : null;
+  if (lesson) settings = { ...settings, ...data.presets.presets.standard, ...(lesson.settings || {}), preset: 'standard' };
   stopTutorial(app);
   app.playClock = createPlayClock();
   app.gameId = newGameId();

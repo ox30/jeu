@@ -29,6 +29,13 @@ export function resolveTarget(world, ref) {
   return world.sites.get(ref) || null;
 }
 
+/**
+ * "Not yet", as a game time, for the departure of a raid held back (`held` in the scenario):
+ * it waits until an order releases it (orders.js, releaseRaid) — the lessons of the tutorial
+ * send their raids when the pupil is ready. A number a save can keep.
+ */
+export const HELD = 1e12;
+
 export function createRaid(world, def) {
   const target = resolveTarget(world, def.target);
   if (!target) throw new Error(`raid ${def.id}: unknown target ${def.target}`);
@@ -38,7 +45,8 @@ export function createRaid(world, def) {
     id: def.id,
     label: def.label,
     phantom: false,
-    departure: (parseGameDate(def.time) - world.startMs) / 1000,
+    held: Boolean(def.held),
+    departure: def.held ? HELD : (parseGameDate(def.time) - world.startMs) / 1000,
     assembly: def.assemblyMin * 60,
     target: def.target,
     targetKind: def.target.split(':')[0],

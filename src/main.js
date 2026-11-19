@@ -21,7 +21,8 @@ import { centreOn, select } from './ui/actions.js';
 import { carryFor, loadCampaign, scenarioIds, setCampaignData } from './ui/campaign.js';
 import { exportGame, gameInProgress, loadEntry, newGame, saveCurrent, saveErrorText } from './ui/game.js';
 import { handleEvents } from './ui/gameEvents.js';
-import { attachMenu, goToMainMenu, hideMainMenu, markTutorialDone, nextScenarioFor, openGameMenu, restartGame, showMainMenu } from './ui/menu.js';
+import { attachMenu, goToMainMenu, hideMainMenu, markLessonDone, nextScenarioFor, openGameMenu, restartGame, showMainMenu } from './ui/menu.js';
+import { resolveScenario } from './core/scenarios.js';
 import { startLoop } from './ui/loop.js';
 import { attachPanels } from './ui/panelActions.js';
 import { applySheet, attachSheetGrip, resize } from './ui/sheet.js';
@@ -57,7 +58,11 @@ async function loadData() {
     loadJSON('data/tutorial.json'),
   ]);
   setCampaignData(campaign);
-  const scenarios = await Promise.all(scenarioIds().map((id) => loadJSON(`data/scenarios/${id}.json`)));
+  // The scenarios of the menu, then those of the lessons (each written as one of the first
+  // with changes: resolved on its base).
+  const ids = [...new Set([...scenarioIds(), ...(tutorial.lessons || []).map((l) => l.scenario)])];
+  const raw = await Promise.all(ids.map((id) => loadJSON(`data/scenarios/${id}.json`)));
+  const scenarios = raw.map((def) => resolveScenario(def, (id) => raw.find((s) => s.id === id)));
   return { fr, rules, presets, dev, helpImages, atlantic, channel, labels, campaign, tutorial, scenarios };
 }
 
@@ -146,7 +151,14 @@ function createApp(el, data, settings, terrain) {
     if (ok) hideMainMenu(app); // a game asked for is played now
     return ok;
   };
-  app.onTutorialDone = () => markTutorialDone();
+  // A lesson played to its end: remembered, the game of the lesson is dropped, and the list
+  // of the lessons comes back with the next one in front.
+  app.onTutorialDone = (lesson) => {
+    markLessonDone(lesson);
+    app.store.remove(CURRENT);
+    app.world.ended = true; // nothing left to continue
+    showMainMenu(app, 'training');
+  };
   app.restartAsking = () => restartGame(app);
   app.nextScenario = () => nextScenarioFor(app);
   app.toMainMenu = () => goToMainMenu(app);

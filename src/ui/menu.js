@@ -18,20 +18,37 @@ import { matchingPreset } from '../sim/gameSettings.js';
 const TUTORIAL_KEY = 'jeu-1940.tutorial-done.v1';
 const RESTART_ASKS_AFTER_MS = 10 * 60 * 1000;
 
-export function tutorialDone() {
+const LESSONS_KEY = 'jeu-1940.lessons-done.v1';
+
+/** The lessons of the tutorial played to their end (ids), as this browser remembers them. */
+export function lessonsDone() {
+  const done = new Set();
   try {
-    return localStorage.getItem(TUTORIAL_KEY) === '1';
+    for (const id of JSON.parse(localStorage.getItem(LESSONS_KEY) || '[]')) done.add(id);
+    // The single tutorial of 2.9 and before taught interception: its lesson is done.
+    if (localStorage.getItem(TUTORIAL_KEY) === '1') done.add('intercept');
   } catch {
-    return false;
+    // no storage: nothing remembered
   }
+  return done;
 }
 
-export function markTutorialDone() {
+export function markLessonDone(id) {
   try {
-    localStorage.setItem(TUTORIAL_KEY, '1');
+    localStorage.setItem(LESSONS_KEY, JSON.stringify([...lessonsDone().add(id)]));
   } catch {
     // ignore
   }
+}
+
+/** The lessons of the game, and whether they have all been played (C16: until then the training stays in front). */
+function lessons(app) {
+  return (app.data.tutorial && app.data.tutorial.lessons) || [];
+}
+
+export function tutorialDone(app) {
+  const done = lessonsDone();
+  return lessons(app).every((l) => done.has(l.id));
 }
 
 const esc = escapeHtml;
@@ -167,13 +184,15 @@ async function continueGame(app) {
 
 function homePage(app, message) {
   const g = currentGame(app);
-  const learnt = tutorialDone();
+  const learnt = tutorialDone(app);
+  const lessonsPlayed = lessons(app).filter((l) => lessonsDone().has(l.id)).length;
   const chain = campaignChain();
   const won = chain.filter((id) => scenarioStatus(app.campaign, id) === 'won').length;
   const saves = app.store.entries().length;
   const entry = (id, label, text, main = false) =>
     `<button type="button" class="mm-entry${main ? ' mm-main' : ''}" data-menu="${id}"><b>${esc(label)}</b><small>${esc(text)}</small></button>`;
-  const training = entry('training', t('menu.training'), t(learnt ? 'menu.trainingText' : 'menu.trainingFirst'), !learnt && !g);
+  const training = entry('training', t('menu.training'),
+    t(learnt ? 'menu.trainingText' : lessonsPlayed ? 'menu.trainingNext' : 'menu.trainingFirst', { n: lessonsPlayed, total: lessons(app).length }), !learnt && !g);
   const entries = [
     g ? entry('continue', t('menu.continue'), gameLine(g), true) : '',
     // The training comes first until its lesson has been played to the end (C16).
@@ -208,6 +227,26 @@ function presetChooser(app) {
       ${now === 'custom' ? `<span class="badge">${esc(t('settings.presets.custom'))}</span>` : ''}
     </div>
     <p class="hint mm-preset-text">${esc(t(`menu.presetText.${now}`))}</p>`;
+}
+
+/** Entraînement: the lessons, each a few minutes; the next one to play is in front. */
+function trainingPage(app) {
+  const done = lessonsDone();
+  const next = lessons(app).find((l) => !done.has(l.id));
+  const rows = lessons(app).map((l, i) => `
+      <li class="mm-step ${done.has(l.id) ? 'won' : l === next ? 'open' : 'free'}">
+        <span class="mm-num">${i + 1}</span>
+        <div class="mm-step-body">
+          <b>${esc(t(`tutorial.lessons.${l.id}.name`))}</b> ${done.has(l.id) ? `<span class="badge won">${esc(t('menu.lessonDone'))}</span>` : ''}
+          <p>${esc(t(`tutorial.lessons.${l.id}.summary`))} · ${esc(t('menu.length.label', { length: playLengthText(l.minutes) }))}</p>
+        </div>
+        <button type="button" data-lesson="${esc(l.id)}"${l === next ? ' class="mm-main"' : ''}>${esc(t(done.has(l.id) ? 'menu.lessonAgain' : 'menu.lessonPlay'))}</button>
+      </li>`).join('');
+  return `
+    <h2>${esc(t('menu.training'))}</h2>
+    <p class="hint">${esc(t('menu.trainingIntro'))}</p>
+    <ol class="mm-chain">${rows}</ol>
+    <div class="mm-row"><button type="button" data-play="${esc(trainingId())}">${esc(t('menu.playFree'))}</button></div>`;
 }
 
 function presetLine(result) {
@@ -259,7 +298,7 @@ function scenariosPage(app) {
         <p class="mm-stake">${esc(t(`scenarios.${id}.stake`))}</p>
         <p class="mm-text">${esc(t(locked ? 'scenarios.locked' : `scenarios.${id}.text`))}</p>
         <div class="mm-card-buttons">
-          ${training ? `<button type="button" data-play="${esc(id)}" data-tutorial="1">${esc(t('campaign.tutorial'))}</button>` : ''}
+          ${training ? `<button type="button" data-menu="training">${esc(t('campaign.tutorial'))}</button>` : ''}
           <button type="button" data-play="${esc(id)}"${locked ? ' disabled' : ''}${training ? ' class="secondary"' : ''}>${esc(t(training ? 'menu.playFree' : 'scenarios.play'))}</button>
         </div>
       </li>`;
@@ -313,7 +352,8 @@ export function showMainMenu(app, page = 'home', message = '') {
     app.dirtyHud = true;
   }
   app.menuPage = page;
-  const body = page === 'campaign' ? campaignPage(app) : page === 'scenarios' ? scenariosPage(app) : page === 'load' ? loadPage(app, message) : homePage(app, message);
+  const body = page === 'campaign' ? campaignPage(app) : page === 'scenarios' ? scenariosPage(app) : page === 'load' ? loadPage(app, message)
+    : page === 'training' ? trainingPage(app) : homePage(app, message);
   box.innerHTML = `
     <div class="mm-page mm-${page}">
       <header class="mm-title">
@@ -340,7 +380,6 @@ export function attachMenu(app) {
     if (!b || b.disabled) return;
     const d = b.dataset;
     if (d.menu === 'continue') await continueGame(app);
-    else if (d.menu === 'training') await play(app, trainingId(), { tutorial: true });
     else if (d.menu === 'settings') openSettings(app, { scope: 'defaults' });
     else if (d.menu === 'help') openHelp(app);
     else if (d.menu) showMainMenu(app, d.menu);
@@ -351,6 +390,9 @@ export function attachMenu(app) {
       Object.assign(app.settings, values, { preset: d.preset });
       saveSettings(app.settings);
       showMainMenu(app, app.menuPage);
+    } else if (d.lesson) {
+      const lesson = lessons(app).find((l) => l.id === d.lesson);
+      if (lesson) await play(app, lesson.scenario, { tutorial: true });
     } else if (d.play) await play(app, d.play, { tutorial: Boolean(d.tutorial) });
     else if (d.load) {
       if (d.load !== CURRENT || gameInProgress(app)) {

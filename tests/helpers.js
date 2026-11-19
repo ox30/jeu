@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { createTerrain } from '../src/sim/terrain.js';
 import { createWorld, step } from '../src/sim/world.js';
+import { resolveScenario } from '../src/core/scenarios.js';
 import { drainEvents } from '../src/sim/events.js';
 
 const read = (path) => JSON.parse(readFileSync(new URL(`../${path}`, import.meta.url)));
@@ -29,7 +30,8 @@ const scenarios = {};
 export function scenarioData(id) {
   if (id === 'm0') return data.scenario;
   if (id === 'kanalkampf') return data.kanalkampf;
-  if (!scenarios[id]) scenarios[id] = read(`data/scenarios/${id}.json`);
+  // (A lesson of the tutorial is written as another scenario with changes: resolved on its base.)
+  if (!scenarios[id]) scenarios[id] = resolveScenario(read(`data/scenarios/${id}.json`), (base) => scenarioData(base === 'm0-july-1940' ? 'm0' : base));
   return scenarios[id];
 }
 

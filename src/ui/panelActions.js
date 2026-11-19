@@ -22,6 +22,7 @@ import { openRoster } from './rosterPage.js';
 import { openCards, openReports } from './pages.js';
 import { onWatchClick } from './watchPanel.js';
 import { toggleSheetHelp } from './sheetHelp.js';
+import { tutorialFlag } from './tutorial.js';
 
 function inputValue(id) {
   const input = document.getElementById(id);
@@ -324,6 +325,7 @@ export function onPanelClick(app, e) {
   if (!run) return;
   const sq = app.world.squadrons.find((s) => s.id === id);
   run(app, { b, action, id, kind, sq, unit: kind ? findUnit(app, kind, id) : sq });
+  tutorialFlag(app, `action:${action}`); // a lesson may wait for this button
   app.dirtyPanels = true;
 }
 

@@ -3,6 +3,7 @@
 // coming hours (in hours H), its 24 hours ahead on a bar, and a copy of its plan to others.
 // The orders go through the same buttons as the unit sheet (main.js answers them).
 
+import { tutorialFlag } from './tutorial.js';
 import { escapeHtml, t } from '../core/i18n.js';
 import { fatigueOn } from '../sim/crews.js';
 import { ALERTS, alertButtons, alertStatus, confirmBox, rosterBlock, timelineHtml } from './panels.js';
@@ -19,6 +20,7 @@ function squadronsOf(w, fieldId) {
 
 /** Opens the page on an aerodrome, or on the aerodrome of a squadron (which it then shows first). */
 export function openRoster(app, { fieldId = null, squadronId = null } = {}) {
+  tutorialFlag(app, 'rosterOpened');
   const w = app.world;
   const s = squadronId ? w.squadrons.find((x) => x.id === squadronId) : null;
   const fields = fieldsWithFighters(w);

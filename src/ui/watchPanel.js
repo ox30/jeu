@@ -3,6 +3,7 @@
 // (convoys, escort groups, air, intelligence, signals, what waits for a decision with the
 // button that answers it), and the page opened when the game stops at a relief.
 
+import { tutorialFlag } from './tutorial.js';
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatDate, formatShortDate, formatTime } from '../core/time.js';
 import { unproject } from '../sim/geo.js';
@@ -342,6 +343,7 @@ function watchPageHtml(app, r) {
 
 /** Opens the page of a report (the last one by default) and marks it read. */
 export function openWatch(app, reportId = null) {
+  tutorialFlag(app, 'watchOpened');
   const W = app.world.watch;
   if (!W || !W.reports.length) return;
   const r = (reportId && W.reports.find((x) => x.id === reportId)) || W.reports[W.reports.length - 1];

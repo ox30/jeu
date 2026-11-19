@@ -271,7 +271,7 @@ function renderEnemies(app) {
   if (!devRaids(w).length) parts.push(`<div class="tote-empty">${escapeHtml(t('dev.noRaids'))}</div>`);
   for (const r of raids) {
     const active = isRaidActive(r);
-    const when = r.phase === 'pending' ? ` · ${t('dev.at', { time: dateTimeText(w.startMs + r.departure * 1000) })}` : '';
+    const when = r.phase !== 'pending' ? '' : r.held ? ` · ${t('dev.held')}` : ` · ${t('dev.at', { time: dateTimeText(w.startMs + r.departure * 1000) })}`;
     parts.push(`<div class="tote-row dev-row${active ? ' active' : ''}">
       <span class="name">${escapeHtml(raidLine(w, r) + when)}</span>
       ${active ? button('dev-show', t('dev.show'), { extra: ` data-x="${r.x}" data-y="${r.y}"` }) : ''}</div>`);

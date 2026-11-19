@@ -650,6 +650,20 @@ export function escortHome(world, e, portId = null) {
   return true;
 }
 
+// ---- training -------------------------------------------------------------------------
+
+/**
+ * Order of the instructor (the lessons of the tutorial): a raid the scenario holds back
+ * leaves in `inS` seconds. Returns false for a raid that is not held.
+ */
+export function releaseRaid(world, raidId, inS = 0) {
+  const r = world.raids.find((x) => x.id === raidId);
+  if (!r || !r.held || r.phase !== 'pending') return false;
+  r.held = false;
+  r.departure = world.t + Math.max(0, Math.round(inS));
+  return true;
+}
+
 // ---- logistics ------------------------------------------------------------------------
 
 /** A train from one installation to another with `loads` ({ fuel: t, materiel: t }). */

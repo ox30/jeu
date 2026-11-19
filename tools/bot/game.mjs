@@ -2,6 +2,7 @@
 // the simulation modules and a few helpers. Nothing here knows more than a player does: the
 // players in this folder read what the plotting table shows (plots, markers, their own
 // units) and give their orders through `orders`.
+import * as scenariosMod from '../../src/core/scenarios.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as worldMod from '../../src/sim/world.js';
@@ -46,7 +47,8 @@ if (campaignMod.setCampaignData) campaignMod.setCampaignData(read('data/campaign
 export const SCENARIOS = ['m0-july-1940', 'kanalkampf', 'adlertag', 'quinze-septembre', 'hiver-atlantique'];
 const scenarioCache = new Map();
 export function scenarioData(id) {
-  if (!scenarioCache.has(id)) scenarioCache.set(id, read(`data/scenarios/${id}.json`));
+  // (A lesson of the tutorial is written as another scenario with changes: resolved on its base.)
+  if (!scenarioCache.has(id)) scenarioCache.set(id, scenariosMod.resolveScenario(read(`data/scenarios/${id}.json`), scenarioData));
   return scenarioCache.get(id);
 }
 
