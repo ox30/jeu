@@ -103,6 +103,8 @@ export function openSettings(app, { scope = 'game' } = {}) {
         ${checkbox('lowRes', s.lowRes, t('settings.lowRes'))}
         <label>${escapeHtml(t('settings.sheetPos'))} ${select('sheetPos', s.sheetPos || 'right', presets.choices.sheetPos, 'settings.sheetPosChoices')}</label>
         <p class="hint">${escapeHtml(t('settings.sheetHint'))}</p>
+        <label>${escapeHtml(t('settings.sheetHelp'))} ${select('sheetHelp', s.sheetHelp || 'shown', presets.choices.sheetHelp, 'settings.sheetHelpChoices')}</label>
+        <p class="hint">${escapeHtml(t('settings.sheetHelpHint'))}</p>
         <label>${escapeHtml(t('settings.viewZones'))} ${select('viewZones', s.viewZones || 'selected', presets.choices.viewZones, 'settings.viewZonesChoices')}</label>
         <p class="hint">${escapeHtml(t('settings.viewZonesHint'))}</p>
       </fieldset>`)}

@@ -39,6 +39,7 @@ import {
   altitudeText, countText, dateTimeText, durationText, endActionText, ftText, headingText, kmText, legEndInput, legText,
   objectiveText, positionText, reportText, siteEffectText, siteRepairText, siteStatusText, siteTitle,
 } from './format.js';
+import { applySheetHelp } from './sheetHelp.js';
 
 const MAX_LOG = 300; // lines shown on the page
 const MAX_KEPT = 2000; // lines kept for the saved game (a whole air battle, weeks of the sea)
@@ -1594,6 +1595,8 @@ function renderUnitPanel(app) {
   }
   el.unitProfile.hidden = !profile;
   if (profile) drawProfile(el.unitProfile, app, panel.profileUnit);
+  // The help sentences: shown, or folded behind a « ? » by section (setting « Aides des fiches »).
+  applySheetHelp(app, el.unitBody, t('sheet.helpToggle'));
 }
 
 export function renderPanels(app) {

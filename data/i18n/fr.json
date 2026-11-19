@@ -591,7 +591,8 @@
     "submerged": "en plongée",
     "ucontactHint": "Le U-Boot est suivi tant qu'il reste en vue ou au contact de l'ASDIC. Perdu, il laisse un repère à sa dernière position.",
     "gathering": "rassemblement",
-    "speedPct": "{p} % de la croisière ({n} km/h)"
+    "speedPct": "{p} % de la croisière ({n} km/h)",
+    "helpToggle": "Aide de cette section"
   },
   "settings": {
     "title": "Réglages",
@@ -743,7 +744,13 @@
       "50": "50 %",
       "75": "75 %",
       "100": "tous"
-    }
+    },
+    "sheetHelp": "Aides des fiches",
+    "sheetHelpChoices": {
+      "shown": "Affichées",
+      "folded": "Repliées (un « ? » par section)"
+    },
+    "sheetHelpHint": "Les phrases d'aide des fiches (comment donner un ordre, ce qu'un réglage change). Repliées, elles se montrent section par section avec le « ? »."
   },
   "objectives": {
     "convoyArrived": "Amener le convoi {convoy} dans un port britannique",

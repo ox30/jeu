@@ -108,6 +108,10 @@
     "seaComms": [
       "direct",
       "silence"
+    ],
+    "sheetHelp": [
+      "shown",
+      "folded"
     ]
   },
   "options": {
@@ -127,6 +131,7 @@
     "lowRes": false,
     "sheetPos": "right",
     "sheetW": 400,
-    "sheetH": 300
+    "sheetH": 300,
+    "sheetHelp": "shown"
   }
 }
