@@ -1671,6 +1671,18 @@ leur place est relu au premier pas de jeu (`adoptWayOut`) : un groupe qui attend
 avec son chenal choisi retrouve son étape et appareille ; un groupe enregistré pendant qu'il
 descendait son chenal retrouve son tracé modifiable.
 
+**Une vraie partie de la 2.10.2.** Les trois états ci-dessus étaient d'abord imités dans
+les tests (les champs réécrits à la main). Pour ne pas me fier à mon imitation, j'ai repris
+le code de la 2.10.2 dans un répertoire à part, et je lui ai fait enregistrer une partie de
+l'Atlantique avec quatre groupes laissés comme un joueur pouvait les laisser
+(`tests/fixtures/make-save-2.10.2.mjs`) : l'EG 1 avec son chenal choisi et un appareillage
+dont l'heure est passée (« ordre en attente »), l'EG 3 avec un chenal, une heure à venir et
+un tracé qui attend, l'EG 2 en train de descendre son chenal sur un tracé, l'EG 4 en rade.
+Reprise par la 2.10.3 (`tests/oldsaves.test.js`) : l'EG 1 appareille dans les deux minutes,
+en retard comme l'alerte le disait ; l'EG 3 garde sa route point pour point, avec sa sortie
+et son tracé distingués, et part à son heure ; les points du tracé de l'EG 2 se déplacent de
+nouveau. Passé du premier coup.
+
 **Tests.** `tests/exitstep.test.js`, 14 tests : l'appareillage programmé sans rien de
 préparé ; l'étape posée, changée, retirée ; le tracé et les étapes après elle ; sa fin
 (garder le cap, port, convoi) ; le tracé d'un groupe en mer ; le retour au port et
@@ -1695,7 +1707,7 @@ appareillage programmé : il fait « Rejoindre » depuis le port, dont le trajet
 
 ### Porte du deuxième tour
 
-420 tests, lint et construction verts ; 260 vérifications à l'essai de fumée (14 de plus :
+421 tests, lint et construction verts ; 260 vérifications à l'essai de fumée (14 de plus :
 la sortie posée, prolongée à la souris, retirée, deux appareillages programmés à 08:00, l'un
 avec une étape, l'autre sans rien), sur la version de développement et sur
 `dist/index.html` ; 10 000 ordres au hasard par scénario, et 30 000 de plus dans

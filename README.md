@@ -693,8 +693,11 @@ Le filet du M2.7 :
 - Les tests de la 2.10.3 (`tests/exitstep.test.js`) : appareillage programmé sans rien de
   préparé, la sortie en étape (posée, changée, retirée, prolongée par un tracé ou des
   étapes, sa fin), le tracé d'un groupe en mer de nouveau modifiable, les parties
-  enregistrées par la 2.10.2, le groupe de soutien. Le singe vérifie en plus, après chaque
-  ordre, que le début de route compté comme sortie suit bien un chenal d'un port.
+  enregistrées par la 2.10.2, le groupe de soutien. Une vraie partie enregistrée par la
+  2.10.2 (`tests/fixtures/`, faite par `make-save-2.10.2.mjs` depuis cette version) est
+  reprise dans `tests/oldsaves.test.js` : le groupe qui attendait appareille. Le singe
+  vérifie en plus, après chaque ordre, que le début de route compté comme sortie suit bien
+  un chenal d'un port.
 - Les tests de la 2.10.2 : repos et planning d'une patrouille (`tests/patrolrest.test.js`),
   onglets des installations (`tests/siteunits.test.js`), avions à abattre en campagne
   (`tests/campaign.test.js`).

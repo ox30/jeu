@@ -3,6 +3,9 @@
 // there, and the measure of the fighter objective is the right one. And games saved by 2.9.0,
 // the first version of format 2: a version that adds a part to the world without a new
 // format and its migration would refuse them (save/game.js, shapeProblem), and fail here.
+// And a game saved by 2.10.2 (make-save-2.10.2.mjs), whose escort groups are in the states
+// version 2.10.3 keeps otherwise: a channel chosen as a bare name, a way out of port counted
+// at the wrong end of the route.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -14,6 +17,8 @@ import { restore, snapshot } from '../src/save/game.js';
 import { SNAP_VERSION, readSave } from '../src/save/migrate.js';
 import { addMobileRadar } from '../src/sim/mru.js';
 import { fighterCount, fighterEstablishmentShare, fighterShare } from '../src/sim/objectives.js';
+import { chartedRun, editShipRoute, editablePoints, plannedExit } from '../src/sim/convoy.js';
+import { project } from '../src/sim/geo.js';
 
 function load(name, version = '2.6.1') {
   const file = new URL(`./fixtures/save-${version}-${name}.json.gz`, import.meta.url);
@@ -136,4 +141,63 @@ test('the games saved by 2.9.0 (format 2) load with every part in its place, and
   const s = resume(load('hiver-atlantique', '2.9.0'), 'standard');
   assert.ok(s.watch && s.watch.reports.length > 20 && s.signals.length >= 0, 'the Atlantic: its watch reports');
   assert.ok(s.escorts.every((e) => Number.isFinite(e.charges)), 'its depth charges');
+});
+
+test('a game of the Atlantic saved by 2.10.2: the group that waited sails, the ways out of port are read as steps', () => {
+  const saved = load('hiver-atlantique-sorties', '2.10.2');
+  assert.equal(saved.madeBy, '2.10.2');
+  const was = (id) => saved.snap.escorts.find((e) => e.id === id);
+  // What 2.10.2 wrote: no field of 2.10.3, an order that waits past its hour, locks at the wrong end.
+  assert.ok(saved.snap.escorts.every((e) => !('routeHead' in e) && !('exitPlanned' in e)));
+  assert.equal(was('eg1').schedule.delayed, true, 'EG 1: its sailing waited (« ni route ni étapes »)');
+  assert.equal(was('eg1').route.length, 0);
+  assert.equal(was('eg2').routeLocked, was('eg2').route.length, 'EG 2: every point of its route locked');
+  assert.equal(was('eg3').routeLocked, 8, 'EG 3: its channel counted as the end of its route');
+  const read = readSave(structuredClone(saved), ['hiver-atlantique']);
+  assert.equal(read.complete, true, 'a save of the format in use');
+  const w = resume(saved, 'standard');
+  const group = (id) => w.escorts.find((e) => e.id === id);
+  const events = [];
+  const play2 = (seconds) => {
+    for (let i = 0; i < seconds; i++) {
+      step(w, 1);
+      events.push(...w.events);
+      w.events.length = 0;
+    }
+  };
+  play2(120);
+  // EG 1: its channel becomes its exit step, and the sailing that waited leaves, late.
+  const eg1 = group('eg1');
+  assert.equal(eg1.state, 'atSea');
+  assert.equal(eg1.schedule, null);
+  assert.equal(eg1.exitPlanned, true);
+  assert.equal(eg1.routeHead, eg1.route.length);
+  assert.equal(chartedRun(w, eg1.route), eg1.route.length, 'down the channel chosen in 2.10.2');
+  assert.ok(events.some((e) => e.type === 'scheduledSail' && e.unitId === 'eg1' && e.late));
+  // EG 3: still in port until its hour, with its step and its line told apart.
+  const eg3 = group('eg3');
+  assert.equal(eg3.state, 'inPort');
+  assert.equal(plannedExit(eg3), 'Canal Saint-Georges');
+  assert.equal(eg3.routeHead, 8);
+  assert.equal(eg3.routeLocked, 0);
+  assert.deepEqual(eg3.route, was('eg3').route, 'not a point of its route has moved');
+  assert.equal(editablePoints(eg3).length, 2, 'the two points drawn are the player\'s');
+  // EG 2: going down its channel, its line can be changed again and drawn longer.
+  const eg2 = group('eg2');
+  assert.equal(eg2.routeLocked, 0);
+  assert.equal(eg2.routeHead, chartedRun(w, eg2.route));
+  const mine = editablePoints(eg2).map((p) => [p[0], p[1]]);
+  assert.equal(mine.length, eg2.route.length - eg2.routeHead);
+  assert.ok(mine.length >= 3, `the points drawn (${mine.length}) can be moved; in 2.10.2 none could`);
+  assert.ok(editShipRoute(w, eg2, [...mine, project(-20, 58)]).ok);
+  // EG 4 waited at the roads and still does. And at its hour EG 3 sails, on time.
+  assert.equal(group('eg4').state, 'waiting');
+  play2(was('eg3').schedule.at - w.t + 60);
+  assert.equal(eg3.state, 'atSea');
+  assert.ok(events.some((e) => e.type === 'scheduledSail' && e.unitId === 'eg3' && !e.late));
+  // The game goes on, and saved by this version it comes back exactly.
+  play(w, 86400);
+  assert.equal(w.ended, false);
+  const text = JSON.stringify(snapshot(w));
+  assert.equal(JSON.stringify(snapshot(resume({ snap: JSON.parse(text) }, 'standard'))), text);
 });
