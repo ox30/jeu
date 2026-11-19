@@ -1166,7 +1166,7 @@
       "Logistique : les convois déchargent carburant et matériel dans les ports. Envoyez des trains vers les bases (carburant) et les usines (matériel), ou fixez un stock minimum dans la fiche d'une base : les trains partent seuls. Sans carburant, une escadrille ne refait pas le plein. Les usines remplacent les avions perdus.",
       "Défense : à l'alerte, faites décoller une escadrille vers le raid, réglez son altitude (↑ ↓) pour arriver au-dessus. En Arcade, « Intercepter » (ou glisser jusqu'au raid) laisse le contrôleur la guider : sa chance dépend de la couverture radar. Le trait pointillé d'un raid manqué donne l'écart ; chaque raid finit par un rapport, rangé dans « Rapports ».",
       "Tracés : cliquez une unité pour ouvrir sa fiche et voir les carrés de sa route. Glissez un carré pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. En fin de tracé, l'escadrille orbite, sauf si vous choisissez autre chose dans la section « Route et étapes » de sa fiche (se poser si le tracé finit dans la bulle d'un aérodrome).",
-      "Victoire si les convois HX livrent 80 % de leur cargaison et le convoi côtier CW 75 %, si 30 avions ennemis sont abattus, si 4 bases sur 5 sont en service et si la chasse garde 90 % de ses avions le 24 juillet. C'est le dilemme de Dowding : engager assez pour protéger les convois et faire payer l'ennemi, sans user la chasse. Défaite immédiate si toutes les bases restent sans carburant 24 heures."
+      "Victoire si les convois HX livrent 80 % de leur cargaison et le convoi côtier CW 70 %, si 30 avions ennemis sont abattus, si 4 bases sur 5 sont en service et si la chasse garde 90 % de ses avions le 24 juillet. C'est le dilemme de Dowding : engager assez pour protéger les convois et faire payer l'ennemi, sans user la chasse. Défaite immédiate si toutes les bases restent sans carburant 24 heures."
     ],
     "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle (la croix de son encart l'efface) · Entrée : ajouter l'étape mesurée · C : couverture radar · J : journal (sur les alertes non lues, s'il y en a) · ? : aide · Échap : annuler, puis fermer la fiche · ↑ ↓ : altitude (de l'unité choisie, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : boost (avion ou navire) · O : orbiter · P : rentrer · D : rompre le combat (désengager le raid en cours) · Question à l'écran : Entrée = oui (au rendez-vous : le choix du plan), Échap = non (au rendez-vous : partir)",
     "close": "Compris",
@@ -1858,7 +1858,7 @@
           },
           "yourTurn": {
             "title": "À vous",
-            "text": "Un autre raid arrive dans deux minutes : une douzaine de bombardiers sans escorte. Le 32 Sqn rentre se ravitailler ; vous avez le 111 Sqn, à Croydon : sa fiche est ouverte. Dès que le raid apparaît sur la table, faites-le décoller."
+            "text": "Un autre raid arrive dans deux minutes : une douzaine de bombardiers sans escorte. Le 32 Sqn rentre ; vous avez le 111 Sqn, à Croydon : sa fiche est ouverte. Dès que le raid apparaît, faites-le décoller."
           },
           "watch": {
             "title": "Guetter le premier plot",
@@ -1866,11 +1866,11 @@
           },
           "scramble": {
             "title": "Alerte : décollez !",
-            "text": "Glissez depuis Croydon jusqu'au raid : le trait est la route du 111 Sqn, qui décolle aussitôt. Ou cliquez « Décoller » dans la barre de commandes de sa fiche, puis tracez sa route depuis l'escadrille."
+            "text": "Glissez depuis Croydon jusqu'au raid : le trait est la route du 111 Sqn, qui décolle aussitôt. Ou cliquez « Décoller » dans sa fiche, puis tracez sa route depuis l'escadrille."
           },
           "altitude": {
             "title": "Arriver au-dessus",
-            "text": "La trajectoire du raid est prolongée en pointillé : visez devant lui. Réglez l'altitude avec ↑ ↓ (par 1 000 ft) pour arriver au-dessus du raid : l'attaque en piqué donne l'avantage. Si le raid change de cap, tracez une nouvelle route depuis l'escadrille."
+            "text": "Le pointillé prolonge la trajectoire du raid : visez devant lui. Réglez l'altitude avec ↑ ↓ (par 1 000 ft) pour arriver au-dessus : l'attaque en piqué donne l'avantage. Si le raid change de cap, tracez une nouvelle route depuis l'escadrille."
           },
           "combat": {
             "title": "Tally-ho !",

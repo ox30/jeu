@@ -135,8 +135,8 @@ button {
   #hud .tool-label { font-size: 9.5px; }
   #hud button.tool, #hud #btn-pause { min-width: 32px; min-height: 32px; padding: 3px 2px; }
   /* « Non enregistré » as a sign alone (its bubble and the journal say the rest). */
-  #save-problem { font-size: 0; padding: 3px 7px; }
-  #save-problem::before { content: '⚠'; font-size: 15px; }
+  #hud #save-problem { font-size: 0; padding: 3px 7px !important; min-height: 32px; }
+  #hud #save-problem::before { content: '⚠'; font-size: 16px; }
   .hud-title { max-width: 112px; }
   .hud-title strong { display: none; }
   #clock { width: 40px; height: 40px; }

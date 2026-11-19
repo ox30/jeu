@@ -13,7 +13,8 @@ import { joinConvoy, releaseRaid, scramble, sendTrain, setAlert, setMinStock, se
 import { contactEstimate } from '../src/sim/query.js';
 import { HELD } from '../src/sim/raid.js';
 import { restore, snapshot } from '../src/save/game.js';
-import { holds, lessonById } from '../src/ui/tutorial.js';
+import { handsOff, holds, lessonById, stepParams } from '../src/ui/tutorial.js';
+import { setDictionary } from '../src/core/i18n.js';
 
 const tutorial = JSON.parse(readFileSync(new URL('../data/tutorial.json', import.meta.url), 'utf8'));
 
@@ -170,4 +171,58 @@ test('lesson 4: a tired squadron stood down rests in a night; the fresh one is r
   assert.equal(holds(app, step('night').done, state(w)), false);
   run(w, 6 * 3600);
   assert.equal(holds(app, step('night').done, state(w)), true, `rested (${tired.fatigue})`);
+});
+
+// ---- what the review of 2.10 found in the lessons ----
+
+test('during a demonstration the instructor has the hand; a step counts what happens from its own beginning', () => {
+  // (A pupil who sent 111 Sqn up during the demonstration found the steps « scramble » and
+  // « altitude » already done: the squadron on its way home counted as « in the air », and
+  // the fight of the demonstration as the one the step « altitude » waits for.)
+  const { lesson, w } = lessonWorld('intercept');
+  const step = (id) => lesson.steps.find((s) => s.id === id);
+  const app = { world: w, tutorial: { steps: lesson.steps, index: lesson.steps.indexOf(step('demo')) } };
+  assert.equal(handsOff(app), true, 'the demonstration');
+  app.tutorial.index = lesson.steps.indexOf(step('why'));
+  assert.equal(handsOff(app), true, 'and its summary');
+  for (const id of ['yourTurn', 'watch', 'scramble', 'altitude', 'combat', 'reports', 'end']) {
+    app.tutorial.index = lesson.steps.indexOf(step(id));
+    assert.equal(handsOff(app), false, `${id}: the pupil may give orders`);
+  }
+  assert.equal(handsOff({ world: w, tutorial: null }), false, 'no lesson, no instructor');
+  // Every step that scripts an order of the instructor's is one where the pupil looks.
+  for (const l of tutorial.lessons) {
+    for (const s of l.steps) {
+      const scripted = (s.do || []).some((entry) => entry.order && ('scramble' in entry.order || 'home' in entry.order));
+      if (scripted) assert.equal(Boolean(s.handsOff), true, `${l.id}.${s.id}: the instructor gives orders there`);
+    }
+  }
+  // « In the air » is on the way up or flying, not on the way home.
+  const sq = w.squadrons.find((s) => s.id === '111');
+  const tu = { ...state(w), stepSeen: new Set() };
+  for (const [st, up] of [['ready', false], ['scrambling', true], ['airborne', true], ['combat', true], ['returning', false], ['refuelling', false], ['lost', false]]) {
+    sq.state = st;
+    assert.equal(holds(app, step('scramble').done, tu), up, st);
+  }
+  // The fight the step « altitude » waits for is one seen since that step began.
+  tu.seen.add('tallyHo');
+  tu.seen.add('combatRound');
+  assert.equal(holds(app, step('altitude').done, tu), false, 'the fight of the demonstration does not count');
+  tu.stepSeen.add('tallyHo');
+  assert.equal(holds(app, step('altitude').done, tu), true);
+});
+
+test('the summary of the demonstration counts its minutes on the hours it shows', () => {
+  // (« à 12:18 … à 12:23, 6 minutes après l'ordre »: the seconds were rounded, the hours cut.)
+  setDictionary(data.fr);
+  const { lesson, w } = lessonWorld('intercept');
+  const why = lesson.steps.find((s) => s.id === 'why');
+  const at = (h, m, s) => (h - 12) * 3600 + m * 60 + s;
+  const app = { world: w, tutorial: { seenAt: { raidDetected: at(12, 2, 10), siteHit: at(12, 23, 40) }, marks: { ordered: at(12, 18, 5) } } };
+  const p = stepParams(app, why);
+  assert.equal(p.seen, '12:02');
+  assert.equal(p.ordered, '12:18');
+  assert.equal(p.bombed, '12:23');
+  assert.equal(p.waited, '16', '12:02 to 12:18');
+  assert.equal(p.left, '5', '12:18 to 12:23, though 5 min 35 s went by');
 });

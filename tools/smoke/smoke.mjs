@@ -238,6 +238,8 @@ async function tutorial(page) {
   // ---- lesson 4: alert states and fatigue ----
   await page.click('#menu [data-lesson="alert"]');
   await page.waitForSelector('#coach:not([hidden])');
+  // (The lesson before had no fighter squadron, and so no such button: the bar is redrawn with the next image.)
+  await sleep(300);
   note(await game(page, () => !document.getElementById('btn-roster').hidden), 'lesson 4: with fatigue on, the Effectifs button is there');
   await coachNext(page);
   await untilStep(page, 'rest');
@@ -1351,6 +1353,27 @@ async function interfaceChecks(page, errors) {
         };
       });
       note(m.height <= 60 && m.spread <= 60 && !m.overflow && m.right <= 1024, `${id}: the top bar holds on one line at 1 024 px`, JSON.stringify(m));
+      // … with the word under each pictogram (review of 2.10: hidden under 1 250 px, where a
+      // tablet has no bubble to name them), and with the sign of a save that failed.
+      const worst = await game(page, async () => {
+        const a = window.__game;
+        const was = a.saveProblem;
+        a.saveProblem = true;
+        a.dirtyHud = true;
+        await new Promise((r) => setTimeout(r, 250));
+        const hud = document.getElementById('hud');
+        const out = {
+          height: hud.offsetHeight, overflow: hud.scrollWidth > hud.clientWidth + 1,
+          labels: [...hud.querySelectorAll('.tool-label')].filter((x) => x.offsetParent && x.getBoundingClientRect().height > 0).length,
+          tools: [...hud.querySelectorAll('button.tool')].filter((x) => x.offsetParent).length,
+          sign: document.getElementById('save-problem').getBoundingClientRect().width,
+        };
+        a.saveProblem = was;
+        a.dirtyHud = true;
+        return out;
+      });
+      note(worst.height <= 60 && !worst.overflow && worst.labels >= worst.tools && worst.sign > 0 && worst.sign < 50,
+        `${id}: … with a word under each pictogram and the sign « non enregistré »`, JSON.stringify(worst));
       await shot(page, `bar-1024-${id}`);
     }
     // In the Atlantic: one « Vue » button, with the views of the scenario and their keys.
@@ -1362,6 +1385,12 @@ async function interfaceChecks(page, errors) {
     const views = await game(page, () => ({ open: !document.getElementById('view-menu').hidden, names: [...document.querySelectorAll('#view-menu [data-view]')].map((b) => b.dataset.view) }));
     note(views.open && views.names.join(',') === 'atlantic,britain', 'top bar: « Vue » lists the views of the scenario', views.names.join(','));
     await shot(page, 'bar-view-menu');
+    // Escape closes the list first (review of 2.10: it stayed open).
+    await page.keyboard.press('Escape');
+    await sleep(100);
+    note(await game(page, () => document.getElementById('view-menu').hidden), 'top bar: Escape closes the list of the views');
+    await page.click('#btn-view');
+    await sleep(150);
     const scale0 = await game(page, () => window.__game.camera.scale);
     await page.click('#view-menu [data-view="britain"]');
     await page.waitForFunction(() => !window.__game.camera.anim, null, { timeout: 8000 });
@@ -1407,6 +1436,11 @@ async function interfaceChecks(page, errors) {
       return { button: document.getElementById('btn-roster').hidden, link: Boolean(document.querySelector('#unit-panel [data-action="open-roster"]')) };
     });
     note(!on.button && on.link, 'with fatigue: the Effectifs button and the link are there', JSON.stringify(on));
+    // (Review of 2.10: in the Atlantic, where no fighter squadron exists, the button opened an empty page.)
+    await start('hiver-atlantique', { fatigue: 'on' });
+    await sleep(300);
+    const sea = await game(page, () => ({ button: document.getElementById('btn-roster').hidden, fatigue: window.__game.world.settings.fatigue, fighters: window.__game.world.squadrons.filter((s) => s.role === 'fighter').length }));
+    note(sea.fatigue === 'on' && sea.fighters === 0 && sea.button, 'with fatigue but no fighter squadron (the Atlantic): no Effectifs button', JSON.stringify(sea));
   });
   await step('interface: alerts that are not lost (C6)', async () => {
     await start('hiver-atlantique', { fatigue: 'on' });

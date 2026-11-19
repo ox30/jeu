@@ -36,6 +36,15 @@ contre un gros), `soigne` (en plus : chasses libres laissées, repos la nuit), `
 `sans-ravitaillement`, `1-par-raid` à `6-par-raid`, `masse` (six par raid, poursuite permise
 au-delà de la mi-Manche), `masse-le-15` (campagne jouée simplement, le 15 septembre en masse).
 
+Une conduite peut différer d'une bataille à l'autre (`byScenario`). C'est le cas de `soigne`
+depuis le lot M2.10 : **le 15 septembre, « soigné » veut dire « en masse »** (six escadrilles
+par raid, tout engager, poursuivre), parce que c'est ce que demande cette bataille d'un jour
+et ce que conseille son aide. Ce jour-là, `soigne` et `masse` donnent donc les mêmes parties ;
+la matrice n'en garde qu'une ligne et met à côté `prudent` : le soin des batailles d'une
+semaine gardé ce jour-là aussi (deux par raid, chasses libres laissées), c'est-à-dire ce que
+`soigne` y faisait jusqu'au lot M2.9. La comparaison montre ce que la prudence coûte le
+15 septembre.
+
 Atlantique : `rien`, `simple` (un groupe d'escorte par convoi), `rester`, `chasser`, `soigne`
 (chasser, avec couverture aérienne), `deux-avions` (Hudson et Catalina achetés le premier jour).
 

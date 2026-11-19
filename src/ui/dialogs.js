@@ -415,7 +415,7 @@ export function openLessonOver(app) {
     else app.onTutorialQuit();
   });
   // (Escape leaves the dialog: the lesson is then left, as its ended world cannot go on.)
-  dlg.addEventListener('cancel', () => setTimeout(() => app.tutorial && app.world.ended && app.onTutorialQuit(), 0), { once: true });
+  dlg.oncancel = () => setTimeout(() => app.tutorial && app.world.ended && app.onTutorialQuit(), 0);
   dlg.showModal();
 }
 

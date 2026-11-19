@@ -1482,7 +1482,7 @@
     {
       "type": "convoyDelivered",
       "convoy": "cw",
-      "share": 0.75
+      "share": 0.7
     },
     {
       "type": "enemyDown",

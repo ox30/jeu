@@ -20,7 +20,8 @@ travaux est dans `docs/journal-m2.7-m2.10.md`.
   escorte), *ravitailler* (un train de carburant et un stock minimum), *escorter* (un
   rapport de quart, un groupe envoyé au-devant d'un convoi, les consignes) et *états d'alerte
   et fatigue*. Chaque leçon a son petit scénario et ses réglages ; elle se joue d'une traite
-  et ne remplace pas la partie en cours.
+  et ne remplace pas la partie en cours. Pendant une démonstration, l'instructeur a la main :
+  la boîte de la leçon dit « Regardez… » et aucun ordre ne part.
 - **Équilibre** : ne rien faire perd nettement dans tous les scénarios ; jouer simple gagne
   environ quatre fois sur cinq en Standard ; jouer soigné gagne en Réaliste, pas forcément du
   premier coup. Kanalkampf demande aussi des avions abattus et une chasse gardée ; Adlertag
@@ -28,11 +29,15 @@ travaux est dans `docs/journal-m2.7-m2.10.md`.
   et ses bases ont moins de carburant d'avance.
 - **Fatigue** : l'Alerte 5 min fatigue un peu, Disponible 30 min repose peu, le Repos repose.
   Des escadrilles laissées toute la semaine à cinq minutes finissent fatiguées : la relève de
-  nuit compte. Sans fatigue, le bouton Effectifs et le lien vers les plans disparaissent.
+  nuit compte. En échange, voler fatigue moins qu'avant (4 points par heure de vol et 1 par
+  décollage, au lieu de 7 et 2). Une escadrille fatiguée le dit sous son nom, dans sa fiche.
+  Sans fatigue, ou sans escadrille de chasse, le bouton Effectifs et le lien vers les plans
+  disparaissent.
 - **Alertes** : une alerte qui demande un ordre reste affichée (« À décider ») jusqu'à l'ordre
-  ou jusqu'à ce qu'on la ferme ; une information s'efface seule. Au-delà de quatre alertes en
-  attente, aucune n'est jetée : le bouton Journal compte les non lues et ouvre le journal sur
-  elles.
+  ou jusqu'à ce qu'on la ferme (« Voir » montre l'endroit sans la fermer) ; une information
+  s'efface seule. Au-delà de quatre alertes en attente, aucune n'est jetée : les plus
+  anciennes passent au journal comme non lues, le bouton Journal en porte le nombre et ouvre
+  le journal sur elles.
 - **Barre du haut** sur une ligne à 1 024 px : pictogrammes avec une bulle (« Règle (R) ») et un
   mot dessous quand la place le permet, un seul bouton « Vue », le Journal (J), l'aide (?) et
   le menu ☰.
@@ -40,7 +45,8 @@ travaux est dans `docs/journal-m2.7-m2.10.md`.
   qui rouvre la sienne ; les avertissements restent visibles.
 - **Unités superposées** : un pion empilé porte le nombre d'unités ; un clic ouvre la pile en
   onglets sur le bord gauche de la fiche, et le glisser part de l'unité en main, jamais d'une
-  autre.
+  autre. Depuis une pile fermée rien ne se trace, et la carte le dit. Un convoi avec son
+  escorte garde son repère et sa plaque (navires, nœuds), avec le nom du groupe dessous.
   Un glisser lâché sur plusieurs cibles demande laquelle.
 
 ## Nouveautés du M2.9
