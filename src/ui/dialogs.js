@@ -390,6 +390,35 @@ export function openEnd(app) {
   dlg.showModal();
 }
 
+/**
+ * The scenario of a lesson has ended before the lesson did (its hours ran out, or the little
+ * battle was lost): no verdict and no objectives, which are not the pupil's business here —
+ * the lesson again with its instructor, or the list of the lessons.
+ */
+export function openLessonOver(app) {
+  const dlg = app.el.dlgEnd;
+  const name = app.tutorial ? t(`tutorial.lessons.${app.tutorial.lesson}.name`) : '';
+  dlg.innerHTML = `
+    <form method="dialog">
+      <h2>${escapeHtml(t('tutorial.over.title'))}</h2>
+      <p>${escapeHtml(t('tutorial.over.text', { lesson: name }))}</p>
+      <div class="dialog-buttons">
+        <button type="button" data-end="again">${escapeHtml(t('tutorial.over.again'))}</button>
+        <button type="button" data-end="quit" class="secondary">${escapeHtml(t('tutorial.quit'))}</button>
+      </div>
+    </form>`;
+  dlg.querySelector('.dialog-buttons').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-end]');
+    if (!b) return;
+    dlg.close();
+    if (b.dataset.end === 'again') app.restart(null, { tutorial: true });
+    else app.onTutorialQuit();
+  });
+  // (Escape leaves the dialog: the lesson is then left, as its ended world cannot go on.)
+  dlg.addEventListener('cancel', () => setTimeout(() => app.tutorial && app.world.ended && app.onTutorialQuit(), 0), { once: true });
+  dlg.showModal();
+}
+
 /** Shown once on a small or touch-only screen: the game is made for a computer. */
 export function openDesktopNotice(app) {
   const dlg = app.el.dlgDesktop;

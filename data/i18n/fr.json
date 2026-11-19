@@ -946,6 +946,7 @@
     "mruReady": "{name} est en service : portée réduite, mais elle bouche le trou.",
     "scenarioEndShipping": "Défaite : trop de navires marchands perdus.",
     "convoyDeparted": "{convoy} appareille : {ships} navires, {fuel} t de carburant, {materiel} t de matériel, payés {cost} millions de dollars.",
+    "convoyDepartedPlain": "{convoy} appareille : {ships} navires, {fuel} t de carburant, {materiel} t de matériel.",
     "convoyDepartedLendLease": "{convoy} appareille : {ships} navires, {fuel} t de carburant, {materiel} t de matériel, au titre du prêt-bail.",
     "convoyDepartedShort": "{convoy} appareille chargé à {pct} % seulement, faute de dollars : {ships} navires, {fuel} t de carburant, {materiel} t de matériel, payés {cost} millions (le reste de la réserve).",
     "convoyDepartedBallast": "{convoy} appareille sur lest : il n'y a plus de dollars pour acheter sa cargaison.",
@@ -1152,7 +1153,9 @@
     "greatCircle": "plus court sur le globe vers {name} : {km} km",
     "routeLength": "route suivie : {km} km restants",
     "condorZone": "rayon d'action des Condor ({name})",
-    "stackMore": " +{n}"
+    "stackMore": " +{n}",
+    "stackEscort": "avec {names}",
+    "stackAsk": "{n} unités ici : cliquez pour choisir laquelle, puis tracez sa route"
   },
   "help": {
     "title": "Comment jouer",
@@ -1165,7 +1168,7 @@
       "Tracés : cliquez une unité pour ouvrir sa fiche et voir les carrés de sa route. Glissez un carré pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. En fin de tracé, l'escadrille orbite, sauf si vous choisissez autre chose dans la section « Route et étapes » de sa fiche (se poser si le tracé finit dans la bulle d'un aérodrome).",
       "Victoire si les convois HX livrent 80 % de leur cargaison et le convoi côtier CW 75 %, si 30 avions ennemis sont abattus, si 4 bases sur 5 sont en service et si la chasse garde 90 % de ses avions le 24 juillet. C'est le dilemme de Dowding : engager assez pour protéger les convois et faire payer l'ennemi, sans user la chasse. Défaite immédiate si toutes les bases restent sans carburant 24 heures."
     ],
-    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle (la croix de son encart l'efface) · Entrée : ajouter l'étape mesurée · C : couverture radar · Échap : annuler, puis fermer la fiche · ↑ ↓ : altitude (de l'unité choisie, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : boost (avion ou navire) · O : orbiter · P : rentrer · D : rompre le combat (désengager le raid en cours) · Question à l'écran : Entrée = oui (au rendez-vous : le choix du plan), Échap = non (au rendez-vous : partir)",
+    "keys": "Espace : pause · 1 à 6 : vitesse · A : Atlantique · L : Grande-Bretagne · G : Angleterre · R ou Maj + glisser : règle (la croix de son encart l'efface) · Entrée : ajouter l'étape mesurée · C : couverture radar · J : journal (sur les alertes non lues, s'il y en a) · ? : aide · Échap : annuler, puis fermer la fiche · ↑ ↓ : altitude (de l'unité choisie, ou du point choisi) · Suppr : retirer le point choisi · S : décoller · B : boost (avion ou navire) · O : orbiter · P : rentrer · D : rompre le combat (désengager le raid en cours) · Question à l'écran : Entrée = oui (au rendez-vous : le choix du plan), Échap = non (au rendez-vous : partir)",
     "close": "Compris",
     "stepsTraining": [
       "Carte de l'Atlantique : glissez depuis le convoi HX (à Halifax) pour tracer sa route jusqu'à Liverpool ou la Clyde, ou cliquez sur « Route de l'Amirauté ». En réglage Réaliste, on navigue au cap : mesurez avec la règle, ajoutez des étapes, puis appareillez. Près de l'entrée d'un chenal, un pilote prend le relais.",
@@ -1185,7 +1188,7 @@
       ],
       "quinze-septembre": [
         "15 septembre 1940, une seule journée. Deux grandes vagues visent les docks de Londres, vers 11 h et vers 14 h, précédées de chasses libres.",
-        "Contre une escorte de cent chasseurs, engagez beaucoup d'escadrilles sur le même raid : la pression de l'escorte se partage entre elles. Les cinq escadrilles de Duxford peuvent voler en « Big Wing » : groupez-les dans « Formations » (menu du haut). Elles décollent ensemble, se rassemblent au-dessus du chef — ce qui prend du temps — puis volent à la vitesse des Hurricane.",
+        "Contre une escorte de cent chasseurs, engagez beaucoup d'escadrilles sur le même raid : la pression de l'escorte se partage entre elles. Les cinq escadrilles de Duxford peuvent voler en « Big Wing » : groupez-les dans « Formations » (barre du haut). Elles décollent ensemble, se rassemblent au-dessus du chef — ce qui prend du temps — puis volent à la vitesse des Hurricane.",
         "Victoire si 32 avions ennemis sont abattus, si les docks restent sous 50 % de dégâts et si la chasse garde 70 % de ses avions."
       ],
       "hiver-atlantique": [
@@ -1211,15 +1214,16 @@
       "Dessous, l'onglet Commandes : ses sections suivent l'état de l'unité (au sol, en vol, au port, en mer). Un clic sur leur titre les replie ou les rouvre, et elles restent comme vous les laissez. À côté, État et Fiche technique ; une formation a aussi Rassemblement et Membres.",
       "Réglages, onglet Carte et fiche : la fiche à droite, à gauche ou en bas de la carte. Tirez son bord pour l'élargir (ou la grandir en bas). La croix ou Échap la ferme ; ⌖ centre la carte sur l'unité.",
       "Tracés : glissez depuis une unité pour tracer sa route. Glissez un carré de la route pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger ; double-cliquez un carré pour le retirer. Un point choisi prend une altitude avec ↑ ↓. La section « Route et étapes » donne la courbe de montée, un cap direct, la fin de tracé et les étapes au cap. Maj + glisser mesure (règle) ; la croix de son encart l'efface.",
+      "Unités superposées : là où des unités se recouvrent sur la carte (des escadrilles qui volent ensemble, les groupes d'un même port), un seul repère porte leur nombre. Un clic ouvre la fiche avec un onglet par unité sur son bord, côté carte : l'unité de l'onglet choisi passe devant, les autres s'estompent, et les ordres comme les tracés vont à elle. On ne trace rien depuis une pile fermée (la carte le rappelle) : choisissez d'abord l'unité. Un convoi et son escorte gardent le repère et la plaque du convoi, avec le nom du groupe dessous. Un trait qui finit là où plusieurs cibles se recouvrent (deux raids, un convoi et un repère d'U-Boot) ouvre un petit choix.",
       "Chaque raid se termine par un rapport, rangé dans « Rapports », avec ce que la RAF en sait : le premier plot, la composition une fois le raid vu, les bombes tombées ; chaque attaque à la grenade d'un groupe d'escorte aussi. La partie est gardée dans le navigateur ; le bouton ☰, puis « Exporter la partie », en fait un fichier."
     ],
     "air": [
       "Face à l'ennemi (barre de commandes) : en Défense, une escadrille n'attaque pas d'elle-même et demande l'autorisation quand elle voit un raid ; en Attaque (le défaut), elle attaque les raids qui arrivent et demande avant de poursuivre un raid qui rentre ; en Attaque et poursuite, elle poursuit sans demander jusqu'à mi-Manche, puis demande. Une question passe le jeu à ×1 et y reste ; sans réponse en 60 s, c'est non. Une seule question par raid et par escadrille ; on peut couper les questions dans Réglages. Un tracé qui finit sur un raid, ou « Intercepter », vaut autorisation. « Rompre H05 » dans la barre de commandes (touche D) sort l'unité du combat : elle tourne sur place et laisse ce raid tranquille jusqu'à un nouvel ordre sur lui. Passer à une attitude plus prudente retire les autorisations déjà données : une escadrille qui poursuivait rompt au round suivant.",
       "Les états d'alerte : Repos (2 h : le personnel peut être n'importe où), Disponible (30 min), Alerte (5 min), Cockpit (2 min). Le délai est le temps pour être en l'air après l'ordre de décoller ; monter d'un état prend la différence (du repos à l'alerte : 1 h 55), descendre est immédiat. Un état choisi à la main dans la fiche garde la main sur le planning jusqu'à « Retour au planning ».",
       "La fatigue : le vol et les combats fatiguent. Au sol, seul le Repos repose vraiment ; Disponible repose peu, l'Alerte à 5 minutes fatigue un peu, le Cockpit davantage. Une escadrille laissée en alerte jour et nuit finit fatiguée en une semaine : elle se bat moins bien et perd plus d'avions. Mettez vos escadrilles au repos la nuit (page Effectifs : un plan qui se répète chaque jour) ou relevez-les à tour de rôle.",
-      "La page Effectifs (menu du haut, ou « Programmation des effectifs… » dans une fiche) montre chaque aérodrome et ses escadrilles : le plan de chaque jour (de 00:00 à 24:00, il se répète), ou, case cochée, un plan d'exception pour les prochaines 24 h en heures H (H0 – H+6 repos, H+6 – H+9 alerte…), la frise des 24 heures à venir, et de quoi copier un plan vers d'autres escadrilles. La durée de l'exception se règle dans Réglages.",
+      "La page Effectifs (barre du haut, ou « Programmation des effectifs… » dans une fiche) montre chaque aérodrome et ses escadrilles : le plan de chaque jour (de 00:00 à 24:00, il se répète), ou, case cochée, un plan d'exception pour les prochaines 24 h en heures H (H0 – H+6 repos, H+6 – H+9 alerte…), la frise des 24 heures à venir, et de quoi copier un plan vers d'autres escadrilles. La durée de l'exception se règle dans Réglages.",
       "Programmer : « Décollage programmé » (ou « Appareillage programmé ») donne l'ordre à l'heure dite, avec la route tracée depuis la base ou les étapes préparées ; l'heure saisie est celle de l'ordre, le délai de l'état d'alerte s'y ajoute. « Rejoindre une formation » fait partir une escadrille à son heure pour rejoindre une big wing (ou un groupe de soutien).",
-      "Formations (menu du haut) : groupez des escadrilles en big wing, ou des groupes d'escorte en groupe de soutien. La formation devient une seule unité, avec une fiche et les mêmes ordres pour tous ; son chef (★) mène, le suivant prend la relève. Les fiches techniques (menu du haut) donnent vitesses, plafonds et autonomies.",
+      "Formations (barre du haut) : groupez des escadrilles en big wing, ou des groupes d'escorte en groupe de soutien. La formation devient une seule unité, avec une fiche et les mêmes ordres pour tous ; son chef (★) mène, le suivant prend la relève. Les fiches techniques (barre du haut) donnent vitesses, plafonds et autonomies.",
       "Rassemblement (onglet d'une big wing ou d'un groupe de soutien) : sur le chef, ou sur un point à une heure donnée (ou au plus tôt), avec la route à suivre ensuite. Chaque membre a son heure de départ : en Arcade elles sont calculées, en Standard la fiche montre l'heure d'arrivée de chacun, en Réaliste à vous de compter (délai, montée, trajet). Avec une heure fixée, la formation part à cette heure (les premiers arrivés tournent) ; au plus tôt, dès que tous sont là. À l'heure, s'il manque quelqu'un : attendre (un temps maximum), ralentir vers la cible ou partir ; une big wing vous pose la question. Les retardataires suivent le plan en retard et rejoignent en route."
     ],
     "sea": [
@@ -1233,6 +1237,7 @@
     ],
     "time": [
       "Les alertes ralentissent le temps : un raid ramène à ×10 ; en mer, toute alerte ramène à ×1 (on décide, puis on accélère) ; une base à ×600. Chaque vitesse se règle dans Réglages, onglet Temps et alertes. Pendant une action ennemie, une vitesse élevée demande confirmation (réglable).",
+      "Une alerte qui attend un ordre porte « À décider » : elle reste à l'écran jusqu'à ce que l'ordre soit donné ou qu'on la ferme (« Voir » montre l'endroit sans la fermer). Une information s'efface seule. Au-delà de quatre alertes en attente, les plus anciennes passent au journal comme « non lues » : le bouton Journal de la barre du haut porte leur nombre, et un clic (ou J) ouvre le journal sur elles.",
       "Les pages (rapports, fiches techniques, formations, effectifs, aide, réglages) et le menu ☰ mettent le jeu en pause (réglable pour les pages)."
     ],
     "images": {
@@ -1241,7 +1246,7 @@
       "escort": "La fiche d'un groupe d'escorte en mer : sortie, convois, chasse, retour au port."
     },
     "games": [
-      "Le jeu s'ouvre sur le menu principal. Continuer reprend la dernière partie ; Campagne montre la chaîne de l'Âge I et ce qui est gagné ; Scénarios donne une carte par bataille, avec son enjeu, ses dates et sa durée estimée ; Entraînement lance le tutoriel guidé ; Charger retrouve les parties gardées.",
+      "Le jeu s'ouvre sur le menu principal. Continuer reprend la dernière partie ; Campagne montre la chaîne de l'Âge I et ce qui est gagné ; Scénarios donne une carte par bataille, avec son enjeu, ses dates et sa durée estimée ; Entraînement propose les quatre leçons du tutoriel (intercepter, ravitailler, escorter, états d'alerte et fatigue) et un scénario d'essai ; Charger retrouve les parties gardées.",
       "En jeu, le bouton ☰ ouvre Reprendre, Sauvegarder, Exporter, Réglages de la partie, Aide, Recommencer et Menu principal. Revenir au menu principal garde la partie : « Continuer » la reprend où elle en était.",
       "Sauvegardes : la partie en cours est gardée dans ce navigateur à mesure que l'on joue. S'y ajoutent une sauvegarde automatique par jour de jeu (toutes les deux heures de jeu dans une bataille d'une journée) : les cinq dernières de la partie en cours sont gardées, et la dernière de chacune des parties d'avant (cinq au plus). Enfin vos sauvegardes manuelles (☰, Sauvegarder), gardées jusqu'à ce que vous les supprimiez. Tout est dans « Charger », au menu principal. En Réaliste, ces points de reprise permettent de rejouer une journée sans tout refaire.",
       "Une sauvegarde contient la partie, ses réglages et tout son journal, rapports de quart compris. Le fichier exporté se recharge par Charger, « Importer une partie ». Un fichier abîmé, ou venu d'une version plus récente, est refusé avec sa raison, sans toucher à la partie en cours ; les parties enregistrées depuis la version 2.6.1 se chargent.",
@@ -1481,7 +1486,7 @@
     "m0-july-1940": {
       "title": "Entraînement, juillet 1940",
       "stake": "Apprendre les gestes : tracer une route, accélérer le temps, faire décoller, lire un rapport.",
-      "text": "Un scénario simple, sans logistique : un convoi à faire traverser, quelques raids à intercepter. Le tutoriel guidé y explique les gestes de base."
+      "text": "Un scénario simple, sans logistique : un convoi à faire traverser, quelques raids à intercepter. Pour s'exercer librement, sans instructeur, après les leçons du tutoriel."
     },
     "play": "Jouer",
     "adlertag": {
@@ -1841,23 +1846,23 @@
         "steps": {
           "welcome": {
             "title": "Le poste de commandement",
-            "text": "Juillet 1940. Vous commandez la chasse du sud-est de l'Angleterre. Les radars de la côte voient les raids se rassembler au-dessus de la France ; à vous de faire décoller à temps. Regardez d'abord ce qui arrive quand on attend trop : l'instructeur prend la main."
+            "text": "Juillet 1940 : vous commandez la chasse du sud-est de l'Angleterre. Les radars voient les raids se rassembler au-dessus de la France ; à vous de faire décoller à temps. D'abord, ce qui arrive quand on attend trop : l'instructeur prend la main."
           },
           "demo": {
             "title": "Démonstration : trop tard",
-            "text": "Un raid se rassemble au-dessus de Calais : sa plaque donne son numéro, le nombre d'avions et l'altitude. L'instructeur attend qu'il passe la côte anglaise pour faire décoller le 32 Sqn de Biggin Hill. Regardez la suite : le temps s'écoule à ×60."
+            "text": "Un raid se rassemble au-dessus de Calais : sa plaque donne son numéro, ses avions et son altitude. L'instructeur attend qu'il passe la côte pour faire décoller le 32 Sqn de Biggin Hill. Le temps s'écoule à ×60."
           },
           "why": {
             "title": "Pourquoi c'était perdu",
-            "text": "Le radar a vu le raid à {seen}. L'ordre de décoller est parti à {ordered}, {waited} minutes plus tard, quand le raid passait la côte ; les bombes sont tombées sur Hawkinge à {bombed}, {left} minutes après l'ordre. Or il faut deux minutes à une escadrille pour décoller, cinq pour monter à 12 000 ft, et le temps d'arriver. Le préavis du radar ne suffit que si l'on décolle au premier plot."
+            "text": "Le radar a vu le raid à {seen}. L'ordre de décoller est parti à {ordered}, {waited} minutes plus tard ; les bombes sont tombées sur Hawkinge à {bombed}, {left} minutes après l'ordre. Or il faut deux minutes pour décoller, cinq pour monter à 12 000 ft, puis le trajet. Le préavis du radar ne suffit que si l'on décolle au premier plot."
           },
           "yourTurn": {
             "title": "À vous",
-            "text": "Un autre raid arrive dans deux minutes : une douzaine de bombardiers sans escorte. Le 32 Sqn rentre se ravitailler ; vous avez le 111 Sqn, à Croydon, dont la fiche est ouverte. Dès que le raid apparaît sur la table, faites-le décoller."
+            "text": "Un autre raid arrive dans deux minutes : une douzaine de bombardiers sans escorte. Le 32 Sqn rentre se ravitailler ; vous avez le 111 Sqn, à Croydon : sa fiche est ouverte. Dès que le raid apparaît sur la table, faites-le décoller."
           },
           "watch": {
             "title": "Guetter le premier plot",
-            "text": "Le temps s'écoule à ×10 (les boutons ×1 à ×14 400 en haut, ou les touches 1 à 6 ; Espace pour la pause). Une alerte s'affichera au premier plot du raid."
+            "text": "Le temps s'écoule à ×10 (boutons ×1 à ×14 400 en haut, ou touches 1 à 6 ; Espace : pause). Une alerte s'affichera au premier plot du raid."
           },
           "scramble": {
             "title": "Alerte : décollez !",
@@ -1873,11 +1878,11 @@
           },
           "reports": {
             "title": "Le rapport",
-            "text": "Chaque raid se termine par un rapport : ouvrez « Rapports », dans la barre du haut, pour comparer les deux raids — celui qu'on a laissé passer et le vôtre — ou passez à la suite."
+            "text": "Chaque raid se termine par un rapport : ouvrez « Rapports », dans la barre du haut, pour comparer le raid qu'on a laissé passer et le vôtre, ou passez à la suite."
           },
           "end": {
             "title": "Leçon terminée",
-            "text": "L'essentiel de l'interception tient en une phrase : décoller au premier plot, et monter au-dessus. La leçon suivante montre ce qui fait voler les escadrilles : le carburant."
+            "text": "L'essentiel tient en une phrase : décoller au premier plot, et monter au-dessus. La leçon suivante montre ce qui fait voler les escadrilles : le carburant."
           }
         }
       },
@@ -1925,7 +1930,7 @@
           },
           "send": {
             "title": "À décider",
-            "text": "Le rapport dit ce qui s'est passé pendant le quart et, sous « À décider », ce qui vous attend : HX 102 navigue sans escorte, à portée du 1er groupe d'escorte. Cliquez le bouton « Envoyer » de cette ligne (ou, dans la fiche du groupe, « Rejoindre HX 102 »)."
+            "text": "Le rapport dit ce qui s'est passé pendant le quart et, sous « À décider », ce qui vous attend : HX 102 navigue sans escorte, à portée du 1er groupe d'escorte. Cliquez le bouton « Envoyer EG 1 (Liverpool) » de cette ligne (ou, dans la fiche du groupe, « Rejoindre HX 102 »)."
           },
           "orders": {
             "title": "Consignes et grenades",
@@ -1951,7 +1956,7 @@
           },
           "rest": {
             "title": "Mettre au repos",
-            "text": "Le 32 Sqn est fatigué (72 %) : sa fiche est ouverte. Sous « État d'alerte », cliquez « Repos (2 h) » et confirmez. Il lui faudra deux heures pour revenir en alerte : on ne met pas tout le monde au repos en même temps."
+            "text": "Le 32 Sqn est fatigué : sa fiche, ouverte, le dit sous son nom (72 %). Sous « État d'alerte », cliquez « Repos (2 h) » et confirmez. Il lui faudra deux heures pour revenir en alerte : on ne met pas tout le monde au repos en même temps."
           },
           "ready": {
             "title": "Rappeler une escadrille",
@@ -1971,6 +1976,14 @@
           }
         }
       }
+    },
+    "watching": "Regardez…",
+    "patience": "Le temps passe…",
+    "handsOff": "Démonstration : l'instructeur a la main. Votre tour vient juste après.",
+    "over": {
+      "title": "La leçon s'arrête ici",
+      "text": "Le temps de « {lesson} » est écoulé avant sa dernière étape. Rien n'est perdu : une leçon se rejoue en quelques minutes, avec son instructeur.",
+      "again": "Rejouer la leçon"
     }
   },
   "alerts": {
@@ -2231,7 +2244,8 @@
       "attack": "Attaque les raids qui arrivent ; un raid qui rentre demande votre autorisation de poursuivre.",
       "pursue": "Attaque et poursuit les raids qui rentrent, sans demander, jusqu'à mi-Manche ; au-delà, elle demande."
     },
-    "stackTab": "{name} : ouvrir sa fiche (les unités superposées sur la carte ont chacune leur onglet)"
+    "stackTab": "{name} : ouvrir sa fiche (les unités superposées sur la carte ont chacune leur onglet)",
+    "tired": "{level} ({n} %)"
   },
   "question": {
     "title": {
@@ -2451,7 +2465,7 @@
     "note": "La partie en cours est gardée dans ce navigateur : « Continuer » la reprend où vous l'avez laissée.",
     "version": "Version {v}",
     "replay": "Rejouer",
-    "playFree": "Jouer sans le tutoriel",
+    "playFree": "Scénario d'essai, sans instructeur",
     "wonIn": "Gagné en {preset}.",
     "wonChanged": "Gagné : partie commencée en {start}, terminée en {end}.",
     "dates": {
@@ -2524,7 +2538,8 @@
       "text": "Le stockage de ce navigateur est plein ou fermé : la partie en cours ({game}) n'a pas pu être mise parmi les sauvegardes automatiques. Si vous la remplacez, elle sera perdue. Exportez-la d'abord dans un fichier pour la garder.",
       "yes": "Remplacer quand même",
       "exported": "Partie exportée dans un fichier."
-    }
+    },
+    "lessonNote": "Une leçon se joue d'une traite : elle ne s'enregistre pas et ne s'exporte pas. La partie que vous aviez en cours vous attend au menu principal."
   },
   "crash": {
     "title": "Le jeu s'est arrêté sur une erreur",

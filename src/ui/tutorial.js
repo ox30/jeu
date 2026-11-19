@@ -21,12 +21,14 @@ const CONDITIONS = {
   speedAtLeast: (app, n) => !app.paused && app.speed >= n,
   contacts: (app, n) => app.world.contacts.size >= n,
   fighterUp: (app) => app.world.squadrons.some((s) => s.role === 'fighter' && s.state !== 'ready' && s.state !== 'lost'),
-  // One of these squadrons has left the ground since the step began.
+  // One of these squadrons is on its way up or in the air (not on its way home).
   airborne: (app, ids) => ids.some((id) => {
     const s = squadron(app, id);
-    return s && s.state !== 'ready' && s.state !== 'refuelling' && s.state !== 'lost';
+    return s && (s.state === 'scrambling' || s.state === 'airborne' || s.state === 'combat');
   }),
   seen: (app, types, tu) => types.some((x) => tu.seen.has(x)),
+  // One of these events has been seen since the step began (not earlier in the lesson).
+  seenSince: (app, types, tu) => types.some((x) => tu.stepSeen.has(x)),
   // { type, n }: this event has been seen at least n times since the lesson began.
   count: (app, { type, n }, tu) => (tu.counts[type] || 0) >= n,
   flag: (app, name, tu) => tu.flags.has(name) || Boolean(app[name]),
@@ -70,7 +72,7 @@ const CONDITIONS = {
 /** Is this condition of the data true now? ({ name: argument }, every name of it must hold.) */
 export function holds(app, condition, tu) {
   if (!condition) return false;
-  const state = tu instanceof Set ? { seen: tu, counts: {}, flags: new Set(), raids: new Set(), stepT: 0 } : tu;
+  const state = tu instanceof Set ? { seen: tu, stepSeen: tu, counts: {}, flags: new Set(), raids: new Set(), stepT: 0 } : tu;
   return Object.entries(condition).every(([name, arg]) => {
     const test = CONDITIONS[name];
     if (!test) throw new Error(`tutorial: unknown condition ${name}`);
@@ -123,6 +125,24 @@ export function tutorialFlag(app, name) {
   if (app.tutorial) app.tutorial.flags.add(name);
 }
 
+/**
+ * A step where the instructor has the hand (`handsOff` in the data: a demonstration, its
+ * summary): the pupil looks, and gives no order — by a drag, a button of the sheet or a key.
+ */
+export function handsOff(app) {
+  const tu = app.tutorial;
+  const step = tu && tu.steps[tu.index];
+  return Boolean(step && step.handsOff);
+}
+
+/** The pupil tried all the same: the box of the lesson says why nothing happened. */
+export function nudgeCoach(app) {
+  const tu = app.tutorial;
+  if (!tu) return;
+  tu.nudgeUntil = performance.now() + 2600;
+  render(app);
+}
+
 function pause(app, paused) {
   app.paused = paused;
   app.pausedByPage = false;
@@ -133,6 +153,7 @@ function pause(app, paused) {
 function begin(app, step) {
   const tu = app.tutorial;
   tu.stepT = app.world.t;
+  tu.stepSeen = new Set();
   tu.did = new Set();
   if (step.speed) {
     app.speed = step.speed;
@@ -186,7 +207,7 @@ export function startTutorial(app) {
   if (!lesson) return;
   app.tutorial = {
     index: 0, lesson: lesson.id, steps: lesson.steps,
-    seen: new Set(), counts: {}, seenAt: {}, flags: new Set(), raids: new Set(), marks: {}, stepT: app.world.t, did: new Set(),
+    seen: new Set(), stepSeen: new Set(), counts: {}, seenAt: {}, flags: new Set(), raids: new Set(), marks: {}, stepT: app.world.t, did: new Set(),
   };
   app.reportsOpened = false;
   app.el.coach.hidden = false;
@@ -223,7 +244,9 @@ export function stepParams(app, step) {
     params[name] = time === undefined ? '…' : formatTime(app.world.startMs + time * 1000);
   }
   for (const [name, [from, to]] of Object.entries(step.gaps || {})) {
-    params[name] = at[from] === undefined || at[to] === undefined ? '…' : String(Math.max(0, Math.round((at[to] - at[from]) / 60)));
+    // Counted between the hours as they are shown (whole minutes): « 12:18 … 12:23 » is
+    // five minutes for the reader, whatever the seconds say.
+    params[name] = at[from] === undefined || at[to] === undefined ? '…' : String(Math.max(0, Math.floor(at[to] / 60) - Math.floor(at[from] / 60)));
   }
   return params;
 }
@@ -232,12 +255,16 @@ function render(app) {
   const tu = app.tutorial;
   const step = tu.steps[tu.index];
   const base = `tutorial.lessons.${tu.lesson}`;
+  // What the box expects: « Suivant », or a word on who has the hand (the instructor, the
+  // clock, or the pupil).
   const next = step.manual
     ? `<button type="button" data-coach="next">${escapeHtml(t(step.last ? 'tutorial.finish' : 'tutorial.next'))}</button>`
-    : `<span class="coach-wait">${escapeHtml(t('tutorial.waiting'))}</span>`;
+    : `<span class="coach-wait">${escapeHtml(t(step.handsOff ? 'tutorial.watching' : step.wait ? 'tutorial.patience' : 'tutorial.waiting'))}</span>`;
+  const nudge = tu.nudgeUntil && performance.now() < tu.nudgeUntil ? `<p class="coach-nudge">${escapeHtml(t('tutorial.handsOff'))}</p>` : '';
   app.el.coach.innerHTML = `
     <div class="coach-head"><b>${escapeHtml(t(`${base}.steps.${step.id}.title`))}</b><small>${escapeHtml(t('tutorial.step', { lesson: t(`${base}.name`), n: tu.index + 1, total: tu.steps.length }))}</small></div>
     <p>${escapeHtml(t(`${base}.steps.${step.id}.text`, stepParams(app, step)))}</p>
+    ${nudge}
     <div class="coach-buttons">${step.last ? '' : `<button type="button" class="link" data-coach="quit">${escapeHtml(t('tutorial.quit'))}</button>`}${next}</div>`;
 }
 
@@ -246,6 +273,7 @@ export function tutorialEvent(app, e) {
   const tu = app.tutorial;
   if (!tu) return;
   tu.seen.add(e.type);
+  tu.stepSeen.add(e.type);
   tu.counts[e.type] = (tu.counts[e.type] || 0) + 1;
   if (tu.seenAt[e.type] === undefined) tu.seenAt[e.type] = e.t ?? app.world.t;
   if (e.type === 'raidReport' && e.raidId) tu.raids.add(e.raidId);
@@ -269,6 +297,11 @@ export function updateTutorial(app) {
     if (!step.done || !holds(app, step.done, tu) || tu.index >= steps.length - 1) break;
     tu.index++;
     begin(app, steps[tu.index]);
+    moved = true;
+  }
+  // (The word on a refused order goes away by itself.)
+  if (tu.nudgeUntil && performance.now() >= tu.nudgeUntil) {
+    tu.nudgeUntil = 0;
     moved = true;
   }
   if (moved) render(app);

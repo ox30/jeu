@@ -16,6 +16,7 @@ import { playAlarm, playNotice } from './sound.js';
 
 const SHOW_MS = 30000;
 const QUEUE_MAX = 4;
+const READ_MS = 1500; // on the banner at least that long, an alert has been read
 const STALE_S = 6 * 3600; // an alert older than this (game time) no longer shows
 
 /** An event from the simulation: raises its alert if it calls for one. `logId`: its line in the journal. */
@@ -31,12 +32,23 @@ function toJournal(app, a) {
   app.dirtyHud = true;
 }
 
-/** Waits behind the alert shown; beyond four, the oldest goes to the journal. */
+/**
+ * Waits behind the alert shown. `first`: an alert that has just left the banner for a more
+ * urgent one, and comes back next. Beyond four waiting, the oldest raised goes to the journal
+ * as not read (not the one that was on the screen a moment ago).
+ */
 function enqueue(app, a, first = false) {
   const box = app.alertBox;
   if (first) box.queue.unshift(a);
   else box.queue.push(a);
-  while (box.queue.length > QUEUE_MAX) toJournal(app, box.queue.shift());
+  while (box.queue.length > QUEUE_MAX) {
+    const pick = (list) => list.reduce((best, x) => (best === null || x.seq < best.seq ? x : best), null);
+    const unread = pick(box.queue.filter((x) => !x.seen));
+    // (All of them read already: the oldest leaves without being counted.)
+    const out = unread || pick(box.queue);
+    box.queue.splice(box.queue.indexOf(out), 1);
+    if (unread) toJournal(app, out);
+  }
   updateCount(app);
 }
 
@@ -50,12 +62,16 @@ export function raiseAlert(app, a) {
   if (a.level === 'warning') playNotice(app);
   else playAlarm(app);
   const box = app.alertBox;
+  if (a.seq === undefined) a.seq = box.seq = (box.seq || 0) + 1; // the order they were raised in
   const shown = box.current;
   if (!shown) show(app, a);
   else if (alertRank(a.level) >= alertRank(shown.level)) {
-    // It takes the banner. The one it replaces still waits for its order: it comes back after.
-    // (An information that was on the screen has been seen.)
+    // It takes the banner. The one it replaces has been read if it stayed long enough to be.
+    // A decision still waits for its order: it comes back next. An information that was
+    // read is done with; one chased at once waits its turn like any other.
+    shown.seen = performance.now() - shown.shownMs >= READ_MS;
     if (shown.decision) enqueue(app, shown, true);
+    else if (!shown.seen) enqueue(app, shown);
     show(app, a);
   } else enqueue(app, a);
 }
@@ -72,6 +88,9 @@ function show(app, a) {
   const el = app.el;
   const box = app.alertBox;
   box.current = a;
+  a.shownMs = performance.now();
+  // A raid: the fighters on the ground as the banner shows. One of them ordered up is an answer.
+  if (a.level === 'raid') a.readyThen = app.world.squadrons.filter((s) => s.role === 'fighter' && s.state === 'ready').map((s) => s.id);
   el.alertTitle.textContent = alertTitle(a);
   el.alertText.textContent = alertText(a);
   el.alert.dataset.level = a.level;
@@ -94,27 +113,37 @@ function updateCount(app) {
   app.el.alertMore.textContent = n ? t('alert.more', { n }) : '';
 }
 
-/** An alert that no longer applies: its raid has left the plot, or it is hours old. */
+/**
+ * An alert that no longer applies: its raid has left the plot, has dropped its bombs or has
+ * been turned back; an information hours old. A decision does not age: it waits for its order.
+ */
 function isStale(app, a) {
   const w = app.world;
   if (a.level === 'raid') {
     const c = w.contacts.get(a.focus.raidId);
-    return !c || c.lost;
+    if (!c || c.lost) return true;
+    const report = w.reports.get(a.focus.raidId);
+    return Boolean(report && (report.outcome || report.hits.length));
   }
-  return w.t - a.t > STALE_S;
+  return !a.decision && w.t - a.t > STALE_S;
 }
 
 /** Closes the alert shown and brings the next one waiting, if it still applies. */
 function next(app) {
   const box = app.alertBox;
+  if (box.current) box.current.seen = true; // closed by the player, by its order, or after its time
   box.current = null;
   clearTimeout(app.alertTimer);
   while (box.queue.length) {
     const a = box.queue.shift();
-    if (!isStale(app, a) && !alertAnswered(app.world, a)) {
-      show(app, a);
-      return;
+    if (alertAnswered(app.world, a)) continue; // its order was given meanwhile
+    if (isStale(app, a)) {
+      // Too late to show: never seen, it is at least counted in the journal.
+      if (!a.seen) toJournal(app, a);
+      continue;
     }
+    show(app, a);
+    return;
   }
   app.el.alert.hidden = true;
   updateCount(app);
@@ -131,7 +160,7 @@ export function updateAlerts(app) {
 
 export function resetAlerts(app) {
   clearTimeout(app.alertTimer);
-  app.alertBox = { current: null, queue: [], unread: [] };
+  app.alertBox = { current: null, queue: [], unread: [], seq: 0 };
   app.alertMemory = new Map();
   if (app.el.alert) app.el.alert.hidden = true;
   app.dirtyHud = true;
@@ -190,6 +219,7 @@ export function initAlert(app) {
   el.alertShow.addEventListener('click', () => {
     const a = app.alertBox.current;
     if (a) showPlace(app, a);
-    next(app);
+    // « Voir » goes to the place. A decision stays until its order (or ×); an information has been read.
+    if (!a || !a.decision) next(app);
   });
 }

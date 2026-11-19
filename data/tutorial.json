@@ -50,7 +50,8 @@
             "seen": [
               "siteHit"
             ]
-          }
+          },
+          "handsOff": true
         },
         {
           "id": "why",
@@ -83,7 +84,8 @@
               "ordered",
               "bombed"
             ]
-          }
+          },
+          "handsOff": true
         },
         {
           "id": "yourTurn",
@@ -115,7 +117,8 @@
               "type": "raidDetected",
               "n": 2
             }
-          }
+          },
+          "wait": true
         },
         {
           "id": "scramble",
@@ -131,7 +134,7 @@
           "done": {
             "any": [
               {
-                "seen": [
+                "seenSince": [
                   "tallyHo",
                   "combatRound"
                 ]
@@ -149,7 +152,8 @@
           },
           "speed": 60,
           "keepSpeed": true,
-          "play": true
+          "play": true,
+          "wait": true
         },
         {
           "id": "reports",
@@ -226,7 +230,8 @@
               "site": "airfield:biggin_hill",
               "fuel": 20
             }
-          }
+          },
+          "wait": true
         },
         {
           "id": "end",
@@ -270,7 +275,8 @@
                 "joining": true
               }
             ]
-          }
+          },
+          "wait": true
         },
         {
           "id": "send",
@@ -310,7 +316,8 @@
                 "hours": 40
               }
             ]
-          }
+          },
+          "wait": true
         },
         {
           "id": "end",
@@ -381,7 +388,8 @@
               "squadron": "32",
               "n": 35
             }
-          }
+          },
+          "wait": true
         },
         {
           "id": "end",

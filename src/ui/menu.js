@@ -591,12 +591,13 @@ export function openGameMenu(app) {
       <div class="gm-buttons">
         <button type="button" class="mm-main" data-gm="resume">${esc(t('menu.resume'))}</button>
         <button type="button" data-gm="save"${w.ended || app.tutorial ? ' disabled' : ''}>${esc(t('menu.save'))}</button>
-        <button type="button" data-gm="export">${esc(t('save.export'))}</button>
+        <button type="button" data-gm="export"${app.tutorial ? ' disabled' : ''}>${esc(t('save.export'))}</button>
         <button type="button" data-gm="settings">${esc(t('menu.gameSettings'))}</button>
         <button type="button" data-gm="help">${esc(t('menu.help'))}</button>
         <button type="button" data-gm="restart">${esc(t('menu.restartGame'))}</button>
         <button type="button" data-gm="main">${esc(t('menu.main'))}</button>
       </div>
+      ${app.tutorial ? `<p class="hint">${esc(t('menu.lessonNote'))}</p>` : ''}
       <p class="message" data-gm-message hidden></p>
     </form>`;
   const say = (text) => {

@@ -38,9 +38,11 @@ test('fatigue grows in the air and falls at rest; a tired squadron fights less w
   const f0 = sq.fatigue;
   scramble(world, sq, { orbit: true });
   run(world, 3600);
-  // (An hour in the air and its take-off: 4 + 1 points since 2.10, 7 + 2 before.)
-  const R = world.rules.crews;
-  assert.ok(sq.fatigue > f0 + 0.9 * (R.fatiguePerFlightHour + R.fatiguePerScramble), `tired by an hour in the air (${sq.fatigue})`);
+  // An hour in the air and its take-off cost five points: 4 + 1 since 2.10 (I6 of the audit
+  // moved the weight of fatigue from the sorties to the hours spent at readiness); 7 + 2
+  // before, when this bound was « more than 5 ». Figures, not the rule read back: a change
+  // of the rule must show here.
+  assert.ok(sq.fatigue > f0 + 4.5 && sq.fatigue < f0 + 5.5, `tired by an hour in the air (${sq.fatigue - f0})`);
   sq.fatigue = 90;
   assert.ok(formFactor(world, sq) < 0.7);
   const rest = world.squadrons.find((s) => s.id === '74');

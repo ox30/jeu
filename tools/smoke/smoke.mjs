@@ -78,7 +78,7 @@ async function tutorial(page) {
     const played = (Date.now() - began) / 1000;
     const first = (words[id] / 120 * 60 + played + ORDERS[id] * 12) / 60;
     const again = (words[id] / 200 * 60 + played + ORDERS[id] * 5) / 60;
-    note(first >= 3 && first <= 5.5 && again >= 1.5, `${name}: three to five minutes at a first reading`,
+    note(first >= 3 && first <= 5 && again >= 1.5, `${name}: three to five minutes at a first reading`,
       `${words[id]} words, ${Math.round(played)} s of game and script, ${ORDERS[id]} orders: ${first.toFixed(1)} min at first, ${again.toFixed(1)} min replayed`);
     began = Date.now();
   };
@@ -91,6 +91,27 @@ async function tutorial(page) {
   await sleep(1200);
   note(await game(page, () => window.__game.paused && window.__game.world.t === 0), 'lesson 1: launched from the menu, it waits on its first step, the clock stopped');
   await coachNext(page);
+  // (Review of 2.10: a pupil who sent 111 Sqn up during the demonstration skipped the two
+  // steps that teach it.) The instructor has the hand: the box says so, and an order asked
+  // for by the key, by the button of the sheet or by a line does nothing.
+  await game(page, async () => {
+    const A = await import('./src/ui/actions.js');
+    A.select(window.__game, 'squadron', '111');
+  });
+  await sleep(300);
+  await page.keyboard.press('s');
+  await sleep(150);
+  await game(page, () => document.querySelector('#unit-panel [data-action="scramble"]')?.click());
+  await sleep(150);
+  const demo = await game(page, () => ({
+    wait: document.querySelector('#coach .coach-wait')?.textContent, nudge: document.querySelector('#coach .coach-nudge')?.textContent || '',
+    state: window.__game.world.squadrons.find((s) => s.id === '111').state,
+  }));
+  note(demo.wait === 'Regardez…' && demo.state === 'ready' && /instructeur a la main/.test(demo.nudge), 'lesson 1: during the demonstration the pupil looks: an order does nothing, and the box says why', JSON.stringify(demo));
+  await game(page, async () => {
+    const A = await import('./src/ui/actions.js');
+    A.select(window.__game, null, null);
+  });
   note(await untilStep(page, 'why'), 'lesson 1: the demonstration runs by itself to the bombs on Hawkinge');
   const why = await game(page, () => ({ text: document.querySelector('#coach p').textContent, paused: window.__game.paused, intercepted: window.__game.world.stats.raidsIntercepted }));
   note(why.paused && why.intercepted === 0 && /à \d\d:\d\d.*\d+ minutes plus tard.*à \d\d:\d\d, \d+ minutes après/.test(why.text), 'lesson 1: the raid of the demonstration is lost, and the summary tells its hours', why.text.slice(0, 90));
@@ -302,9 +323,32 @@ async function tutorial(page) {
   await closeDialogs(page);
   await page.click('#btn-menu');
   await sleep(200);
-  note(await game(page, () => document.querySelector('#dlg-menu [data-gm="save"]').disabled), 'tutorial: « Sauvegarder » is not offered during a lesson');
+  note(await game(page, () => document.querySelector('#dlg-menu [data-gm="save"]').disabled && document.querySelector('#dlg-menu [data-gm="export"]').disabled
+    && /ne s'enregistre pas/.test(document.getElementById('dlg-menu').textContent)), 'tutorial: « Sauvegarder » and « Exporter » are not offered during a lesson, and the menu says why');
   await page.keyboard.press('Escape');
   await sleep(200);
+  // The little scenario of the lesson runs out before its last step (the pupil let the days
+  // go by): no verdict of a battle, the game kept is not touched, and the lesson is offered
+  // again with its instructor. (Review of 2.10: « Objectifs non atteints », then « Rejouer »
+  // gave the lesson without its instructor — and the end removed the game kept.)
+  await game(page, () => {
+    const a = window.__game;
+    a.paused = true;
+    for (let i = 0; i < 40 * 86400 && !a.world.ended; i += 60) a.stepWorld(60);
+  });
+  await sleep(600);
+  const over = await game(page, () => ({
+    ended: window.__game.world.ended, open: document.getElementById('dlg-end').open, text: document.getElementById('dlg-end').textContent.replace(/\s+/g, ' ').trim(),
+    kept: window.__game.store.current() && window.__game.store.current().scenario,
+  }));
+  note(over.ended && over.open && /La leçon s'arrête ici/.test(over.text) && !/Objectifs/.test(over.text) && over.kept === 'kanalkampf',
+    'tutorial: a lesson whose scenario runs out says so, shows no verdict, and leaves the game kept', JSON.stringify(over).slice(0, 160));
+  await shot(page, 'lesson-over');
+  await page.click('#dlg-end [data-end="again"]');
+  await page.waitForSelector('#coach:not([hidden])');
+  await sleep(300);
+  note(await game(page, () => Boolean(window.__game.tutorial) && window.__game.tutorial.index === 0 && window.__game.world.t === 0 && window.__game.world.scenario.id === 'lecon-ravitailler'
+    && window.__game.store.current().scenario === 'kanalkampf'), 'tutorial: « Rejouer la leçon » gives it again from its first step, with its instructor');
   await page.click('#coach [data-coach="quit"]');
   await sleep(300);
   note(await game(page, () => window.__game.onMenu && window.__game.menuPage === 'training' && !window.__game.tutorial), 'tutorial: a lesson left goes back to the list of the lessons');
@@ -461,56 +505,59 @@ async function corrections(page, errors) {
     await page.waitForFunction(() => !window.__game.camera.anim, null, { timeout: 15000 });
     await sleep(300);
     await closeDialogs(page);
+    // Since the stacks (C9, M2.10) the two plaques are one mark with their number: the pile
+    // is opened by a click, and the unit of the chosen tab is the one a gesture reaches.
     const stack = async () => page.evaluate((list) => {
       const a = window.__game;
       const r = a.canvas.getBoundingClientRect();
-      const out = {};
+      const pile = a.stacks.find((x) => list.every((id) => x.members.some((m) => m.kind === 'squadron' && m.id === id)));
+      const out = { pile: pile ? [r.left + pile.x, r.top + pile.y] : null, members: pile ? pile.members.length : 0 };
       for (const id of list) {
-        const h = a.hits.find((x) => x.kind === 'squadron' && x.id === id && x.box);
-        const s = a.world.squadrons.find((x) => x.id === id);
-        out[id] = h ? {
-          symbol: [r.left + h.x, r.top + h.y], plaque: [r.left + h.box.x + h.box.w / 2, r.top + h.box.y + h.box.h / 2],
-          route: JSON.stringify(s.route), x: s.x, y: s.y,
-        } : null;
+        const sq = a.world.squadrons.find((x) => x.id === id);
+        out[id] = { route: JSON.stringify(sq.route), x: sq.x, y: sq.y };
       }
       out.selection = a.selection ? `${a.selection.kind}:${a.selection.id}` : null;
       out.ruler = a.ruler ? a.ruler.a : null;
+      out.tabs = [...document.querySelectorAll('#unit-stack button')].map((b) => b.dataset.id);
       return out;
     }, ids);
+    const still = async () => {
+      await sleep(150);
+      await page.waitForFunction(() => !window.__game.camera.anim, null, { timeout: 15000 });
+      await sleep(150);
+      return stack();
+    };
     let st = await stack();
     const [first, second] = ids;
-    const together = st[first] && st[second] && Math.hypot(st[first].symbol[0] - st[second].symbol[0], st[first].symbol[1] - st[second].symbol[1]) < 6;
-    note(Boolean(together), 'stacked plaques: two squadrons fly one over the other');
-    if (together) {
-      // A click on a plaque takes its squadron in hand; the sheet opens and the map may move
-      // aside for it, so the places are read again once the camera is still.
+    note(Boolean(st.pile) && st.members === 2, 'stacked plaques: two squadrons that fly one over the other make one pile', `${st.members} member(s)`);
+    if (st.pile) {
+      // Nothing in hand: a drag from the pile gives no order to anyone.
+      const untouched = [st[first].route, st[second].route];
+      await drag(page, st.pile, [st.pile[0] - 140, st.pile[1] + 110]);
+      st = await still();
+      note(st.selection === null && st[first].route === untouched[0] && st[second].route === untouched[1], 'stacked plaques: a drag from a pile not opened gives no order', `selection ${st.selection}`);
+      // A click opens it; the tab of the second squadron takes it in hand.
+      await page.mouse.click(st.pile[0], st.pile[1]);
+      st = await still();
+      note(st.tabs.length === 2 && st.selection !== null, 'stacked plaques: a click opens the pile, one tab a squadron', st.tabs.join(' '));
       const take = async (id) => {
-        const now = await stack();
-        await page.mouse.click(now[id].plaque[0], now[id].plaque[1]);
-        await sleep(150);
-        await page.waitForFunction(() => !window.__game.camera.anim, null, { timeout: 15000 });
-        await sleep(150);
-        return stack();
+        await page.click(`#unit-stack button[data-id="${id}"]`);
+        return still();
       };
-      // The second one in hand: the drag from the pile is its route.
       st = await take(second);
-      let symbol = st[first].symbol;
-      const untouched = st[first].route;
-      await drag(page, symbol, [symbol[0] - 140, symbol[1] + 110]);
-      st = await stack();
-      note(st.selection === `squadron:${second}` && st[first].route === untouched && st[second].route !== untouched,
+      await drag(page, st.pile, [st.pile[0] - 140, st.pile[1] + 110]);
+      st = await still();
+      note(st.selection === `squadron:${second}` && st[first].route === untouched[0] && st[second].route !== untouched[1],
         'stacked plaques: the drag goes to the squadron in hand', `selection ${st.selection}`);
       // The other one in hand: same pile, the other squadron answers.
       st = await take(first);
-      symbol = st[first].symbol;
       const kept = st[second].route;
-      await drag(page, symbol, [symbol[0] - 140, symbol[1] - 110]);
-      st = await stack();
-      note(st.selection === `squadron:${first}` && st[second].route === kept && st[first].route !== untouched,
+      await drag(page, st.pile, [st.pile[0] - 140, st.pile[1] - 110]);
+      st = await still();
+      note(st.selection === `squadron:${first}` && st[second].route === kept && st[first].route !== untouched[0],
         'stacked plaques: and to the other one once it is in hand', `selection ${st.selection}`);
       // The ruler from the pile keeps the selection and starts on the unit in hand.
-      symbol = st[first].symbol;
-      await drag(page, symbol, [symbol[0] + 120, symbol[1] - 60], { shift: true });
+      await drag(page, st.pile, [st.pile[0] + 120, st.pile[1] - 60], { shift: true });
       st = await stack();
       const onUnit = st.ruler && Math.hypot(st.ruler[0] - st[first].x, st.ruler[1] - st[first].y) < 0.01;
       note(st.selection === `squadron:${first}` && Boolean(onUnit), 'stacked plaques: the ruler keeps the selection and starts on the unit in hand', `selection ${st.selection}`);
@@ -520,9 +567,8 @@ async function corrections(page, errors) {
         window.__game.selection = null;
         window.__game.dirtyPanels = true;
       });
-      await sleep(120);
-      symbol = (await stack())[first].symbol;
-      await drag(page, symbol, [symbol[0] + 120, symbol[1] - 60], { shift: true });
+      st = await still();
+      if (st.pile) await drag(page, st.pile, [st.pile[0] + 120, st.pile[1] - 60], { shift: true });
       st = await stack();
       note(st.selection === null && Boolean(st.ruler), 'stacked plaques: with nothing in hand the ruler selects nobody', `selection ${st.selection}`);
       await shot(page, 'stacked-plaques');
@@ -1489,6 +1535,10 @@ async function interfaceChecks(page, errors) {
     await page.mouse.up();
     await sleep(250);
     note((await state()) === before0, 'stacks: a drag from a stack not yet opened gives no order');
+    // (Review of 2.10: it did nothing, silently.) A word by the stack says what to do.
+    const said = await game(page, () => (window.__game.mapNote ? window.__game.mapNote.text : ''));
+    note(/unités ici : cliquez pour choisir/.test(said), 'stacks: … and a word on the map says to choose a unit first', said);
+    await shot(page, 'stack-note');
     await page.mouse.click(s0.x, s0.y);
     await sleep(500);
     const tabs = () => game(page, () => ({
@@ -1510,6 +1560,54 @@ async function interfaceChecks(page, errors) {
     await sleep(400);
     const routed = await game(page, () => window.__game.world.escorts.filter((e) => e.route.length > 0 || e.state === 'sailing' || e.plan.length > 0).map((e) => e.id));
     note(routed.length === 1 && second.sel && routed[0] === second.sel.id, 'stacks: a drag from the open stack routes the unit in hand, and no other', routed.join(' '));
+    // A convoy and its escort (review of 2.10: every escorted convoy had become a « 2 » with
+    // two names, its ships and its speed gone; and it was no longer a target of a line).
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    const sea = await game(page, async () => {
+      const a = window.__game;
+      const O = await import('./src/sim/orders.js');
+      a.paused = true;
+      let c = null;
+      for (let i = 0; i < 12 * 86400 && !c; i += 600) {
+        a.stepWorld(600);
+        c = a.world.convoys.find((x) => x.state === 'atSea' && !x.straggler) || null;
+      }
+      if (!c) return null;
+      // A group joins it as soon as one can reach it (too far out, a group turns back).
+      let g = null;
+      for (let i = 0; i < 20 * 86400 && !g && c.state === 'atSea'; i += 3600) {
+        a.stepWorld(3600);
+        g = a.world.escorts.find((e) => e.state === 'escorting' && e.escorting === c.id) || null;
+        if (!g && !a.world.escorts.some((e) => e.joinTarget === c.id)) {
+          const free = a.world.escorts.find((e) => e.state === 'inPort' && !e.dry);
+          if (free) O.joinConvoy(a.world, free, c.id);
+        }
+      }
+      if (!g) return { state: 'none', convoy: c.id, members: [], own: false, plaque: '', box: null, targets: [] };
+      const other = a.world.escorts.find((e) => e !== g);
+      const D = await import('./src/ui/dropChoice.js');
+      a.selection = null;
+      a.camera.anim = null;
+      a.camera.cx = c.x;
+      a.camera.cy = c.y;
+      a.dirtyPanels = true;
+      await new Promise((r) => setTimeout(r, 400));
+      const S = await import('./src/ui/stacks.js');
+      const stack = a.stacks.find((s) => s.members.some((m) => m.kind === 'convoy' && m.id === c.id));
+      const hit = a.hits.find((h) => h.kind === 'stack' && h.members.some((m) => m.kind === 'convoy' && m.id === c.id));
+      return {
+        state: g.state, convoy: c.id, members: stack ? stack.members.map((m) => `${m.kind}:${m.id}`) : [],
+        own: stack ? Boolean(S.stackConvoy(stack)) : false, plaque: stack && S.stackConvoy(stack) ? S.stackConvoy(stack).detail.plaque : '',
+        box: hit ? hit.box : null,
+        targets: hit ? D.dropTargets(a, { kind: 'escort', id: other.id }, hit.x, hit.y).map((x) => `${x.kind}:${x.id}`) : [],
+      };
+    });
+    note(Boolean(sea) && sea.state === 'escorting' && sea.members.length === 2 && sea.own && /· \d+ · \d+ nd/.test(sea.plaque) && Boolean(sea.box),
+      'stacks: a convoy with its escort keeps the convoy\'s mark and plaque (ships, knots), with the number', JSON.stringify(sea).slice(0, 220));
+    note(Boolean(sea) && sea.targets.includes(`convoy:${sea.convoy}`), 'stacks: … and it is still a target for the line of another group', sea ? sea.targets.join(' ') : '');
+    await settle(page);
+    await shot(page, 'stack-convoy');
   });
   note(errors.length === before, 'interface: no console error', errors.slice(before, before + 2).join(' | '));
 }

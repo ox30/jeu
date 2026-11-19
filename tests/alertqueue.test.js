@@ -123,15 +123,138 @@ test('a decision is answered when its order is given: an escort sent to the conv
   resetAlerts(app);
 });
 
-test('a base without fuel: the alert goes when the fuel is there again, not before', () => {
+test('a base without fuel: the alert goes when a train is sent or the squadron has its fuel, not before', () => {
+  // (Review of 2.10: « answered » was a tonne in the tanks, when a squadron of twelve draws
+  // four: the alert « Plus de carburant » left in the very image it appeared.)
   const w = makeWorld('standard', {}, 'adlertag');
-  const field = w.airfields.find((f) => w.squadrons.some((s) => s.home === f.id));
+  const sq = w.squadrons.find((s) => s.role === 'fighter');
+  const field = w.byId.airfield.get(sq.airfield);
+  // As the simulation leaves things when it says « noFuel »: the squadron waits on the ground.
   field.stocks.fuel = 0;
-  const a = alertFor(w, { type: 'noFuel', squadron: 'x', squadronId: 'x', airfield: field.name }, new Map());
+  sq.state = 'refuelling';
+  sq.waitingFuel = true;
+  const a = alertFor(w, { type: 'noFuel', squadron: sq.name, squadronId: sq.id, airfield: field.name }, new Map());
   assert.equal(a.decision, true);
   assert.equal(alertAnswered(w, a), false);
-  field.stocks.fuel = 40;
+  field.stocks.fuel = 3.9;
+  assert.equal(alertAnswered(w, a), false, 'less than a sortie in the tanks: the squadron still waits');
+  // A train of fuel on its way is the order the alert asked for.
+  w.trains.push({ id: 't1', to: field.key, cargo: { fuel: 20, materiel: 0, ammo: 0 } });
   assert.equal(alertAnswered(w, a), true);
+  w.trains.length = 0;
+  assert.equal(alertAnswered(w, a), false);
+  // Or the squadron has refuelled (another train came in, a stock arrived).
+  sq.waitingFuel = false;
+  sq.state = 'ready';
+  assert.equal(alertAnswered(w, a), true);
+  // « Carburant bas » and « Plus de munitions » : answered by their train, and by nothing else.
+  const low = alertFor(w, { type: 'lowFuel', airfield: field.name, airfieldId: field.id }, new Map());
+  assert.equal(alertAnswered(w, low), false);
+  field.stocks.fuel = 500;
+  assert.equal(alertAnswered(w, low), false, 'a decision does not answer itself');
+  w.trains.push({ id: 't2', to: field.key, cargo: { fuel: 0, materiel: 0, ammo: 5 } });
+  assert.equal(alertAnswered(w, low), false);
+  const ammo = alertFor(w, { type: 'noAmmo', squadron: sq.name, squadronId: sq.id, airfield: field.name }, new Map());
+  assert.equal(alertAnswered(w, ammo), true);
   // An installation the alert cannot find again is not « answered »: it waits to be closed.
   assert.equal(alertAnswered(w, { ...a, focus: null }), false);
+});
+
+// ---- What the review of 2.10 found in the alerts ----
+
+test('seven decisions at once: the oldest raised go to the journal, not the one that just left the banner', (t) => {
+  // (The decision chased from the banner was put first in line, then thrown out as the
+  // « oldest »: the journal counted n° 5 and 6, and the four older ones stayed in line.)
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const app = fakeApp(makeKanalkampf());
+  for (let n = 1; n <= 7; n++) raiseAlert(app, decision(n));
+  assert.equal(app.alertBox.current.logId, 7, 'the last one raised has the banner');
+  assert.deepEqual(app.alertBox.queue.map((a) => a.logId), [6, 5, 4, 3], 'the four raised just before wait, the latest first');
+  assert.deepEqual(app.alertBox.unread.map((u) => u.logId), [1, 2], 'the two oldest are counted as not read');
+  // Closed one after the other, they come back in that order, and none is lost on the way.
+  const seen = [];
+  for (let i = 0; i < 6 && !app.el.alert.hidden; i++) {
+    seen.push(app.alertBox.current.logId);
+    app.el.alertClose.click();
+  }
+  assert.deepEqual(seen, [7, 6, 5, 4, 3]);
+  resetAlerts(app);
+});
+
+test('a decision does not age: it is still there after a day; an information left unseen is counted', (t) => {
+  // (After six game hours — 36 seconds at ×600 — « Carburant bas… Envoyez un train » left by itself.)
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const w = makeKanalkampf();
+  const app = fakeApp(w);
+  raiseAlert(app, { ...decision(1), t: w.t });
+  // Less urgent ones wait behind it (a raid has the banner).
+  w.contacts.set('r1', { lost: false, plots: [] });
+  raiseAlert(app, { type: 'raidDetected', t: w.t, level: 'raid', variant: 'text', params: {}, focus: { raidId: 'r1' }, decision: true, logId: 50 });
+  raiseAlert(app, { ...decision(2), t: w.t });
+  raiseAlert(app, { ...info(3), t: w.t });
+  assert.equal(app.alertBox.current.logId, 50);
+  run(w, 86400);
+  updateAlerts(app);
+  assert.equal(app.alertBox.current.logId, 50, 'the raid is still on the plot: its alert stays');
+  // The raid leaves the plot: its alert goes, and the decisions of a day ago come back.
+  w.contacts.get('r1').lost = true;
+  updateAlerts(app);
+  assert.equal(app.el.alert.hidden, false);
+  assert.equal(app.alertBox.current.logId, 1, 'the decision chased by the raid comes back first');
+  updateAlerts(app);
+  assert.equal(app.alertBox.current.logId, 1, 'and stays, a day old');
+  app.el.alertClose.click();
+  assert.equal(app.alertBox.current.logId, 2, 'the other decision too');
+  app.el.alertClose.click();
+  // The information is a day old: too late to show, but never seen, so counted in the journal.
+  assert.equal(app.el.alert.hidden, true);
+  assert.deepEqual(app.alertBox.unread.map((u) => u.logId), [3]);
+  resetAlerts(app);
+});
+
+test('« Voir » shows the place: a decision stays, an information has been read', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const app = fakeApp(makeKanalkampf());
+  raiseAlert(app, decision(1));
+  app.el.alertShow.click();
+  assert.equal(app.el.alert.hidden, false, 'looking is not answering');
+  assert.equal(app.alertBox.current.logId, 1);
+  app.el.alertClose.click();
+  assert.equal(app.el.alert.hidden, true);
+  raiseAlert(app, info(2));
+  app.el.alertShow.click();
+  assert.equal(app.el.alert.hidden, true);
+  resetAlerts(app);
+});
+
+test('a raid alert goes when a fighter is ordered up, and when the raid has dropped its bombs', (t) => {
+  // (It only went when a line ended on the raid: not after « Décoller », nor after a route
+  // drawn ahead of the raid, which is what the first lesson teaches.)
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const w = makeWorld('standard', {}, 'quinze-septembre');
+  const app = fakeApp(w);
+  const raid = (id, logId) => ({ type: 'raidDetected', t: w.t, level: 'raid', variant: 'text', params: {}, focus: { raidId: id }, decision: true, logId });
+  w.contacts.set('r1', { lost: false, plots: [] });
+  w.contacts.set('r2', { lost: false, plots: [] });
+  // A patrol already in the air when the banner shows is not an answer to it.
+  const [already, pupil] = w.squadrons.filter((s) => s.role === 'fighter' && s.state === 'ready');
+  already.state = 'airborne';
+  raiseAlert(app, raid('r1', 1));
+  updateAlerts(app);
+  assert.equal(app.el.alert.hidden, false);
+  // « Décoller » : the squadron leaves the ground, with no line to the raid.
+  pupil.state = 'scrambling';
+  updateAlerts(app);
+  assert.equal(app.el.alert.hidden, true, 'a fighter ordered up while the banner shows answers it');
+  // Another raid, nobody left to send: it stays until the bombs have fallen.
+  raiseAlert(app, raid('r2', 2));
+  updateAlerts(app);
+  assert.equal(app.alertBox.current.logId, 2, 'the squadron sent a moment ago does not answer the next raid');
+  w.reports.set('r2', { hits: [], squadrons: [], outcome: null });
+  updateAlerts(app);
+  assert.equal(app.el.alert.hidden, false);
+  w.reports.get('r2').hits.push({ site: 'port:london', damage: 10 });
+  updateAlerts(app);
+  assert.equal(app.el.alert.hidden, true, 'bombs dropped: there is nothing left to decide');
+  resetAlerts(app);
 });

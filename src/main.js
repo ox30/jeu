@@ -27,7 +27,7 @@ import { resolveScenario } from './core/scenarios.js';
 import { startLoop } from './ui/loop.js';
 import { attachPanels } from './ui/panelActions.js';
 import { applySheet, attachSheetGrip, resize } from './ui/sheet.js';
-import { attachTutorial } from './ui/tutorial.js';
+import { attachTutorial, stopTutorial } from './ui/tutorial.js';
 import { attachDropChoice } from './ui/dropChoice.js';
 import { initAlert, openJournal } from './ui/alerts.js';
 import { createSignals, onWatchClick } from './ui/watchPanel.js';
@@ -158,7 +158,8 @@ function createApp(el, data, settings, terrain) {
   // the list of the lessons comes back. (A lesson is never written in the browser: the game
   // the player had under way is still there, and « Continuer » brings it back.)
   const leaveLesson = () => {
-    app.world.ended = true; // nothing left to continue
+    stopTutorial(app); // (already done when the box of the lesson asked; not when its scenario ran out)
+    app.dropped = true; // nothing left to continue (the page's own word: the world is the simulation's)
     app.launched = false;
     showMainMenu(app, 'training');
   };

@@ -37,7 +37,8 @@ export const BEGUN_AFTER_MS = 60000;
  */
 export function gameInProgress(app) {
   const w = app.world;
-  if (w.ended || app.crash) return false;
+  // (`dropped`: the little world of a lesson that was left or finished is nothing to come back to.)
+  if (w.ended || app.crash || app.dropped) return false;
   if (app.resumed || w.t > 0) return true;
   return Boolean(app.launched) && Boolean(app.playClock) && app.playClock.totalMs >= BEGUN_AFTER_MS;
 }
@@ -138,7 +139,7 @@ function freshPage(app) {
   app.crash = null;
   app.signals = createSignals();
   Object.assign(app, {
-    selection: null, drawing: null, ruler: null, flash: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0, unlocked: null,
+    selection: null, drawing: null, ruler: null, flash: null, mapNote: null, fx: [], paused: false, pausedByPage: false, speed: 60, accumulator: 0, unlocked: null,
   });
   // (A write that failed stays told, from one game to the next, until one succeeds.)
   clearLog(app);
@@ -168,6 +169,7 @@ export function newGame(app, scenarioId = null, { tutorial = false } = {}) {
   app.gameId = newGameId();
   app.resumed = false;
   app.launched = true;
+  app.dropped = false;
   app.world = createWorld({
     scenario: data.scenario, rules: data.rules, settings, terrain: app.terrain, carry: carryFor(app.campaign, data.scenario.id, settings.carry),
     presets: data.presets,
@@ -240,6 +242,7 @@ export function resumeSave(app, saved) {
   app.world = w;
   app.resumed = true;
   app.launched = true;
+  app.dropped = false;
   app.playClock = playClock;
   app.gameId = meta.gameId || newGameId();
   freshPage(app);

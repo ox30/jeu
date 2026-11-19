@@ -13,7 +13,7 @@ import { viewOffered } from './offered.js';
 import { openWatch } from './watchPanel.js';
 import { questionAsked } from './questions.js';
 import { tutorialEvent } from './tutorial.js';
-import { openEnd, openEvent, openSuccess } from './dialogs.js';
+import { openEnd, openEvent, openLessonOver, openSuccess } from './dialogs.js';
 import { recordResult } from './campaign.js';
 import { fighterEstablishmentShare } from '../sim/objectives.js';
 import { CURRENT } from '../save/store.js';
@@ -54,6 +54,13 @@ export function handleEvents(app, events) {
       setTimeout(() => !app.onMenu && openEvent(app, e), 200);
     } else if (e.type === 'allObjectivesDone') {
       if (!app.world.ended) setTimeout(() => !app.onMenu && openSuccess(app), 400);
+    } else if (e.type === 'scenarioEnd' && app.tutorial) {
+      // The little scenario of a lesson ran out before its last step. It is no game of the
+      // campaign, and the game kept in the browser is the player's own: nothing is recorded
+      // and nothing is removed; the lesson is offered again, with its instructor.
+      app.paused = true;
+      app.dirtyHud = true;
+      openLessonOver(app);
     } else if (e.type === 'scenarioEnd') {
       app.paused = true;
       app.dirtyHud = true;

@@ -27,7 +27,7 @@ import { rallyPoint } from '../sim/rally.js';
 import { allViewZones } from '../sim/sight.js';
 import { drawNight } from './night.js';
 import { pendingOrders, shownPosition } from '../sim/comms.js';
-import { activeMember, findStacks, indexStacks, stackKey, stackOfSelection, stackRole } from '../ui/stacks.js';
+import { activeMember, findStacks, indexStacks, stackConvoy, stackKey, stackOfSelection, stackRole } from '../ui/stacks.js';
 
 const DEG = Math.PI / 180;
 
@@ -167,8 +167,8 @@ function placePlaque(ctx, app, x, y, lines, opts = {}, r = 10) {
  * marks of this one) and tells how to draw it: as usual (null or 'active'), faded (another
  * unit of its stack is in hand) or not at all (the stack's own mark stands for it).
  */
-function markRole(app, family, kind, id, x, y, label, formation = null) {
-  app.marks.push({ family, kind, id, x, y, label, formation });
+function markRole(app, family, kind, id, x, y, label, formation = null, detail = null, leads = false) {
+  app.marks.push({ family, kind, id, x, y, label, formation, detail, leads });
   return stackRole(app.stackOf, app.selection, kind, id);
 }
 
@@ -218,6 +218,24 @@ function drawStacks(ctx, cam, app) {
       continue;
     }
     if (!onScreen(cam, s.x, s.y)) continue;
+    const convoy = stackConvoy(s);
+    if (convoy && convoy.detail) {
+      // A convoy and its escort: the convoy's own mark and plaque, the groups named under it.
+      const { heading, single, plaque } = convoy.detail;
+      if (single) ship(ctx, convoy.x, convoy.y, heading, 8);
+      else {
+        ship(ctx, convoy.x - 4, convoy.y + 2, heading, 8);
+        ship(ctx, convoy.x + 4, convoy.y - 2, heading, 8);
+      }
+      warship(ctx, convoy.x - 3, convoy.y, heading, 6);
+      warship(ctx, convoy.x + 3, convoy.y - 3, heading, 6);
+      countBadge(ctx, convoy.x + 13, convoy.y - 12, n);
+      const groups = s.members.filter((m) => m !== convoy);
+      const names = groups.slice(0, 3).map((m) => m.label).join(' · ') + (groups.length > 3 ? t('map.stackMore', { n: groups.length - 3 }) : '');
+      const box = placePlaque(ctx, app, convoy.x, convoy.y, [plaque, t('map.stackEscort', { names })], { accent: '#4f6070' }, 15);
+      app.hits.push({ kind: 'stack', family: s.family, members, x: convoy.x, y: convoy.y, r: 16, priority: 0, box });
+      continue;
+    }
     if (s.family === 'air') roundel(ctx, s.x, s.y, 9);
     else navalMark(ctx, s.x, s.y);
     countBadge(ctx, s.x + 11, s.y - 10, n);
@@ -225,6 +243,18 @@ function drawStacks(ctx, cam, app) {
     const box = placePlaque(ctx, app, s.x, s.y, [names], { size: 10, accent: s.family === 'air' ? null : '#4f6070' }, 15);
     app.hits.push({ kind: 'stack', family: s.family, members, x: s.x, y: s.y, r: 16, priority: 0, box });
   }
+}
+
+/** A word of the page by a place of the map, for a few seconds (a line drawn from a closed stack). */
+function drawMapNote(ctx, cam, app) {
+  const note = app.mapNote;
+  if (!note) return;
+  if (performance.now() >= note.until) {
+    app.mapNote = null;
+    return;
+  }
+  const [x, y] = toScreen(cam, note.x, note.y);
+  if (onScreen(cam, x, y)) placePlaque(ctx, app, x, y + 30, [note.text], { accent: COLORS.rafRed }, 15);
 }
 
 // ---- grid and coverage -------------------------------------------------------------
@@ -990,7 +1020,7 @@ function drawEscorts(ctx, cam, app, alpha) {
     // In a stack (the groups of one port, a group with its convoy): its mark stands for it,
     // or it fades behind the unit in hand. A support group counts for one unit.
     const leads = Boolean(f && m.index === 0);
-    const role = markRole(app, 'sea', 'escort', e.id, sx + ox, sy + oy, leads ? f.name : e.short, leads ? f.id : null);
+    const role = markRole(app, 'sea', 'escort', e.id, sx + ox, sy + oy, f ? f.name : e.short, f ? f.id : null, null, leads);
     if (role === 'hidden') continue;
     if (role === 'faded') ctx.globalAlpha = 0.35;
     warship(ctx, sx + ox - 3, sy + oy, e.heading, 6);
@@ -1360,8 +1390,13 @@ function drawConvoys(ctx, cam, app, alpha) {
       ctx.stroke();
     }
     const name = c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name;
-    // In a stack: its mark stands for it, or it fades behind the unit in hand.
-    const role = markRole(app, 'sea', 'convoy', c.id, sx, sy, name);
+    const kn = Math.round((currentSpeed(c) * 3600) / 1.852);
+    const plaque = t('map.convoyPlaque', {
+      name: `${name}${est ? t('map.estimated') : ''}`, ships: c.ships, kn: c.state === 'atSea' ? kn : c.speedKn, zigzag: c.zigzag ? t('map.convoyPlaqueZigzag') : '',
+    });
+    // In a stack: its mark stands for it, or it fades behind the unit in hand. (With its
+    // escort alone, the stack is drawn as the convoy itself: see drawStacks.)
+    const role = markRole(app, 'sea', 'convoy', c.id, sx, sy, name, null, { plaque, heading: c.heading, single: Boolean(c.straggler) });
     if (role === 'hidden') continue;
     if (role === 'faded') ctx.globalAlpha = 0.35;
     if (c.straggler) ship(ctx, sx, sy, c.heading, 8);
@@ -1373,10 +1408,6 @@ function drawConvoys(ctx, cam, app, alpha) {
       ctx.globalAlpha = 1;
       continue;
     }
-    const kn = Math.round((currentSpeed(c) * 3600) / 1.852);
-    const plaque = t('map.convoyPlaque', {
-      name: `${name}${est ? t('map.estimated') : ''}`, ships: c.ships, kn: c.state === 'atSea' ? kn : c.speedKn, zigzag: c.zigzag ? t('map.convoyPlaqueZigzag') : '',
-    });
     const box = placePlaque(ctx, app, sx, sy, [plaque], {
       accent: selected ? COLORS.select : null,
     }, 14);
@@ -1677,9 +1708,9 @@ function drawSquadrons(ctx, cam, app, alpha) {
     const top = sy - h;
     const ox = sq.state === 'combat' && h > 0 ? -14 : 0;
     // In a stack (squadrons flying together): its mark stands for it, or it fades behind the
-    // unit in hand. The leader of a big wing stands for its wing.
+    // unit in hand. The squadrons of a big wing are one unit, and its leader stands for it.
     const leads = Boolean(f && m.index === 0);
-    const role = markRole(app, 'air', 'squadron', sq.id, sx + ox, top, leads ? f.name : sq.name, leads ? f.id : null);
+    const role = markRole(app, 'air', 'squadron', sq.id, sx + ox, top, f ? f.name : sq.name, f ? f.id : null, null, leads);
     if (role === 'hidden') {
       stalk(ctx, sx, sy, h, 'rgba(44, 74, 124, 0.35)');
       continue;
@@ -2136,6 +2167,7 @@ export function drawScene(ctx, app, alpha) {
   drawInterceptPoint(ctx, cam, app, alpha);
   drawSquadrons(ctx, cam, app, alpha);
   drawStacks(ctx, cam, app);
+  drawMapNote(ctx, cam, app);
   drawDevLayer(ctx, cam, app, alpha);
   drawRouteEditor(ctx, cam, app, alpha);
   drawEffects(ctx, app, FX_LABELS);

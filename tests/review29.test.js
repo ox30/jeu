@@ -345,6 +345,13 @@ test('a tool or a view a scenario does not offer cannot be reached', () => {
   assert.equal(toolOffered(app, 'radarCover'), false);
   assert.equal(toolOffered({ world: makeWorld('standard', { fatigue: 'off' }, 'adlertag') }, 'roster'), false);
   assert.equal(toolOffered({ world: makeWorld('standard', { fatigue: 'losses' }, 'adlertag') }, 'roster'), true);
+  // … and a fighter squadron to put on them: none in the Atlantic, where the scenario's list
+  // of tools still names them (review of 2.10: « Effectifs » opened an empty page there).
+  const sea = makeWorld('standard', { fatigue: 'on' }, 'hiver-atlantique');
+  assert.equal(sea.squadrons.some((s) => s.role === 'fighter'), false);
+  assert.equal(toolOffered({ world: sea }, 'roster'), false);
+  assert.equal(toolOffered({ world: makeWorld('standard', { fatigue: 'on' }, 'lecon-escorter') }, 'roster'), false);
+  assert.equal(toolOffered({ world: makeWorld('standard', { fatigue: 'on' }, 'lecon-alerte') }, 'roster'), true);
   // The keys, the top bar and the sheets all ask there.
   const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8');
   assert.match(read('ui/input.js'), /views\[name\]\.key\.toLowerCase\(\) === key\.toLowerCase\(\) && viewOffered\(app, name\)/);

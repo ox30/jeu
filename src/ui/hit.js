@@ -46,16 +46,22 @@ export function unitsUnder(hits, x, y, pad, kinds) {
 /**
  * Every different target of the kinds given under the pointer, nearest first: where raids,
  * convoys or U-boat markers overlap, a line dropped there has to say which one it means.
+ * The units of a stack count each for itself: a convoy drawn as one mark with its escort is
+ * still a convoy to join.
  */
 export function targetsUnder(hits, x, y, pad, kinds) {
   const found = new Map();
+  const note = (kind, id, d) => {
+    const key = `${kind}:${id}`;
+    if (!found.has(key) || d < found.get(key).d) found.set(key, { kind, id, d });
+  };
   for (const h of hits) {
-    if (!kinds.has(h.kind)) continue;
+    if (h.kind !== 'stack' && !kinds.has(h.kind)) continue;
     const at = under(h, x, y, pad);
     if (!at) continue;
-    const key = `${h.kind}:${h.id}`;
     const d = at.inBox ? Math.min(h.r, at.d) : at.d;
-    if (!found.has(key) || d < found.get(key).d) found.set(key, { kind: h.kind, id: h.id, d });
+    if (h.kind !== 'stack') note(h.kind, h.id, d);
+    else for (const m of h.members) if (kinds.has(m.kind)) note(m.kind, m.id, d);
   }
   return [...found.values()].sort((a, b) => a.d - b.d).map(({ kind, id }) => ({ kind, id }));
 }

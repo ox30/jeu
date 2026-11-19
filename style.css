@@ -128,11 +128,15 @@ button {
   #hud button.tool, #hud #btn-pause { min-width: 36px; padding: 3px 4px; }
 }
 
-/* Narrow laptops and tablets (1 024 px wide): pictograms alone, and the bar still on one line. */
+/* Narrow laptops and tablets (1 024 px wide): everything tighter, and the bar still on one
+   line with the word under each pictogram (a tablet has no bubble to name it). */
 @media (max-width: 1250px) {
-  #hud { gap: 5px 8px; padding: 4px 8px; }
-  #hud .tool-label { display: none; }
-  #hud button.tool, #hud #btn-pause { min-width: 32px; min-height: 32px; padding: 3px; }
+  #hud { gap: 5px 6px; padding: 4px 8px; }
+  #hud .tool-label { font-size: 9.5px; }
+  #hud button.tool, #hud #btn-pause { min-width: 32px; min-height: 32px; padding: 3px 2px; }
+  /* « Non enregistré » as a sign alone (its bubble and the journal say the rest). */
+  #save-problem { font-size: 0; padding: 3px 7px; }
+  #save-problem::before { content: '⚠'; font-size: 15px; }
   .hud-title { max-width: 112px; }
   .hud-title strong { display: none; }
   #clock { width: 40px; height: 40px; }
@@ -161,7 +165,9 @@ button {
 
 .alert {
   position: absolute; top: 46px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 10px;
+  /* On a narrow table (a sheet open at 1 024 px) the text goes under the title on lines of
+     its own, instead of one word a line beside it. */
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
   max-width: calc(100% - 24px);
   background: #7c1f18; color: #fff3e0;
   border: 2px solid #f0b8a0; border-radius: 4px;
@@ -171,7 +177,8 @@ button {
 }
 .alert[hidden] { display: none; }
 .alert strong { letter-spacing: 0.12em; white-space: nowrap; }
-#alert-text { flex: 1 1 auto; min-width: 0; }
+#alert-text { flex: 1 1 200px; min-width: 0; }
+.alert .alert-buttons { margin-left: auto; }
 /* A line dropped where several targets overlap: the small choice (dropChoice.js). */
 .drop-choice {
   position: absolute; z-index: 6; display: flex; flex-direction: column; gap: 4px; min-width: 190px; max-width: 280px;
@@ -226,6 +233,7 @@ button {
 }
 .coach[hidden] { display: none; }
 /* The tutorial box stays beside the unit sheet, wherever the sheet stands. */
+#table.with-unit:not(.sheet-bottom) .coach { width: min(360px, calc(100% - min(var(--sheet-w, 400px), 92%) - 24px)); }
 #table.with-unit.sheet-left .coach { left: calc(min(var(--sheet-w, 400px), 92%) + 12px); }
 #table.with-unit.sheet-bottom .coach { bottom: calc(min(var(--sheet-h, 300px), 80%) + 12px); }
 .coach-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -236,6 +244,7 @@ button {
   margin-left: auto; background: var(--raf-blue); color: #fff; border: none; border-radius: 3px; padding: 4px 12px; font: inherit;
 }
 .coach-wait { margin-left: auto; color: var(--ink-soft); font-style: italic; }
+.coach .coach-nudge { margin: 0 0 8px; padding: 4px 8px; background: #f3e2b8; border-left: 3px solid var(--brass); font-size: 12.5px; }
 
 /* ---------- campaign, purchases ---------- */
 

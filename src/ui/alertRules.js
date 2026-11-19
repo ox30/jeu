@@ -254,10 +254,18 @@ export const DECISION_ALERTS = new Set([
 const inPortOrHomeward = (e) => !e || e.homeward || e.state === 'inPort' || e.state === 'refit';
 const fieldOf = (w, a) => (a.focus && a.focus.kind === 'site' ? w.sites.get(a.focus.id) : null);
 
+const UP = new Set(['scrambling', 'airborne', 'combat']);
+/** A train with this cargo on its way to the installation. */
+const trainTo = (w, f, cargo) => w.trains.some((tr) => tr.to === f.key && tr.cargo && tr.cargo[cargo] > 0);
+
 // What answers a decision: the order it asked for has been given (or no longer can be).
 const ANSWERED = {
-  raidDetected: (w, a) => w.squadrons.some((s) => s.state !== 'ready' && s.state !== 'lost'
-    && ((s.intercept && s.intercept.raidId === a.focus.raidId) || s.attackRaid === a.focus.raidId || s.engagedRaid === a.focus.raidId)),
+  // A fighter sent against the raid, or one of those that were on the ground when the banner
+  // showed (`readyThen`, alerts.js) ordered up: « Décoller », then a route drawn ahead of the
+  // raid, is an answer too.
+  raidDetected: (w, a) => w.squadrons.some((s) => s.role === 'fighter' && UP.has(s.state)
+    && ((a.readyThen && a.readyThen.includes(s.id)) || (s.intercept && s.intercept.raidId === a.focus.raidId)
+      || s.attackRaid === a.focus.raidId || s.engagedRaid === a.focus.raidId)),
   convoyInEscortRange: (w, a) => {
     const c = w.convoys.find((x) => x.id === a.focus.id);
     return !c || c.state !== 'atSea' || w.escorts.some((e) => e.joinTarget === c.id || e.escorting === c.id);
@@ -279,13 +287,19 @@ const ANSWERED = {
     const c = w.convoys.find((x) => x.id === a.focus.id);
     return !c || c.state !== 'waiting';
   },
+  // « Plus de carburant » : a train of fuel is on its way, or no squadron of the aerodrome
+  // waits for fuel any more (a tonne left in the tanks does not fill a squadron).
   noFuel: (w, a) => {
     const f = fieldOf(w, a);
-    return Boolean(f) && f.stocks.fuel >= 1;
+    return Boolean(f) && (trainTo(w, f, 'fuel') || !w.squadrons.some((s) => s.waitingFuel && w.byId.airfield.get(s.airfield) === f));
+  },
+  noAmmo: (w, a) => {
+    const f = fieldOf(w, a);
+    return Boolean(f) && trainTo(w, f, 'ammo');
   },
   lowFuel: (w, a) => {
     const f = fieldOf(w, a);
-    return Boolean(f) && w.trains.some((tr) => tr.to === f.key && tr.cargo && tr.cargo.fuel > 0);
+    return Boolean(f) && trainTo(w, f, 'fuel');
   },
 };
 

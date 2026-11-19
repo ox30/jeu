@@ -809,6 +809,13 @@ function hoursText(h) {
 }
 
 /** Alert state of one squadron: buttons, what it means now, rest confirmation, roster. */
+/** For the line under the name of a sheet: « · fatiguée (72 %) » once the pilots are tired, else nothing. */
+function tiredText(w, s) {
+  if (!fatigueOn(w) || s.role !== 'fighter' || s.state === 'lost') return '';
+  const level = fatigueLevel(w, s);
+  return level === 'fresh' ? '' : ` · ${t('unit.tired', { level: t(`sheet.fatigueLevels.${level}`), n: Math.round(s.fatigue) })}`;
+}
+
 function alertBlock(app, s) {
   const w = app.world;
   // On the ground only: the state now (it holds until « Retour au planning »); the plan has its page.
@@ -919,7 +926,7 @@ function squadronPanel(app, s) {
   return {
     group: 'squadron',
     title: `${escapeHtml(s.name)} <small><button type="button" class="link" data-action="cards" data-type="${escapeHtml(s.type)}" title="${escapeHtml(t('cards.open'))}">${escapeHtml(s.typeName)} ⓘ</button></small>`,
-    summary: escapeHtml(`${state} · ${t('unit.aircraftShort', { n: s.aircraft, total: s.aircraftStart })} · ${where}`),
+    summary: escapeHtml(`${state} · ${t('unit.aircraftShort', { n: s.aircraft, total: s.aircraftStart })} · ${where}${tiredText(w, s)}`),
     bar: member ? '' : airBar(app, s),
     tabs,
     profileUnit: s,

@@ -22,7 +22,7 @@ import { openRoster } from './rosterPage.js';
 import { openCards, openReports } from './pages.js';
 import { onWatchClick } from './watchPanel.js';
 import { toggleSheetHelp } from './sheetHelp.js';
-import { tutorialFlag } from './tutorial.js';
+import { handsOff, nudgeCoach, tutorialFlag } from './tutorial.js';
 
 function inputValue(id) {
   const input = document.getElementById(id);
@@ -316,6 +316,10 @@ function chromeClick(app, e) {
   return false;
 }
 
+// What a sheet lets one do without giving an order: allowed while the instructor of a lesson
+// has the hand.
+const LOOKING = new Set(['select', 'close-unit', 'centre-selection', 'dev-show', 'cards', 'open-roster', 'hint-seen']);
+
 export function onPanelClick(app, e) {
   if (chromeClick(app, e)) return;
   const b = e.target.closest('[data-action]');
@@ -323,6 +327,10 @@ export function onPanelClick(app, e) {
   const { action, id, kind } = b.dataset;
   const run = PANEL_ACTIONS[action];
   if (!run) return;
+  if (handsOff(app) && !LOOKING.has(action)) {
+    nudgeCoach(app);
+    return;
+  }
   const sq = app.world.squadrons.find((s) => s.id === id);
   run(app, { b, action, id, kind, sq, unit: kind ? findUnit(app, kind, id) : sq });
   tutorialFlag(app, `action:${action}`); // a lesson may wait for this button
@@ -332,6 +340,11 @@ export function onPanelClick(app, e) {
 export function onPanelChange(app, e) {
   const target = e.target.closest('[data-change]');
   if (!target) return;
+  if (handsOff(app)) {
+    nudgeCoach(app);
+    app.dirtyPanels = true;
+    return;
+  }
   const run = PANEL_CHANGES[target.dataset.change];
   if (run) {
     const { id, kind } = target.dataset;

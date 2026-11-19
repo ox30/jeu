@@ -19,6 +19,15 @@ export class SaveError extends Error {
 
 // Format 2 (version 2.9): the two readiness states on the ground got names that say what
 // they are (thirty → min30, available → min5), wherever a squadron keeps one.
+//
+// Version 2.10 writes format 2 still. It added two fields inside records that existed, both
+// read with a default, so that a save of 2.9 needs no migration and loses nothing:
+//   - `outS` on an objective « outOfServiceBelow » (seconds out of service counted so far;
+//     absent = 0). A save of 2.9 keeps the objectives it was saved with, which have none.
+//   - `held` on a raid (a raid a lesson of the tutorial releases itself; absent = false).
+// A new part of the world, or a field that cannot be defaulted, takes a new number and a
+// migration here (the check of the parts in src/save/game.js refuses a « complete » save
+// that lacks one).
 const ALERT_NAMES = { thirty: 'min30', available: 'min5' };
 const alertName = (v) => (typeof v === 'string' && ALERT_NAMES[v] ? ALERT_NAMES[v] : v);
 

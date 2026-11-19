@@ -2,7 +2,7 @@
 // with a tab a unit; the unit in hand is drawn in front, the others fade.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { STACK_PX, activeMember, findStacks, indexStacks, memberSelection, stackChoice, stackOfSelection, stackRole } from '../src/ui/stacks.js';
+import { STACK_PX, activeMember, findStacks, indexStacks, memberSelection, stackChoice, stackConvoy, stackOfSelection, stackRole } from '../src/ui/stacks.js';
 import { pickHit } from '../src/ui/hit.js';
 
 const air = (id, x, y, kind = 'squadron') => ({ family: 'air', kind, id, x, y, label: `${id} Sqn` });
@@ -121,4 +121,71 @@ test('a line from aircraft means a raid; from an escort group, a convoy to join 
   // The choice gives the order: this group joins this convoy.
   applyDropChoice(app, { hit: { kind: 'escort', id: group.id }, points: [[c1.x, c1.y]], targets }, { kind: 'convoy', id: c2.id });
   assert.equal(group.joinTarget, c2.id);
+});
+
+// ---- what the review of 2.10 found in the stacks ----
+test('a convoy drawn as one mark with its escort is still a target of a dropped line', async () => {
+  // (A stacked convoy registers no target of its own: `dropTargets` found nothing there,
+  // and a line from another group, dropped on it and on a U-boat marker, opened no choice.)
+  const { targetsUnder } = await import('../src/ui/hit.js');
+  const stack = { kind: 'stack', family: 'sea', members: [{ kind: 'convoy', id: 'hx72' }, { kind: 'escort', id: 'eg1' }], x: 200, y: 200, r: 16, priority: 0, box: { x: 216, y: 190, w: 120, h: 30 } };
+  const hits = [stack, { kind: 'uplot', id: 'P9', x: 204, y: 196, r: 11, priority: 3 }];
+  const sea = new Set(['convoy', 'uplot']);
+  assert.deepEqual(targetsUnder(hits, 203, 199, 8, sea).map((x) => `${x.kind}:${x.id}`).sort(), ['convoy:hx72', 'uplot:P9']);
+  // On the plaque of the stack, away from the marker: the convoy alone.
+  assert.deepEqual(targetsUnder(hits, 300, 205, 8, sea), [{ kind: 'convoy', id: 'hx72' }]);
+  // The groups of the stack are no target of a line; a stack of squadrons holds no raid.
+  assert.deepEqual(targetsUnder(hits, 203, 199, 8, new Set(['raid'])), []);
+  // Seen both alone and in a stack, a target counts once.
+  const twice = [stack, { kind: 'convoy', id: 'hx72', x: 201, y: 201, r: 16, priority: 1 }];
+  assert.deepEqual(targetsUnder(twice, 203, 199, 8, sea), [{ kind: 'convoy', id: 'hx72' }]);
+});
+
+test('a convoy with its escort keeps its own mark and plaque; other stacks of ships do not', () => {
+  const convoy = { family: 'sea', kind: 'convoy', id: 'hx72', x: 300, y: 300, label: 'HX 72', detail: { plaque: 'HX 72 · 34 navires · 9 nd', heading: 80, single: false } };
+  const group = (id, dx = 0) => ({ family: 'sea', kind: 'escort', id, x: 300 + dx, y: 300, label: id.toUpperCase() });
+  const [withEscort] = findStacks([convoy, group('eg1')]);
+  assert.equal(stackConvoy(withEscort).id, 'hx72');
+  assert.equal(stackConvoy(withEscort).detail.plaque, 'HX 72 · 34 navires · 9 nd', 'what the plaque of the convoy says goes with its mark');
+  const [two] = findStacks([convoy, group('eg1'), group('eg2', 6)]);
+  assert.equal(stackConvoy(two).id, 'hx72');
+  // Two convoys crossing, or groups in one port: the naval mark with the names.
+  const [crossing] = findStacks([convoy, { ...convoy, id: 'sc7', label: 'SC 7', x: 306 }, group('eg1')]);
+  assert.equal(stackConvoy(crossing), null);
+  const [port] = findStacks([group('eg1'), group('eg2', 5)]);
+  assert.equal(stackConvoy(port), null);
+  const [wings] = findStacks([{ family: 'air', kind: 'squadron', id: '601', x: 10, y: 10, label: '601' }, { family: 'air', kind: 'squadron', id: '615', x: 14, y: 10, label: '615' }]);
+  assert.equal(stackConvoy(wings), null);
+  assert.equal(stackConvoy(null), null);
+});
+
+test('the squadrons of a wing that gathers are one unit: no stack of itself, one tab among others', () => {
+  // (Review of 2.10: a big wing on its way to its rendezvous showed as a stack of « itself
+  // and its members », a tab a squadron, each leading back to the same wing.)
+  const wing = (id, x, leads = false) => ({ family: 'air', kind: 'squadron', id, x, y: 100, label: 'Duxford Wing', formation: 'f1', leads });
+  // Alone, however close: drawn as they always were.
+  assert.deepEqual(findStacks([wing('310', 100), wing('242', 106, true), wing('19', 112)]), []);
+  // With another squadron among them: two units, and the leader stands for the wing
+  // whatever the order the marks were drawn in.
+  const stacks = findStacks([wing('310', 100), wing('242', 106, true), air('43', 110, 104)]);
+  assert.equal(stacks.length, 1);
+  assert.deepEqual(stacks[0].members.map((m) => m.id), ['242', '43']);
+  assert.deepEqual(memberSelection(stacks[0].members[0]), { kind: 'formation', id: 'f1' });
+  assert.deepEqual(stacks[0].marks.map((k) => k.key).sort(), ['squadron:242', 'squadron:310', 'squadron:43']);
+  const of = indexStacks(stacks);
+  // Nothing in hand: the stack's mark stands for every mark, the follower's too.
+  for (const id of ['242', '310', '43']) assert.equal(stackRole(of, null, 'squadron', id), 'hidden', id);
+  // The wing in hand: its leader and its follower are drawn, the other squadron fades.
+  const wingInHand = { kind: 'formation', id: 'f1' };
+  assert.equal(stackRole(of, wingInHand, 'squadron', '242'), 'active');
+  assert.equal(stackRole(of, wingInHand, 'squadron', '310'), 'active');
+  assert.equal(stackRole(of, wingInHand, 'squadron', '43'), 'faded');
+  // The other squadron in hand: the whole wing fades.
+  const other = { kind: 'squadron', id: '43' };
+  assert.equal(stackRole(of, other, 'squadron', '43'), 'active');
+  assert.equal(stackRole(of, other, 'squadron', '242'), 'faded');
+  assert.equal(stackRole(of, other, 'squadron', '310'), 'faded');
+  // A follower taken in hand by itself (from the list of the members): its wing's tab is the active one.
+  assert.equal(activeMember(stacks[0], { kind: 'squadron', id: '310' }).id, '242');
+  assert.equal(stackOfSelection(of, wingInHand), stacks[0]);
 });

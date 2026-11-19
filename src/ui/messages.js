@@ -139,6 +139,8 @@ const CONVOY = {
       p.fuel = formatNumber(e.fuel);
       p.materiel = formatNumber(e.materiel);
       if (e.lendLease) return 'log.convoyDepartedLendLease';
+      // A scenario without a reserve of dollars (a lesson): nothing was paid, nothing is said of it.
+      if (!w.currency) return 'log.convoyDepartedPlain';
       if (e.share <= 0) return 'log.convoyDepartedBallast';
       return e.share < 0.995 ? 'log.convoyDepartedShort' : undefined; // the reserve could not pay for all of it
     },
