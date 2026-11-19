@@ -165,18 +165,47 @@ async function keepBeforeReplacing(app) {
 }
 
 /**
+ * The game kept under way in the browser while the page shows something else: a lesson of
+ * the tutorial, which is never written, or nothing (a lesson just left). It is that game a
+ * new one would replace.
+ */
+function keptElsewhere(app) {
+  if (gameInProgress(app) && !app.tutorial) return null; // the game in hand is the one kept
+  const kept = app.store.current();
+  return kept && !kept.ended && scenarioIds().includes(kept.scenario) ? kept : null;
+}
+
+/**
  * Before a game under way is replaced (a new game, a save loaded, a file imported): asks,
  * and keeps the game replaced as an automatic save. Resolves false when the player says no.
- * (A lesson of the tutorial is left without a word: it is not a game that is kept.)
+ * A lesson of the tutorial is left without a word, since nothing of it is kept; but the game
+ * that was under way before it is asked about like any other. `loading`: the save about to
+ * be loaded (the game under way loaded again replaces nothing).
  */
-async function mayReplace(app) {
-  if (!gameInProgress(app) || app.tutorial) return true;
-  const g = currentGame(app);
+async function mayReplace(app, { loading = null } = {}) {
+  if (gameInProgress(app) && !app.tutorial) {
+    const ok = await confirmDialog(app, {
+      heading: t('menu.replace.heading'), text: t('menu.replace.text', { game: gameLine(currentGame(app)) }), yes: t('menu.replace.yes'),
+    });
+    return ok ? keepBeforeReplacing(app) : false;
+  }
+  const kept = loading === CURRENT ? null : keptElsewhere(app);
+  if (!kept) return true;
   const ok = await confirmDialog(app, {
-    heading: t('menu.replace.heading'), text: t('menu.replace.text', { game: gameLine(g) }), yes: t('menu.replace.yes'),
+    heading: t('menu.replace.heading'), text: t('menu.replace.text', { game: gameLine(kept) }), yes: t('menu.replace.yes'),
   });
   if (!ok) return false;
-  return keepBeforeReplacing(app);
+  // Kept among the automatic saves, from what the browser holds of it.
+  let saved = false;
+  try {
+    saved = (await app.store.add('auto', await app.store.read(CURRENT))).ok;
+  } catch {
+    saved = false;
+  }
+  if (saved) return true;
+  return confirmDialog(app, {
+    heading: t('menu.notKept.heading'), text: t('menu.notKept.text', { game: gameLine(kept) }), yes: t('menu.notKept.yes'), danger: true,
+  });
 }
 
 /** Closes the main menu: the game in hand is on the page again. */
@@ -196,12 +225,14 @@ function leaveMenu(app) {
 /** Starts a scenario from the menu (asking first when a game under way would be replaced). */
 async function play(app, scenarioId, { tutorial = false } = {}) {
   const lesson = tutorial && lessons(app).some((l) => l.scenario === scenarioId);
-  if (lesson && gameInProgress(app) && !app.tutorial) {
+  if (lesson) {
     // A lesson replaces nothing: it is never written in the browser. The game in hand is
     // written as it is and stays the game under way: « Continuer » brings it back after the
     // lesson. A question only when that write fails.
-    const r = saveCurrent(app);
-    if (!r.ok && r.code !== 'nothing' && !(await keepBeforeReplacing(app))) return;
+    if (gameInProgress(app) && !app.tutorial) {
+      const r = saveCurrent(app);
+      if (!r.ok && r.code !== 'nothing' && !(await keepBeforeReplacing(app))) return;
+    }
   } else if (!(await mayReplace(app))) return;
   // (The game begins as newGame leaves it: running, or stopped on the first step of a lesson.)
   newGame(app, scenarioId, { tutorial });
@@ -473,7 +504,7 @@ export function attachMenu(app) {
         showMainMenu(app, 'load', saveErrorText(read));
         return;
       }
-      if (!(await mayReplace(app))) return;
+      if (!(await mayReplace(app, { loading: d.load }))) return;
       loaded(app, resumeRead(app, read.read, { keep: d.load !== CURRENT }));
     } else if (d.delete) {
       const entry = app.store.entry(d.delete);

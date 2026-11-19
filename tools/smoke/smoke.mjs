@@ -283,6 +283,22 @@ async function tutorial(page) {
     return { scenario: e && e.scenario, lessonT: a.world.t, inHand: a.world.scenario.id };
   });
   note(kept.scenario === 'kanalkampf' && kept.inHand === 'lecon-ravitailler' && kept.lessonT > 0, 'tutorial: a lesson is not written in the browser: the game under way stays the one kept', JSON.stringify(kept));
+  // A new game launched from the menu during the lesson would replace that game: it asks,
+  // as for any game under way, and « Annuler » changes nothing.
+  await game(page, () => window.__game.toMainMenu());
+  await page.click('#menu [data-menu="scenarios"]');
+  await page.click('#menu [data-play="kanalkampf"]');
+  await page.waitForFunction(() => document.getElementById('dlg-confirm').open, null, { timeout: 4000 }).catch(() => {});
+  const question = await game(page, () => (document.getElementById('dlg-confirm').open ? document.getElementById('dlg-confirm').textContent.replace(/\s+/g, ' ') : ''));
+  note(/Remplacer la partie en cours/.test(question) && /Kanalkampf/.test(question), 'tutorial: during a lesson, a new game asks before it replaces the game kept under way', question.slice(0, 90));
+  await confirmAnswer(page, false);
+  note(await game(page, () => window.__game.onMenu && window.__game.world.scenario.id === 'lecon-ravitailler' && window.__game.store.current().scenario === 'kanalkampf'),
+    'tutorial: « Annuler » leaves the lesson in hand and the game kept');
+  await page.click('#menu [data-menu="home"]');
+  await sleep(150);
+  await page.click('#menu [data-menu="continue"]');
+  await page.waitForFunction(() => !window.__game.onMenu, null, { timeout: 8000 }).catch(() => {});
+  note(await game(page, () => Boolean(window.__game.tutorial) && window.__game.world.scenario.id === 'lecon-ravitailler'), 'tutorial: « Continuer » goes back to the lesson while it is in hand');
   await closeDialogs(page);
   await page.click('#btn-menu');
   await sleep(200);
