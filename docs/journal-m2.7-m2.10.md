@@ -1717,3 +1717,109 @@ vérifications de GitHub vertes (commit 175ff26, le dernier avant cette ligne). 
 « Jeu 1940 — travaux de Fable » mis à jour (2.10.3) ; compte rendu du projet complété. Essayé
 aussi sous silence radio, à la souris : au port et dans le chenal, les ordres sont immédiats.
 Non relu par un agent neuf.
+
+## Retours de jeu, troisième tour · version 2.10.4
+
+Message de Florian du 19 novembre, 21 h 15. Deux demandes, et une consigne sur la méthode :
+
+- « si je tire une route quand un bateau est en haute mer, vu qu'on attend le prochain [quart]
+  pour la lui transmettre, et bien elle disparaîtra de la carte quand je clic sur enregistrer.
+  Du coup c'est difficile d'[appondre] un deuxième itinéraire voir un troisième, est il
+  possible quelle reste sur la carte mais éventuellement avec une autre couleur jusqu'à ce
+  qu'elle soit transmise au quart suivant ? »
+- les rapports de quart avec décision, en fenêtre : « quand je la ferme, sans choisir car je
+  veux analyser la situation, il est impossible de rouvrir ce pop-up. […] Peut on depuis la
+  Side box rouvrir ce pop-up ? Exactement pareil ? Avec éventuellement un bouton, voir un
+  bouton en menu en haut ? »
+- « Pas besoin de faire une simulation à 10000 tests. »
+
+Branche `retours-jeu-3`, partie de `retours-jeu-2` ; version 2.10.4.
+
+### 19 novembre, 21 h 15 à 22 h — ce qui a été trouvé et fait
+
+**1. Ce que devenait un ordre de route en attente.** Sous silence radio, un ordre à un navire
+en haute mer attend la relève dans `world.signals`. J'ai regardé ce que la page en montrait :
+
+- un tracé tiré à la souris n'était dessiné que pour le navire en main, en pointillé pâle
+  (bleu à 50 %, tirets 2-6) ; l'unité lâchée, plus rien ;
+- des étapes au cap n'étaient montrées nulle part : ni dans la liste de la fiche, qui lit le
+  plan du navire, ni sur la carte. « Enregistrer » est le bouton de la fiche des étapes : c'est
+  sans doute ce cas que Florian décrit. La règle posée pour mesurer disparaît au même clic ;
+- on ne pouvait pas travailler sur ce qui attendait : les poignées de la carte étaient celles
+  de la route actuelle du navire, et l'anneau qui prolonge, au bout de cette route-là.
+
+Fait (`src/ui/awaited.js`, nouveau ; la carte, la fiche et les ordres le lisent) :
+
+- ce qui est en route vers un navire reste tracé **en ocre** (l'ambre du thème, déjà celui
+  des mises en garde), pour tous les navires ; pour celui qui est en main, plus épais, avec
+  « part par radio à 16 h » au bout. La fiche dit « Tracé de n points en attente », ou liste
+  les étapes telles qu'elles seront, en ocre, avec « à transmettre » ;
+- l'éditeur de route travaille sur le tracé en attente : ses points, ses « + », l'anneau à
+  son bout. On le prolonge une deuxième puis une troisième fois, on déplace, on ajoute, on
+  retire. Chaque changement renvoie l'ordre qui attendait avec les nouveaux points : un seul
+  ordre part. Retirer son dernier point reprend l'ordre ;
+- les étapes en attente se modifient et se retirent depuis la liste, qui compte comme les
+  ordres compteront à l'arrivée ; on en ajoute d'autres à la suite ;
+- un tracé tiré depuis le navire retire de l'attente les étapes et les modifications de
+  l'ancienne route, qu'il écraserait à l'arrivée ; une étape ajoutée retire le tracé (le
+  navire lâche sa route pour suivre ses étapes). Un ordre confié à un groupe, remis à un
+  autre moment, n'est pas touché.
+
+**2. Deux défauts trouvés en chemin, corrigés.**
+
+- Deux modifications de la route d'un navire avant la même relève : la seconde repartait de
+  la route actuelle et remplaçait la première, qui était perdue sans un mot. Elles se
+  cumulent maintenant.
+- Un ordre passé tout de suite (le navire entré en eaux suivies, ou un avion en vue pour le
+  projecteur) laissait en attente le même ordre envoyé plus tôt par radio : à la relève,
+  l'ancien défaisait le nouveau. L'ancien est retiré.
+
+**3. Ce que j'ai ajouté sans qu'on le demande, parce que l'attente le rend visible.**
+
+- Un ordre par radio n'est vérifié contre la côte qu'à l'arrivée : refusé, on ne l'apprenait
+  qu'à la relève. La fiche prévient maintenant tant qu'il attend, et la carte cercle l'endroit,
+  si le trajet touche terre vu de la position estimée. Trouvé en essayant : mon étape au
+  cap 020 depuis Terre-Neuve était listée comme acquise et refusée à la relève.
+- Les étapes d'un navire dont la position est une estimation étaient dessinées depuis sa
+  position vraie, à côté de son repère : elles partent maintenant du repère, comme sa route.
+  La règle posée depuis un navire aussi.
+
+**4. Le rapport de quart.** `openWatch` savait ouvrir n'importe quel rapport, mais seul
+l'arrêt à la relève l'appelait. Trois entrées de plus, toutes sur la même page :
+
+- un bouton « Quart » dans la barre du haut (la cloche ; touche Q), présent dès le premier
+  rapport là où la mer vit au rythme des quarts, avec le nombre de décisions en attente ;
+- dans l'onglet « Signaux », « Rouvrir le rapport de la relève de 8 h » en tête, et
+  « Ouvrir » sur chaque ligne ;
+- la page rouverte est celle de la relève : mêmes textes, mêmes boutons, « (réglé) » sur ce
+  qui a reçu sa réponse entre-temps.
+
+La barre du haut a onze outils dans l'Atlantique : 51 px de haut et 976 px de large sur une
+fenêtre de 1 024 px, mots compris. Elle tient.
+
+**Ce qui n'est pas fait.** En ordres par caps, la deuxième étape se mesure toujours avec la
+règle, depuis le bout du tracé ocre : il n'y a pas d'anneau au bout des étapes d'où tirer la
+règle. La mise en garde « touche terre » part de la position estimée : le navire juge de sa
+position vraie, et peut encore refuser un trajet qu'elle ne signalait pas. La page d'un
+rapport n'a pas de boutons « précédent » et « suivant ».
+
+**La simulation.** Deux ajouts qui ne changent rien à une partie : `plannedLegs` (les étapes
+qu'aurait un navire après une suite d'ordres, sans y toucher) et un point de départ
+facultatif pour `planTrack`. Les règles de remplacement vivent dans la page, pas dans
+`sendOrder` : le joueur automatique n'est pas concerné. Neuf parties de l'Atlantique
+rejouées, identiques à la mesure du M2.10.
+
+**Tests.** `tests/awaited.test.js`, 10 tests : le tracé qui attend, prolongé deux fois, ses
+points déplacés, ajoutés, retirés, puis reçu tel que la table le montrait ; l'ordre repris ;
+les deux modifications qui se cumulent ; les étapes ajoutées, modifiées, retirées, puis
+reçues ; `plannedLegs` comparé aux mêmes ordres exécutés ; ce qui est remplacé ; l'ordre au
+projecteur ; la terre signalée. `tests/watchpanel.test.js`, un test de plus : le rapport
+rouvert par la barre, l'onglet et une ligne, identique, puis réglé.
+
+### Porte du troisième tour
+
+432 tests, lint et construction verts ; 272 vérifications à l'essai de fumée (12 de plus : le
+rapport fermé puis rouvert de quatre façons, la barre à 1 024 px avec son onzième outil, un
+tracé en attente prolongé à la souris depuis son anneau puis repris, une étape en attente),
+sur la version de développement et sur `dist/index.html`. Pas de singe ni de grande mesure
+pour ce tour, comme demandé : la simulation n'a pas changé. Non relu par un agent neuf.

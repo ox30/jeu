@@ -8,10 +8,39 @@ avec un menu principal, un tutoriel en quatre leçons et une aide illustrée.
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.10.3** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit et
-les retours des premières parties d'essai, en deux tours). Les décisions qui guident les lots M2.7 à M2.10
+**Version 2.10.4** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit et
+les retours des premières parties d'essai, en trois tours). Les décisions qui guident les lots M2.7 à M2.10
 sont dans `claude/decisions-audit-m2.md` (fichier du projet) ; le journal des travaux est dans
 `docs/journal-m2.7-m2.10.md`.
+
+## Nouveautés de la 2.10.4 : les ordres en attente restent sur la carte, le rapport de quart se rouvre
+
+- **Sous silence radio, un ordre de route en attente reste sur la carte.** Un tracé tiré
+  pour un navire en haute mer, ou des étapes au cap, attendent la relève pour partir par
+  radio. Jusque-là ils ne se voyaient presque plus (un pointillé pâle pour le tracé, rien
+  pour les étapes), et on ne pouvait pas travailler dessus. Ils restent maintenant tracés
+  **en ocre** pour tous les navires, avec « part par radio à 16 h » pour celui qui est en
+  main, et sa fiche les liste (« à transmettre »).
+- **On continue de travailler dessus.** Le tracé en attente garde ses points, ses « + » et
+  l'anneau à son bout : on le prolonge d'un deuxième puis d'un troisième trait, on déplace
+  un point, on en retire un. Les étapes en attente se modifient et se retirent dans la
+  liste, et l'on en ajoute d'autres à la suite. Chaque changement remplace l'ordre qui
+  attendait : **un seul ordre part**, et ce que la carte montrait est ce que le navire
+  reçoit. Un tracé tiré depuis le navire remplace les étapes en attente, une étape ajoutée
+  remplace le tracé, comme à l'exécution.
+- **Deux défauts corrigés en chemin.** Deux modifications de la route d'un navire avant la
+  même relève : la seconde effaçait la première. Et un ordre passé tout de suite (eaux
+  suivies, projecteur d'un avion) était défait à la relève par le même ordre resté en
+  attente.
+- **Prévenu avant le départ.** Si le trajet en attente touche terre, vu de la position
+  estimée du navire, la fiche le dit et la carte cercle l'endroit : l'ordre serait refusé à
+  l'arrivée. Les étapes d'un navire dont la position est estimée partent de son repère, et
+  non plus de sa position vraie.
+- **Le rapport de quart se rouvre.** Fermé sans réponse pour regarder la carte, il revient
+  tel quel, avec ses boutons : bouton **« Quart »** de la barre du haut (touche Q), qui
+  porte le nombre de décisions en attente ; « Rouvrir le rapport de la relève » et
+  « Ouvrir » sur chaque ligne, dans l'onglet « Signaux » du journal.
+- Rien ne change dans la simulation ni dans les sauvegardes.
 
 ## Nouveautés de la 2.10.3 : appareillages programmés, la sortie du port devient une étape
 
@@ -500,14 +529,18 @@ autonomie 1,6 fois plus vite.
    quart, et « À décider » avec le bouton qui répond. Le jeu s'arrête à une relève quand une
    décision nouvelle attend (réglage « Arrêt aux relèves » : aussi à 8 h et 20 h, ou à chaque
    relève) et, entre deux relèves, seulement pour la première attaque d'un convoi dans la
-   nuit. Un arrêt est une pause : « Reprendre » repart à la vitesse d'avant.
+   nuit. Un arrêt est une pause : « Reprendre » repart à la vitesse d'avant. Un rapport
+   fermé sans réponse se rouvre tel quel : bouton « Quart » de la barre du haut (touche Q),
+   ou « Ouvrir » dans l'onglet « Signaux ».
 13. **Silence radio (hiver 1941, Standard et Réaliste).** Hors des eaux suivies (eaux fermées
    aux U-Boote, approches des ports, couverture des radars de Downhill et de Glenarm), un
    convoi ou un groupe est dessiné à sa position estimée : contour en tirets, « ? » sur la
    plaque, cercle de doute qui grandit depuis le dernier point sûr. Un point sûr vient d'un
    avion en vue, d'une attaque, ou de « Demander la position » (qui donne un relèvement à
    l'ennemi). Un ordre part par radio à la relève suivante, au projecteur si un avion est en
-   vue, ou confié à un groupe qui part rejoindre le convoi.
+   vue, ou confié à un groupe qui part rejoindre le convoi. En attendant, un tracé ou des
+   étapes restent sur la carte en ocre et sur la fiche (« à transmettre ») : on les
+   prolonge, on les corrige, et un seul ordre part.
 
 Chaque raid se termine par un rapport, rangé dans « Rapports », qui ne dit que ce que la RAF
 sait : le premier plot (« 15+ à 8 500 ft »), la composition une fois le raid vu (« vu par
@@ -687,9 +720,16 @@ Le filet du M2.7 :
   les aides des fiches et les piles d'unités sont essayées, comme les états d'alerte d'une
   patrouille et les onglets d'un port et d'un aérodrome (2.10.2), la sortie du port posée
   en étape, prolongée à la souris puis retirée, et deux appareillages programmés (2.10.3),
+  un tracé en attente de la relève prolongé depuis son anneau et un rapport de quart fermé
+  puis rouvert (2.10.4),
   chaque page et chaque sorte de fiche s'ouvre dans chaque scénario, et les corrections du
   M2.7 sont rejouées (plaques empilées, touches d'un clavier AZERTY, bilan de fin, briefing
   de campagne, garde-fou sur une erreur provoquée).
+- Les tests de la 2.10.4 : les ordres en attente sous silence radio
+  (`tests/awaited.test.js` : le tracé prolongé deux fois puis reçu tel que montré, les
+  étapes ajoutées, modifiées et retirées avant la relève, l'ordre remplacé et non empilé,
+  la terre signalée avant le départ) et le rapport de quart rouvert
+  (`tests/watchpanel.test.js`).
 - Les tests de la 2.10.3 (`tests/exitstep.test.js`) : appareillage programmé sans rien de
   préparé, la sortie en étape (posée, changée, retirée, prolongée par un tracé ou des
   étapes, sa fin), le tracé d'un groupe en mer de nouveau modifiable, les parties
