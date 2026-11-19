@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { VIEWS, createCamera, setFrame, toScreen, viewFrame } from '../src/render/camera.js';
+import { readFileSync } from 'node:fs';
+import { createCamera, setFrame, toScreen, viewFrame } from '../src/render/camera.js';
+
+// The views of the map are data since 2.9.
+const VIEWS = JSON.parse(readFileSync(new URL('../data/campaign.json', import.meta.url), 'utf8')).views;
 import { project } from '../src/sim/geo.js';
 
 function cornersOnScreen(cam, view) {

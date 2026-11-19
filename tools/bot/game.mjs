@@ -40,6 +40,8 @@ export const data = {
   channel: read('data/maps/channel.json'),
 };
 i18nMod.setDictionary(data.fr);
+// The chain of the campaign is data (2.9): given to the module as the page does.
+if (campaignMod.setCampaignData) campaignMod.setCampaignData(read('data/campaign.json'));
 
 export const SCENARIOS = ['m0-july-1940', 'kanalkampf', 'adlertag', 'quinze-septembre', 'hiver-atlantique'];
 const scenarioCache = new Map();

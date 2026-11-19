@@ -250,6 +250,46 @@ function drawObserverZone(ctx, cam, world) {
   ctx.restore();
 }
 
+/**
+ * The waters closed to the U-boats (minefields, patrols): a pale dashed outline. Under radio
+ * silence they are also where the ships are followed live: the outline says where an order
+ * is carried out at once.
+ */
+function drawClosedWaters(ctx, cam, app) {
+  const areas = app.world.rules.uboats.closedWaters || [];
+  if (!areas.length || cam.scale < 0.08) return;
+  ctx.save();
+  ctx.setLineDash([5, 5]);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(47, 79, 111, 0.38)';
+  ctx.fillStyle = 'rgba(47, 79, 111, 0.035)';
+  for (const a of areas) {
+    const pts = closedWaterPoints(a);
+    if (!pts.length) continue;
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => {
+      const [sx, sy] = toScreen(cam, x, y);
+      if (i === 0) ctx.moveTo(sx, sy);
+      else ctx.lineTo(sx, sy);
+    });
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// The outlines in kilometres, worked out once for each area of the rules.
+const closedWaterCache = new WeakMap();
+function closedWaterPoints(area) {
+  let pts = closedWaterCache.get(area);
+  if (!pts) {
+    pts = (area.area || []).map(([lon, lat]) => project(lon, lat));
+    closedWaterCache.set(area, pts);
+  }
+  return pts;
+}
+
 function drawCoverage(ctx, cam, world) {
   const D = world.rules.detection;
   drawObserverZone(ctx, cam, world);
@@ -1957,9 +1997,13 @@ export function drawScene(ctx, app, alpha) {
   app.plaqueBoxes = symbolObstacles(app, alpha);
   drawMap(ctx, cam, dpr, app.mapRenderer);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  if (app.settings.nightShadow !== false) drawNight(ctx, cam, app);
-  if (app.settings.grid) drawGrid(ctx, cam, app.world.grid);
-  if (app.settings.radarCover && cam.scale > 0.35) drawCoverage(ctx, cam, app.world);
+  // The layers the scenario declares (its « map » block), each with its display setting.
+  const layers = app.world.scenario.map && app.world.scenario.map.layers;
+  const layer = (name) => !layers || layers.includes(name);
+  if (layer('night') && app.settings.nightShadow !== false) drawNight(ctx, cam, app);
+  if (layer('closedWaters')) drawClosedWaters(ctx, cam, app);
+  if (layer('grid') && app.settings.grid) drawGrid(ctx, cam, app.world.grid);
+  if (layer('radars') && app.settings.radarCover && cam.scale > 0.35) drawCoverage(ctx, cam, app.world);
   drawRail(ctx, cam, app);
   drawViewZones(ctx, cam, app, alpha);
   drawCondorZone(ctx, cam, app);
@@ -1970,7 +2014,7 @@ export function drawScene(ctx, app, alpha) {
   drawPendingMru(ctx, cam, app);
   drawGauges(ctx, cam, app);
   drawGates(ctx, cam, app);
-  drawGreatCircles(ctx, cam, app);
+  if (layer('routes')) drawGreatCircles(ctx, cam, app);
   drawTrains(ctx, cam, app, alpha);
   drawConvoys(ctx, cam, app, alpha);
   drawEscorts(ctx, cam, app, alpha);

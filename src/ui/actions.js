@@ -16,7 +16,7 @@ import { feetOf, squadronSpeed } from '../sim/squadron.js';
 import { currentSpeed, legSpeed, shipThrottle } from '../sim/convoy.js';
 import { parseLegEnd } from '../sim/navigation.js';
 import { deployMru } from '../sim/mru.js';
-import { VIEWS, animateTo, toScreen, toWorld, viewFrame } from '../render/camera.js';
+import { animateTo, toScreen, toWorld, viewFrame } from '../render/camera.js';
 import {
   addMember, dissolveFormation, formationById, formationOf, interceptFormation, launchWaiting, leaderOf, membersOf, mergeFormations, newFormation,
   removeMember, scrambleFormation,
@@ -188,7 +188,8 @@ export function sheetInset(app) {
 
 /** The three views (keys A, L, G) are framed in the part of the map the sheet leaves free. */
 export function goView(app, name) {
-  animateTo(app.camera, viewFrame(app.camera, VIEWS[name], 30, sheetInset(app)));
+  const view = app.data.campaign.views[name];
+  if (view) animateTo(app.camera, viewFrame(app.camera, view, 30, sheetInset(app)));
 }
 
 /** Width of the map hidden by the unit panel (open when something is selected). */

@@ -4,7 +4,11 @@ import { data, makeWorld, run, runTo } from './helpers.js';
 import { restore, snapshot } from '../src/save/game.js';
 import { buyOffer, crossingHours, lineCost, offerArrival, offerInCargo, offers, tonnageForecast } from '../src/sim/shipping.js';
 import { followSquadron, scramble } from '../src/sim/orders.js';
-import { CHAIN, carryFor, recordResult, scenarioStatus } from '../src/ui/campaign.js';
+import { readFileSync } from 'node:fs';
+import { campaignChain, carryFor, nextInChain, recordResult, scenarioIds, scenarioStatus, setCampaignData, trainingId } from '../src/ui/campaign.js';
+
+// The lists of the campaign are data since 2.9 (data/campaign.json): given to the module as the page does.
+setCampaignData(JSON.parse(readFileSync(new URL('../data/campaign.json', import.meta.url), 'utf8')));
 import { isDaylight, isNight } from '../src/sim/daylight.js';
 import { project } from '../src/sim/geo.js';
 
@@ -222,7 +226,13 @@ test('campaign: a victory opens the next scenario, losses carry into the next ai
   const sq = wa.squadrons.find((s) => s.id === '32');
   assert.equal(sq.aircraft, 10);
   assert.equal(sq.aircraftStart, 12, 'establishment unchanged');
-  assert.equal(CHAIN.length, 4);
+  assert.equal(campaignChain().length, 4);
+  assert.deepEqual(campaignChain(), ['kanalkampf', 'adlertag', 'quinze-septembre', 'hiver-atlantique']);
+  assert.equal(nextInChain('kanalkampf'), 'adlertag');
+  assert.equal(nextInChain('hiver-atlantique'), null, 'the last of the chain');
+  assert.equal(nextInChain('m0-july-1940'), null, 'the training scenario is outside it');
+  assert.equal(trainingId(), 'm0-july-1940');
+  assert.deepEqual(scenarioIds(), ['kanalkampf', 'adlertag', 'quinze-septembre', 'hiver-atlantique', 'm0-july-1940']);
   c.unlockAll = true;
   assert.equal(scenarioStatus(c, 'hiver-atlantique'), 'open');
 });
@@ -240,4 +250,71 @@ test('the Atlantic is won with fewer than 7.5 % of the ships lost, and the objec
   // A whole number of per cent is written without a decimal.
   assert.ok(objectiveText(w, { ...o, share: 0.08 }).includes('de 8 %'), objectiveText(w, { ...o, share: 0.08 }));
   assert.ok(objectiveText(w, { ...o, share: 0.2 }).includes('de 20 %'));
+});
+
+test('Code 6, N8: scenarios, campaign, views and maps are data, and every scenario declares its map', async () => {
+  const { readFileSync: read } = await import('node:fs');
+  const json = (p) => JSON.parse(read(new URL(`../${p}`, import.meta.url), 'utf8'));
+  const campaign = json('data/campaign.json');
+  assert.deepEqual(Object.keys(campaign.views).sort(), ['atlantic', 'britain', 'england']);
+  for (const v of Object.values(campaign.views)) assert.ok(v.lon[0] < v.lon[1] && v.lat[0] < v.lat[1]);
+  for (const id of [...campaign.scenarios, campaign.training]) {
+    const sc = json(`data/scenarios/${id}.json`);
+    assert.equal(sc.id, id);
+    // Texts: a title, a line of what is at stake, the longer text.
+    for (const k of ['title', 'stake', 'text']) assert.ok(typeof data.fr.scenarios[id][k] === 'string' && data.fr.scenarios[id][k].length > 5, `scenarios.${id}.${k}`);
+    // An estimated length of play, from… to… minutes.
+    const [lo, hi] = campaign.cards[id].minutes;
+    assert.ok(lo > 0 && hi > lo, `${id}: ${lo} to ${hi} minutes`);
+    // Its map: zone, first view, the views offered, layers and tools the game knows, the rhythm of its sea.
+    const m = sc.map;
+    assert.ok(m, `${id} declares its map`);
+    assert.ok(campaign.views[m.zone], `${id}: zone ${m.zone}`);
+    assert.ok(campaign.views[m.view], `${id}: view ${m.view}`);
+    assert.ok(m.views.includes(m.view), `${id}: its first view is one it offers`);
+    for (const v of m.views) assert.ok(campaign.views[v], `${id}: view ${v}`);
+    for (const l of m.layers) assert.ok(campaign.layers.includes(l), `${id}: layer ${l}`);
+    for (const tool of m.tools) assert.ok(campaign.tools.includes(tool), `${id}: tool ${tool}`);
+    assert.ok(['watches', 'direct'].includes(sc.seaRhythm), `${id}: sea rhythm ${sc.seaRhythm}`);
+    // The grid of the RAF is a layer only where the scenario has one.
+    assert.equal(m.layers.includes('grid'), Boolean(sc.grid), `${id}: grid`);
+  }
+  assert.equal(json('data/scenarios/hiver-atlantique.json').seaRhythm, 'watches');
+  assert.ok(campaign.chain.every((id) => campaign.scenarios.includes(id)));
+});
+
+test('Code 6: the lessons of the tutorial are data the game can read', async () => {
+  const { readFileSync: read } = await import('node:fs');
+  const tutorial = JSON.parse(read(new URL('../data/tutorial.json', import.meta.url), 'utf8'));
+  const { CONDITION_NAMES, holds, lessonFor } = await import('../src/ui/tutorial.js');
+  assert.ok(tutorial.lessons.length >= 1);
+  const known = new Set(CONDITION_NAMES);
+  const check = (c) => {
+    for (const [name, arg] of Object.entries(c)) {
+      assert.ok(known.has(name), `condition ${name}`);
+      if (name === 'any' || name === 'all') arg.forEach(check);
+    }
+  };
+  for (const lesson of tutorial.lessons) {
+    assert.ok(scenarioIds().includes(lesson.scenario), `${lesson.id}: scenario ${lesson.scenario}`);
+    assert.ok(lesson.steps.length >= 3);
+    assert.ok(lesson.steps[lesson.steps.length - 1].last, 'the last step ends the lesson');
+    for (const step of lesson.steps) {
+      for (const k of ['title', 'text']) assert.ok(typeof data.fr.tutorial[step.id][k] === 'string', `tutorial.${step.id}.${k}`);
+      assert.ok(step.manual || step.done, `${step.id}: a button or a condition to go on`);
+      if (step.done) check(step.done);
+    }
+  }
+  assert.equal(lessonFor(tutorial, 'm0-july-1940').id, 'basics');
+  assert.equal(lessonFor(tutorial, 'adlertag'), null);
+  // The conditions are read as the lesson reads them.
+  const w = makeWorld('standard', {}, 'm0');
+  const app = { world: w, paused: false, speed: 600, reportsOpened: false };
+  assert.equal(holds(app, { speedAtLeast: 600 }, new Set()), true);
+  assert.equal(holds(app, { contacts: 1 }, new Set()), false);
+  assert.equal(holds(app, { any: [{ contacts: 1 }, { speedAtLeast: 600 }] }, new Set()), true);
+  assert.equal(holds(app, { all: [{ contacts: 1 }, { speedAtLeast: 600 }] }, new Set()), false);
+  assert.equal(holds(app, { seen: ['tallyHo', 'combatRound'] }, new Set(['combatRound'])), true);
+  assert.equal(holds(app, { flag: 'reportsOpened' }, new Set()), false);
+  assert.throws(() => holds(app, { nonsense: true }, new Set()));
 });

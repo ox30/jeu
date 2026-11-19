@@ -2,11 +2,7 @@
 
 import { project } from '../sim/geo.js';
 
-export const VIEWS = {
-  atlantic: { lon: [-67, 13], lat: [38.5, 64] },
-  england: { lon: [-3.9, 3.0], lat: [49.45, 52.75] },
-  britain: { lon: [-6.8, 2.4], lat: [49.9, 56.4] },
-};
+// (The views of the map — the Atlantic, Great Britain, England — are data: data/campaign.json.)
 
 export function createCamera() {
   return { cx: 0, cy: 0, scale: 0.2, width: 800, height: 600, anim: null, minScale: 0.05, maxScale: 14 };

@@ -7,9 +7,13 @@ import { makeWorld } from './helpers.js';
 import { step } from '../src/sim/world.js';
 import { restore, snapshot } from '../src/save/game.js';
 import { checkDefeat, fighterCount, fighterEstablishmentShare, fighterShare, finalize } from '../src/sim/objectives.js';
-import { carryFor, recordResult } from '../src/ui/campaign.js';
+import { readFileSync } from 'node:fs';
+import { carryFor, recordResult, setCampaignData } from '../src/ui/campaign.js';
 import { runAir } from '../tools/bot/air.mjs';
 import { CONDUCTS } from '../tools/bot/conducts.mjs';
+
+// The chain of the campaign is data since 2.9: given to the module as the page does.
+setCampaignData(JSON.parse(readFileSync(new URL('../data/campaign.json', import.meta.url), 'utf8')));
 
 const fighters = (w) => w.squadrons.filter((s) => s.role === 'fighter');
 

@@ -5,7 +5,11 @@ import { makeWorld } from './helpers.js';
 import { DARK_LIMIT_DEG, DAY_LIMIT_DEG } from '../src/core/sun.js';
 import { isNight } from '../src/sim/daylight.js';
 import { project } from '../src/sim/geo.js';
-import { createCamera, toWorld, viewFrame, setFrame, VIEWS } from '../src/render/camera.js';
+import { readFileSync } from 'node:fs';
+import { createCamera, toWorld, viewFrame, setFrame } from '../src/render/camera.js';
+
+// The views of the map are data since 2.9.
+const VIEWS = JSON.parse(readFileSync(new URL('../data/campaign.json', import.meta.url), 'utf8')).views;
 import { nightSamples, shadowShare } from '../src/render/night.js';
 
 function atlanticCamera() {
