@@ -920,3 +920,143 @@ Critère du document : « chaque scénario se lance, se sauvegarde et se recharg
   repli de la vue de départ ; la validation ne descend pas dans chaque champ de chaque unité
   (l'essai de dix minutes et le garde-fou de la boucle prennent le relais) ; les navigateurs
   autres que Chrome n'ont pas été essayés (stockage plein réel, absence de compression).
+
+## M2.10 · Interface, équilibre et tutoriel
+
+Branche `m2.10`, partie de `m2.9`. Porte du document : « les trois règles d'équilibre tenues
+partout ; tutoriel joué de bout en bout ».
+
+### 19 novembre, 1 h 00 à 2 h 10 — fatigue (I6) et équilibre (I5)
+
+- **I6 — la fatigue pèse.** Avant : l'Alerte 5 min reposait (−2 par heure) et le Disponible
+  30 min plus encore (−5) ; il suffisait de ne toucher à rien. Maintenant, par heure : Repos −8
+  et Cockpit +3 (inchangés), Disponible 30 min −1, Alerte 5 min +0,1 (seuils inchangés :
+  fatiguée à 60, épuisée à 85). Premier essai avec le vol tel qu'il était (7 par heure de vol,
+  2,5 par passe de combat, 2 par décollage) : à Adlertag, la conduite simple, qui ne met
+  jamais au repos, épuisait ses escadrilles dès le troisième jour. Le vol fatigue donc moins
+  (4, 1,5 et 1). Mesuré sur Adlertag (sonde du joueur automatique, graines 1 à 4) : une semaine
+  à cinq minutes finit à 75 à 80 de fatigue en moyenne, avec 4 à 7 escadrilles fatiguées et
+  2 à 4 épuisées ; la même semaine avec la relève de nuit finit à 15 à 19, sans une
+  escadrille fatiguée. C'est un écart au document, qui ne parlait que des états au sol : sans
+  lui la cible (« fatiguées, et la relève devient utile ») devenait « épuisées ».
+- **Bouton Effectifs masqué sans fatigue**, ainsi que le lien vers les plans dans les fiches.
+- **I5 — Kanalkampf.** Avant : gagné 10 fois sur 10 sans faire décoller un seul chasseur.
+  Seuils des convois relevés (HX 60 → 80 %, convoi côtier CW 50 → 75 %), objectif d'avions
+  abattus ajouté (30), chasse à garder relevée (60 → 90 %) : il faut engager assez pour
+  protéger et faire payer, sans user sa chasse.
+- **I5 — Adlertag.** Avant : bases et radars tenaient sans un ordre, et l'on gagnait 10 fois
+  sur 10 sans commander un seul train. Les objectifs « bases » et « radars » regardaient
+  l'état au dernier soir, quand tout est réparé : ils comptent maintenant les **heures hors
+  service cumulées sur la semaine** (aérodromes : 10 heures au plus ; radars : 36 heures au
+  plus), suivies minute par minute et affichées. Les bases des escadrilles commencent avec
+  40 % du carburant qu'elles avaient : sans trains, sept parties sur dix finissent en panne
+  sèche. Chasse à garder : 50 → 45 % (la fatigue coûte des avions).
+- **I5 — 15 septembre.** Le document demandait de garder le réglage. Mesuré après le nouveau
+  calcul du jour (M2.8), il ne tenait plus les règles : jouer simple gagnait 5 fois sur 10 en
+  Standard, et la conduite soignée 1 fois sur 10 en Réaliste. Deux changements : le nombre
+  d'avions à abattre passe de 40 à 32, et la conduite « soignée » du joueur automatique masse
+  ses escadrilles ce jour-là (six par raid, poursuite permise), comme le fait la conduite
+  « masse » : c'est ce qu'un joueur soigné fait le 15 septembre.
+- **Outils.** `tools/bot` : une conduite peut différer selon la bataille (`byScenario`) ; une
+  sonde appelée chaque minute de jeu (`probe`) pour regarder une partie de près.
+
+### 19 novembre, 2 h 10 à 3 h 20 — interface (C6, C7, C8, C9)
+
+- **C7 — barre du haut.** Dix outils en pictogrammes, avec leur nom et leur touche en bulle
+  (« Règle (R) ») et un mot dessous quand la place le permet ; un seul bouton « Vue » qui
+  liste les vues du scénario ; le Journal (J) et l'aide (?) ont leur touche. Mesuré : une
+  ligne de 51 px de haut à 1 024 px de large, le 15 septembre comme dans l'Atlantique (17
+  boutons visibles, temps compris).
+- **C6 — alertes.** Une alerte qui demande un ordre porte « À décider » et reste jusqu'à
+  l'ordre ou la fermeture ; une information s'efface en trente secondes. Une alerte chassée
+  par une plus urgente revient ensuite si elle attend toujours son ordre. Au-delà de quatre
+  en attente, la plus ancienne va au journal comme « non lue » : le bouton Journal les compte
+  et ouvre le journal sur elles. Ajout : une alerte à décider se ferme d'elle-même quand son
+  ordre est donné (un chasseur envoyé contre le raid, un train de carburant parti, un groupe
+  en route vers le convoi…).
+- **C8 — aides des fiches.** Réglage « Aides des fiches » : affichées (par défaut) ou
+  repliées ; repliées, chaque section garde un « ? » qui montre la sienne ; les
+  avertissements restent toujours visibles.
+- **C9 — piles et onglets.** Les plaques qui se recouvrent deviennent une marque avec leur
+  nombre ; un clic ouvre la pile en onglets verticaux sur le bord gauche de la fiche ;
+  l'onglet actif est mis en avant sur la carte, les autres s'estompent ; un glisser depuis une
+  pile qui n'est pas ouverte ne fait rien ; lâché sur plusieurs cibles superposées, un
+  glisser demande laquelle. Les piles sont calculées à partir des marques de l'image
+  précédente (`src/ui/stacks.js`) : rien dans la simulation.
+
+### 19 novembre, 3 h 20 à 6 h 10 — tutoriel en quatre leçons (I10), suites du M2.9
+
+- **Quatre leçons**, chacune sur un petit scénario écrit comme une bataille existante avec
+  des changements (`"base"`, `src/core/scenarios.js`) et avec ses propres réglages :
+  intercepter (un raid que l'instructeur laisse passer en faisant décoller quand il franchit
+  la côte, puis le bilan avec les heures : « vu à 12:02, ordre à 12:18, bombes à 12:23 » ;
+  puis un raid de douze Do 17 sans escorte, lâché deux minutes après le briefing) ;
+  ravitailler (une base presque à sec, un train, un stock minimum) ; escorter (la relève de
+  8 heures, « Envoyer » dans le rapport de quart, les consignes et le grenadage) ; états
+  d'alerte et fatigue (une escadrille fatiguée mise au repos, une reposée rappelée, la page
+  Effectifs, une nuit). Les étapes, leurs conditions et les ordres de l'instructeur sont des
+  données (`data/tutorial.json`) ; les textes sont dans `fr.json`.
+- **Défauts trouvés en jouant dans Chrome** : le raid de l'élève apparaissait sous la fiche
+  (une étape qui demande une vue attend maintenant que la fiche soit dessinée, et se cale
+  sur la largeur libre) ; la confirmation « Au repos » attendait jusqu'à un quart de seconde
+  (la fiche se redessine dès la fin de l'appui) ; le bandeau affichait la clé du titre d'une
+  leçon.
+- **Durée des leçons** (essai de fumée : mots à lire, attentes du jeu, ordres à donner) :
+  5,3 · 3,7 · 3,5 · 3,3 minutes à une première lecture attentive (120 mots par minute) ;
+  3,6 · 2,5 · 2,4 · 2,0 minutes rejouées en lisant vite. Le document demande trois à cinq
+  minutes : tenu à la première lecture, la leçon 1 un peu au-dessus.
+- **Fusion des suites de la relecture du M2.9** (voir plus haut) et ce qu'elles changent
+  pour les leçons : une leçon ne s'enregistre jamais et ne remplace rien ; la partie en
+  cours est écrite avant la leçon, sans question, et « Continuer » la ramène ensuite ; une
+  leçon finie ou quittée rend la liste des leçons ; « Sauvegarder » n'y est pas proposé.
+
+### Mesure après le M2.10 (19 novembre, 5 h 15 à 6 h 05)
+
+Joueur automatique, 10 graines par conduite, 340 parties au commit `efc6bb7`
+(`tools/bot/out/m2.10.jsonl`) ; « avant » est la mesure du M2.9, identique à celle du M2.8.
+
+| Scénario | Préréglage | Conduite | Avant | Après | Objectifs manqués après |
+| --- | --- | --- | --- | --- | --- |
+| Kanalkampf | Standard | rien | 0 sur 10 | 0 sur 10 | convois, avions abattus |
+| Kanalkampf | Standard | simple | 10 sur 10 | 8 sur 10 | avions abattus 1 fois, un convoi 1 fois |
+| Kanalkampf | Standard | sans chasse | 10 sur 10 | 0 sur 10 | avions abattus 10 fois, convois 7 fois |
+| Kanalkampf | Réaliste | simple | 10 sur 10 | 8 sur 10 | un convoi 1 fois, avions abattus 1 fois |
+| Kanalkampf | Réaliste | soigné | 10 sur 10 | 9 sur 10 | un convoi 1 fois |
+| Adlertag | Standard | rien | 0 sur 10 | 0 sur 10 | heures hors service, avions abattus, convoi |
+| Adlertag | Standard | simple | 9 sur 10 | 8 sur 10 | chasse 2 fois |
+| Adlertag | Standard | sans ravitaillement | 10 sur 10 | 0 sur 10 | panne sèche 7 fois, avions abattus 7 fois |
+| Adlertag | Standard | 1 par raid | 5 sur 10 | 1 sur 10 | avions abattus 9 fois, heures hors service 5 fois |
+| Adlertag | Standard | 2 par raid | 9 sur 10 | 7 sur 10 | heures hors service 2 fois |
+| Adlertag | Standard | 4 par raid | 2 sur 10 | 1 sur 10 | chasse 9 fois |
+| Adlertag | Réaliste | simple | 10 sur 10 | 9 sur 10 | chasse 1 fois |
+| Adlertag | Réaliste | soigné | 10 sur 10 | 10 sur 10 | — |
+| 15 septembre | Standard | rien | 0 sur 10 | 0 sur 10 | avions abattus, docks |
+| 15 septembre | Standard | simple | 5 sur 10 | 8 sur 10 | avions abattus 2 fois |
+| 15 septembre | Standard | 2 par raid | 4 sur 10 | 8 sur 10 | avions abattus 1 fois, docks 1 fois |
+| 15 septembre | Standard | 4 par raid | 10 sur 10 | 10 sur 10 | — |
+| 15 septembre | Réaliste | simple | 7 sur 10 | 8 sur 10 | avions abattus 2 fois |
+| 15 septembre | Réaliste | soigné | 1 sur 10 | 9 sur 10 | chasse 1 fois |
+| 15 septembre | Réaliste | en masse | 9 sur 10 | 9 sur 10 | chasse 1 fois |
+| Campagne | Standard | simple | 0 sur 10 | 5 sur 10 | 7 chaînes sur 10 arrivent au 15 septembre |
+| Campagne | Réaliste | simple | 0 sur 10 | 0 sur 10 | avions abattus le 15 septembre, 7 fois |
+| Campagne | Réaliste | soigné | 0 sur 10 | 8 sur 10 | 9 chaînes sur 10 arrivent au 15 septembre |
+| Campagne | Réaliste | simple, puis en masse le 15 | 4 sur 10 | 6 sur 10 | |
+
+**Atlantique** : les 100 parties sont identiques une à une à celles du M2.8 (le lot n'y
+change rien). Rien 0 sur 10 ; Rester 9 sur 10 ; Chasser 9 sur 10 ; Réaliste : Rester 5,
+Chasser 2, soigné 7 sur 10 ; arrêts 42 à 59 en Standard, 47 à 61 en Réaliste.
+
+Lecture des trois règles :
+
+1. **Ne rien faire perd nettement** : 0 sur 10 dans les quatre scénarios.
+2. **Jouer simple gagne environ quatre fois sur cinq en Standard** : Kanalkampf 8, Adlertag
+   8, 15 septembre 8, Atlantique 9 sur 10.
+3. **Jouer soigné gagne en Réaliste** : Kanalkampf 9, Adlertag 10, 15 septembre 9,
+   Atlantique 7 sur 10 ; la campagne en Réaliste jouée avec soin, 8 sur 10.
+
+Ce que la mesure dit aussi : à Adlertag, s'engager trop (quatre escadrilles par raid) perd la
+chasse neuf fois sur dix, et trop peu (une par raid) laisse bombarder : le dilemme est là.
+En Réaliste, le joueur automatique gagne aussi en jouant simple (8 à 9 sur 10) : ce qui rend
+le Réaliste dur pour un joueur (plots en retard, pas d'aide, ordres au cap) ne le gêne pas.
+La campagne en Réaliste jouée simplement de bout en bout n'est jamais gagnée : le 15
+septembre demande alors d'engager en masse.

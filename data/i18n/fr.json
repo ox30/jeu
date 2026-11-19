@@ -1849,7 +1849,7 @@
           },
           "why": {
             "title": "Pourquoi c'était perdu",
-            "text": "Le radar a vu le raid à {seen}. L'ordre de décoller est parti à {ordered}, {waited} minutes plus tard, quand le raid passait la côte ; les bombes sont tombées sur Hawkinge à {bombed}, {left} minutes après l'ordre. Or il faut deux minutes à une escadrille pour décoller, cinq à six pour monter à 12 000 ft, et le temps d'arriver. Le préavis du radar ne suffit que si l'on décolle au premier plot."
+            "text": "Le radar a vu le raid à {seen}. L'ordre de décoller est parti à {ordered}, {waited} minutes plus tard, quand le raid passait la côte ; les bombes sont tombées sur Hawkinge à {bombed}, {left} minutes après l'ordre. Or il faut deux minutes à une escadrille pour décoller, cinq pour monter à 12 000 ft, et le temps d'arriver. Le préavis du radar ne suffit que si l'on décolle au premier plot."
           },
           "yourTurn": {
             "title": "À vous",
