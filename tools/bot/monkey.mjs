@@ -13,6 +13,7 @@ import * as timetable from '../../src/sim/timetable.js';
 import * as mru from '../../src/sim/mru.js';
 import * as combat from '../../src/sim/combat.js';
 import * as asw from '../../src/sim/asw.js';
+import * as settings from '../../src/sim/gameSettings.js';
 
 const F = sim.formations;
 
@@ -115,6 +116,13 @@ function buildActions(rnd, world) {
     commsCancel: () => { const C = sim.comms; const s = pick(w.signals || []); if (C && s) C.cancelOrder(w, s.id); },
     commsCarry: () => { const C = sim.comms; const s = pick(w.signals || []); const e = pick(w.escorts); if (C && s && e) C.carryByShip(w, s.id, e.id); },
     askPosition: () => { const C = sim.comms; const u = pick(ships()); if (C && u) C.requestPosition(w, u); },
+    // The settings of the game, changed by an order during the game (N9, Code 4 of the audit).
+    gameSetting: () => {
+      const key = pick([...settings.GAME_SETTING_KEYS, 'nothing']);
+      const values = Object.values(data.presets.presets).map((p) => p[key]).filter((v) => v !== undefined);
+      settings.setGameSetting(w, key, pick([...values, ...(data.presets.choices?.[key] || []), 'absurd', true, false, null]), data.presets);
+    },
+    applyPreset: () => { if (rnd() < 0.3) settings.applyPreset(w, pick([...Object.keys(data.presets.presets), 'nothing']), data.presets); },
     huntPlot: () => { const e = pick(w.escorts); const p = pick(w.uboatPlots); if (e && p) O.huntPlot(w, e, p.id); },
     stopHunt: () => { const e = pick(w.escorts); if (e) asw.stopHunt(w, e); },
     escortHome: () => { const e = pick(w.escorts); if (e) O.escortHome(w, e, rnd() < 0.5 ? null : (pick(w.ports) || {}).id); },

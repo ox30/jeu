@@ -1145,6 +1145,7 @@
       "air": "Air",
       "sea": "Mer",
       "time": "Temps et alertes",
+      "games": "Parties et réglages",
       "keys": "Touches"
     },
     "sheet": [
@@ -1173,14 +1174,22 @@
     ],
     "time": [
       "Les alertes ralentissent le temps : un raid ramène à ×10 ; en mer, toute alerte ramène à ×1 (on décide, puis on accélère) ; une base à ×600. Chaque vitesse se règle dans Réglages, onglet Temps et alertes. Pendant une action ennemie, une vitesse élevée demande confirmation (réglable).",
-      "Le menu (bouton du haut) : Continuer, Campagne (les scénarios, la sauvegarde dans un fichier), Entraînement avec le tutoriel, Charger une partie, Réglages, Aide. Le jeu s'arrête tant qu'il est ouvert.",
-      "Les pages (rapports, fiches techniques, formations, effectifs, aide, réglages) mettent le jeu en pause (réglable). La partie est gardée dans le navigateur."
+      "Les pages (rapports, fiches techniques, formations, effectifs, aide, réglages) et le menu ☰ mettent le jeu en pause (réglable pour les pages)."
     ],
     "images": {
       "sheet": "La fiche d'une escadrille en vol : la barre de commandes en haut, l'onglet Commandes dessous.",
       "roster": "La page Effectifs : les aérodromes à gauche, les escadrilles et leurs plannings à droite.",
       "escort": "La fiche d'un groupe d'escorte en mer : sortie, convois, chasse, retour au port."
-    }
+    },
+    "games": [
+      "Le jeu s'ouvre sur le menu principal. Continuer reprend la dernière partie ; Campagne montre la chaîne de l'Âge I et ce qui est gagné ; Scénarios donne une carte par bataille, avec son enjeu, ses dates et sa durée estimée ; Entraînement lance le tutoriel guidé ; Charger retrouve les parties gardées.",
+      "En jeu, le bouton ☰ ouvre Reprendre, Sauvegarder, Exporter, Réglages de la partie, Aide, Recommencer et Menu principal. Revenir au menu principal garde la partie : « Continuer » la reprend où elle en était.",
+      "Sauvegardes : la partie en cours est gardée dans ce navigateur à mesure que l'on joue. S'y ajoutent une sauvegarde automatique par jour de jeu (toutes les deux heures de jeu dans une bataille d'une journée), dont les cinq dernières sont gardées, et vos sauvegardes manuelles (☰, Sauvegarder). Tout est dans « Charger », au menu principal. En Réaliste, ces points de reprise permettent de rejouer une journée sans tout refaire.",
+      "Une sauvegarde contient la partie, ses réglages et tout son journal, rapports de quart compris. Le fichier exporté se recharge par Charger, « Importer une partie ». Un fichier abîmé, ou venu d'une version plus récente, est refusé avec sa raison, sans toucher à la partie en cours ; les parties enregistrées depuis la version 2.6.1 se chargent.",
+      "Si le navigateur ne peut plus enregistrer (stockage plein, navigation privée), « Non enregistré » s'affiche dans la barre du haut et le journal le dit : exportez la partie dans un fichier.",
+      "Les réglages qui changent les règles (préréglage, détection, carburant, fatigue, B-Dienst, communications en mer, arrêt aux relèves…) appartiennent à la partie : fixés au lancement, ils se changent en cours de route par ☰, Réglages de la partie, et le journal note chaque changement. Si le préréglage change, l'écran de fin et la campagne le disent : « commencée en Réaliste, terminée en Standard ». Le report de campagne reste celui du départ. Les réglages d'affichage (son, ombre de la nuit, place de la fiche…) restent ceux du joueur.",
+      "Lancer une autre partie ou en charger une demande confirmation quand une partie est en cours ; Recommencer aussi, dès dix minutes de jeu. La partie remplacée est gardée parmi les sauvegardes automatiques."
+    ]
   },
   "end": {
     "title": "Fin de service",

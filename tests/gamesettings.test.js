@@ -156,3 +156,27 @@ test('communications set back to direct: the orders waiting go at once, the ship
   run(w, 120);
   assert.ok(c.fix && c.est, 'a sure point and an estimate again');
 });
+
+test('same seed, same orders, a preset changed on the way, a save resumed by another player: the same game', () => {
+  const play = (resume) => {
+    let w = world('hiver-atlantique', playerSettings('standard'));
+    run(w, 30 * 3600);
+    assert.ok(applyPreset(w, 'realistic', P));
+    run(w, 6 * 3600);
+    assert.ok(setGameSetting(w, 'watchStops', 'twice', P));
+    if (resume) {
+      const snap = JSON.parse(JSON.stringify(snapshot(w)));
+      w = world('hiver-atlantique', playerSettings('arcade'));
+      restore(w, snap);
+    }
+    run(w, 36 * 3600);
+    // (The stops at the reliefs are an option, not part of a preset: the game is still Réaliste.)
+    assert.equal(w.settings.preset, 'realistic');
+    assert.equal(w.settings.watchStops, 'twice');
+    assert.equal(w.presetStart, 'standard');
+    return JSON.stringify(snapshot(w));
+  };
+  const once = play(false);
+  assert.equal(play(false), once, 'played twice');
+  assert.equal(play(true), once, 'saved and resumed on the way');
+});

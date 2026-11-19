@@ -276,7 +276,7 @@ function helpSteps(app) {
   return t(app.world.rail.enabled ? 'help.steps' : 'help.stepsTraining');
 }
 
-const HELP_TABS = ['scenario', 'sheet', 'air', 'sea', 'time', 'keys'];
+const HELP_TABS = ['scenario', 'sheet', 'air', 'sea', 'time', 'games', 'keys'];
 
 /** A picture from the test bench, beside the text it illustrates (data/help/images.json). */
 function helpImage(app, name) {
@@ -284,7 +284,7 @@ function helpImage(app, name) {
   return src ? `<figure class="help-image"><img src="${src}" alt="${escapeHtml(t(`help.images.${name}`))}"><figcaption>${escapeHtml(t(`help.images.${name}`))}</figcaption></figure>` : '';
 }
 
-/** The help, in tabs: this scenario, the sheet, the air, the sea, time and alerts, the keys. */
+/** The help, in tabs: this scenario, the sheet, the air, the sea, time and alerts, games and settings, the keys. */
 export function openHelp(app) {
   const dlg = app.el.dlgHelp;
   const tab = HELP_TABS.includes(app.helpTab) ? app.helpTab : 'scenario';
@@ -295,6 +295,7 @@ export function openHelp(app) {
     air: `${list(t('help.air'))}${helpImage(app, 'roster')}`,
     sea: `${helpImage(app, 'escort')}${list(t('help.sea'))}`,
     time: list(t('help.time')),
+    games: list(t('help.games')),
     keys: `<p class="keys">${escapeHtml(t('help.keys'))}</p>`,
   };
   dlg.innerHTML = `
