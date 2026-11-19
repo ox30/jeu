@@ -345,12 +345,21 @@ test('a tool or a view a scenario does not offer cannot be reached', () => {
   assert.equal(toolOffered(app, 'radarCover'), false);
   assert.equal(toolOffered({ world: makeWorld('standard', { fatigue: 'off' }, 'adlertag') }, 'roster'), false);
   assert.equal(toolOffered({ world: makeWorld('standard', { fatigue: 'losses' }, 'adlertag') }, 'roster'), true);
-  // … and a fighter squadron to put on them: none in the Atlantic, where the scenario's list
-  // of tools still names them (review of 2.10: « Effectifs » opened an empty page there).
+  // … and a squadron to put on them, whatever its role. The review of 2.10 hid the page in the
+  // Atlantic (no fighter there: it opened empty); play-testing showed the other half of the
+  // fault: the patrols tire and could not be rested. Since 2.10.2 everything that flies has
+  // its alert state and its plan, so the page is offered there, with the patrols on it.
   const sea = makeWorld('standard', { fatigue: 'on' }, 'hiver-atlantique');
   assert.equal(sea.squadrons.some((s) => s.role === 'fighter'), false);
+  assert.equal(toolOffered({ world: sea }, 'roster'), true);
+  assert.equal(toolOffered({ world: makeWorld('standard', { fatigue: 'off' }, 'hiver-atlantique') }, 'roster'), false);
+  sea.squadrons.length = 0; // nobody to plan for: no page
   assert.equal(toolOffered({ world: sea }, 'roster'), false);
-  assert.equal(toolOffered({ world: makeWorld('standard', { fatigue: 'on' }, 'lecon-escorter') }, 'roster'), false);
+  // The lesson of the escort has a patrol squadron, but it is played without fatigue (its own
+  // settings: the alert states are lesson 4's), so the page stays away there.
+  const lesson = JSON.parse(readFileSync(new URL('../data/tutorial.json', import.meta.url), 'utf8')).lessons.find((l) => l.id === 'escort');
+  assert.equal(lesson.settings.fatigue, 'off');
+  assert.equal(toolOffered({ world: makeWorld('standard', lesson.settings, 'lecon-escorter') }, 'roster'), false);
   assert.equal(toolOffered({ world: makeWorld('standard', { fatigue: 'on' }, 'lecon-alerte') }, 'roster'), true);
   // The keys, the top bar and the sheets all ask there.
   const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8');

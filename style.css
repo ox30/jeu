@@ -565,6 +565,9 @@ button.link { background: none; border: none; padding: 0; font: inherit; color: 
   cursor: pointer; box-shadow: -3px 2px 8px rgba(0, 0, 0, 0.25);
 }
 .unit-stack button.active { background: var(--paper); font-weight: bold; padding-right: 14px; }
+/* The installation that holds the units of the other tabs (an aerodrome, a port): set apart. */
+.unit-stack button.site { font-style: italic; margin-bottom: 4px; }
+#table.sheet-bottom .unit-stack button.site { margin-bottom: 0; margin-right: 4px; }
 #table.sheet-left .unit-stack { right: auto; left: 100%; align-items: flex-start; }
 #table.sheet-left .unit-stack button { border: 2px solid #1b150e; border-left: none; border-radius: 0 5px 5px 0; box-shadow: 3px 2px 8px rgba(0, 0, 0, 0.25); }
 #table.sheet-bottom .unit-stack { top: auto; bottom: 100%; right: auto; left: 12px; flex-direction: row; align-items: flex-end; max-height: none; }
@@ -718,6 +721,11 @@ button.link { background: none; border: none; padding: 0; font: inherit; color: 
 .roster-tab .roster-squadron { border: 1px solid var(--paper-dark); border-radius: 4px; padding: 4px 6px; margin: 4px 0; background: rgba(255, 252, 240, 0.55); }
 .roster-head { display: flex; justify-content: space-between; font-size: 12.5px; }
 .roster-head span { color: var(--ink-soft); }
+.roster-head .rp-name { color: inherit; }
+.roster-head .rp-name small { color: var(--ink-soft); font-weight: normal; }
+.roster-head .fatigue-fresh { color: var(--green); }
+.roster-head .fatigue-tired { color: #8a5a0b; }
+.roster-head .fatigue-exhausted { color: var(--raf-red); }
 .timeline { display: flex; height: 12px; border: 1px solid #8a7350; border-radius: 2px; overflow: hidden; margin: 4px 0 0; }
 .timeline .seg { display: block; height: 100%; }
 .timeline-ticks { position: relative; height: 13px; font: 10px "Courier New", Courier, monospace; color: var(--ink-soft); margin-bottom: 2px; }

@@ -22,6 +22,12 @@ import {
 
 const missing = (v) => v === null || v === undefined;
 
+/** Is the squadron of this event a patrol (a spotter section, Coastal Command), not a fighter one? */
+function isPatrolEvent(world, e) {
+  const s = e.squadronId ? world.squadrons.find((x) => x.id === e.squadronId) : null;
+  return Boolean(s && s.role !== 'fighter');
+}
+
 // ---- the sea: attacks and losses ------------------------------------------------------
 
 const ATTACK = {
@@ -296,8 +302,13 @@ const SQUADRON = {
   noFuel: { level: 'alert' },
   noAmmo: { level: 'warning' },
   fuelExhausted: { level: 'alert' },
-  squadronTired: { level: 'warning' },
-  squadronExhausted: { level: 'alert' },
+  // A patrol does not fight: its sentence says how to rest it, not what it loses in combat,
+  // and exhaustion is no alarm for it.
+  squadronTired: { level: 'warning', shape: (w, e) => (isPatrolEvent(w, e) ? 'log.patrolTired' : undefined) },
+  squadronExhausted: {
+    level: 'alert',
+    shape: (w, e, p) => (isPatrolEvent(w, e) ? { text: t('log.patrolExhausted', p), level: 'warning' } : undefined),
+  },
   rosterApplied: { shape: alertStateShape },
   rosterResumed: { shape: alertStateShape },
   alertReached: { shape: alertStateShape },

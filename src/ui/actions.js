@@ -973,7 +973,7 @@ export function orderRosterCopy(app, s, target) {
   const w = app.world;
   const field = s.home || s.airfield;
   const to = target === 'field'
-    ? w.squadrons.filter((x) => x !== s && x.role === 'fighter' && x.state !== 'lost' && (x.home || x.airfield) === field)
+    ? w.squadrons.filter((x) => x !== s && x.state !== 'lost' && (x.home || x.airfield) === field)
     : w.squadrons.filter((x) => x.id === target && x !== s);
   for (const x of to) copyDaily(w, s, x);
   sheetMessage(app, t('roster.copied', { n: to.length }), 'info');

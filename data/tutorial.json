@@ -249,6 +249,7 @@
         5
       ],
       "settings": {
+        "fatigue": "off",
         "seaComms": "direct",
         "watchStops": "decision",
         "bdienst": "0",

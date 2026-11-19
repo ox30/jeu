@@ -238,7 +238,7 @@ async function tutorial(page) {
   // ---- lesson 4: alert states and fatigue ----
   await page.click('#menu [data-lesson="alert"]');
   await page.waitForSelector('#coach:not([hidden])');
-  // (The lesson before had no fighter squadron, and so no such button: the bar is redrawn with the next image.)
+  // (The lesson before is played without fatigue, and so without this button: the bar is redrawn with the next image.)
   await sleep(300);
   note(await game(page, () => !document.getElementById('btn-roster').hidden), 'lesson 4: with fatigue on, the Effectifs button is there');
   await coachNext(page);
@@ -1321,7 +1321,7 @@ async function menus(page, errors) {
 /**
  * M2.10, the interface in the page: the top bar on one line (C7), the alerts that are not lost
  * (C6), the help of the sheets folded (C8), the stacks and their tabs (C9), the Effectifs
- * button only where the pilots tire (I6).
+ * button only where the pilots tire (I6), and alert states for everything that flies (2.10.2).
  */
 async function interfaceChecks(page, errors) {
   const before = errors.length;
@@ -1436,11 +1436,71 @@ async function interfaceChecks(page, errors) {
       return { button: document.getElementById('btn-roster').hidden, link: Boolean(document.querySelector('#unit-panel [data-action="open-roster"]')) };
     });
     note(!on.button && on.link, 'with fatigue: the Effectifs button and the link are there', JSON.stringify(on));
-    // (Review of 2.10: in the Atlantic, where no fighter squadron exists, the button opened an empty page.)
+  });
+  await step('interface: alert states and plans for everything that flies (2.10.2)', async () => {
+    // Play-testing 2.10 in the Atlantic: the patrols came back tired and could not be rested,
+    // the alert states and the Effectifs page being the fighters' only (and the page hidden
+    // there since the review of 2.10, for want of a fighter squadron to show).
     await start('hiver-atlantique', { fatigue: 'on' });
     await sleep(300);
-    const sea = await game(page, () => ({ button: document.getElementById('btn-roster').hidden, fatigue: window.__game.world.settings.fatigue, fighters: window.__game.world.squadrons.filter((s) => s.role === 'fighter').length }));
-    note(sea.fatigue === 'on' && sea.fighters === 0 && sea.button, 'with fatigue but no fighter squadron (the Atlantic): no Effectifs button', JSON.stringify(sea));
+    const sea = await game(page, async () => {
+      const a = window.__game;
+      const actions = await import('./src/ui/actions.js');
+      const s = a.world.squadrons.find((x) => x.role === 'coastal');
+      s.fatigue = 72;
+      a.unitTabs = { squadron: 'cmd' };
+      actions.select(a, 'squadron', s.id);
+      a.dirtyPanels = true;
+      await new Promise((r) => setTimeout(r, 300));
+      return {
+        id: s.id, button: document.getElementById('btn-roster').hidden, fatigue: a.world.settings.fatigue,
+        fighters: a.world.squadrons.filter((x) => x.role === 'fighter').length,
+        alerts: document.querySelectorAll('#unit-panel [data-action="alert"]').length,
+        link: Boolean(document.querySelector('#unit-panel [data-action="open-roster"]')),
+        summary: document.getElementById('unit-summary').textContent,
+      };
+    });
+    note(sea.fatigue === 'on' && sea.fighters === 0 && !sea.button, 'the Atlantic (patrols only): the Effectifs button is there', JSON.stringify(sea));
+    note(sea.alerts === 4 && sea.link, 'a Coastal Command squadron on the ground has its four alert states and the link to the plans', JSON.stringify(sea));
+    note(/fatiguée \(72 %\)/.test(sea.summary), 'a tired patrol says so under its name', sea.summary);
+    await shot(page, 'patrol-alert');
+    await page.click('#unit-panel [data-action="alert"][data-alert="rest"]');
+    const asked = await page.waitForSelector('#unit-panel [data-action="confirm-rest"]', { timeout: 2000 }).then(() => true, () => false);
+    if (asked) await page.click('#unit-panel [data-action="confirm-rest"]');
+    await sleep(300);
+    const rested = await game(page, (id) => {
+      const s = window.__game.world.squadrons.find((x) => x.id === id);
+      return { alert: s.alert, manual: s.alertManual, hint: document.querySelector('#unit-panel .alert-line + .hint, #unit-panel .hint') ? document.getElementById('unit-panel').textContent : '' };
+    }, sea.id);
+    note(asked && rested.alert === 'rest' && rested.manual, '« Repos », confirmed, puts the patrol at rest', JSON.stringify({ asked, alert: rested.alert, manual: rested.manual }));
+    note(/Retour au planning/.test(rested.hint), 'a state set by hand offers « Retour au planning »');
+    await page.click('#btn-roster');
+    await sleep(300);
+    const plans = await game(page, (id) => {
+      const d = document.getElementById('dlg-roster');
+      const card = d.querySelector(`#rp-${CSS.escape(id)}`);
+      return {
+        open: d.open, fields: d.querySelectorAll('[data-rp-field]').length, squadrons: d.querySelectorAll('.rp-squadrons .roster-squadron').length,
+        head: card ? card.querySelector('.roster-head').textContent : '', buttons: card ? card.querySelectorAll('[data-action="alert"]').length : 0,
+        plan: card ? Boolean(card.querySelector('[id^="roster-alert-"]')) : false,
+      };
+    }, sea.id);
+    note(plans.open && plans.fields >= 1 && plans.squadrons >= 1, 'the Effectifs page opens on the patrols and their aerodromes', JSON.stringify(plans));
+    note(/Fatigue 72 % · fatiguée/.test(plans.head) && plans.buttons === 4 && plans.plan, 'each patrol has its type, its fatigue, its alert states and its plan to fill', JSON.stringify(plans));
+    await shot(page, 'patrol-roster');
+    await closeDialogs(page);
+    // Over Britain the spotter section and Coastal Command stand on the page beside the fighters.
+    await start('adlertag', { fatigue: 'on' });
+    await page.click('#btn-roster');
+    await sleep(300);
+    const mixed = await game(page, async () => {
+      const a = window.__game;
+      const roster = await import('./src/ui/rosterPage.js');
+      const roles = new Set(roster.rosterFields(a.world).flatMap((f) => roster.rosterSquadrons(a.world, f.id)).map((s) => s.role));
+      return { roles: [...roles].sort().join(','), fields: document.querySelectorAll('#dlg-roster [data-rp-field]').length, n: roster.rosterFields(a.world).length };
+    });
+    note(mixed.roles === 'coastal,fighter,watch' && mixed.fields === mixed.n, 'Adlertag: the page lists the fighters, the spotter section and Coastal Command', JSON.stringify(mixed));
+    await closeDialogs(page);
   });
   await step('interface: alerts that are not lost (C6)', async () => {
     await start('hiver-atlantique', { fatigue: 'on' });
@@ -1578,14 +1638,17 @@ async function interfaceChecks(page, errors) {
     const tabs = () => game(page, () => ({
       sel: window.__game.selection, hidden: document.getElementById('unit-stack').hidden,
       tabs: [...document.querySelectorAll('#unit-stack button')].map((b) => `${b.textContent.trim()}${b.classList.contains('active') ? '*' : ''}`),
+      site: [...document.querySelectorAll('#unit-stack button.site')].map((b) => b.dataset.id),
     }));
     const first = await tabs();
-    note(!first.hidden && first.tabs.length === s0.members.length && first.sel && first.sel.kind === 'escort', 'stacks: a click opens the stack as tabs, the first unit in hand', JSON.stringify(first));
+    // (Since 2.10.2 the port the groups lie in has the first tab: the units stand in it.)
+    note(!first.hidden && first.tabs.length === s0.members.length + 1 && first.site.length === 1 && first.sel && first.sel.kind === 'escort' && /\*/.test(first.tabs[1]),
+      'stacks: a click opens the stack as tabs, the first unit in hand, after the tab of their port', JSON.stringify(first));
     await shot(page, 'stack-tabs');
-    await page.click('#unit-stack button:nth-child(2)');
+    await page.click('#unit-stack button:nth-child(3)');
     await sleep(400);
     const second = await tabs();
-    note(second.sel && first.sel && second.sel.id !== first.sel.id && /\*/.test(second.tabs[1]), 'stacks: a tab takes the other unit of the stack in hand', JSON.stringify(second));
+    note(second.sel && first.sel && second.sel.id !== first.sel.id && /\*/.test(second.tabs[2]), 'stacks: a tab takes the other unit of the stack in hand', JSON.stringify(second));
     // The drag now goes to the unit in hand, and to it alone.
     await page.mouse.move(s0.x, s0.y);
     await page.mouse.down();
@@ -1642,6 +1705,85 @@ async function interfaceChecks(page, errors) {
     note(Boolean(sea) && sea.targets.includes(`convoy:${sea.convoy}`), 'stacks: … and it is still a target for the line of another group', sea ? sea.targets.join(' ') : '');
     await settle(page);
     await shot(page, 'stack-convoy');
+  });
+  await step('interface: the tabs of an installation that holds units (2.10.2)', async () => {
+    // Asked after play-testing 2.10: the tabs of the stacks, on the sheet of an aerodrome or
+    // of a port, « le port et les étiquettes d'unités ».
+    const tabs = () => game(page, () => ({
+      sel: window.__game.selection, hidden: document.getElementById('unit-stack').hidden,
+      tabs: [...document.querySelectorAll('#unit-stack button')].map((b) => `${b.textContent.trim()}${b.classList.contains('active') ? '*' : ''}`),
+      site: [...document.querySelectorAll('#unit-stack button.site')].map((b) => b.dataset.id),
+      title: document.getElementById('unit-title').textContent.trim(), body: document.getElementById('unit-body').textContent,
+    }));
+    const pick = (kind, id) => game(page, async ([k, i]) => {
+      const actions = await import('./src/ui/actions.js');
+      actions.select(window.__game, k, i);
+      await new Promise((r) => setTimeout(r, 350));
+    }, [kind, id]);
+    // A port and the groups lying there.
+    await start('hiver-atlantique', { seaComms: 'direct' });
+    await page.keyboard.press('l');
+    await page.waitForFunction(() => !window.__game.camera.anim, null, { timeout: 8000 });
+    await sleep(300);
+    await closeDialogs(page);
+    await pick('site', 'port:liverpool');
+    const port = await tabs();
+    note(!port.hidden && port.tabs.join('|') === 'Liverpool*|EG 1|EG 3' && port.site[0] === 'port:liverpool', 'installation tabs: a port in hand has its tab, then one a group lying there', JSON.stringify(port.tabs));
+    note(/Navires au port/.test(port.body) && /EG 1/.test(port.body), 'installation tabs: the sheet of the port lists the ships lying there');
+    await shot(page, 'site-tabs-port');
+    await page.click('#unit-stack button[data-id="eg3"]');
+    await sleep(350);
+    const group = await tabs();
+    note(group.sel && group.sel.kind === 'escort' && group.sel.id === 'eg3' && group.tabs.join('|') === 'Liverpool|EG 1|EG 3*', 'installation tabs: a tab takes the group in hand, the tabs stay', JSON.stringify(group.tabs));
+    await shot(page, 'site-tabs-group');
+    await page.click('#unit-stack button.site');
+    await sleep(350);
+    const back = await tabs();
+    note(back.sel && back.sel.kind === 'site' && back.sel.id === 'port:liverpool' && /^Liverpool\*/.test(back.tabs[0]), 'installation tabs: the tab of the port brings its sheet back', JSON.stringify(back.sel));
+    // An aerodrome and its squadrons on the ground, by a click on the map.
+    await start('adlertag', { fatigue: 'on' });
+    const field = await game(page, () => {
+      const a = window.__game;
+      const r = a.canvas.getBoundingClientRect();
+      const here = (id) => a.world.squadrons.filter((s) => s.airfield === id && s.state === 'ready');
+      // The aerodrome with two squadrons whose mark stands farthest from any other.
+      const all = a.hits.filter((h) => h.kind === 'airfield' && here(h.id).length >= 2 && h.x > 40 && h.y > 80 && h.x < r.width - 480 && h.y < r.height - 40);
+      const alone = (h) => Math.min(...a.hits.filter((o) => o !== h).map((o) => Math.hypot(o.x - h.x, o.y - h.y)));
+      all.sort((p, q) => alone(q) - alone(p));
+      const h = all[0];
+      return h ? { id: h.id, x: r.left + h.x, y: r.top + h.y, name: a.world.byId.airfield.get(h.id).name, squadrons: here(h.id).map((s) => ({ id: s.id, name: s.name })) } : null;
+    });
+    note(Boolean(field), 'installation tabs: an aerodrome with two squadrons stands on the map', JSON.stringify(field));
+    if (!field) return;
+    await page.mouse.click(field.x, field.y);
+    await sleep(400);
+    const ground = await tabs();
+    note(ground.sel && ground.sel.id === `airfield:${field.id}` && ground.tabs.join('|') === [`${field.name}*`, ...field.squadrons.map((s) => s.name)].join('|'),
+      'installation tabs: a click on an aerodrome opens its sheet with a tab a squadron on the ground', JSON.stringify(ground.tabs));
+    await shot(page, 'site-tabs-airfield');
+    const sq = field.squadrons[1];
+    await page.click(`#unit-stack button[data-id="${sq.id}"]`);
+    await sleep(350);
+    const inHand = await tabs();
+    note(inHand.sel && inHand.sel.kind === 'squadron' && inHand.sel.id === sq.id && inHand.tabs.includes(`${sq.name}*`) && inHand.tabs[0] === field.name && inHand.title.startsWith(sq.name),
+      'installation tabs: the tab of a squadron opens its sheet, the aerodrome one tab away', JSON.stringify(inHand.tabs));
+    await shot(page, 'site-tabs-squadron');
+    // In the air it has left the aerodrome: its tabs go, and the aerodrome no longer lists it.
+    const gone = await game(page, async (id) => {
+      const a = window.__game;
+      const O = await import('./src/sim/orders.js');
+      const s = a.world.squadrons.find((x) => x.id === id);
+      O.scramble(a.world, s, { orbit: true });
+      for (let i = 0; i < 30 && s.state !== 'airborne'; i++) a.stepWorld(60);
+      a.dirtyPanels = true;
+      await new Promise((r) => setTimeout(r, 400));
+      return s.state;
+    }, sq.id);
+    const up = await tabs();
+    note(gone === 'airborne' && up.sel && up.sel.id === sq.id && !up.tabs.some((x) => x.startsWith(field.name)), 'installation tabs: once in the air, the squadron is no longer a tab of the aerodrome', JSON.stringify({ gone, tabs: up.tabs }));
+    await pick('site', `airfield:${field.id}`);
+    const left = await tabs();
+    note(!left.tabs.some((x) => x.startsWith(sq.name)), 'installation tabs: … and the aerodrome no longer lists it', JSON.stringify(left.tabs));
   });
   await step('interface: at sea and at high speed, the zone of a patrol rather than the aircraft (idea B)', async () => {
     await start('hiver-atlantique', { seaComms: 'direct' });

@@ -20,8 +20,9 @@ export function toolOffered(app, name) {
   if (tools && !tools.includes(name)) return false;
   // The radar cover has nothing to show without a radar.
   if (name === 'radarCover') return app.world.radars.length > 0;
-  // The duty rosters only matter when the pilots tire (I6 of the audit), and where there is
-  // a fighter squadron to put on them (none in the Atlantic, nor in the lesson of the escort).
-  if (name === 'roster') return fatigueOn(app.world) && app.world.squadrons.some((s) => s.role === 'fighter');
+  // The duty rosters only matter when the crews tire (I6 of the audit), and where there is a
+  // squadron to put on them: fighters, spotters and Coastal Command alike (everything that
+  // flies tires, so everything that flies has its alert state and its plan).
+  if (name === 'roster') return fatigueOn(app.world) && app.world.squadrons.length > 0;
   return true;
 }

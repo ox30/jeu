@@ -41,6 +41,7 @@ import {
 } from './format.js';
 import { applySheetHelp } from './sheetHelp.js';
 import { activeMember, memberSelection, stackOfSelection } from './stacks.js';
+import { siteTabs, tabSelection, unitsIn } from './siteUnits.js';
 import { toolOffered } from './offered.js';
 
 const MAX_LOG = 300; // lines shown on the page
@@ -811,7 +812,7 @@ function hoursText(h) {
 /** Alert state of one squadron: buttons, what it means now, rest confirmation, roster. */
 /** For the line under the name of a sheet: « · fatiguée (72 %) » once the pilots are tired, else nothing. */
 function tiredText(w, s) {
-  if (!fatigueOn(w) || s.role !== 'fighter' || s.state === 'lost') return '';
+  if (!fatigueOn(w) || s.state === 'lost') return '';
   const level = fatigueLevel(w, s);
   return level === 'fresh' ? '' : ` · ${t('unit.tired', { level: t(`sheet.fatigueLevels.${level}`), n: Math.round(s.fatigue) })}`;
 }
@@ -819,7 +820,8 @@ function tiredText(w, s) {
 function alertBlock(app, s) {
   const w = app.world;
   // On the ground only: the state now (it holds until « Retour au planning »); the plan has its page.
-  if (!fatigueOn(w) || s.role !== 'fighter' || (s.state !== 'ready' && s.state !== 'refuelling')) return '';
+  // For every squadron: a patrol tires in the air like a fighter, and rests the same way.
+  if (!fatigueOn(w) || (s.state !== 'ready' && s.state !== 'refuelling')) return '';
   return [
     alertButtons(app, s, 'squadron', s.alert || 'min5'),
     `<p class="hint">${escapeHtml(alertStatus(w, s))}</p>`,
@@ -1316,7 +1318,7 @@ export function timelineHtml(w, s) {
 /** The "Effectifs" tab of an aerodrome: its squadrons' readiness, now and over 24 hours. */
 function rosterTab(app, site) {
   const w = app.world;
-  const here = w.squadrons.filter((s) => s.role === 'fighter' && s.state !== 'lost' && (s.airfield === site.id || s.home === site.id));
+  const here = w.squadrons.filter((s) => s.state !== 'lost' && (s.airfield === site.id || s.home === site.id));
   if (!here.length) return null;
   const blocks = here.map((s) => `<div class="roster-squadron">
     <div class="roster-head"><b>${escapeHtml(s.name)}</b> <span>${escapeHtml(t(`states.squadron.${s.state}`))} · ${escapeHtml(t(`orders.alertNames.${s.alert || 'min5'}`))}${s.alertManual ? ` · ${escapeHtml(t('orders.manual'))}` : ''}</span></div>
@@ -1404,6 +1406,16 @@ function attacksBlock(app, site) {
   return `<div class="sub">${escapeHtml(t('sheet.attacks'))}</div>${lines.length ? `<ul class="attacks">${lines.join('')}</ul>` : `<p class="hint">${escapeHtml(t('sheet.noAttack'))}</p>`}`;
 }
 
+/** What a ship lying in a port is doing: a group at its quay or refitting, a convoy waiting or unloading. */
+function shipInPortText(w, m) {
+  if (m.kind === 'convoy') {
+    const c = w.convoys.find((x) => x.id === m.id);
+    return t(`states.convoy.${c.state === 'arrived' ? 'unloading' : c.state}`);
+  }
+  const state = escortStateText(w, w.escorts.find((x) => x.id === m.id));
+  return m.formation ? t('sheet.supportGroupHere', { state, n: formationById(w, m.formation).members.length }) : state;
+}
+
 function sitePanel(app, key) {
   const w = app.world;
   const site = w.sites.get(key);
@@ -1438,7 +1450,12 @@ function sitePanel(app, key) {
         to: String((site.azimuth + half) % 360).padStart(3, '0'),
       }))));
     }
-    if (site.kind === 'port') sub = site.naval ? t('sheet.navalBase') : site.convoys ? t('sheet.convoyPort') : sub;
+    if (site.kind === 'port') {
+      sub = site.naval ? t('sheet.navalBase') : site.convoys ? t('sheet.convoyPort') : sub;
+      // The ships lying there: each has its tab on the edge of the sheet.
+      const ships = unitsIn(w, site);
+      if (ships.length) extra = `<div class="sub">${escapeHtml(t('sheet.shipsInPort'))}</div>${ships.map((m) => row(m.label, escapeHtml(shipInPortText(w, m)))).join('')}`;
+    }
   }
   const logistics = stockOrders(app, site);
   const allOrders = (logistics || '') + orders;
@@ -1589,13 +1606,20 @@ function renderUnitPanel(app) {
   el.table.classList.add('with-unit');
   // The unit in hand stands in a stack on the map: a tab for each unit of the stack, on the
   // edge of the sheet. The orders and the routes drawn go to the unit of the active tab.
+  // An aerodrome or a port that holds units, or a unit standing in one: the same tabs, the
+  // installation first, then each unit there (and what else its stack on the map holds).
   const stack = stackOfSelection(app.stackOf, sel);
-  const inHand = stack ? activeMember(stack, sel) : null;
-  setHtml(el.unitStack, stack ? stack.members.map((m) => {
-    const to = memberSelection(m);
-    return `<button type="button" role="tab" aria-selected="${m === inHand}" data-action="select" data-kind="${to.kind}" data-id="${escapeHtml(to.id)}" class="${m === inHand ? 'active' : ''}" title="${escapeHtml(t('unit.stackTab', { name: m.label }))}">${escapeHtml(m.label)}</button>`;
-  }).join('') : '');
-  el.unitStack.hidden = !stack;
+  const place = siteTabs(app.world, sel, stack);
+  const stackTab = (to, label, active, title, cls = '') => `<button type="button" role="tab" aria-selected="${active}" data-action="select" data-kind="${to.kind}" data-id="${escapeHtml(to.id)}" class="${`${cls}${active ? ' active' : ''}`.trim()}" title="${escapeHtml(title)}">${escapeHtml(label)}</button>`;
+  let stackHtml = '';
+  if (place) {
+    stackHtml = place.tabs.map((m) => stackTab(tabSelection(m), m.label, m.active, t(m.site ? 'unit.siteTab' : 'unit.siteUnitTab', { name: m.label, site: place.site.name }), m.site ? 'site' : '')).join('');
+  } else if (stack) {
+    const inHand = activeMember(stack, sel);
+    stackHtml = stack.members.map((m) => stackTab(memberSelection(m), m.label, m === inHand, t('unit.stackTab', { name: m.label }))).join('');
+  }
+  setHtml(el.unitStack, stackHtml);
+  el.unitStack.hidden = !stackHtml;
   setHtml(el.unitTitle, panel.title);
   setHtml(el.unitSummary, panel.summary);
   app.unitTabs = app.unitTabs || {};
