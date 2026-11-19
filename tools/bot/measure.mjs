@@ -1,8 +1,11 @@
 // A measurement: the matrix of conducts played on several seeds, two games at a time, each
 // in its own process. Results go to tools/bot/out/<name>.jsonl (one line a game) and a
 // summary is printed as a Markdown table.
-//   node tools/bot/measure.mjs --name depart [--seeds 10] [--only hiver,campagne/realistic] [--workers 2] [--append]
+//   node tools/bot/measure.mjs --name depart [--seeds 10] [--first 1] [--only hiver,campagne/realistic] [--workers 2] [--append]
 //   node tools/bot/measure.mjs --summary depart        (the table again, from the file)
+// --append keeps the file and plays only the games it does not hold yet: a measurement that
+// was cut short goes on where it stopped, and more seeds or lines can be added to one.
+// --first: the first seed (the seeds are first … first + seeds - 1), to measure on fresh ones.
 import { spawn } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { cpus } from 'node:os';
@@ -71,12 +74,15 @@ async function main() {
   const only = opt('only', null);
   const workers = Number(opt('workers', Math.max(1, cpus().length)));
   mkdirSync(`${here}out`, { recursive: true });
+  const first = Number(opt('first', 1));
   const out = `${here}out/${name}.jsonl`;
   if (existsSync(out) && !args.includes('--append')) rmSync(out);
+  // (With --append: the games the file already holds, errors apart, are not played again.)
+  const held = new Set(existsSync(out) ? readRows(out).filter((r) => !r.error).map((r) => `${r.scenario}|${r.preset}|${r.conduct}|${r.seed}`) : []);
   const jobs = [];
   for (const [scenario, preset, conduct] of MATRIX) {
     if (only && !only.split(',').some((part) => `${scenario}/${preset}/${conduct}`.includes(part))) continue;
-    for (let seed = 1; seed <= seeds; seed++) jobs.push({ scenario, preset, conduct, seed });
+    for (let seed = first; seed < first + seeds; seed++) if (!held.has(`${scenario}|${preset}|${conduct}|${seed}`)) jobs.push({ scenario, preset, conduct, seed });
   }
   let next = 0;
   let done = 0;

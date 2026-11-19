@@ -60,7 +60,14 @@ node tools/bot/run.mjs adlertag '{"perRaid":3,"ignoreHigh":true,"preset":"realis
 node tools/bot/measure.mjs --name avant --seeds 10 --workers 2
 node tools/bot/measure.mjs --name apres --seeds 10 --only hiver,campagne/realistic
 node tools/bot/measure.mjs --summary avant
+node tools/bot/measure.mjs --name apres --seeds 20 --first 11 --append   # vingt graines neuves de plus
 ```
+
+`--append` garde le fichier et ne joue que les parties qu'il ne contient pas encore : une
+mesure interrompue reprend où elle s'était arrêtée, et l'on peut y ajouter des graines
+(`--first`) ou des lignes. **Un réglage se juge sur des graines qu'il n'a pas servi à
+choisir** : au lot M2.10, des seuils réglés sur les graines 1 à 10 ne tenaient plus sur les
+suivantes ; ils ont été repris sur trente graines et vérifiés sur vingt autres.
 
 Les résultats vont dans `tools/bot/out/<nom>.jsonl` (une ligne par partie, non versé au
 dépôt). La matrice complète, 32 lignes sur dix graines, prend environ quarante minutes sur
