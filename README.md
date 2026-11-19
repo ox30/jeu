@@ -8,9 +8,39 @@ avec un menu principal, un tutoriel en quatre leçons et une aide illustrée.
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.10.1** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit). Les
-décisions qui guident les lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md` (fichier du
-projet) ; le journal des travaux est dans `docs/journal-m2.7-m2.10.md`.
+**Version 2.10.2** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit et
+les retours des premières parties d'essai). Les décisions qui guident les lots M2.7 à M2.10
+sont dans `claude/decisions-audit-m2.md` (fichier du projet) ; le journal des travaux est dans
+`docs/journal-m2.7-m2.10.md`.
+
+## Nouveautés de la 2.10.2 : retours des parties d'essai
+
+- **États d'alerte et planning pour tout ce qui vole.** Les patrouilles de Coastal Command
+  et les sections de guet se fatiguent en vol comme la chasse, mais seule la chasse avait
+  ses états d'alerte : dans « Hiver dans l'Atlantique », une patrouille rentrait fatiguée
+  d'une sortie et ne pouvait plus être mise au repos. Toute escadrille au sol a maintenant
+  ses quatre états dans sa fiche (Repos, Disponible, Alerte, Cockpit), son planning dans la
+  page **Effectifs** (qui revient dans l'Atlantique) et dans l'onglet Effectifs de son
+  aérodrome ; un plan se copie d'une patrouille à l'autre. La page montre le type d'avion
+  et la fatigue de chaque escadrille. Une longue patrouille coûte cher : 4 points par heure
+  de vol, soit 37 pour une sortie de Whitley, 53 pour un Sunderland, 73 pour un Catalina ;
+  une nuit de huit heures au Repos en rend 64, et depuis le Repos il faut deux heures pour
+  décoller. **À savoir : la fatigue ne pèse que sur le combat ; une patrouille fatiguée voit
+  aussi loin qu'une autre.** Rien n'a changé dans la simulation : les règles de fatigue et
+  les mesures d'équilibre sont celles de la 2.10.
+- **Onglets d'une installation qui abrite des unités.** Les onglets des unités superposées
+  valent aussi pour un aérodrome ou un port : sa fiche porte son propre onglet, puis un par
+  escadrille au sol ou par navire au port (les groupes d'un groupe de soutien n'en font
+  qu'un). On clique l'aérodrome ou le port, puis l'onglet de l'unité voulue ; l'onglet de
+  l'installation ramène à sa fiche, qui pour un port liste désormais les navires présents.
+  Une escadrille qui décolle ou un groupe qui prend la mer quitte les onglets.
+- **Campagne : les avions à abattre suivent la chasse reportée.** Comme l'objectif de
+  chasse depuis le M2.7, le nombre d'avions à abattre d'une bataille jouée en campagne est
+  ramené à la part des chasseurs présents au matin : avec 58 % de sa chasse, le 15 septembre
+  demande 19 avions au lieu de 32. Le briefing, le journal et l'objectif disent les deux
+  nombres. Hors campagne, rien ne change.
+- L'**idée B** (ci-dessous) est du lot, et se coupe dans Réglages, onglet Carte et fiche :
+  « Patrouilles en mer ».
 
 ## Nouveauté de la 2.10.1 : la zone de patrouille plutôt que l'avion (idée B)
 
@@ -49,8 +79,8 @@ l'ancien affichage.
   Des escadrilles laissées toute la semaine à cinq minutes finissent fatiguées : la relève de
   nuit compte. En échange, voler fatigue moins qu'avant (4 points par heure de vol et 1 par
   décollage, au lieu de 7 et 2). Une escadrille fatiguée le dit sous son nom, dans sa fiche.
-  Sans fatigue, ou sans escadrille de chasse, le bouton Effectifs et le lien vers les plans
-  disparaissent.
+  Sans fatigue, le bouton Effectifs et le lien vers les plans disparaissent (depuis la
+  2.10.2 toute escadrille a ses états d'alerte : ils restent donc dans l'Atlantique).
 - **Alertes** : une alerte qui demande un ordre reste affichée (« À décider ») jusqu'à l'ordre
   ou jusqu'à ce qu'on la ferme (« Voir » montre l'endroit sans la fermer) ; une information
   s'efface seule. Au-delà de quatre alertes en attente, aucune n'est jetée : les plus
@@ -242,7 +272,8 @@ sur le banc d'essai (`data/help/images.json`).
 Quand plusieurs unités sont au même endroit (deux groupes dans le même port), leur pion porte
 le nombre d'unités : un clic ouvre la pile en onglets sur le bord gauche de la fiche ; l'unité
 de l'onglet choisi est mise en avant sur la carte, les autres s'estompent, et les ordres vont
-à elle seule.
+à elle seule. Un aérodrome ou un port qui abrite des unités a les mêmes onglets : le sien
+d'abord, puis un par escadrille au sol ou par navire au port.
 
 **La fiche d'une unité** s'ouvre quand on clique une unité ou une installation, sur la carte
 ou dans le tableau d'état : à droite de la carte, ou à gauche, ou en bas (Réglages, onglet
@@ -400,7 +431,8 @@ autonomie 1,6 fois plus vite.
    main dans la fiche garde la main sur le planning jusqu'à **« Retour au planning »**. La
    page **Effectifs** (bouton du bandeau, ou « Programmation des effectifs… » dans la fiche
    d'une escadrille ou d'un aérodrome ; tous deux absents d'une partie sans fatigue) montre les aérodromes à gauche et, à droite, les
-   escadrilles de celui qu'on choisit : leur état, la frise des 24 heures à venir et le plan
+   escadrilles de celui qu'on choisit, chasse, guet et Coastal Command : leur type, leur
+   état, leur fatigue, la frise des 24 heures à venir et le plan
    de chaque jour (heures de 00:00 à 24:00, il se répète), qu'on peut copier vers les autres
    escadrilles de l'aérodrome ou vers une autre. Pour un jour de mission, la case
    « Seulement les prochaines 24 h » ouvre un plan vierge en heures H depuis maintenant
@@ -592,7 +624,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 391 tests, environ quatre minutes
+npm test          # les 405 tests, environ quatre minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : leçons, pages, fiches, corrections, quarts, menu, interface
@@ -619,10 +651,14 @@ Le filet du M2.7 :
 - **Test de fumée** (`tools/smoke/smoke.mjs`) : la version de développement et le fichier
   unique démarrent, les quatre leçons du tutoriel sont jouées à la souris et au clavier
   jusqu'à leur dernière étape, la barre du haut tient sur une ligne à 1 024 px, les alertes,
-  les aides des fiches et les piles d'unités sont essayées,
+  les aides des fiches et les piles d'unités sont essayées, comme les états d'alerte d'une
+  patrouille et les onglets d'un port et d'un aérodrome (2.10.2),
   chaque page et chaque sorte de fiche s'ouvre dans chaque scénario, et les corrections du
   M2.7 sont rejouées (plaques empilées, touches d'un clavier AZERTY, bilan de fin, briefing
   de campagne, garde-fou sur une erreur provoquée).
+- Les tests de la 2.10.2 : repos et planning d'une patrouille (`tests/patrolrest.test.js`),
+  onglets des installations (`tests/siteunits.test.js`), avions à abattre en campagne
+  (`tests/campaign.test.js`).
 - Les tests du M2.7 lui-même : campagne en Réaliste (`tests/campaign.test.js`), bilan de fin
   et chrono (`tests/summary.test.js`), touches (`tests/keys.test.js`), test de clic
   (`tests/hit.test.js`), station mobile sur un jour de jeu (`tests/sites.test.js`), champs

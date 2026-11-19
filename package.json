@@ -1,6 +1,6 @@
 {
   "name": "jeu-1940",
-  "version": "2.10.1",
+  "version": "2.10.2",
   "private": true,
   "description": "Jeu 1940 : jeu navigateur sur la Seconde Guerre mondiale, Acte I, 1940-1941 (prototype M2)",
   "type": "module",

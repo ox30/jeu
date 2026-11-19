@@ -1416,3 +1416,113 @@ route ; au-dessus d'un convoi, qui suit le convoi ; en orbite et sur le retour ;
 radar puis avec ; quand elle est dessinée). Essai de fumée : une patrouille envoyée sur un convoi, à
 ×3 600 son repère est à côté du convoi et sa zone est là ; à ×60 l'avion ; en main, l'avion ;
 case décochée, l'avion. Captures `patrol-zone` et `patrol-aircraft`.
+
+## Retours de jeu · version 2.10.2
+
+Les quatre lots et l'idée B livrés, Florian joue la 2.10.1 dans l'artefact « travaux de
+Fable ». Son message du 19 novembre, 13 h 47, apporte deux demandes nées du jeu, une décision
+sur une question du compte rendu, et la confirmation de plusieurs choix. Branche
+`retours-jeu`, partie de `idee-b` ; version 2.10.2.
+
+### 19 novembre, 14 h 55 à 15 h 35 — ce qui a été fait
+
+**1. États d'alerte et planning pour tout ce qui vole.** Le constat de Florian, en jouant
+« Hiver dans l'Atlantique » : « une reconnaissance et l'escadrille est déjà fatiguée et ne
+remonte pas », et rien pour la mettre au repos. Ce que j'ai trouvé en lisant le code :
+
+- La simulation ne fait aucune différence entre les rôles. Une patrouille se fatigue en vol
+  (4 points par heure) comme un chasseur, son état d'alerte règle son délai de décollage, et
+  son planning s'applique (`crews.js`, `roster.js`, `orders.setAlert` : aucun test du rôle).
+- L'interface, elle, réservait tout à la chasse : boutons d'état d'alerte dans la fiche, page
+  Effectifs, onglet Effectifs d'un aérodrome, copie d'un plan. Et la relecture du 2.10 avait
+  masqué le bouton Effectifs là où il n'y a pas de chasseur (la page s'ouvrait vide), donc
+  dans tout l'Atlantique.
+- Laissée à son état de départ (Alerte à 5 minutes, +0,1 point par heure), une patrouille ne
+  récupère jamais. Une sortie de Sunderland (13 h d'autonomie) coûte 53 points, une de
+  Catalina (18 h) 73 : fatiguée dès la première, épuisée à la deuxième, pour toujours. C'est
+  exactement ce que Florian a vu. Le journal lui disait en plus « elle se bat moins bien.
+  Mettez-la au repos dès que possible », ce qu'il ne pouvait pas faire.
+
+Ce qui est fait : les limites « chasse seulement » sont levées dans `panels.js`
+(`tiredText`, `alertBlock`, `rosterTab`), `rosterPage.js`, `actions.js` (copie d'un plan) et
+`offered.js` (le bouton Effectifs est offert dès qu'il y a de la fatigue et une escadrille).
+La page Effectifs montre le type d'avion et la fatigue de chaque escadrille, pour voir d'un
+coup d'œil qui a besoin de repos. Le journal a une phrase pour une patrouille fatiguée ou
+épuisée, qui dit comment la reposer sans lui prêter de combat, et son épuisement n'est plus
+une alarme rouge. La leçon de l'escorte, qui a un Whitley mais n'enseigne pas les états
+d'alerte (c'est la leçon 4), se joue désormais sans fatigue : rien n'y change à l'écran.
+
+**Ce que je n'ai pas changé, et qu'il faut savoir : la fatigue d'une patrouille ne change
+pas ce qu'elle voit.** La fatigue ne pèse que sur le combat aérien (`formFactor` et
+`lossFactor` dans `combat.js`), et une patrouille ne se bat pas : ni la portée de vue
+(`patrols.js`), ni la chasse aux U-Boote (`asw.js`) ne lisent la fatigue. Le planning des
+patrouilles est donc, à ce jour, un geste sans enjeu dans les règles ; l'aide le dit (« une
+patrouille fatiguée voit aussi loin qu'une autre »). Donner un effet à cette fatigue (une
+patrouille fatiguée verrait moins loin) est une règle nouvelle qui toucherait l'équilibre de
+l'Atlantique, mesuré et validé : le joueur automatique « soigné » fait voler ses patrouilles
+chaque jour sans jamais les reposer, il faudrait lui apprendre le repos de nuit et rejouer
+les mesures. Je pose la question à Florian plutôt que de le faire sans lui.
+
+**2. Onglets d'une installation qui abrite des unités.** Demande : « afficher le port et les
+étiquettes d'unités », comme pour les unités superposées. `src/ui/siteUnits.js`, sans rien de
+la page : `unitsIn` (les escadrilles au sol d'un aérodrome, y compris celles appelées à leurs
+avions ; les groupes d'escorte au port, en ravitaillement ou en train d'appareiller, et les
+convois à quai), `siteOfSelection` (l'installation en main, ou celle où se tient l'unité en
+main) et `siteTabs` (l'installation d'abord, puis un onglet par unité). La fiche les dessine
+dans la bande d'onglets des piles. Choix :
+
+- Les onglets valent dans les deux sens : port en main ou unité du port en main, les mêmes
+  onglets, pour qu'on puisse revenir. Un clic sur la pile de groupes à côté d'un port ouvre
+  donc aussi l'onglet du port, qui était difficile à atteindre sous la pile.
+- Les groupes d'un groupe de soutien font un onglet, qui sélectionne le groupe de soutien,
+  comme sur la carte. Les escadrilles gardent un onglet chacune, même en big wing : une wing
+  se rassemble depuis plusieurs aérodromes.
+- Une unité de la pile de la carte qui n'est pas dans l'installation (un convoi qui passe
+  devant le port) garde son onglet, après les autres.
+- Un port étranger (Halifax, Sydney) n'a pas de fiche, donc pas d'onglets.
+- Les trains en chargement dans un dépôt ne sont pas des onglets : ce ne sont pas des unités
+  qu'on commande, et un dépôt en charge plusieurs à la fois.
+- La fiche d'un port liste maintenant les navires au port, comme celle d'un aérodrome liste
+  ses escadrilles.
+
+**3. Campagne : les avions à abattre suivent la chasse reportée.** Décision de Florian sur
+la question 2 du compte rendu : « que le nombre d'avions à abattre suive la chasse reportée
+d'Adlertag, comme l'objectif de chasse depuis le M2.7. C'est la même logique : on doit
+pouvoir gagner. » `createObjectives` ramène le compte d'un objectif « enemyDown » à la part
+des chasseurs présents au matin (compte × présents ÷ dotation, arrondi), une fois, au début
+de la bataille ; `full` garde le compte du scénario. Choix :
+
+- La règle vaut pour toute bataille commencée avec un report, donc aussi pour Adlertag après
+  Kanalkampf (90 avions à effectif complet) : une seule logique, celle de l'objectif de
+  chasse. Florian parlait du 15 septembre ; l'effet sur Adlertag est mesuré ci-dessous.
+- La part est celle réellement présente, escadrille par escadrille (58 % pour un report de
+  60 %), la même que dit le briefing.
+- Une relève qui arrive en cours de bataille ne change pas le compte.
+- Une bataille de campagne commencée avant la 2.10.2 et reprise d'une sauvegarde garde le
+  compte avec lequel elle a commencé : les objectifs reviennent tels qu'ils ont été gardés.
+  Le format de sauvegarde ne change pas (champ facultatif, noté dans `migrate.js`).
+
+**Décisions de Florian sans changement de code** : 32 avions le 15 septembre (40 pourra
+servir à une médaille d'argent) ; seuil de pertes de l'Atlantique gardé à 7,5 % ; aucun
+arrêt retiré dans l'Atlantique ; sauvegardes automatiques, réglages d'affichage et
+« Recommencer » restent comme livrés. L'idée B reste du lot, et se coupe dans les Réglages.
+
+**Un test dont l'énoncé a changé.** `tests/review29.test.js` affirmait que le bouton
+Effectifs n'est pas offert dans l'Atlantique ni dans la leçon de l'escorte. C'était la règle
+voulue par la relecture du 2.10 ; Florian demande l'inverse pour l'Atlantique. L'assertion
+dit maintenant la règle demandée (offert dans l'Atlantique avec fatigue, absent sans
+fatigue, absent sans aucune escadrille, absent de la leçon de l'escorte parce qu'elle se
+joue sans fatigue). Ce n'est pas un test affaibli pour passer : c'est le comportement
+demandé qui a changé, et il a ses propres tests.
+
+**Essais.** 405 tests (391 avant) : `tests/patrolrest.test.js` (cinq : une patrouille se
+repose et se rappelle comme un chasseur ; depuis le repos elle part deux heures après
+l'ordre ; son plan du jour ; la page liste toutes les escadrilles ; les phrases du journal),
+`tests/siteunits.test.js` (six : aérodrome, installation vide, port, port étranger, groupe
+de soutien, pile de la carte), `tests/campaign.test.js` (trois de plus : le compte suit la
+chasse reportée, il est jugé et gardé, il est dit). Essai de fumée : 246 vérifications (228
+avant), dont les états d'alerte d'un Whitley dans l'Atlantique, la page Effectifs sur les
+patrouilles, les onglets de Liverpool et de Tangmere, le briefing de campagne (« 19 au lieu
+de 32 »). Captures `patrol-alert`, `patrol-roster`, `site-tabs-port`, `site-tabs-group`,
+`site-tabs-airfield`, `site-tabs-squadron`, `briefing-campaign`, `objective-campaign`.
+Ordres au hasard : 10 000 par scénario, sans erreur.
