@@ -60,6 +60,29 @@ async function tutorial(page) {
   note(await game(page, () => document.querySelectorAll('#menu [data-lesson]').length === 4 && window.__game.menuPage === 'training'), 'tutorial: the training page lists the four lessons');
   await shot(page, 'lessons-menu');
 
+  // The time a lesson takes (the document asks for three to five minutes): its texts read
+  // attentively, as a first reading is (120 words a minute), what the script spends waiting
+  // for the game, and a dozen seconds for each order the pupil has to find and give. The
+  // second figure is the same lesson replayed by someone who reads fast (200 words a minute).
+  const words = await game(page, async () => {
+    const { t } = await import('./src/core/i18n.js');
+    const out = {};
+    for (const l of window.__game.data.tutorial.lessons) {
+      out[l.id] = l.steps.reduce((n, s) => n + `${t(`tutorial.lessons.${l.id}.steps.${s.id}.title`)} ${t(`tutorial.lessons.${l.id}.steps.${s.id}.text`)}`.split(/\s+/).length, 0);
+    }
+    return out;
+  });
+  const ORDERS = { intercept: 2, supply: 3, escort: 2, alert: 3 };
+  let began = Date.now();
+  const length = (id, name) => {
+    const played = (Date.now() - began) / 1000;
+    const first = (words[id] / 120 * 60 + played + ORDERS[id] * 12) / 60;
+    const again = (words[id] / 200 * 60 + played + ORDERS[id] * 5) / 60;
+    note(first >= 3 && first <= 5.5 && again >= 1.5, `${name}: three to five minutes at a first reading`,
+      `${words[id]} words, ${Math.round(played)} s of game and script, ${ORDERS[id]} orders: ${first.toFixed(1)} min at first, ${again.toFixed(1)} min replayed`);
+    began = Date.now();
+  };
+
   // ---- lesson 1: a raid lost as a demonstration, then one to win ----
   await page.click('#menu [data-lesson="intercept"]');
   await page.waitForSelector('#coach:not([hidden])');
@@ -126,6 +149,7 @@ async function tutorial(page) {
   note(await game(page, () => window.__game.onMenu && window.__game.menuPage === 'training' && document.querySelectorAll('#menu .mm-step.won').length === 1),
     'lesson 1: played to its end, it is marked done and the list comes back');
   note(await game(page, () => !window.__game.store.current()), 'lesson 1: a lesson finished is no game to continue');
+  length('intercept', 'lesson 1');
 
   // ---- lesson 2: a train and a minimum stock ----
   await page.click('#menu [data-lesson="supply"]');
@@ -154,6 +178,7 @@ async function tutorial(page) {
   note(await untilStep(page, 'end', 120000) && await game(page, () => window.__game.world.sites.get('airfield:biggin_hill').stocks.fuel >= 20), 'lesson 2: the fuel arrives at Biggin Hill');
   await coachNext(page);
   await sleep(300);
+  length('supply', 'lesson 2');
 
   // ---- lesson 3: a watch report, a group sent, the depth charges ----
   await page.click('#menu [data-lesson="escort"]');
@@ -187,6 +212,7 @@ async function tutorial(page) {
   note((await lessonStep(page)).endsWith(':end') && await game(page, () => window.__game.world.escorts[0].state === 'escorting'), 'lesson 3: the group joins its convoy');
   await coachNext(page);
   await sleep(300);
+  length('escort', 'lesson 3');
 
   // ---- lesson 4: alert states and fatigue ----
   await page.click('#menu [data-lesson="alert"]');
@@ -218,6 +244,7 @@ async function tutorial(page) {
   note(await untilStep(page, 'end', 90000), 'lesson 4: a night at rest brings the fatigue down');
   await coachNext(page);
   await sleep(300);
+  length('alert', 'lesson 4');
   note(await game(page, () => document.querySelectorAll('#menu .mm-step.won').length === 4), 'tutorial: the four lessons are played to their end and marked done');
   await page.click('#menu [data-menu="home"]');
   await sleep(150);
@@ -1227,6 +1254,250 @@ async function menus(page, errors) {
   note(errors.length === before, 'menu: no console error', errors.slice(before, before + 2).join(' | '));
 }
 
+/**
+ * M2.10, the interface in the page: the top bar on one line (C7), the alerts that are not lost
+ * (C6), the help of the sheets folded (C8), the stacks and their tabs (C9), the Effectifs
+ * button only where the pilots tire (I6).
+ */
+async function interfaceChecks(page, errors) {
+  const before = errors.length;
+  const start = async (id, settings = null) => {
+    await game(page, ([s, own]) => {
+      const a = window.__game;
+      a.campaign.unlockAll = true;
+      if (own) Object.assign(a.settings, own);
+      a.restart(s);
+    }, [id, settings]);
+    await settle(page);
+    await game(page, () => {
+      window.__game.paused = true;
+    });
+    await settle(page);
+  };
+  await step('interface: the top bar (C7)', async () => {
+    await page.setViewportSize({ width: 1024, height: 700 });
+    for (const id of ['quinze-septembre', 'hiver-atlantique']) {
+      await start(id);
+      const m = await game(page, () => {
+        const hud = document.getElementById('hud');
+        const shown = [...hud.querySelectorAll('button')].filter((b) => b.offsetParent);
+        const tops = shown.map((b) => b.getBoundingClientRect());
+        return {
+          height: hud.offsetHeight, buttons: shown.length, overflow: hud.scrollWidth > hud.clientWidth + 1,
+          spread: Math.round(Math.max(...tops.map((r) => r.bottom)) - Math.min(...tops.map((r) => r.top))),
+          right: Math.round(Math.max(...tops.map((r) => r.right))),
+        };
+      });
+      note(m.height <= 60 && m.spread <= 60 && !m.overflow && m.right <= 1024, `${id}: the top bar holds on one line at 1 024 px`, JSON.stringify(m));
+      await shot(page, `bar-1024-${id}`);
+    }
+    // In the Atlantic: one « Vue » button, with the views of the scenario and their keys.
+    const tips = await game(page, () => ['btn-ruler', 'btn-view', 'btn-journal', 'btn-help', 'btn-menu'].map((id) => document.getElementById(id).title));
+    note(tips[0] === 'Règle (R)' && /Vue/.test(tips[1]) && /\(J\)/.test(tips[2]) && /\(\?\)/.test(tips[3]), 'top bar: each tool tells its name and its key', tips.join(' | '));
+    note(await game(page, () => !document.getElementById('btn-atlantic') && !document.getElementById('btn-settings')), 'top bar: the three view buttons and Réglages are gone from it');
+    await page.click('#btn-view');
+    await sleep(150);
+    const views = await game(page, () => ({ open: !document.getElementById('view-menu').hidden, names: [...document.querySelectorAll('#view-menu [data-view]')].map((b) => b.dataset.view) }));
+    note(views.open && views.names.join(',') === 'atlantic,britain', 'top bar: « Vue » lists the views of the scenario', views.names.join(','));
+    await shot(page, 'bar-view-menu');
+    const scale0 = await game(page, () => window.__game.camera.scale);
+    await page.click('#view-menu [data-view="britain"]');
+    await page.waitForFunction(() => !window.__game.camera.anim, null, { timeout: 8000 });
+    note(await game(page, (s) => document.getElementById('view-menu').hidden && window.__game.camera.scale > s * 1.5, scale0), 'top bar: a view chosen frames the map and closes the menu');
+    // A view the scenario does not offer has no key either (England, in the Atlantic).
+    const cam = () => game(page, () => [Math.round(window.__game.camera.cx), Math.round(window.__game.camera.cy), Math.round(window.__game.camera.scale * 1000)].join(','));
+    const here = await cam();
+    await page.keyboard.press('g');
+    await sleep(700);
+    note((await cam()) === here, 'top bar: the key of a view the scenario does not offer does nothing');
+    await page.keyboard.press('a');
+    await page.waitForFunction(() => !window.__game.camera.anim, null, { timeout: 8000 });
+    note((await cam()) !== here, 'top bar: the key of a view it offers goes there');
+    await page.keyboard.press('?');
+    await sleep(250);
+    note(await game(page, () => document.getElementById('dlg-help').open), 'top bar: « ? » opens the help');
+    await closeDialogs(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await sleep(200);
+    note(await game(page, () => [...document.querySelectorAll('#hud .tool-label')].some((x) => x.offsetParent && x.textContent.trim().length > 2)), 'top bar: with room, a short word stands under each pictogram');
+    await shot(page, 'bar-1440');
+  });
+  await step('interface: Effectifs only where the pilots tire (I6)', async () => {
+    await start('adlertag', { fatigue: 'off' });
+    const off = await game(page, async () => {
+      const a = window.__game;
+      const actions = await import('./src/ui/actions.js');
+      a.unitTabs = { squadron: 'cmd' };
+      actions.select(a, 'squadron', a.world.squadrons.find((s) => s.role === 'fighter').id);
+      a.dirtyPanels = true;
+      await new Promise((r) => setTimeout(r, 300));
+      return { button: document.getElementById('btn-roster').hidden, link: Boolean(document.querySelector('#unit-panel [data-action="open-roster"]')), fatigue: a.world.settings.fatigue };
+    });
+    note(off.fatigue === 'off' && off.button && !off.link, 'without fatigue: no Effectifs button, no link to the plans in the sheet', JSON.stringify(off));
+    await start('adlertag', { fatigue: 'on' });
+    const on = await game(page, async () => {
+      const a = window.__game;
+      const actions = await import('./src/ui/actions.js');
+      a.unitTabs = { squadron: 'cmd' };
+      actions.select(a, 'squadron', a.world.squadrons.find((s) => s.role === 'fighter').id);
+      a.dirtyPanels = true;
+      await new Promise((r) => setTimeout(r, 300));
+      return { button: document.getElementById('btn-roster').hidden, link: Boolean(document.querySelector('#unit-panel [data-action="open-roster"]')) };
+    });
+    note(!on.button && on.link, 'with fatigue: the Effectifs button and the link are there', JSON.stringify(on));
+  });
+  await step('interface: alerts that are not lost (C6)', async () => {
+    await start('hiver-atlantique', { fatigue: 'on' });
+    // Seven convoys fall behind at once (the rule that spaces the alerts keeps a real game from
+    // doing so often: the queue itself is tested in tests/alertqueue.test.js; here, the page).
+    await game(page, async () => {
+      const a = window.__game;
+      const { raiseAlert } = await import('./src/ui/alerts.js');
+      const { addLogEntry } = await import('./src/ui/panels.js');
+      for (let n = 1; n <= 7; n++) {
+        const logId = addLogEntry(a, `HX ${100 + n} : deux traînards.`, 'warning', a.world.t);
+        raiseAlert(a, { type: 'straggler', t: a.world.t, level: 'warning', variant: 'text', params: { convoy: `HX ${100 + n}`, n: 2 }, focus: null, decision: true, logId });
+      }
+      a.dirtyHud = true;
+    });
+    await sleep(400);
+    await closeDialogs(page);
+    const st = await game(page, () => {
+      const a = window.__game;
+      const box = a.alertBox;
+      const count = document.querySelector('#btn-journal .tool-count');
+      return {
+        current: box.current && { type: box.current.type, decision: Boolean(box.current.decision) }, queue: box.queue.length, unread: box.unread.length,
+        badge: count && !count.hidden ? count.textContent : '', kind: !document.getElementById('alert-kind').hidden, timer: a.alertTimer === null,
+        title: document.getElementById('btn-journal').title,
+      };
+    });
+    note(st.queue === 4 && st.unread === 2 && st.badge === '2', 'alerts: beyond four waiting, none is thrown away: the Journal button counts those not read', JSON.stringify(st));
+    note(/non lue/.test(st.title), 'alerts: and its bubble says so', st.title);
+    if (st.current && st.current.decision) note(st.kind && st.timer, 'alerts: one that asks for an order is marked « À décider » and does not go by itself');
+    await shot(page, 'alerts-unread');
+    await page.click('#btn-journal');
+    await sleep(300);
+    const read = await game(page, () => ({
+      unread: window.__game.alertBox.unread.length, marked: document.querySelectorAll('#log li.unread').length,
+      badge: !document.querySelector('#btn-journal .tool-count').hidden,
+    }));
+    note(read.unread === 0 && read.marked === 2 && !read.badge, 'alerts: the Journal button opens the journal on them, marked, and the counter goes', JSON.stringify(read));
+    await shot(page, 'alerts-journal');
+    // A raid alert stays while no squadron is sent, and goes when one is.
+    await start('quinze-septembre', { fatigue: 'on' });
+    await game(page, () => {
+      const a = window.__game;
+      for (let i = 0; i < 40000 && !a.world.contacts.size; i++) a.stepWorld(1);
+    });
+    await sleep(500);
+    await closeDialogs(page);
+    const raid = await game(page, () => {
+      const a = window.__game;
+      const c = a.alertBox.current;
+      return c ? { type: c.type, decision: c.decision, raidId: c.focus && c.focus.raidId, shown: !document.getElementById('alert').hidden, kind: !document.getElementById('alert-kind').hidden, timer: a.alertTimer } : null;
+    });
+    note(raid && raid.type === 'raidDetected' && raid.decision && raid.shown && raid.kind && raid.timer === null, 'alerts: a raid seen asks for an order: it stays, marked « À décider »', JSON.stringify(raid));
+    if (raid && raid.raidId) {
+      const gone = await game(page, async (raidId) => {
+        const a = window.__game;
+        const O = await import('./src/sim/orders.js');
+        const Q = await import('./src/sim/query.js');
+        const sq = a.world.squadrons.find((s) => s.role === 'fighter' && s.state === 'ready');
+        const est = Q.contactEstimate(a.world, a.world.contacts.get(raidId));
+        O.scramble(a.world, sq, { route: [[est.x, est.y, 5000]], raidId });
+        if (!sq.intercept) sq.attackRaid = raidId;
+        await new Promise((r) => setTimeout(r, 400));
+        const c = a.alertBox.current;
+        return !c || !c.focus || c.focus.raidId !== raidId;
+      }, raid.raidId);
+      note(gone, 'alerts: once a squadron is sent against it, the alert closes by itself');
+    }
+  });
+  await step('interface: the help of the sheets (C8)', async () => {
+    await start('hiver-atlantique', { sheetHelp: 'shown' });
+    const open = async () => {
+      await game(page, async () => {
+        const a = window.__game;
+        const actions = await import('./src/ui/actions.js');
+        a.unitTabs = { escort: 'cmd' };
+        actions.select(a, 'escort', a.world.escorts[0].id);
+        a.dirtyPanels = true;
+      });
+      await sleep(400);
+    };
+    const hints = () => game(page, () => {
+      const all = [...document.querySelectorAll('#unit-body p.hint')];
+      return { all: all.length, visible: all.filter((p) => p.offsetParent).length, toggles: document.querySelectorAll('#unit-body .hint-toggle').length };
+    });
+    await open();
+    const shown = await hints();
+    note(shown.all >= 2 && shown.visible === shown.all && shown.toggles === 0, 'sheet help: shown by default, without a button', JSON.stringify(shown));
+    await game(page, () => {
+      window.__game.settings.sheetHelp = 'folded';
+      window.__game.dirtyPanels = true;
+    });
+    await sleep(400);
+    const folded = await hints();
+    note(folded.visible < shown.visible && folded.toggles >= 1, 'sheet help: folded, each section keeps a « ? »', JSON.stringify(folded));
+    await shot(page, 'help-folded');
+    await closeDialogs(page);
+    await page.click('#unit-body .hint-toggle');
+    await sleep(300);
+    const one = await hints();
+    note(one.visible > folded.visible, 'sheet help: a « ? » opens the help of its section', JSON.stringify(one));
+    await game(page, () => {
+      window.__game.settings.sheetHelp = 'shown';
+      window.__game.dirtyPanels = true;
+    });
+  });
+  await step('interface: stacks and tabs (C9)', async () => {
+    await start('hiver-atlantique', { seaComms: 'direct' });
+    await page.keyboard.press('l');
+    await page.waitForFunction(() => !window.__game.camera.anim, null, { timeout: 8000 });
+    await sleep(400);
+    await closeDialogs(page);
+    const stacks = await game(page, () => {
+      const r = window.__game.canvas.getBoundingClientRect();
+      return window.__game.stacks.map((s) => ({ family: s.family, x: r.left + s.x, y: r.top + s.y, members: s.members.map((m) => `${m.kind}:${m.id}`) }));
+    });
+    const s0 = stacks.find((s) => s.family === 'sea' && s.members.length >= 2);
+    note(Boolean(s0), 'stacks: two groups in the same port make a stack', JSON.stringify(stacks.map((s) => s.members)));
+    if (!s0) return;
+    await shot(page, 'stack');
+    const state = () => game(page, () => JSON.stringify([window.__game.selection, window.__game.world.escorts.map((e) => e.route.length)]));
+    const before0 = await state();
+    await page.mouse.move(s0.x, s0.y);
+    await page.mouse.down();
+    await page.mouse.move(s0.x - 150, s0.y - 60, { steps: 8 });
+    await page.mouse.up();
+    await sleep(250);
+    note((await state()) === before0, 'stacks: a drag from a stack not yet opened gives no order');
+    await page.mouse.click(s0.x, s0.y);
+    await sleep(500);
+    const tabs = () => game(page, () => ({
+      sel: window.__game.selection, hidden: document.getElementById('unit-stack').hidden,
+      tabs: [...document.querySelectorAll('#unit-stack button')].map((b) => `${b.textContent.trim()}${b.classList.contains('active') ? '*' : ''}`),
+    }));
+    const first = await tabs();
+    note(!first.hidden && first.tabs.length === s0.members.length && first.sel && first.sel.kind === 'escort', 'stacks: a click opens the stack as tabs, the first unit in hand', JSON.stringify(first));
+    await shot(page, 'stack-tabs');
+    await page.click('#unit-stack button:nth-child(2)');
+    await sleep(400);
+    const second = await tabs();
+    note(second.sel && first.sel && second.sel.id !== first.sel.id && /\*/.test(second.tabs[1]), 'stacks: a tab takes the other unit of the stack in hand', JSON.stringify(second));
+    // The drag now goes to the unit in hand, and to it alone.
+    await page.mouse.move(s0.x, s0.y);
+    await page.mouse.down();
+    await page.mouse.move(s0.x - 160, s0.y - 40, { steps: 10 });
+    await page.mouse.up();
+    await sleep(400);
+    const routed = await game(page, () => window.__game.world.escorts.filter((e) => e.route.length > 0 || e.state === 'sailing' || e.plan.length > 0).map((e) => e.id));
+    note(routed.length === 1 && second.sel && routed[0] === second.sel.id, 'stacks: a drag from the open stack routes the unit in hand, and no other', routed.join(' '));
+  });
+  note(errors.length === before, 'interface: no console error', errors.slice(before, before + 2).join(' | '));
+}
+
 async function main() {
   const server = await serve();
   try {
@@ -1241,6 +1512,7 @@ async function main() {
     if (wanted('corrections')) await corrections(dev.page, dev.errors);
     if (wanted('watches')) await watches(dev.page, dev.errors);
     if (wanted('menus')) await menus(dev.page, dev.errors);
+    if (wanted('interface')) await interfaceChecks(dev.page, dev.errors);
     note(dev.errors.length === 0, 'development version: no console error', dev.errors.slice(0, 3).join(' | '));
     await dev.browser.close();
 

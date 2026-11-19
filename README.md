@@ -3,14 +3,44 @@
 Prototype du jeu navigateur sur la Seconde Guerre mondiale : le joueur commande le soutien
 allié (aviation, escortes, logistique), jamais les armées. Le M2 réunit l'Âge I en une
 campagne de quatre scénarios, de la bataille de la Manche à l'hiver 1941 dans l'Atlantique,
-avec un menu principal, un tutoriel guidé et une aide illustrée.
+avec un menu principal, un tutoriel en quatre leçons et une aide illustrée.
 
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.9.0** (lot M2.9, menu principal, sauvegardes et réglages). Les décisions qui guident les
+**Version 2.10.0** (lot M2.10, interface, équilibre et tutoriel). Les décisions qui guident les
 lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md` (fichier du projet) ; le journal des
 travaux est dans `docs/journal-m2.7-m2.10.md`.
+
+## Nouveautés du M2.10
+
+- **Tutoriel en quatre leçons** de trois à cinq minutes (menu principal, Entraînement) :
+  *intercepter* (un raid perdu en démonstration, l'instructeur faisant décoller trop tard,
+  avec le bilan des heures ; puis un raid à gagner, une douzaine de bombardiers sans
+  escorte), *ravitailler* (un train de carburant et un stock minimum), *escorter* (un
+  rapport de quart, un groupe envoyé au-devant d'un convoi, les consignes) et *états d'alerte
+  et fatigue*. Chaque leçon a son petit scénario et ses réglages ; elle se joue d'une traite
+  et ne remplace pas la partie en cours.
+- **Équilibre** : ne rien faire perd nettement dans tous les scénarios ; jouer simple gagne
+  environ quatre fois sur cinq en Standard ; jouer soigné gagne en Réaliste, pas forcément du
+  premier coup. Kanalkampf demande aussi des avions abattus et une chasse gardée ; Adlertag
+  compte les heures où ses aérodromes et ses radars sont hors service sur toute la semaine,
+  et ses bases ont moins de carburant d'avance.
+- **Fatigue** : l'Alerte 5 min fatigue un peu, Disponible 30 min repose peu, le Repos repose.
+  Des escadrilles laissées toute la semaine à cinq minutes finissent fatiguées : la relève de
+  nuit compte. Sans fatigue, le bouton Effectifs et le lien vers les plans disparaissent.
+- **Alertes** : une alerte qui demande un ordre reste affichée (« À décider ») jusqu'à l'ordre
+  ou jusqu'à ce qu'on la ferme ; une information s'efface seule. Au-delà de quatre alertes en
+  attente, aucune n'est jetée : le bouton Journal compte les non lues et ouvre le journal sur
+  elles.
+- **Barre du haut** sur une ligne à 1 024 px : pictogrammes avec une bulle (« Règle (R) ») et un
+  mot dessous quand la place le permet, un seul bouton « Vue », le Journal (J), l'aide (?) et
+  le menu ☰.
+- **Aides des fiches** repliables (Réglages, Carte et fiche) : chaque section garde un « ? »
+  qui rouvre la sienne ; les avertissements restent visibles.
+- **Unités superposées** : un pion empilé porte le nombre d'unités ; un clic ouvre la pile en
+  onglets au-dessus de la fiche, et le glisser part de l'unité en main, jamais d'une autre.
+  Un glisser lâché sur plusieurs cibles demande laquelle.
 
 ## Nouveautés du M2.9
 
@@ -140,7 +170,7 @@ d'entrée.
 ## Scénarios et campagne
 
 Le jeu s'ouvre sur le **menu principal**, une page à part : Continuer (la partie en cours),
-Campagne, Scénarios, Entraînement (avec le tutoriel), Charger, Réglages et Aide. En jeu, le
+Campagne, Scénarios, Entraînement (les quatre leçons du tutoriel), Charger, Réglages et Aide. En jeu, le
 bouton ☰ du bandeau ouvre le menu de la partie (Reprendre, Sauvegarder, Exporter, Réglages de
 la partie, Aide, Recommencer, Menu principal) ; le jeu est en pause tant qu'il est ouvert.
 « Campagne » montre la chaîne de l'acte I : une victoire ouvre le scénario suivant, et la
@@ -153,7 +183,7 @@ Standard, Réaliste) se choisit sur les pages Campagne et Scénarios.
 | Adlertag | 12-18 août 1940 | raids sur les radars et les aérodromes, chasses libres, station radar mobile, relève |
 | 15 septembre | une journée | deux grandes vagues sur les docks de Londres, Big Wing de Duxford |
 | Hiver dans l'Atlantique | 10 janvier - 31 mars 1941 | convois réguliers HX et SC, meutes de U-Boote, dollars, prêt-bail |
-| Entraînement | juillet 1940 | un convoi, quelques raids, et le **tutoriel guidé** |
+| Entraînement | juillet 1940 | les quatre leçons du **tutoriel**, puis un scénario d'essai : un convoi, quelques raids |
 
 Entre les batailles aériennes, le réglage « Campagne » reporte une partie des pertes : en
 Standard, la chasse commence la bataille suivante avec la moitié des avions perdus en moins
@@ -170,9 +200,18 @@ refaire.
 
 ## Comment jouer
 
-Trois cartes : Atlantique (touche A), Grande-Bretagne (L) et Angleterre (G). L'**aide**
-(bouton « Aide ») tient en onglets — Ce scénario, La fiche, Air, Mer, Temps et alertes,
-Touches — avec quelques images prises sur le banc d'essai (`data/help/images.json`).
+Trois cartes, par le bouton « Vue » de la barre du haut ou au clavier : Atlantique (touche
+A), Grande-Bretagne (L) et Angleterre (G) ; chaque scénario ne propose que les siennes. Les
+outils de la barre sont des pictogrammes, avec leur nom et leur touche en bulle (« Règle
+(R) ») et un mot dessous quand la place le permet : Vue, Règle, Radar, Formations, Effectifs
+(seulement quand les pilotes fatiguent), Rapports, Fiches, Journal (J, avec le compte des
+alertes non lues), Aide (?) et le menu ☰. L'**aide** tient en onglets — Ce scénario, La
+fiche, Air, Mer, Temps et alertes, Parties et réglages, Touches — avec quelques images prises
+sur le banc d'essai (`data/help/images.json`).
+
+Quand plusieurs unités sont au même endroit (deux groupes dans le même port), leur pion porte
+le nombre d'unités : un clic ouvre la pile en onglets au-dessus de la fiche, et les ordres
+vont à l'unité dont l'onglet est choisi.
 
 **La fiche d'une unité** s'ouvre quand on clique une unité ou une installation, sur la carte
 ou dans le tableau d'état : à droite de la carte, ou à gauche, ou en bas (Réglages, onglet
@@ -320,14 +359,16 @@ autonomie 1,6 fois plus vite.
      temps maximum), ralentit vers la cible ou part sans lui ; une big wing pose la question
      (Entrée : le choix du plan). Les retardataires suivent le plan en retard, à pleine
      vitesse, et reprennent leur place en la rattrapant.
-7. **Pilotes.** La fatigue monte en vol et en combat, baisse au sol. L'état d'alerte règle le
+7. **Pilotes.** La fatigue monte en vol et en combat ; au sol elle baisse au Repos, baisse
+   peu en Disponible, monte un peu en Alerte et davantage en Cockpit : une escadrille tenue
+   toute la semaine à cinq minutes finit fatiguée. L'état d'alerte règle le
    délai pour être en l'air après l'ordre de décoller : *Repos* 2 h (le personnel peut être
    n'importe où ; on le confirme, récupération rapide), *Disponible* 30 min, *Alerte* 5 min,
    *Cockpit* 2 min (fatigue). Monter d'un état prend la différence (du repos à l'alerte :
    1 h 55, la fiche montre le rappel en cours) ; descendre est immédiat. Un état choisi à la
    main dans la fiche garde la main sur le planning jusqu'à **« Retour au planning »**. La
    page **Effectifs** (bouton du bandeau, ou « Programmation des effectifs… » dans la fiche
-   d'une escadrille ou d'un aérodrome) montre les aérodromes à gauche et, à droite, les
+   d'une escadrille ou d'un aérodrome ; tous deux absents d'une partie sans fatigue) montre les aérodromes à gauche et, à droite, les
    escadrilles de celui qu'on choisit : leur état, la frise des 24 heures à venir et le plan
    de chaque jour (heures de 00:00 à 24:00, il se répète), qu'on peut copier vers les autres
    escadrilles de l'aérodrome ou vers une autre. Pour un jour de mission, la case
@@ -450,8 +491,8 @@ Le réglage **B-Dienst** (Partie) dit quelle part des messages de routage des co
 marine allemande lit : 0 % en Arcade, 25 % en Standard, 50 % en Réaliste (0, 10, 25, 50, 75
 ou 100 %). **Communications en mer** (Partie) : directes en Arcade, silence radio en Standard
 et en Réaliste (il ne joue que dans l'Atlantique). **Arrêt aux relèves** (Temps et alertes) :
-sur décision seulement, matin et soir aussi, ou à chaque relève. **Ombre de la nuit** (Carte
-et fiche).
+sur décision seulement, matin et soir aussi, ou à chaque relève. **Ombre de la nuit** et
+**Aides des fiches** (affichées, ou repliées derrière un « ? » par section) : Carte et fiche.
 
 Options : pause pendant les pages et durée du plan d'exception des Effectifs (Partie) ;
 ralenti à l'alerte avec une vitesse pour chaque alerte, confirmation des vitesses élevées
@@ -492,9 +533,10 @@ ou en bas de la carte) et l'affichage économe, un peu moins net mais plus fluid
 ├── data/
 │   ├── maps/                  côtes Natural Earth projetées, noms de lieux
 │   ├── scenarios/             kanalkampf, adlertag, quinze-septembre, hiver-atlantique,
-│   │                          m0-july-1940 (entraînement)
+│   │                          m0-july-1940 (entraînement), lecon-* (les leçons, écrites
+│   │                          comme une bataille avec des changements : « base »)
 │   ├── campaign.json          chaîne de campagne, vues, cartes de scénario, couches et outils
-│   ├── tutorial.json          étapes du tutoriel
+│   ├── tutorial.json          les quatre leçons du tutoriel : scénario, réglages, étapes
 │   ├── rules.json             équilibrage (avions, combat, détection, logistique, U-Boote)
 │   ├── presets.json           préréglages Arcade, Standard, Réaliste
 │   ├── help/images.json       images de l'aide, prises sur le banc d'essai
@@ -519,10 +561,10 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 350 tests, environ quatre minutes
+npm test          # les 376 tests, environ quatre minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
-npm run smoke     # le jeu dans Chrome sans écran : tutoriel, pages, fiches, corrections, quarts
+npm run smoke     # le jeu dans Chrome sans écran : leçons, pages, fiches, corrections, quarts, menu, interface
 npm run build     # reconstruit dist/index.html
 ```
 
@@ -544,7 +586,9 @@ Le filet du M2.7 :
   aucun texte français dans le code, chaque clé de texte citée existe, aucune règle morte
   dans `data/rules.json`.
 - **Test de fumée** (`tools/smoke/smoke.mjs`) : la version de développement et le fichier
-  unique démarrent, le tutoriel est joué à la souris et au clavier jusqu'à sa dernière étape,
+  unique démarrent, les quatre leçons du tutoriel sont jouées à la souris et au clavier
+  jusqu'à leur dernière étape, la barre du haut tient sur une ligne à 1 024 px, les alertes,
+  les aides des fiches et les piles d'unités sont essayées,
   chaque page et chaque sorte de fiche s'ouvre dans chaque scénario, et les corrections du
   M2.7 sont rejouées (plaques empilées, touches d'un clavier AZERTY, bilan de fin, briefing
   de campagne, garde-fou sur une erreur provoquée).
