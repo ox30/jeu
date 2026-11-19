@@ -1827,3 +1827,162 @@ groupe d'escorte en haute mer (tracé en attente, prolongé depuis l'anneau, re�
 puis une étape). Branche `retours-jeu-3`, demande de fusion nº 8, vérifications de GitHub
 vertes (commit adfc2e2, le dernier avant cette ligne). Artefact « Jeu 1940 — travaux de
 Fable » mis à jour (2.10.4) ; compte rendu du projet complété. Non relu par un agent neuf.
+
+## Retours de jeu, quatrième tour · version 2.10.5
+
+Message de Florian du 19 novembre, 22 h 43. Une décision, une demande et une question :
+
+- « On laisse la régle libre après les étape car je ne vais pas toujours mesurer en bout
+  d'étape par exemple. Donc laisse tel quel. » Pas d'anneau au bout des étapes : rien à faire.
+- « que fais le convoi une fois au bout de la route manuel ? Il faudrait comme pour nos
+  escorte pouvoir donner un ordre a éxecuter après. Comme "rejoindre Embouchut Nord de
+  l'Irlande" ou " Canal St Georges" Ou continuer selon cap, ou reprendre route de l'amirauté.
+  (mais attention que cela match pour les autres scénario, donc le CW de Kanalkampf doit
+  avoir d'autre objecif. »
+- « une route manuel qui se termine dans les cercles de "Nord de l'Irlande" Canal
+  saint-george ou vers le port pour le CW de Kanalkampf, est-ce qu'elle automatise la passage
+  en "pilote" Si non, il faudrait comme pour les avions qui peuvent attérir ailleur, que
+  l'ordre de fin puisse être "rejoindre Liverpool par St george, ou Irlande, etc, etc. »
+
+Branche `retours-jeu-4`, partie de `retours-jeu-3` ; version 2.10.5.
+
+### 19 novembre, 22 h 45 à 20 novembre, 0 h 30 — ce qui a été trouvé et fait
+
+**1. La réponse à la question, lue dans le code de la 2.10.4.** Oui, mais pas comme on
+pourrait le croire :
+
+- au bout d'un tracé qui ne mène à aucun port, le convoi s'arrête et attend (« en attente
+  d'ordres en mer ») ; au bout de ses étapes, il garde le cap ;
+- un tracé est prolongé de lui-même jusqu'au port s'il passe à moins de 160 km de l'entrée
+  d'un chenal (`convoy.gateRadiusKm`) et finit à moins de 450 km du port
+  (`convoy.approachEndKm`) : il est coupé à son point le plus proche de l'entrée, relié à
+  l'entrée en ligne droite, et le chenal est ajouté. Un tracé qui finit dans un cercle
+  « Pilote » (40 km) remplit donc toujours la condition. Un tracé qui finit à moins de 15 km
+  d'un port y entre aussi ;
+- le port est celui qui est le plus près **de la fin du tracé**. L'entrée du Nord de
+  l'Irlande est à 221 km de la Clyde et à 453 km de Liverpool, à vol d'oiseau : un tracé qui
+  finit dans ce cercle part donc toujours pour la Clyde, jamais pour Liverpool. Par le canal
+  Saint-Georges, c'est Liverpool ;
+- avec des étapes au cap, ou le cap gardé, la règle est autre : une fois par minute, à moins
+  de 40 km d'une entrée (`navigation.pilotKm`, le cercle dessiné), le pilote monte à bord et
+  conduit le convoi au **premier port de la liste** qui a ce chenal : Liverpool pour le Nord
+  de l'Irlande. Les deux règles ne choisissent donc pas le même port par le nord. Je ne les
+  ai pas changées (ce serait changer ce que fait une partie sans ordre) ; la fiche dit
+  maintenant lequel sera pris, et le laisse changer.
+
+**2. L'ordre de fin d'un convoi.** `endAction` sur un convoi (`src/sim/convoy.js`), `null`
+par défaut : rien ne change pour qui ne donne pas d'ordre. Les choix viennent des données du
+scénario (`convoyEndChoices`) : s'arrêter et attendre, garder le cap, chaque port qui reçoit
+ce convoi par chacun de ses chenaux, la route de l'Amirauté. Un convoi de l'océan : Liverpool
+par le Nord de l'Irlande ou par le canal Saint-Georges, la Clyde par le Nord de l'Irlande. Le
+CW 7 de Kanalkampf : Southampton par Spithead. Aucun port étranger.
+
+- Avec un ordre, le convoi suit son tracé ou ses étapes **jusqu'au bout**, puis l'exécute ;
+  d'ici là le jeu ne le prend plus de lui-même : ni prolongement du tracé, ni pilote en
+  passant dans un cercle.
+- Un tracé que le jeu avait prolongé jusqu'à un port (ou la route de l'Amirauté) et à qui
+  l'on donne une autre fin perd ce que le jeu avait ajouté : le tracé reste, tel qu'il est
+  au joueur, et finit comme dit. Choisir le port et le chenal qu'il prenait déjà ne change
+  rien. Dans le chenal, pilote à bord, il est trop tard.
+- Donné une fois : exécuté, l'ordre est oublié. Il part avec ce dont il était la fin (étapes
+  effacées, tracé tiré jusque dans un port). Sans rien à suivre (arrêté en mer, ou cap
+  gardé), le convoi l'exécute tout de suite.
+- « Entrer à… » : par la mer jusqu'à l'entrée du chenal choisi, puis le chenal
+  (`channelWay`). « Reprendre la route de l'Amirauté » : au prochain point devant le convoi,
+  en contournant la terre s'il le faut (`admiraltyWay`).
+- Un traînard reçoit l'ordre de son convoi. Deux champs de plus dans une sauvegarde, lus
+  avec leur valeur par défaut : le format reste le 2.
+
+**3. La fiche et la carte.** J'avais d'abord écrit la liste pour les seuls tracés qui
+finissent en mer, avec une simple phrase pour ceux que le jeu prolonge. En l'essayant j'ai
+vu que cela laissait le cas que décrit Florian sans réponse : un tracé tiré jusqu'au cercle
+du Nord de l'Irlande partait pour la Clyde, et rien ne permettait de dire Liverpool. La liste
+est donc toujours là dès qu'il y a un tracé ou des étapes, et **montre d'abord ce que le
+convoi fait de lui-même** (« Entrer à la Clyde par : Nord de l'Irlande », « S'arrêter et
+attendre », « Garder le cap ») ; on en choisit un autre. Sans rien à suivre, elle s'appelle
+« Et maintenant ». Sur la carte, pour le convoi en main : un mot au bout du tracé et, en
+pointillé, le chemin qu'il prendra ensuite.
+
+**4. Sous silence radio.** L'ordre de fin part à la relève, en ocre jusque-là. Les ordres
+d'une relève sont lus l'un après l'autre : selon que le tracé ou l'ordre de fin avait été
+envoyé le premier, le résultat différait (le tracé prolongé par le jeu puis rendu au joueur à
+l'endroit de la coupe, ou suivi en entier ; pire, l'ordre de fin exécuté sur place avant
+l'arrivée du tracé). Deux règles, dans `src/sim/comms.js` : l'ordre de fin d'un navire est
+toujours lu après ses routes, et ce qu'un convoi doit faire au bout est noté avant la lecture
+de ses routes. Dans les deux sens d'envoi, le convoi suit le tracé tel qu'il est dessiné,
+puis fait ce qui est dit.
+
+**5. Le B-Dienst.** Le chemin que prend le convoi au bout de son tracé est un nouveau
+routage. Je l'avais d'abord marqué comme illisible pour le B-Dienst (« il le fait de
+lui-même »). C'était une faille : un tracé de dix kilomètres suivi de « Entrer à… » aurait
+donné toute la traversée sans que l'ennemi puisse la lire. Il se lit donc comme un autre,
+sauf si l'ordre est venu par projecteur ou porté par un groupe, comme pour une route.
+
+**6. Trois défauts trouvés en chemin.**
+
+- **Les tracés du convoi côtier refusés pour une côte qu'ils ne touchaient pas.** Depuis son
+  mouillage de l'estuaire de la Tamise, l'entrée de Spithead est à 156 km à vol d'oiseau :
+  moins que les 160 km de la règle. Tout tracé du CW 7 qui s'arrêtait avant d'avoir doublé
+  Beachy Head était donc coupé à son point le plus proche de Spithead (souvent le convoi
+  lui-même) et envoyé en ligne droite par-dessus le Kent et le Sussex, puis refusé :
+  « route refusée, elle coupe la côte ». Essayé le long de la route de l'Amirauté elle-même :
+  refusé avec 2, 3 et 4 points, accepté à partir du sixième. Le jeu ne prolonge plus un tracé
+  que si le trajet jusqu'à l'entrée passe par la mer ; sinon le tracé reste comme il est
+  dessiné. Le trajet est regardé avec le même pas que la route entière : toute route acceptée
+  avant l'est encore, à l'identique.
+- **L'entrée gagnée par la mauvaise mer.** Sur la capture de mon premier essai, le convoi à
+  qui l'on disait « Liverpool par le canal Saint-Georges » depuis l'entrée du nord descendait
+  la mer d'Irlande jusqu'à l'entrée du sud, pour la remonter ensuite : le plus court chemin
+  par la mer jusqu'à cette entrée passe derrière elle. Il gagne maintenant l'entrée par le
+  large, sans traverser les eaux qu'elle ferme (celles qui sont fermées aux U-Boote,
+  `uboatnav.js`) : il contourne l'Irlande par l'ouest. Déjà dans ces eaux, il rejoint le
+  chenal là où il est.
+- **Le traînard sans ordre.** `completeEntity` remet les champs déclarés à leur valeur de
+  départ : l'ordre copié du convoi était effacé à la naissance du traînard. Trouvé par le
+  test écrit pour ce cas.
+
+Le singe en a trouvé un quatrième, hors de l'interface : l'ordre « rentrer au port » des
+groupes, donné par signal à un convoi, laissait son ordre de fin sur une route qui entre au
+port. Il est retiré avec.
+
+**Ce qui n'est pas fait.** Le port que le jeu choisit de lui-même par le Nord de l'Irlande
+reste la Clyde pour un tracé et Liverpool pour des étapes. Les groupes d'escorte gardent
+leur ordre de fin (un port, sans choix du chenal). Le bouton « Amirauté » de la barre refuse
+toujours une ligne droite qui coupe la terre, là où l'ordre de fin la contourne. Sous
+silence radio, le chemin dessiné part du bout du tracé ; le convoi le calculera de sa
+position vraie.
+
+**Tests.** `tests/convoyend.test.js`, 24 tests : sans ordre, rien ne change (arrêt au bout
+d'un tracé, cap gardé après les étapes) ; les choix de chaque scénario et ce qui est refusé ;
+garder le cap, donné une fois ; Liverpool par le canal Saint-Georges jusqu'à l'arrivée, à
+l'heure annoncée à une heure près ; Liverpool ou la Clyde par le nord ; la route de
+l'Amirauté, tout droit puis en contournant la terre ; l'arrêt au bout des étapes ; l'ordre
+exécuté tout de suite ; l'ordre retiré avec les étapes effacées, le tracé tiré jusqu'au
+port, le « rentrer au port » ; le tracé prolongé rendu au joueur ; ni prolongement ni pilote
+tant qu'un ordre attend, et trop tard dans le chenal ; l'entrée gagnée par le large ;
+l'attente quand il n'y a pas de passage ; le traînard ; la sauvegarde ; une vraie partie de
+la 2.9.0 ; par radio dans les deux sens d'envoi ; un convoi arrêté ; le B-Dienst ; la fiche,
+sous silence radio aussi ; le journal ; les tracés du convoi côtier ; Southampton par
+Spithead. `tests/messages.test.js` : un exemple pour la nouvelle phrase. Le singe donne
+l'ordre de fin d'un convoi (direct et par signal) et vérifie chaque heure de jeu qu'un convoi
+en route vers un port n'en a pas : pour m'assurer qu'il voit bien la faute, j'ai retiré la
+ligne qui l'efface, et il l'a signalée cinq fois en 3 000 ordres de Kanalkampf.
+
+### Porte du quatrième tour
+
+456 tests (24 de plus), lint et construction verts ; 289 vérifications à l'essai de fumée
+(17 de plus), sur la version de développement et sur `dist/index.html` : la liste de la
+fiche sur un convoi en haute mer, l'ordre de fin par radio en attente puis reçu à la relève,
+l'ordre donné tout de suite sur un tracé qui finit en pleine mer et exécuté au bout du tracé,
+le convoi côtier de Kanalkampf (son tracé accepté devant Douvres, son seul port, sa route par
+Spithead). Captures regardées : la fiche, le chemin en pointillé, le journal.
+
+La simulation change cette fois. Le singe : 10 000 ordres par scénario sur les cinq, puis
+quatre autres graines (Atlantique, Kanalkampf, M0, Adlertag), sans faute. Le joueur
+automatique ne donne jamais d'ordre de fin à un convoi : j'ai rejoué une partie de chacune
+des 34 lignes de la mesure (graine 1). 33 sont identiques à leur référence du M2.10 ; la
+34e, la campagne en Réaliste à conduite simple, est celle de la mesure faite après la 2.10.2
+(victoire ; c'était une défaite avant que la 2.10.2 ne change le compte des avions à abattre
+en campagne). Ce tour ne change donc aucune partie jouée sans ordre de fin.
+
+Branche `retours-jeu-4`, demande de fusion nº 9. Non relu par un agent neuf.

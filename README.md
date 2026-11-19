@@ -8,10 +8,45 @@ avec un menu principal, un tutoriel en quatre leçons et une aide illustrée.
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.10.4** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit et
-les retours des premières parties d'essai, en trois tours). Les décisions qui guident les lots M2.7 à M2.10
+**Version 2.10.5** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit et
+les retours des premières parties d'essai, en quatre tours). Les décisions qui guident les lots M2.7 à M2.10
 sont dans `claude/decisions-audit-m2.md` (fichier du projet) ; le journal des travaux est dans
 `docs/journal-m2.7-m2.10.md`.
+
+## Nouveautés de la 2.10.5 : la fin de route d'un convoi se choisit
+
+- **Un ordre pour la fin du tracé ou des étapes d'un convoi**, comme pour un groupe
+  d'escorte : dans sa fiche, section « Route et étapes », la liste « En fin de tracé » (ou
+  « À la fin des étapes ») propose de **s'arrêter et attendre**, de **garder le cap**,
+  d'**entrer dans un port par le chenal de votre choix**, ou de **reprendre la route de
+  l'Amirauté**. Les ports sont ceux du scénario et du convoi : Liverpool par le Nord de
+  l'Irlande ou par le canal Saint-Georges et la Clyde pour un convoi de l'océan ; Southampton
+  par Spithead pour le convoi côtier de Kanalkampf.
+- **La liste montre d'abord ce que le convoi fait de lui-même.** Sans ordre, rien ne change :
+  un tracé qui passe à moins de 160 km de l'entrée d'un chenal et finit à moins de 450 km de
+  son port est prolongé jusqu'au port, et la liste affiche alors ce port et ce chenal ; un
+  autre tracé finit par un arrêt ; après ses étapes, le convoi garde le cap. Choisir autre
+  chose rend le tracé au joueur : le convoi le suit jusqu'au bout, puis fait ce qui est dit.
+  Tant qu'un ordre de fin attend, le jeu ne prend plus le convoi de lui-même (ni
+  prolongement du tracé, ni pilote en passant dans un cercle).
+- **Le chemin prévu se dessine** en pointillé après le bout du tracé : par le large jusqu'à
+  l'entrée du chenal choisi, puis le chenal ; ou la route de l'Amirauté reprise au prochain
+  point devant le convoi, en contournant la terre s'il le faut. Le convoi gagne l'entrée
+  sans traverser les eaux qu'elle ferme : au nord de l'Irlande, « Liverpool par le canal
+  Saint-Georges » lui fait contourner l'île par l'ouest, et non descendre la mer d'Irlande
+  pour ressortir au sud. Déjà dans ces eaux, il rejoint le chenal là où il est. Au bout, le
+  journal dit ce que fait le convoi, avec l'heure d'arrivée prévue.
+- **Sous silence radio**, l'ordre de fin part à la relève comme les autres, en ocre sur la
+  carte en attendant ; donné dans le même quart qu'un tracé, il vaut pour ce tracé, suivi tel
+  qu'il est dessiné. Un convoi arrêté en mer, ou qui garde son cap sans rien à suivre,
+  exécute l'ordre tout de suite (« Et maintenant »).
+- **Un défaut corrigé en chemin.** Un tracé du convoi côtier qui s'arrêtait avant Beachy Head
+  (devant Douvres, par exemple) était refusé pour « la côte » sans la toucher : le jeu le
+  coupait pour l'envoyer tout droit à Spithead, à moins de 160 km à vol d'oiseau, par-dessus
+  le Kent. Le jeu ne prolonge plus un tracé que si le trajet jusqu'à l'entrée du chenal passe
+  par la mer ; sinon le tracé reste comme il est dessiné.
+- Sauvegardes : deux champs de plus sur un convoi, lus avec leur valeur par défaut ; le
+  format reste le 2.
 
 ## Nouveautés de la 2.10.4 : les ordres en attente restent sur la carte, le rapport de quart se rouvre
 
@@ -362,6 +397,12 @@ autonomie 1,6 fois plus vite.
    nord de l'Irlande ou au canal Saint-Georges : un pilote les conduit au port. La vitesse
    ordonnée garde le convoi groupé ; plus près de sa vitesse maximale, des navires lents
    décrochent et deviennent des traînards. Le zigzag gêne les U-Boote mais ralentit.
+   **Fin de route** : la fiche du convoi dit ce qu'il fait au bout de son tracé ou de ses
+   étapes (« En fin de tracé ») et vous laisse en décider : s'arrêter, garder le cap, entrer
+   dans un port par le chenal de votre choix, reprendre la route de l'Amirauté. Sans ordre,
+   un tracé qui passe près de l'entrée d'un chenal et finit vers son port est prolongé
+   jusqu'au port ; un autre tracé finit par un arrêt, des étapes par le cap gardé (et le
+   pilote monte à bord si le convoi passe dans le cercle « Pilote » d'un chenal).
    **Appareiller** : un groupe d'escorte met une heure à quitter son quai. Sa sortie est la
    première étape de ses ordres : « Sortie », section Au port, propose la rade (juste au
    large du port) ou un chenal suivi jusqu'au bout. L'étape se dessine sur la carte et
@@ -721,10 +762,22 @@ Le filet du M2.7 :
   patrouille et les onglets d'un port et d'un aérodrome (2.10.2), la sortie du port posée
   en étape, prolongée à la souris puis retirée, et deux appareillages programmés (2.10.3),
   un tracé en attente de la relève prolongé depuis son anneau et un rapport de quart fermé
-  puis rouvert (2.10.4),
+  puis rouvert (2.10.4), la fin de route d'un convoi choisie dans sa fiche, par radio puis
+  tout de suite, jusqu'à son exécution, et celle du convoi côtier de Kanalkampf (2.10.5),
   chaque page et chaque sorte de fiche s'ouvre dans chaque scénario, et les corrections du
   M2.7 sont rejouées (plaques empilées, touches d'un clavier AZERTY, bilan de fin, briefing
   de campagne, garde-fou sur une erreur provoquée).
+- Les tests de la 2.10.5 (`tests/convoyend.test.js`) : sans ordre, rien ne change ; les
+  choix de chaque scénario ; garder le cap, s'arrêter, entrer à Liverpool par chacun de ses
+  chenaux et à la Clyde, jusqu'à l'arrivée ; la route de l'Amirauté reprise en contournant
+  la terre ; l'ordre exécuté tout de suite quand il n'y a plus rien à suivre, donné une fois,
+  retiré avec les étapes effacées ; un tracé que le jeu prolongeait, rendu au joueur ; ni
+  prolongement ni pilote tant qu'un ordre attend ; l'entrée d'un chenal gagnée par le large ;
+  l'attente quand aucun passage par la mer n'existe ; le traînard, la sauvegarde, une partie de la 2.9.0 ; par radio, dans les deux
+  ordres d'envoi ; le B-Dienst (lu par radio, pas par projecteur) ; la fiche, la carte et le
+  journal ; les tracés du convoi côtier qui s'arrêtent avant Beachy Head. Le singe donne
+  aussi cet ordre, et vérifie après chaque heure de jeu qu'un convoi en route vers un port
+  n'a pas d'ordre de fin en attente.
 - Les tests de la 2.10.4 : les ordres en attente sous silence radio
   (`tests/awaited.test.js` : le tracé prolongé deux fois puis reçu tel que montré, les
   étapes ajoutées, modifiées et retirées avant la relève, l'ordre remplacé et non empilé,
