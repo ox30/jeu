@@ -103,6 +103,9 @@ async function scenario(page, id, errors) {
     a.restart(sid);
   }, id);
   await settle(page);
+  // The « Signaux » tab of the journal belongs to the sea of the watches only.
+  const watches = await game(page, () => Boolean(window.__game.world.watch));
+  note((await page.isVisible('#log-tabs')) === watches, `${id}: the « Signaux » tab ${watches ? 'is there' : 'is hidden'}`);
   for (const [button, dialog] of PAGES) {
     if (!(await page.isVisible(button))) continue;
     await page.click(button);
