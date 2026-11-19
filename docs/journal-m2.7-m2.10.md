@@ -1597,3 +1597,107 @@ de développement et sur `dist/index.html` ; 10 000 ordres au hasard par scénar
 la campagne ci-dessus. Branche `retours-jeu`, demande de fusion nº 6, vérifications de GitHub
 vertes. Artefact « Jeu 1940 — travaux de Fable » mis à jour (2.10.2). Non relu par un agent
 neuf.
+
+## Retours de jeu, deuxième tour · version 2.10.3
+
+Message de Florian du 19 novembre, 17 h 18, après ses essais de la 2.10.2. Trois choses :
+
+- sur la fatigue des patrouilles, qui ne change rien à ce qu'elles voient (ma question du
+  tour précédent) : « Alors on reste ainsi, cela nous entraine à gérer nos équipes. » Aucune
+  règle ne change ;
+- « peux-tu contrôler la programmation des appareillage des groupe d'escorte, ils me semble
+  qu'ils ne réagissent pas aux heures de départ fixé » ;
+- « si je lui dis de sortir par le chenal Irlande, St george ou rester en bord du port, cela
+  devient une étape, comme celle tracée. De ce fait je peux la supprimer ou lui ajouter des
+  futur itinéraire au bout, comme je peux fixer une action au bout de cette première action. »
+
+Branche `retours-jeu-2`, partie de `retours-jeu` ; version 2.10.3.
+
+### 19 novembre, 17 h 20 à 18 h 40 — ce qui a été trouvé et fait
+
+**1. L'appareillage programmé qui ne partait pas : reproduit, corrigé.** Avec « Sortie :
+chenal Nord de l'Irlande » puis « Appareillage programmé 08:00 », sans tracé ni étapes,
+le groupe restait au port. `runSail` (`timetable.js`) exigeait une route ou des étapes : à
+l'heure dite il levait « l'ordre programmé attend (ni route ni étapes) », et recommençait
+chaque minute sans jamais partir. Le bouton « Appareiller », lui, faisait partir le même
+groupe par son chenal. Reproduit dans la simulation, puis dans la page. Corrigé : à son
+heure, un groupe d'escorte appareille exactement comme sur le bouton (`sailEscort`), avec
+ce qui est préparé, ou en rade s'il n'y a rien, où il attend ses ordres. Un convoi garde sa
+règle : sans route ni étapes il n'a nulle part où aller, son ordre attend.
+
+**2. Un second défaut, trouvé en lisant le code des routes.** Un groupe sorti du port sur
+un tracé ne pouvait ni voir ses points déplacés, ni voir son tracé prolongé, tant qu'il
+descendait son chenal de sortie. `routeConvoy` rangeait le nombre de points du chenal de
+sortie dans `routeLocked`, qui compte les derniers points de la route (le chenal d'entrée
+dans un port) : la sortie était verrouillée au mauvais bout. Le chenal de sortie a
+maintenant son propre compte, en tête de route (`routeHead`, qui baisse à chaque point
+passé) ; `routeLocked` ne compte plus que le chenal d'entrée.
+
+**3. La sortie du port devient une étape.** Ce que j'ai compris de la demande, et fait :
+
+- Choisir une sortie dans la section Au port (« en rade », ou un chenal) pose la première
+  étape des ordres du groupe : la tête d'une route qui attend au port (`planExit`,
+  `convoy.js`). « Aucune » la retire.
+- Elle se voit : dessinée sur la carte pour le groupe en main ou programmé, et inscrite
+  sous « Route et étapes » (« Par le chenal : Nord de l'Irlande · 484 km », « En rade, au
+  large du port · 3,8 km »), avec une croix pour la retirer. Cette section remonte juste
+  sous la section Au port tant que le groupe y est.
+- Elle se prolonge : un tracé tiré à la souris depuis l'anneau dessiné à son bout, ou des
+  étapes au cap, qui partent de son bout (`planTrack`). Le tracé a sa ligne dans la liste
+  (« Puis le tracé : 2 points · 241 km ») et sa propre croix, qui laisse la sortie.
+- Elle a sa fin : « Au bout de la sortie » offre les mêmes choix qu'une fin de tracé
+  (attendre, garder le cap, chercher un U-Boot, rejoindre un convoi, entrer dans un port).
+- Rien ne part avant « Appareiller » ou l'heure programmée.
+
+Les choix que j'ai faits là où la demande ne tranchait pas, à confirmer par Florian :
+
+- Poser une étape de sortie fait attendre le groupe au port, même sans heure programmée :
+  on prépare, puis on appareille. Sans sortie choisie, rien ne change : un tracé tiré depuis
+  le port est toujours un ordre de partir tout de suite.
+- Changer de sortie garde le tracé qui la suit, rejoint par la mer depuis le nouveau bout ;
+  s'il ne se rejoint pas, il est effacé et la fiche le dit. Retirer la sortie retire aussi
+  le tracé, qui partait de son bout. Les étapes au cap restent : elles partent d'où la
+  sortie finit, quelle qu'elle soit.
+- « Rejoindre » un convoi depuis le port reste un ordre de partir maintenant, par le chenal
+  qui mène au convoi : il remplace ce qui était préparé.
+- La sortie vaut pour une sortie en mer : de retour au port, elle est oubliée.
+- Il n'y a qu'une action de fin, au bout de tout (sortie, puis tracé ou étapes). Une chaîne
+  d'actions (une action, puis une route, puis une autre action) n'existe pas : c'est une
+  autre demande, plus grosse, si elle est voulue.
+
+**Sauvegardes.** Deux champs de plus sur un groupe d'escorte, lus avec leur valeur par
+défaut (`routeHead`, `exitPlanned`) : le format reste le 2. Ce que la 2.10.2 écrivait à
+leur place est relu au premier pas de jeu (`adoptWayOut`) : un groupe qui attendait au port
+avec son chenal choisi retrouve son étape et appareille ; un groupe enregistré pendant qu'il
+descendait son chenal retrouve son tracé modifiable.
+
+**Tests.** `tests/exitstep.test.js`, 14 tests : l'appareillage programmé sans rien de
+préparé ; l'étape posée, changée, retirée ; le tracé et les étapes après elle ; sa fin
+(garder le cap, port, convoi) ; le tracé d'un groupe en mer ; le retour au port et
+« Rejoindre » ; trois états de sauvegarde de la 2.10.2 ; l'aller-retour d'un plan qui
+attend ; le groupe de soutien. Le test du tableau des actions (`tests/menus.test.js`) a
+refusé mes deux croix, écrites par une fonction commune qu'il ne lisait pas : je les ai
+écrites en clair plutôt que d'assouplir le test.
+
+**Singe.** Deux ordres de plus (une sortie au hasard, y compris un chenal qui n'existe pas ;
+le tracé après la sortie rallongé ou effacé) et une vérification après chaque ordre : le
+début de route compté comme sortie doit suivre un chenal d'un port, point pour point. Elle
+m'a fait chercher tous les endroits où la route d'un groupe est remplacée (chasse, retour
+au port, pilote, rendez-vous, contournement d'un cap) pour y remettre le compte à zéro. Pour
+m'assurer qu'elle voit quelque chose, j'ai retiré deux de ces remises à zéro : le singe l'a
+signalé au bout de 594 ordres. Remises en place.
+
+**La simulation est-elle la même pour le joueur automatique ?** Oui. 36 parties rejouées
+(les dix conduites de l'Atlantique, Kanalkampf et Adlertag en jeu simple, trois graines
+chacune) et comparées à la mesure du M2.10 : 36 identiques (issue, navires perdus, U-Boote
+coulés, carburant, arrêts, objectifs). Le joueur automatique n'utilise ni sortie choisie ni
+appareillage programmé : il fait « Rejoindre » depuis le port, dont le trajet n'a pas changé.
+
+### Porte du deuxième tour
+
+420 tests, lint et construction verts ; 260 vérifications à l'essai de fumée (14 de plus :
+la sortie posée, prolongée à la souris, retirée, deux appareillages programmés à 08:00, l'un
+avec une étape, l'autre sans rien), sur la version de développement et sur
+`dist/index.html` ; 10 000 ordres au hasard par scénario, et 30 000 de plus dans
+l'Atlantique (trois parties : Standard graine 2, Réaliste graines 2 et 3) ; 36 parties du
+joueur automatique identiques. Non relu par un agent neuf.

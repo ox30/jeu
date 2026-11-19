@@ -8,10 +8,37 @@ avec un menu principal, un tutoriel en quatre leçons et une aide illustrée.
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.10.2** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit et
-les retours des premières parties d'essai). Les décisions qui guident les lots M2.7 à M2.10
+**Version 2.10.3** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit et
+les retours des premières parties d'essai, en deux tours). Les décisions qui guident les lots M2.7 à M2.10
 sont dans `claude/decisions-audit-m2.md` (fichier du projet) ; le journal des travaux est dans
 `docs/journal-m2.7-m2.10.md`.
+
+## Nouveautés de la 2.10.3 : appareillages programmés, la sortie du port devient une étape
+
+- **Un appareillage programmé part à son heure.** Un groupe d'escorte dont on avait choisi
+  la sortie (« chenal Nord de l'Irlande », par exemple) puis programmé l'appareillage ne
+  partait jamais : l'ordre attendait un tracé ou des étapes (« ni route ni étapes »), alors
+  que le bouton « Appareiller » faisait partir le même groupe. À l'heure dite, le groupe
+  appareille maintenant comme sur le bouton : avec ce qui est préparé, ou en rade s'il n'y a
+  rien, où il attend vos ordres.
+- **La sortie du port est la première étape du groupe.** Choisir « en rade » ou un chenal
+  dans la section Au port en fait une étape, comme un tracé : elle se dessine sur la carte
+  et s'inscrit sous « Route et étapes ». On la **retire** d'une croix ; on la **prolonge**
+  par un tracé tiré depuis l'anneau à son bout, ou par des étapes au cap ; on choisit **ce
+  que le groupe fait au bout** (attendre, garder le cap, chercher un U-Boot, rejoindre un
+  convoi, entrer dans un port). Tout cela attend au port l'ordre d'appareiller : le bouton,
+  ou l'heure programmée. Changer de sortie garde le tracé qui la suit (rejoint par la mer) ;
+  retirer la sortie retire aussi ce tracé, qui partait de son bout. Sans sortie choisie,
+  rien ne change : « Appareiller » mène en rade, un tracé tiré depuis le port part tout de
+  suite. « Rejoindre » un convoi depuis le port reste un ordre de partir maintenant, par le
+  chenal qui y mène : il remplace ce qui était préparé.
+- **Un tracé tiré depuis le port se modifie de nouveau en mer.** Tant que le groupe
+  descendait son chenal de sortie, aucun point de son tracé ne se déplaçait et le tracé ne
+  se prolongeait pas : le chenal de sortie était compté avec le chenal d'entrée au port, au
+  mauvais bout de la route. Seuls les points du chenal restent fixes.
+- Une partie enregistrée par la 2.10.2 se reprend telle quelle : un groupe qui attendait au
+  port avec son chenal choisi appareille, un groupe en train de descendre son chenal retrouve
+  son tracé modifiable.
 
 ## Nouveautés de la 2.10.2 : retours des parties d'essai
 
@@ -306,10 +333,14 @@ autonomie 1,6 fois plus vite.
    nord de l'Irlande ou au canal Saint-Georges : un pilote les conduit au port. La vitesse
    ordonnée garde le convoi groupé ; plus près de sa vitesse maximale, des navires lents
    décrochent et deviennent des traînards. Le zigzag gêne les U-Boote mais ralentit.
-   **Appareiller** : un groupe d'escorte met une heure à quitter son quai, puis sort en rade,
-   juste au large de son port, ou suit jusqu'au bout le chenal choisi (« Sortie », section Au
-   port) ; il y attend vos ordres, ou prend votre tracé ou vos étapes. Un tracé tiré depuis le
-   port part de la rade et contourne la terre par la mer.
+   **Appareiller** : un groupe d'escorte met une heure à quitter son quai. Sa sortie est la
+   première étape de ses ordres : « Sortie », section Au port, propose la rade (juste au
+   large du port) ou un chenal suivi jusqu'au bout. L'étape se dessine sur la carte et
+   s'inscrit sous « Route et étapes » ; une croix la retire, un tracé tiré depuis l'anneau à
+   son bout ou des étapes au cap la prolongent, et « Au bout de la sortie » dit ce que le
+   groupe fait ensuite. Le tout attend « Appareiller » ou l'heure programmée. Sans sortie
+   choisie, « Appareiller » mène le groupe en rade, où il attend vos ordres, et un tracé tiré
+   depuis le port le fait partir tout de suite ; il contourne la terre par la mer.
    **Le globe** : la carte est plate, mais les distances sont celles du globe (un kilomètre
    est-ouest de la carte vaut cos(latitude)/cos(50°) km réels) ; une route infléchie vers le
    nord, vers l'orthodromie, est donc plus courte qu'il n'y paraît, une route par le sud plus
@@ -446,8 +477,10 @@ autonomie 1,6 fois plus vite.
    d'où un rappel la première fois qu'on programme. « Chaque jour » répète l'ordre (une
    patrouille côtière à l'aube, par exemple). « Rejoindre une formation » (ou « Rejoindre un
    groupe de soutien ») fait partir l'unité à son heure pour rejoindre une big wing en vol
-   (heure calculée à la règle). Un ordre qui ne peut pas partir (plein en cours, carénage,
-   ni route ni étapes) attend et lève une alerte.
+   (heure calculée à la règle). Un groupe d'escorte appareille à son heure avec ce qui est
+   préparé (sa sortie, puis le tracé ou les étapes) ; sans rien de préparé, il sort en rade
+   et y attend vos ordres. Un ordre qui ne peut pas partir (plein en cours, carénage, convoi
+   sans route ni étapes) attend et lève une alerte.
 9. **Logistique.** Les convois déchargent carburant et matériel dans les ports ; le dépôt de
    Chilmark fournit les munitions. Envoyez des trains (jusqu'à 100 t, chargement mélangé) ou
    fixez des stocks minimum : les trains partent seuls. Sans carburant, une escadrille ne
@@ -652,10 +685,16 @@ Le filet du M2.7 :
   unique démarrent, les quatre leçons du tutoriel sont jouées à la souris et au clavier
   jusqu'à leur dernière étape, la barre du haut tient sur une ligne à 1 024 px, les alertes,
   les aides des fiches et les piles d'unités sont essayées, comme les états d'alerte d'une
-  patrouille et les onglets d'un port et d'un aérodrome (2.10.2),
+  patrouille et les onglets d'un port et d'un aérodrome (2.10.2), la sortie du port posée
+  en étape, prolongée à la souris puis retirée, et deux appareillages programmés (2.10.3),
   chaque page et chaque sorte de fiche s'ouvre dans chaque scénario, et les corrections du
   M2.7 sont rejouées (plaques empilées, touches d'un clavier AZERTY, bilan de fin, briefing
   de campagne, garde-fou sur une erreur provoquée).
+- Les tests de la 2.10.3 (`tests/exitstep.test.js`) : appareillage programmé sans rien de
+  préparé, la sortie en étape (posée, changée, retirée, prolongée par un tracé ou des
+  étapes, sa fin), le tracé d'un groupe en mer de nouveau modifiable, les parties
+  enregistrées par la 2.10.2, le groupe de soutien. Le singe vérifie en plus, après chaque
+  ordre, que le début de route compté comme sortie suit bien un chenal d'un port.
 - Les tests de la 2.10.2 : repos et planning d'une patrouille (`tests/patrolrest.test.js`),
   onglets des installations (`tests/siteunits.test.js`), avions à abattre en campagne
   (`tests/campaign.test.js`).
