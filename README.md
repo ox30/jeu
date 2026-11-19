@@ -51,6 +51,11 @@ changent que par le jour et la nuit au soleil.
 - **Sous le capot** : calcul de route sans à-coups (plus aucun pas de simulation de plus de
   20 ms dans l'Atlantique), grilles construites à la création du monde.
 
+Mesures au joueur automatique (10 graines par conduite) : 42 à 59 arrêts par partie
+d'Atlantique avec les réglages par défaut, contre 50 à 147 avant ; Rester et Chasser gagnent
+9 fois sur 10 en Standard, 5 et 2 fois sur 10 en Réaliste (Chasser gagnait 10 fois sur 10).
+Le détail est au journal, section « Porte du M2.8 ».
+
 ## Nouveautés du M2.7
 
 - **La station radar mobile ne fige plus le jeu** : toutes les installations, station mobile
@@ -461,7 +466,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 290 tests, environ trois minutes
+npm test          # les 300 tests, environ trois minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : tutoriel, pages, fiches, corrections, quarts

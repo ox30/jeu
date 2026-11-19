@@ -580,12 +580,21 @@ async function watches(page, errors) {
       const actions = await import('./src/ui/actions.js');
       // A group that is not refitting: in refit the sheet has no orders against the U-boats.
       const group = a.world.escorts.find((e) => e.state !== 'refit') || a.world.escorts[0];
+      // The sheet on its first tab, the orders (an earlier part may have left it on « Fiche »).
+      a.unitTabs = {};
       actions.select(a, 'escort', group.id);
       a.dirtyPanels = true;
     });
-    await sleep(500);
-    note(await game(page, () => /Grenades \d+\/\d+/.test(document.getElementById('unit-summary').textContent)), 'depth charges: the gauge is on the group\'s sheet');
-    note(await game(page, () => document.querySelectorAll('[data-action="escort-pattern"]').length === 2), 'depth charges: « Plein » and « Économe »');
+    // (The sheet is redrawn on the next image: waited for, not guessed with a pause.)
+    const shown = await page.waitForFunction(() => /Grenades \d+\/\d+/.test(document.getElementById('unit-summary').textContent)
+      && document.querySelectorAll('[data-action="escort-pattern"]').length === 2, null, { timeout: 5000 }).then(() => true, () => false);
+    note(shown || await game(page, () => /Grenades \d+\/\d+/.test(document.getElementById('unit-summary').textContent)), 'depth charges: the gauge is on the group\'s sheet');
+    const seen = await game(page, () => {
+      const a = window.__game;
+      const e = a.world.escorts.find((x) => x.id === a.selection?.id);
+      return `${document.querySelectorAll('[data-action="escort-pattern"]').length} buttons, group ${e ? `${e.id} ${e.state}` : 'none'}, tab ${document.querySelector('#unit-tabs .active')?.dataset.unitTab}`;
+    });
+    note(shown, 'depth charges: « Plein » and « Économe »', shown ? '' : seen);
   });
   await step('first attack of the night', async () => {
     await closeDialogs(page);

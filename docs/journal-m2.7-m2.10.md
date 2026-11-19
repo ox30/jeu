@@ -617,3 +617,130 @@ chargement des anciennes parties.
 84 cas, devient `src/ui/messages.js`, une table par famille, les mêmes familles que les
 rapports de quart. Vérifié identique à l'ancien sur 15 000 événements de parties réelles
 (115 types) et 246 cas construits.
+
+### 18 novembre, 21 h 30 à 22 h 40 — fin du réglage de la mer, outils
+
+Trois corrections trouvées en regardant des parties de près (`83e8c33`) :
+
+- *Engagements vides.* Un groupe en « Rester » encore loin de son convoi (il le rejoint)
+  ouvrait un engagement sur chaque U-Boot croisé, puis devait rompre aussitôt : environ
+  150 rapports d'engagement vides par partie. Il signale maintenant le contact sans attaquer
+  (`willCounter` s'applique aussi au convoi qu'il va rejoindre).
+- *Contact vu puis perdu à chaque minute.* Un groupe « en attente d'ordres » au-dessus d'un
+  U-Boot endommagé annonçait le même bateau vu, perdu, vu… Il tient son contact comme les
+  autres ; un bateau descendu profond échappe à l'ASDIC (contact perdu, dernière position
+  gardée sur la table).
+- *Chances par passe.* `pKillPerShip` 0,012 et `pDamagePerShip` 0,02 (0,03 et 0,04 avant),
+  soit 4,8 % et 8 % par passe pour quatre navires : une chasse dure quatre passes en moyenne,
+  environ une sur deux aboutit, et le stock de grenades limite enfin les chasses.
+
+**Seuil de victoire.** Avec ces mécaniques et le seuil de 8 % de pertes : Standard, Rester
+9/10, Chasser 10/10, soigné 10/10 ; Réaliste 5/10, 5/10, 8/10. Deux conduites gagnaient
+encore à coup sûr en Standard. Le seuil passe à **7,5 %** (`105af9d`) : c'est un écart au
+scénario d'origine (8 %), fait pour tenir la cible « aucune conduite sûre de gagner ».
+
+**Outils** (`253833e`) : le test d'ordres au hasard donne aussi les ordres de mer du 2.8
+(ordres par radio, annulation, ordre confié à un groupe, « Demander la position ») ; la mesure
+d'images ferme les rapports de quart qui s'ouvrent ; le test de fumée choisit un groupe qui
+n'est pas en carénage. 10 000 ordres par scénario : aucun problème.
+
+### 18 novembre, 22 h 40 à 23 h 30 — relecture du M2.8 par un agent neuf, et ses suites
+
+Un agent qui n'avait pas vu le travail a relu la branche contre les critères du document.
+Douze constats, tous corrigés (`8c55e84`, dix tests dans `tests/review28.test.js`) :
+
+1. Un groupe de soutien contournait le silence radio : on pouvait y faire entrer un groupe en
+   haute mer, et le chef passait ses ordres aux autres sans délai. Entrer dans un groupe de
+   soutien demande maintenant une voie directe (`joinProblem` : « silence »), et un membre ne
+   suit son chef que s'il l'entend (voie directe, à moins de 20 km, ou à la relève).
+2. Des ordres donnés par une voie directe étaient annoncés « échoués » alors qu'ils étaient
+   exécutés (vitesse, zigzag, allure du convoi).
+3. Modifier la route d'un convoi à la main ne comptait pas comme un nouveau routage : la
+   décision « repère sur la route » ne revenait pas.
+4. La fiche donnait la distance restante et l'heure d'arrivée depuis la position vraie, et la
+   carte dessinait les marques de chasse à la position vraie : tout part maintenant de la
+   position montrée, avec « ≈ » quand c'est une estimation.
+5. Un ordre confié à un groupe restait en attente pour toujours si ce groupe ne rejoignait
+   plus le convoi : il repart par radio, et le journal le dit.
+6. Après un contact perdu puis retrouvé, une chasse pouvait continuer sous le tiers du stock
+   de grenades : la réserve est tenue.
+7. Le B-Dienst pouvait lire une route passée au projecteur ou par un navire.
+8. À grande vitesse, l'arrêt d'une relève arrivait une image trop tard (jusqu'à une heure de
+   jeu) : `seaStop` interrompt l'image en cours.
+9. Un groupe qui escorte était dessiné loin de son convoi (deux estimations différentes) : il
+   partage l'estimation et le point sûr de son convoi.
+10. Les achats d'avions manquaient au rapport de quart (événements émis par un ordre, entre
+    deux pas) : le rapport écoute les événements à leur émission.
+11. Trois erreurs dans les textes d'aide (consignes, « Demander la position », délai radio).
+12. De la ponctuation en dur dans le panneau des quarts, passée dans `fr.json`.
+
+Laissé tel quel, à signaler : « Demander la position » ne coûte rien à un groupe seul (le
+relèvement donné au BdU ne sert que contre un convoi) ; le réglage « Arrêt aux relèves »
+était encore lu dans les réglages du joueur, ce que le M2.9 corrige (réglage de la partie).
+
+Trouvé ensuite en jouant : l'onglet « Signaux » restait visible dans les scénarios sans quarts
+(la règle CSS `.tabs` l'emportait sur `hidden`), corrigé (`f25663c`).
+
+### Mesure après le M2.8 (19 novembre, 0 h 10)
+
+Joueur automatique, 10 graines par conduite. Les batailles aériennes ont été mesurées au
+commit `10d0321` (`m2.8-final`) ; l'Atlantique et Kanalkampf ont été remesurés après les
+corrections de la relecture, au commit `8c55e84` (`m2.8-final2`, 150 parties).
+
+**Atlantique** (avant : `m2.7-final`) :
+
+| Préréglage | Conduite | Victoires | Navires perdus | U-Boote coulés | Arrêts par partie |
+| --- | --- | --- | --- | --- | --- |
+| Standard | rien | 0 → 0 sur 10 | 18,5 → 18,5 % | 0 → 0 | 66 → 55 (51 à 59) |
+| Standard | simple (= Rester) | 7 → 9 sur 10 | 7,2 → 5,6 % | 3,5 → 0,0 | 122 → 49 (44 à 59) |
+| Standard | Chasser | 10 → 9 sur 10 | 4,1 → 5,5 % | 10,0 → 3,0 | 94 → 52 (46 à 56) |
+| Standard | Chasser, grenadage économe | — → 8 sur 10 | 6,4 % | 2,8 | 51 (42 à 56) |
+| Standard | soigné (Chasser, avions, réarmement) | — → 9 sur 10 | 5,3 % | 3,0 | 53 (47 à 57) |
+| Standard | deux avions achetés le premier jour | 0 → 3 sur 10 | 7,2 → 5,6 % | — | 49 (44 à 59) |
+| Réaliste | Rester | 4 → 5 sur 10 | 8,4 → 8,3 % | 3,8 → 0,1 | 116 → 56 (47 à 61) |
+| Réaliste | Chasser | 9 → 2 sur 10 | 5,8 → 8,1 % | 9,4 → 2,7 | 94 → 53 (47 à 60) |
+| Réaliste | soigné | 9 → 7 sur 10 | 5,7 → 7,2 % | 9,5 → 3,6 | 111 → 54 (49 à 58) |
+
+**Batailles aériennes** (elles ne changent que par le jour et la nuit au soleil) : Kanalkampf
+inchangé (rien 0/10, simple 10/10, sans chasse 10/10, Réaliste 10/10) ; Adlertag Standard
+simple 10 → 9/10, 1 par raid 6 → 5/10, 2 par raid 10 → 9/10, 4 par raid 3 → 2/10, Réaliste
+10/10 ; 15 septembre inchangé (Standard simple 5/10, 4 par raid 10/10,
+Réaliste simple 7/10, soigné 1/10, en masse 9/10) ; campagne en Réaliste « en masse le 15 »
+5 → 4/10. Les règles d'équilibre des batailles aériennes (I5) sont le travail du M2.10.
+
+**Pas de simulation** (`tools/bot/perf.mjs`, machine au repos) : sur 80 jours d'Atlantique,
+pas le plus long entre 4 et 19 ms selon les passes (six parties), aucun pas au-delà de 20 ms,
+sauf un pas isolé de 71 ms dans une passe, qui ne se reproduit pas sur la même partie rejouée
+(11 puis 16 ms) : bruit de la machine (ramasse-miettes), pas un calcul. Rejouée deux fois
+dans le même processus, la même partie a un pas le plus long de 16 ms puis de 5 ms.
+
+**Images par seconde à ×14 400** (`tools/smoke/fps.mjs`, Atlantique au jour 40) : 59,3 sans
+fiche et 59,8 avec la fiche d'une escorte ; une image de 117 ms sur 475, aucune autre au-delà
+de 50 ms.
+
+### Porte du M2.8
+
+- **30 à 60 arrêts par partie** : avec les réglages par défaut (Standard, arrêt sur
+  décision), 42 à 59 sur 70 parties, moyenne 51 (avant : 50 à 147, moyenne 105). En
+  Réaliste, 47 à 61 sur 30 parties : une partie dépasse la cible d'un arrêt (Rester,
+  graine 7 : 38 relèves avec décision et 23 premières attaques de nuit). Chaque arrêt porte
+  une décision possible : convoi à portée d'un groupe libre (une fois par convoi), repère sur
+  la route (une fois par routage), première attaque de la nuit sur un convoi. Je ne force pas
+  cette partie sous 60 : il faudrait retirer un arrêt que le document demande.
+- **Aucune conduite sûre de gagner** : dans l'Atlantique, aucune conduite n'est à 10 sur 10 ;
+  Rester et Chasser sont à 9 sur 10 en Standard, à 5 et 2 sur 10 en Réaliste. Avant le lot,
+  Chasser gagnait 10 fois sur 10.
+- **Chaque pas sous 20 ms** : oui, mesuré machine au repos (voir ci-dessus).
+- Tests : 300, lint et construction verts ; 10 000 ordres au hasard par scénario sans
+  problème ; test de fumée vert. Déterminisme : mêmes graine et ordres, même monde,
+  sauvegarde et reprise comprises (`tests/roundtrip.test.js`, et le test d'ordres au hasard,
+  qui sauvegarde et reprend en cours de route).
+
+La porte est franchie, avec la réserve dite sur une partie en Réaliste.
+
+**Écarts au document, pour le compte rendu** : ombre de la nuit en image (pas en contour) ;
+décision « repère sur la route » demandée une fois par routage ; règles de chasse (bateau
+endommagé lâché, recherche de 45 minutes qui retrouve une fois sur trois, chances par passe
+abaissées, groupe en Rester qui ne part que sur ce qu'il peut atteindre) ; remplacement des
+U-Boote coulés après 21 jours (ajout) ; seuil de l'Atlantique à 7,5 % au lieu de 8 % ; un
+signal d'un groupe donne un point sûr ; pas d'entrée dans un groupe de soutien en haute mer.
