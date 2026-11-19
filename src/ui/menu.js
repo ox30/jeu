@@ -12,6 +12,8 @@ import { autosave, exportGame, gameInProgress, importText, loadEntry, manualSave
 import { openHelp, openSettings } from './dialogs.js';
 import { dateTimeText, realDurationText } from './format.js';
 import { CURRENT } from '../save/store.js';
+import { saveSettings } from '../save/settings.js';
+import { matchingPreset } from '../sim/gameSettings.js';
 
 const TUTORIAL_KEY = 'jeu-1940.tutorial-done.v1';
 const RESTART_ASKS_AFTER_MS = 10 * 60 * 1000;
@@ -191,6 +193,23 @@ function homePage(app, message) {
     <p class="hint mm-note">${esc(t('menu.note'))}</p>`;
 }
 
+/**
+ * The preset the next game begins with, chosen where a game is launched. (A game under way
+ * keeps its own: ☰, « Réglages de la partie ».)
+ */
+function presetChooser(app) {
+  const presets = app.data.presets;
+  const now = matchingPreset(app.settings, presets);
+  const buttons = Object.keys(presets.presets).map((name) =>
+    `<button type="button" data-preset="${esc(name)}" class="${name === now ? 'active' : ''}" aria-pressed="${name === now}">${esc(t(`settings.presets.${name}`))}</button>`).join('');
+  return `
+    <div class="mm-preset" role="group" aria-label="${esc(t('menu.preset'))}">
+      <span>${esc(t('menu.preset'))}</span>${buttons}
+      ${now === 'custom' ? `<span class="badge">${esc(t('settings.presets.custom'))}</span>` : ''}
+    </div>
+    <p class="hint mm-preset-text">${esc(t(`menu.presetText.${now}`))}</p>`;
+}
+
 function presetLine(result) {
   if (!result || !result.won || !result.preset) return '';
   const end = t(`settings.presets.${result.preset}`);
@@ -220,6 +239,7 @@ function campaignPage(app) {
   return `
     <h2>${esc(t('campaign.title'))}</h2>
     <p class="hint">${esc(t('campaign.intro'))}</p>
+    ${presetChooser(app)}
     <ol class="mm-chain">${rows}</ol>
     <label class="check"><input type="checkbox" data-unlock-all${c.unlockAll ? ' checked' : ''}> ${esc(t('campaign.unlockAll'))}</label>`;
 }
@@ -246,6 +266,7 @@ function scenariosPage(app) {
   }).join('');
   return `
     <h2>${esc(t('menu.scenarios'))}</h2>
+    ${presetChooser(app)}
     <ul class="mm-cards">${cards}</ul>
     <label class="check"><input type="checkbox" data-unlock-all${app.campaign.unlockAll ? ' checked' : ''}> ${esc(t('campaign.unlockAll'))}</label>`;
 }
@@ -323,7 +344,14 @@ export function attachMenu(app) {
     else if (d.menu === 'settings') openSettings(app, { scope: 'defaults' });
     else if (d.menu === 'help') openHelp(app);
     else if (d.menu) showMainMenu(app, d.menu);
-    else if (d.play) await play(app, d.play, { tutorial: Boolean(d.tutorial) });
+    else if (d.preset) {
+      // The player's settings for the games to come take the values of the preset.
+      const values = app.data.presets.presets[d.preset];
+      if (!values) return;
+      Object.assign(app.settings, values, { preset: d.preset });
+      saveSettings(app.settings);
+      showMainMenu(app, app.menuPage);
+    } else if (d.play) await play(app, d.play, { tutorial: Boolean(d.tutorial) });
     else if (d.load) {
       if (d.load !== CURRENT || gameInProgress(app)) {
         if (!(await mayReplace(app))) return;

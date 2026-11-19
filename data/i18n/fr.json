@@ -2316,7 +2316,14 @@
     "next": "Scénario suivant : {title}",
     "saveProblem": "⚠ Non enregistré",
     "presetStory": "Préréglage : {preset}.",
-    "presetChanged": "Partie commencée en {start}, terminée en {end}."
+    "presetChanged": "Partie commencée en {start}, terminée en {end}.",
+    "preset": "Préréglage des nouvelles parties :",
+    "presetText": {
+      "arcade": "Arcade : raids vus exactement, guidage automatique vers le raid, carburant illimité, trains répartis seuls, pas de fatigue, communications directes en mer.",
+      "standard": "Standard : effectif et altitude des raids approximatifs, trajectoire d'interception prolongée, autonomie comptée, trains à commander, fatigue des pilotes, silence radio en mer.",
+      "realistic": "Réaliste : plots en retard et fausses alertes, ni guidage ni trajectoire, ordres par caps, seuil de retour à tenir, pilotes tués, silence radio et B-Dienst plus efficace. Pas forcément gagné du premier coup : les sauvegardes par jour de jeu permettent de reprendre.",
+      "custom": "Personnalisé : les réglages choisis dans Réglages, au menu principal. Un des trois boutons les remplace par ceux du préréglage."
+    }
   },
   "crash": {
     "title": "Le jeu s'est arrêté sur une erreur",

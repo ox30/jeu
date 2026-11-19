@@ -12,6 +12,38 @@ guerre mondiale ».
 lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md` (fichier du projet) ; le journal des
 travaux est dans `docs/journal-m2.7-m2.10.md`.
 
+## Nouveautés du M2.9
+
+- **Menu principal pleine page**, hors de la carte : Continuer (scénario, date de jeu et
+  temps joué de la dernière partie), Campagne (la chaîne de l'Âge I et ce qui est gagné),
+  Scénarios (une carte par bataille : dates, enjeu, durée estimée), Entraînement (mis en avant
+  tant que le tutoriel n'a pas été joué jusqu'au bout), Charger, Réglages, Aide. Le
+  préréglage se choisit là où l'on lance une partie.
+- **Bouton ☰ en jeu** : Reprendre, Sauvegarder, Exporter, Réglages de la partie, Aide,
+  Recommencer, Menu principal. Revenir au menu garde la partie. Recommencer demande
+  confirmation dès dix minutes de jeu ; lancer ou charger une autre partie aussi, et la
+  partie remplacée est gardée parmi les sauvegardes automatiques.
+- **Écran de fin** : Rejouer, Scénario suivant quand la campagne a une suite, Menu principal.
+- **Sauvegardes** : la partie en cours, une sauvegarde automatique par jour de jeu (toutes les
+  deux heures de jeu dans une bataille d'une journée, les cinq dernières gardées), des
+  sauvegardes manuelles, l'export et l'import d'un fichier. Une sauvegarde contient la partie,
+  ses réglages et tout son journal, rapports de quart compris. Elle porte un numéro de format :
+  une migration par version, une validation avant chargement, et un message clair pour un
+  fichier abîmé ou trop récent. Les parties de la version 2.6.1 se chargent. Un enregistrement
+  qui échoue (stockage plein, navigation privée) s'affiche dans la barre du haut.
+- **Les réglages appartiennent à la partie** : copiés dans la partie à son lancement,
+  enregistrés avec elle, changés en cours de route par un ordre que le journal note. Le
+  préréglage peut changer en cours de partie : l'écran de fin et la campagne le disent
+  (« commencée en Réaliste, terminée en Standard »).
+- **Carte et outils par scénario** : chaque scénario déclare dans ses données sa zone, sa vue
+  de départ, ses couches (grille RAF, radars, routes, eaux fermées, ombre de la nuit), ses
+  outils et son rythme en mer. La chaîne de campagne, les vues et les étapes du tutoriel sont
+  dans `data/campaign.json` et `data/tutorial.json`.
+- **Sous le capot** : `main.js` découpé (le grand aiguillage des boutons devient une table
+  d'actions) ; fabrique d'entités étendue aux escadrilles, aux groupes, aux U-Boote et aux
+  raids ; états d'alerte renommés dans le code (`min30`, `min5`) avec migration des
+  sauvegardes ; une seule source pour le numéro de version.
+
 ## Nouveautés du M2.8
 
 Tout se passe dans « Hiver dans l'Atlantique » ; Kanalkampf, Adlertag et le 15 septembre ne
@@ -102,11 +134,13 @@ d'entrée.
 
 ## Scénarios et campagne
 
-Le jeu s'ouvre sur le **menu principal** : Continuer (la partie en cours), Campagne,
-Entraînement (avec le tutoriel), Charger une partie, Réglages et Aide. Le bouton « Menu » du
-bandeau le rouvre ; le jeu est arrêté tant qu'il est ouvert, Échap ou « Continuer » le
-reprend. « Campagne » ouvre la campagne de l'acte I. Une victoire ouvre le scénario suivant ;
-la case « Débloquer tous les scénarios » les ouvre tous d'un coup.
+Le jeu s'ouvre sur le **menu principal**, une page à part : Continuer (la partie en cours),
+Campagne, Scénarios, Entraînement (avec le tutoriel), Charger, Réglages et Aide. En jeu, le
+bouton ☰ du bandeau ouvre le menu de la partie (Reprendre, Sauvegarder, Exporter, Réglages de
+la partie, Aide, Recommencer, Menu principal) ; le jeu est en pause tant qu'il est ouvert.
+« Campagne » montre la chaîne de l'acte I : une victoire ouvre le scénario suivant, et la
+case « Débloquer tous les scénarios » les ouvre tous d'un coup. Le préréglage (Arcade,
+Standard, Réaliste) se choisit sur les pages Campagne et Scénarios.
 
 | Scénario | Période | L'essentiel |
 | --- | --- | --- |
@@ -122,9 +156,12 @@ Standard, la chasse commence la bataille suivante avec la moitié des avions per
 convoyeurs comblent ensuite les vides. Le briefing du scénario dit avec combien d'avions la
 chasse commence, et l'objectif « garder la chasse » se mesure sur ces avions-là.
 
-La partie en cours est enregistrée toute seule dans le navigateur et reprend où on l'a
-laissée. La page Campagne permet aussi de l'exporter dans un fichier `.json`, et « Charger
-une partie » du menu de la réimporter.
+La partie en cours est enregistrée toute seule dans le navigateur : « Continuer » la reprend
+où on l'a laissée. « Charger » liste aussi les cinq dernières sauvegardes automatiques (une
+par jour de jeu, toutes les deux heures de jeu dans une bataille d'une journée) et les
+sauvegardes manuelles (☰, Sauvegarder), et importe un fichier `.json` exporté par ☰,
+Exporter. En Réaliste, ces points de reprise permettent de rejouer une journée sans tout
+refaire.
 
 ## Comment jouer
 
@@ -385,8 +422,11 @@ mesurée. Une étape déjà posée se corrige avec ✎.
 ## Réglages
 
 Les « Réglages » tiennent en onglets : **Partie** (préréglage et réglages ci-dessous),
-**Temps et alertes**, **Carte et fiche**, **Sons**, **Développeur**. Trois préréglages, modifiables un
-par un :
+**Temps et alertes**, **Carte et fiche**, **Sons**, **Développeur**. Au menu principal, ce
+sont les réglages des prochaines parties. En jeu (☰, Réglages de la partie), l'onglet Partie
+montre ceux de la partie en cours : ils sont enregistrés avec elle, chaque changement est un
+ordre noté au journal, et le report de campagne, fixé au départ, ne se change plus. Trois
+préréglages, modifiables un par un :
 
 | Réglage | Arcade | Standard | Réaliste |
 | --- | --- | --- | --- |
@@ -398,6 +438,8 @@ par un :
 | Logistique | répartition automatique | manuelle | manuelle |
 | Fatigue des pilotes | non | oui | oui, avec pilotes tués |
 | Campagne : pertes reportées | aucune | la moitié | toutes |
+| B-Dienst : routes lues | jamais | 25 % | 50 % |
+| Communications en mer | directes | silence radio | silence radio |
 
 Le réglage **B-Dienst** (Partie) dit quelle part des messages de routage des convois la
 marine allemande lit : 0 % en Arcade, 25 % en Standard, 50 % en Réaliste (0, 10, 25, 50, 75
@@ -423,25 +465,31 @@ ou en bas de la carte) et l'affichage économe, un peu moins net mais plus fluid
 ├── README.md
 ├── index.html, style.css      page et styles
 ├── src/
-│   ├── main.js                démarrage et boucle de jeu
-│   ├── core/                  temps, aléatoire à graine, traductions, chargement des données
+│   ├── main.js                démarrage : données, montage de la page, barre du haut
+│   ├── core/                  temps, aléatoire à graine, traductions, chargement des données,
+│   │                          numéro de version
 │   ├── sim/                   simulation (aucun accès à la page) : convois et navires,
 │   │                          escadrilles, formations et rassemblements, raids, détection,
 │   │                          contact direct, guidage, attitude face à l'ennemi et
 │   │                          questions, combat, départs programmés et effectifs, patrouilles,
 │   │                          lutte anti-sous-marine, pilotes, installations, logistique,
 │   │                          radars mobiles, événements datés, convois réguliers et dollars,
-│   │                          rapports, objectifs
+│   │                          rapports, objectifs, réglages de la partie, fabrique d'entités
 │   ├── render/                caméra, carte, symboles, animations, vue de profil
 │   ├── ui/                    souris, clavier, panneaux, fiche d'unité et sa barre de
 │   │                          commandes, pages (rapports, fiches techniques, formations,
-│   │                          effectifs), menu principal, alertes, questions, campagne,
+│   │                          effectifs), menu principal et vie d'une partie (menu.js,
+│   │                          game.js), boucle de jeu (loop.js), table d'actions des
+│   │                          panneaux (panelActions.js), alertes, questions, campagne,
 │   │                          tutoriel, aide, mode développeur, sons
-│   └── save/                  réglages et parties gardés dans le navigateur
+│   └── save/                  réglages du joueur ; parties : instantané, formats et
+│                              migrations, validation, emplacements dans le navigateur
 ├── data/
 │   ├── maps/                  côtes Natural Earth projetées, noms de lieux
 │   ├── scenarios/             kanalkampf, adlertag, quinze-septembre, hiver-atlantique,
 │   │                          m0-july-1940 (entraînement)
+│   ├── campaign.json          chaîne de campagne, vues, cartes de scénario, couches et outils
+│   ├── tutorial.json          étapes du tutoriel
 │   ├── rules.json             équilibrage (avions, combat, détection, logistique, U-Boote)
 │   ├── presets.json           préréglages Arcade, Standard, Réaliste
 │   ├── help/images.json       images de l'aide, prises sur le banc d'essai
@@ -466,7 +514,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 300 tests, environ trois minutes
+npm test          # les 335 tests, environ trois minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : tutoriel, pages, fiches, corrections, quarts

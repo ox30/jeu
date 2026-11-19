@@ -849,6 +849,10 @@ body.on-menu #app { visibility: hidden; }
 .mm-row { display: flex; gap: 8px; margin-top: 10px; }
 .mm-row > button, .mm-row > .file-button { flex: 1 1 0; text-align: center; background: #f7f0dc; color: var(--ink); border: 1px solid #8a7350; border-radius: 4px; padding: 8px 12px; font: 14px Georgia, serif; cursor: pointer; }
 .mm-note { margin: 12px 0 0; }
+.mm-preset { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 10px 0 4px; font: 14px Georgia, serif; }
+.mm-preset button { background: #f7f0dc; color: var(--ink); border: 1px solid #8a7350; border-radius: 4px; padding: 5px 12px; font: 14px Georgia, serif; cursor: pointer; }
+.mm-preset button.active { background: var(--raf-blue); color: #fff; border-color: var(--raf-blue); }
+.mm-preset-text { margin: 0 0 8px; }
 .mm-body .message { margin: 10px 0 0; }
 .mm-foot { padding: 6px 28px 12px; text-align: right; font: italic 12px Georgia, serif; color: var(--ink-soft); }
 .mm-chain, .mm-cards, .mm-saves { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }

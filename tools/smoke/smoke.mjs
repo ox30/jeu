@@ -95,6 +95,24 @@ const PAGES = [['#btn-reports', 'dlg-reports'], ['#btn-formations', 'dlg-formati
 const TABS = ['#tab-units', '#tab-sites', '#tab-logistics'];
 
 /** One scenario: start it, open every page, a sheet of each kind, and let it run. */
+/**
+ * A click that a page opening at that very moment does not block (a question of the
+ * controller, a report): the page is closed and the click tried again.
+ */
+async function press(page, target) {
+  const locator = typeof target === 'string' ? page.locator(target).first() : target;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await locator.click({ timeout: 2500 });
+      return;
+    } catch (err) {
+      if (attempt === 3) throw err;
+      await closeDialogs(page);
+      await sleep(150);
+    }
+  }
+}
+
 async function scenario(page, id, errors) {
   const before = errors.length;
   await game(page, (sid) => {
@@ -108,7 +126,7 @@ async function scenario(page, id, errors) {
   note((await page.isVisible('#log-tabs')) === watches, `${id}: the « Signaux » tab ${watches ? 'is there' : 'is hidden'}`);
   for (const [button, dialog] of PAGES) {
     if (!(await page.isVisible(button))) continue;
-    await page.click(button);
+    await press(page, button);
     await sleep(120);
     const open = await game(page, (d) => document.getElementById(d).open, dialog);
     if (!open) note(false, `${id}: ${button} opens its page`);
@@ -120,22 +138,22 @@ async function scenario(page, id, errors) {
   let sheets = 0;
   for (const tab of TABS) {
     if (!(await page.isVisible(tab))) continue; // no logistics tab without a railway
-    await page.click(tab);
+    await press(page, tab);
     await sleep(80);
     const kinds = await game(page, () => [...new Set([...document.querySelectorAll('#tote [data-action="select"]')].map((b) => b.dataset.kind))]);
     for (const kind of kinds) {
-      await page.click(`#tote [data-action="select"][data-kind="${kind}"]`);
+      await press(page, `#tote [data-action="select"][data-kind="${kind}"]`);
       await sleep(120);
       if (await page.isVisible('#unit-panel')) sheets++;
       const tabs = await page.locator('#unit-tabs button').count();
       for (let i = 0; i < tabs; i++) {
         const tab = page.locator('#unit-tabs button').nth(i);
-        if (await tab.isVisible()) await tab.click();
+        if (await tab.isVisible()) await press(page, tab);
         await sleep(40);
       }
     }
   }
-  await page.click('#tab-units');
+  await press(page, '#tab-units');
   // The three views, with a sheet open, then a few seconds at ×600.
   for (const key of ['a', 'l', 'g']) {
     await page.keyboard.press(key);
@@ -424,7 +442,9 @@ async function corrections(page, errors) {
   await step('Atlantic without grid', async () => {
     await game(page, () => window.__game.restart('hiver-atlantique'));
     await settle(page);
-    await page.click('#btn-settings');
+    // The settings of the game: ☰, « Réglages de la partie ».
+    await page.click('#btn-menu');
+    await page.click('#dlg-menu [data-gm="settings"]');
     await sleep(150);
     const grid = await page.evaluate(() => ({ world: window.__game.world.grid, box: Boolean(document.querySelector('#dlg-settings [name="grid"]')) }));
     await closeDialogs(page);
@@ -694,6 +714,32 @@ async function menus(page, errors) {
       note(await game(page, () => document.querySelectorAll('#menu .mm-save.manual').length === 0), `${id}: the save is deleted`);
     }
     await shot(page, 'menu-load');
+  });
+  await step('menu: the preset is chosen where a game is launched', async () => {
+    await game(page, () => window.__game.toMainMenu());
+    await page.click('#menu [data-menu="scenarios"]');
+    await page.click('#menu [data-preset="realistic"]');
+    await sleep(150);
+    note(await game(page, () => document.querySelector('#menu [data-preset="realistic"]').classList.contains('active') && window.__game.settings.preset === 'realistic'),
+      'menu: « Réaliste » chosen on the page of the scenarios becomes the preset of the games to come');
+    await page.click('#menu .mm-card [data-play="quinze-septembre"]');
+    await confirmAnswer(page, true);
+    await sleep(500);
+    await settle(page);
+    const begun = await game(page, () => {
+      const w = window.__game.world;
+      return { preset: w.settings.preset, start: w.presetStart, detection: w.settings.detection, scenario: w.scenario.id };
+    });
+    note(begun.scenario === 'quinze-septembre' && begun.preset === 'realistic' && begun.start === 'realistic' && begun.detection === 'delayed',
+      'menu: the game launched begins in Réaliste', JSON.stringify(begun));
+    // Back to Standard for what follows: the game under way keeps its own preset.
+    await game(page, () => window.__game.toMainMenu());
+    await page.click('#menu [data-menu="campaign"]');
+    await page.click('#menu [data-preset="standard"]');
+    await sleep(150);
+    note(await game(page, () => window.__game.settings.preset === 'standard' && window.__game.world.settings.preset === 'realistic'),
+      'menu: changing the preset of the games to come leaves the game under way as it is');
+    await shot(page, 'menu-campaign');
   });
   await step('menu: Continuer after the page is closed', async () => {
     await game(page, () => window.__game.restart('adlertag'));

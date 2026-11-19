@@ -744,3 +744,75 @@ endommagé lâché, recherche de 45 minutes qui retrouve une fois sur trois, cha
 abaissées, groupe en Rester qui ne part que sur ce qu'il peut atteindre) ; remplacement des
 U-Boote coulés après 21 jours (ajout) ; seuil de l'Atlantique à 7,5 % au lieu de 8 % ; un
 signal d'un groupe donne un point sûr ; pas d'entrée dans un groupe de soutien en haute mer.
+
+## M2.9 · Menu principal, sauvegardes et réglages
+
+Branche `m2.9`, depuis `m2.8`. Écrit en partie pendant les mesures du M2.8 (dans une copie de
+travail à part), puis reposé sur le M2.8 terminé.
+
+### 18 novembre, 21 h 40 à 23 h 35 — réglages dans la partie, formats de sauvegarde, données
+
+- **Code 4, N9 — les réglages appartiennent à la partie** (`src/sim/gameSettings.js`). Le
+  monde reçoit sa copie des réglages qui changent les règles (détection, fausses alertes,
+  aide à l'interception, carburant, ordres, logistique, fatigue, report de campagne, B-Dienst,
+  communications en mer, arrêt aux relèves, questions, aide au rassemblement) ; le reste (son,
+  ombre de la nuit, place de la fiche, vitesses des alertes) est de l'affichage et reste au
+  joueur. Un réglage ne change plus que par un ordre (`setGameSetting`, `applyPreset`), noté au
+  journal ; la page Réglages ouverte en jeu donne ces ordres au lieu d'écrire dans les
+  réglages. La partie retient le préréglage de son début (`presetStart`). Choix : le report de
+  campagne est fixé au départ (on ne défait pas à mi-partie ce que la campagne a reporté), et
+  le nom du préréglage n'en tient pas compte, pour qu'une partie passée de Réaliste à
+  Standard s'appelle Standard.
+- **Code 7 — noms trompeurs.** `thirty` devient `min30` et `available` devient `min5`
+  partout (règles, textes, simulation, tests). Les sauvegardes sont migrées.
+- **I7, Code 8 — formats** (`src/save/migrate.js`). Le format passe à 2 ; une migration par
+  version (de 1 à 2 : les états d'alerte renommés, où qu'une escadrille en garde un) ; une
+  validation avant de toucher au monde (ce n'est pas une partie, version plus récente,
+  fichier abîmé avec le champ en cause, scénario inconnu, autre scénario), chaque refus avec
+  sa phrase dans `fr.json`. Les trois parties 2.6.1 des tests se chargent.
+- **I7 — emplacements** (`src/save/store.js`, `pack.js`). La partie en cours est écrite telle
+  quelle, d'un coup, pour que fermer la page ne perde rien ; les sauvegardes automatiques
+  (cinq gardées) et manuelles sont compressées par le navigateur (`CompressionStream`, sans
+  bibliothèque). Un stockage plein est dit, après un essai en libérant la plus vieille
+  sauvegarde automatique. La partie laissée par la version 2.8 devient la partie en cours.
+- **N8, Code 6 — données.** `data/campaign.json` (chaîne, entraînement, vues, cartes de
+  scénario avec durée estimée, couches et outils par défaut), bloc `map` et `seaRhythm` dans
+  chaque scénario (zone, vue de départ, couches, outils), `data/tutorial.json` (étapes du
+  tutoriel et conditions de passage, interprétées par `src/ui/tutorial.js`).
+
+### 18 novembre, 23 h 35 à 19 novembre, 1 h 00 — menu, vie d'une partie, découpage, fabrique
+
+- **N3, C1, C3, C16 — menu principal** (`src/ui/menu.js`) : page pleine, hors de la carte, avec
+  les entrées du document ; cartes de scénario (dates, enjeu, durée estimée) ; ☰ en jeu ;
+  confirmations (remplacer une partie en cours ; recommencer dès dix minutes de jeu réel), la
+  partie remplacée étant gardée parmi les sauvegardes automatiques ; écran de fin avec
+  Rejouer, Scénario suivant et Menu principal, et l'histoire du préréglage. Ajout : « Exporter »
+  dans le menu ☰ (l'export n'avait plus de place ailleurs).
+- **Préréglage « choisi au lancement »** : un choix à trois boutons sur les pages Campagne et
+  Scénarios, avec une phrase qui dit ce que le préréglage change. Il règle les réglages des
+  prochaines parties ; une partie en cours garde les siens.
+- **Vie d'une partie** (`src/ui/game.js`) : nouvelle partie, reprise, sauvegarde en cours tous
+  les quarts d'heure de jeu, automatique quand le jour de jeu tourne (toutes les deux heures de
+  jeu si le scénario dure moins de 36 heures), manuelle, import et export.
+- **`main.js` découpé** : 1 079 lignes deviennent 230 (données, montage, barre du haut) ;
+  `elements.js`, `loop.js`, `sheet.js`, `gameEvents.js`, et `panelActions.js` où le grand
+  aiguillage des boutons devient une table d'actions. Vérifié contre l'ancien code : les
+  mêmes 80 actions de clic et 8 de champ. Sept entrées ne répondaient plus à aucun bouton
+  (héritées de versions anciennes) : retirées, avec deux ordres d'interface morts.
+- **Code 1 — fabrique d'entités** étendue aux escadrilles, aux groupes d'escorte, aux U-Boote
+  et aux raids : chaque sous-système déclare ce qu'il garde (alerte et tableau de service,
+  formation, règles d'engagement, chasses, route d'un U-Boot…). Les listes de valeurs par
+  défaut écrites à la main dans la sauvegarde ont disparu. Cinq parties du joueur automatique
+  rejouées donnent exactement les mêmes résultats qu'au M2.8.
+- **Aide** : un onglet « Parties et réglages ».
+
+**Mesures faites en chemin** (Chrome sans écran, Atlantique joué jusqu'au jour 79) : une
+sauvegarde pèse 610 000 caractères en fin de partie (536 lignes de journal, 474 rapports de
+quart) ; la partie en cours et cinq sauvegardes automatiques occupent 860 000 caractères, loin
+de la limite du navigateur (environ 5 millions) ; écrire la partie en cours prend 14 ms.
+
+**Choix à signaler** : le journal gardé dans une sauvegarde est limité aux 2 000 dernières
+lignes (une partie entière en écrit quelques centaines) ; les durées estimées des cartes de
+scénario sont des estimations de ma part, à corriger avec le chrono de jeu ; le scénario
+d'entraînement suit le calendrier de Kanalkampf, donc une sauvegarde automatique par jour de
+jeu.
