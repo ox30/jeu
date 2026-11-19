@@ -76,6 +76,18 @@ function buildActions(rnd, world) {
     setShipBoost: () => { const c = pick(ships()); if (c) O.setShipBoost(w, c, rnd() < 0.5); },
     depart: () => { const c = pick(w.convoys); if (c) O.departConvoy(w, c); },
     sailEscort: () => { const e = pick(w.escorts); if (e) O.sailEscort(w, e); },
+    // The exit step of a group in port (2.10.3): none, the roads, a channel of its port, or a name that is none.
+    planExit: () => {
+      const e = pick(w.escorts);
+      if (!e || !O.planExit) return;
+      const port = w.byId.port.get(e.portId);
+      O.planExit(w, e, pick([null, 'roads', 'nowhere', ...((port && port.approaches) || []).map((a) => a.name)]));
+    },
+    // The line after the way out, drawn longer or taken away (as the ring and the cross of the sheet do).
+    exitLine: () => {
+      const e = pick(w.escorts);
+      if (e && e.routeHead > 0) O.editShipRoute(w, e, rnd() < 0.3 ? [] : [near(e, 300), near(e, 700)]);
+    },
     leavePort: () => { const e = pick(w.escorts); if (e) O.leavePort(w, e, ...near(e, 60)); },
     joinConvoy: () => { const e = pick(w.escorts); const c = pick(w.convoys); if (e && c) O.joinConvoy(w, e, c.id); },
     leaveConvoy: () => { const e = pick(w.escorts); if (e) O.leaveConvoy(w, e); },
@@ -183,6 +195,28 @@ function firstDifferences(a, b, path = '', out = []) {
   return out;
 }
 
+/**
+ * What is wrong with the `routeHead` of a group, or null: it counts the first points of the
+ * route, and those are a run of points of one charted channel of a port, outward.
+ */
+export function wayOutFlaw(w, e) {
+  const head = e.routeHead;
+  if (!Number.isInteger(head) || head < 0 || head > e.route.length) return `has a way out of ${head} points on a route of ${e.route.length}`;
+  if (!e.exitPlanned && e.exitChannel && e.state === 'inPort' && e.route.length) return 'keeps a channel that is no step';
+  if (e.state === 'inPort' && e.route.length && !head) return 'has a route in port that does not start by a way out';
+  if (!head) return null;
+  const same = (p, q) => Math.abs(p[0] - q[0]) < 1e-9 && Math.abs(p[1] - q[1]) < 1e-9;
+  for (const port of w.byId.port.values()) {
+    for (const a of port.approaches || []) {
+      const out = a.points.slice(0, -1).reverse();
+      for (let i = 0; i + head <= out.length; i++) {
+        if (same(out[i], e.route[0]) && e.route.slice(0, head).every((p, k) => same(p, out[i + k]))) return null;
+      }
+    }
+  }
+  return `has a way out of ${head} points that follows no channel of a port`;
+}
+
 function check(w, label, problems) {
   const at = gameClock(w);
   for (const u of [...w.squadrons, ...w.convoys, ...w.escorts, ...w.uboats, ...w.raids]) {
@@ -195,6 +229,11 @@ function check(w, label, problems) {
   }
   for (const c of w.convoys) {
     if (c.ships < 0 || c.cargo.fuel < -1e-6 || c.cargo.materiel < -1e-6) problems.push(`${at} after « ${label} »: bad convoy ${c.id}`);
+  }
+  // The head of a group's route (2.10.3): its charted way out of port, and nothing else.
+  for (const e of w.escorts) {
+    const flaw = wayOutFlaw(w, e);
+    if (flaw) problems.push(`${at} after « ${label} »: group ${e.id} (${e.state}) ${flaw}`);
   }
   for (const site of w.sites.values()) {
     if (!site.stocks) {

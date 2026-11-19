@@ -1793,6 +1793,165 @@ async function interfaceChecks(page, errors) {
     const left = await tabs();
     note(!left.tabs.some((x) => x.startsWith(sq.name)), 'installation tabs: … and the aerodrome no longer lists it', JSON.stringify(left.tabs));
   });
+  await step('interface: the way out of port is a step, a sailing leaves at its hour (2.10.3)', async () => {
+    // Reported after play-testing 2.10.2: scheduled sailings of escort groups that did not
+    // leave at their hour, and the exit given to a group (a channel, or the roads) wanted as
+    // a step like a traced one — taken away, extended, with an action at its end.
+    await start('hiver-atlantique', { seaComms: 'direct' });
+    await page.keyboard.press('l');
+    await page.waitForFunction(() => !window.__game.camera.anim, null, { timeout: 8000 });
+    await sleep(300);
+    await closeDialogs(page);
+    const hand = (id) => game(page, async (i) => {
+      const a = window.__game;
+      const actions = await import('./src/ui/actions.js');
+      a.unitTabs = { escort: 'cmd' };
+      actions.select(a, 'escort', i);
+      a.dirtyPanels = true;
+      await new Promise((r) => setTimeout(r, 400));
+    }, id);
+    const read = (id) => game(page, (i) => {
+      const a = window.__game;
+      const e = a.world.escorts.find((x) => x.id === i);
+      const r = a.canvas.getBoundingClientRect();
+      const ring = a.hits.find((h) => h.kind === 'routeExtend' && h.id === i);
+      const end = document.getElementById(`ship-end-${i}`);
+      return {
+        state: e.state, route: e.route.length, head: e.routeHead, exit: e.exitChannel, planned: e.exitPlanned, end: e.endAction ? e.endAction.kind : null,
+        schedule: e.schedule ? e.schedule.at : null, delayed: Boolean(e.schedule && e.schedule.delayed),
+        rows: [...document.querySelectorAll('#unit-keyed ul.legs.steps li')].map((li) => li.textContent.replace(/\s+/g, ' ').trim()),
+        crosses: [...document.querySelectorAll('#unit-keyed ul.legs.steps button')].map((b) => b.dataset.action),
+        select: document.getElementById(`exit-channel-${i}`)?.value ?? null,
+        options: [...(document.getElementById(`exit-channel-${i}`)?.options || [])].map((o) => o.value),
+        endLabel: end ? end.closest('label').firstChild.textContent.trim() : null,
+        ring: ring ? [r.left + ring.x, r.top + ring.y] : null,
+      };
+    }, id);
+    const show = () => game(page, () => {
+      // (The sheet scrolled to its route section, for the screenshots.)
+      const list = document.querySelector('#unit-keyed ul.legs.steps') || document.querySelector('#unit-keyed [id^="exit-channel-"]');
+      if (list) list.scrollIntoView({ block: 'center' });
+    });
+    await hand('eg1');
+    const none = await read('eg1');
+    note(none.state === 'inPort' && none.route === 0 && none.select === '' && none.options.join('|') === "|roads|Nord de l'Irlande|Canal Saint-Georges" && none.rows.length === 0,
+      'exit step: a group in port has no exit yet; its sheet offers none, the roads and the channels of its port', JSON.stringify({ ...none, ring: null }));
+    // 1. A channel: the head of a route that waits in port, listed and drawn.
+    await page.selectOption('#exit-channel-eg1', "Nord de l'Irlande");
+    await sleep(400);
+    // The far end of the channel, brought to the open part of the map.
+    await game(page, async () => {
+      const a = window.__game;
+      const cam = await import('./src/render/camera.js');
+      cam.zoomAt(a.camera, 300, 400, 0.62);
+      await new Promise((r) => setTimeout(r, 300));
+      const ring = a.hits.find((h) => h.kind === 'routeExtend' && h.id === 'eg1');
+      if (ring) cam.panBy(a.camera, 430 - ring.x, 330 - ring.y);
+      await new Promise((r) => setTimeout(r, 400));
+    });
+    await show();
+    const channel = await read('eg1');
+    note(channel.state === 'inPort' && channel.planned && channel.exit === "Nord de l'Irlande" && channel.head > 2 && channel.route === channel.head,
+      'exit step: a channel chosen is the head of a route, and the group stays in port', JSON.stringify({ ...channel, rows: null }));
+    note(channel.rows.length === 1 && /^Par le chenal : Nord de l.Irlande \d+ km/.test(channel.rows[0]) && channel.crosses.join('|') === 'exit-remove' && channel.endLabel === 'Au bout de la sortie',
+      'exit step: … listed under « Route et étapes » with its length, a cross, and what the group does at its end', JSON.stringify([channel.rows, channel.crosses, channel.endLabel]));
+    note(Boolean(channel.ring) && channel.ring[0] > 40 && channel.ring[0] < 700, 'exit step: … and drawn on the map, a ring at its end to carry it further', JSON.stringify(channel.ring));
+    await shot(page, 'exit-step-channel');
+    if (!channel.ring) return;
+    // 2. Carried further by a line drawn from the ring, still in port.
+    const [rx, ry] = channel.ring;
+    await page.mouse.move(rx, ry);
+    await page.mouse.down();
+    await page.mouse.move(rx - 70, ry + 10, { steps: 6 });
+    await page.mouse.move(rx - 160, ry + 50, { steps: 8 });
+    await page.mouse.up();
+    await sleep(450);
+    await show();
+    const longer = await read('eg1');
+    note(longer.state === 'inPort' && longer.head === channel.head && longer.route > longer.head && longer.rows.length === 2 && /^Puis le tracé : \d+ points? \d+ km/.test(longer.rows[1])
+      && longer.crosses.join('|') === 'exit-remove|line-remove' && longer.endLabel === 'En fin de tracé',
+    'exit step: a line drawn from the ring follows the step, and waits in port with it', JSON.stringify({ ...longer, ring: null }));
+    // 3. An action at the end.
+    await page.selectOption('#ship-end-eg1', 'hold');
+    await sleep(350);
+    const held = await read('eg1');
+    note(held.end === 'hold' && held.route === longer.route && held.state === 'inPort', 'exit step: the action at the end is chosen in port, the plan stays', JSON.stringify({ end: held.end, route: held.route }));
+    await show();
+    await shot(page, 'exit-step-extended');
+    // 4. The line taken away, the step stays; another exit; the step taken away.
+    await page.click('#unit-keyed [data-action="line-remove"]');
+    await sleep(350);
+    const cut = await read('eg1');
+    note(cut.route === channel.head && cut.head === channel.head && cut.rows.length === 1 && cut.end === 'hold' && cut.endLabel === 'Au bout de la sortie' && cut.state === 'inPort',
+      'exit step: the cross of the line takes the line away and leaves the step, with its action', JSON.stringify({ ...cut, ring: null }));
+    await page.selectOption('#exit-channel-eg1', 'roads');
+    await sleep(350);
+    await show();
+    const roads = await read('eg1');
+    note(roads.planned && roads.exit === null && roads.select === 'roads' && roads.head > 0 && roads.head < channel.head && roads.route === roads.head && /^En rade, au large du port/.test(roads.rows[0] || ''),
+      'exit step: the roads are a step too (the group clears the port and waits there)', JSON.stringify({ ...roads, ring: null }));
+    await shot(page, 'exit-step-roads');
+    await page.click('#unit-keyed [data-action="exit-remove"]');
+    await sleep(350);
+    const bare = await read('eg1');
+    note(!bare.planned && bare.exit === null && bare.route === 0 && bare.rows.length === 0 && bare.select === '' && bare.state === 'inPort',
+      'exit step: the cross of the step takes it away: no exit, no route', JSON.stringify({ ...bare, ring: null }));
+    // 5. Sailings at 08:00: one group with a step and an action, another with nothing prepared.
+    await page.selectOption('#exit-channel-eg1', 'Canal Saint-Georges');
+    await sleep(300);
+    await page.selectOption('#ship-end-eg1', 'hold');
+    await sleep(300);
+    const schedule = async (id) => {
+      await hand(id);
+      await page.fill(`#sail-time-${id}`, '08:00');
+      await page.click(`#unit-keyed [data-action="schedule-sail"][data-id="${id}"]`);
+      await sleep(350);
+      await closeDialogs(page);
+      await sleep(200);
+    };
+    await schedule('eg1');
+    await schedule('eg3');
+    await hand('eg1');
+    await show();
+    const planned = [await read('eg1'), await read('eg3')];
+    note(planned.every((p) => p.schedule === 7200 && p.state === 'inPort') && planned[0].route === planned[0].head && planned[0].head > 2 && planned[1].route === 0,
+      'scheduled sailing: 08:00 is taken for a group with a step and for a group with nothing prepared', JSON.stringify(planned.map((p) => [p.schedule, p.state, p.route])));
+    await shot(page, 'exit-step-scheduled');
+    const sailed = await game(page, async () => {
+      const a = window.__game;
+      const groups = ['eg1', 'eg3'].map((id) => a.world.escorts.find((e) => e.id === id));
+      const left = [null, null];
+      const waited = [false, false];
+      for (let i = 0; i < 200 && left.some((x) => x === null); i++) {
+        a.stepWorld(60);
+        groups.forEach((e, k) => {
+          if (e.schedule && e.schedule.delayed) waited[k] = true;
+          if (left[k] === null && e.state !== 'inPort') left[k] = a.world.t;
+        });
+      }
+      // Three hours on: out of the harbour, and under way.
+      const port = a.world.byId.port.get(groups[1].portId);
+      for (let i = 0; i < 180; i++) a.stepWorld(60);
+      a.dirtyPanels = true;
+      await new Promise((r) => setTimeout(r, 500));
+      return {
+        left, waited, states: groups.map((e) => e.state), schedules: groups.map((e) => e.schedule),
+        away: groups.map((e) => Math.round(Math.hypot(e.x - port.x, e.y - port.y))),
+        log: [...document.querySelectorAll('#log-list li, #journal li, .log-entry')].map((li) => li.textContent.replace(/\s+/g, ' ').trim()).filter((x) => /groupe d.escorte/.test(x)).slice(0, 8),
+      };
+    });
+    note(sailed.left.every((x) => x !== null && x >= 7200 && x <= 7260) && !sailed.waited.some(Boolean) && sailed.schedules.every((x) => x === null),
+      'scheduled sailing: both groups leave at 08:00, neither order is left waiting', JSON.stringify(sailed));
+    note(sailed.states[0] === 'atSea' && sailed.away[0] > 40, 'scheduled sailing: three hours later the first is well down its channel', JSON.stringify(sailed.away));
+    note(sailed.states[1] === 'waiting' && sailed.away[1] >= 2 && sailed.away[1] <= 10, 'scheduled sailing: … and the one with nothing prepared waits in the roads for its orders', JSON.stringify([sailed.states[1], sailed.away[1]]));
+    await settle(page);
+    await hand('eg1');
+    await show();
+    const atSea = await read('eg1');
+    note(atSea.rows.length === 1 && /^Par le chenal : Canal Saint-Georges \d+ km/.test(atSea.rows[0]) && atSea.crosses.length === 0 && atSea.end === 'hold',
+      'exit step: under way the step is still listed, without its cross, with the action kept', JSON.stringify({ ...atSea, ring: null }));
+    await shot(page, 'exit-step-sailed');
+  });
   await step('interface: at sea and at high speed, the zone of a patrol rather than the aircraft (idea B)', async () => {
     await start('hiver-atlantique', { seaComms: 'direct' });
     const sea = await game(page, async () => {
