@@ -12,7 +12,8 @@ import { shownPosition } from '../sim/comms.js';
 import { isSubmerged, reachKm } from '../sim/asw.js';
 import { shipEndChoices } from '../sim/naval.js';
 import { legTarget } from '../sim/navigation.js';
-import { editableRoute, endChoices, planTrack } from '../sim/orders.js';
+import { endChoices, planTrack } from '../sim/orders.js';
+import { awaited, awaitedLand, workingRoute } from './awaited.js';
 import { interceptChance } from '../sim/control.js';
 import { activePoint, editingLegIndex, raidsInHand } from './actions.js';
 import { formationById, formationOf, membersOf } from '../sim/formations.js';
@@ -29,7 +30,7 @@ import { drawProfile } from '../render/profile.js';
 import { button, options, row, setHtml } from './html.js';
 import { devRaids, isRaidActive, raidLine, uboatLine, uboatReturnText } from './dev.js';
 import {
-  chargesText, commsKey, commsLines, convoyCargoRows, coverButtons, escortSheet, exitLines, homePortLine, huntLines, joinLines, positionRows, renderLogistics, stockBlock,
+  chargesText, commsKey, commsLines, convoyCargoRows, coverButtons, escortSheet, exitLines, homePortLine, huntLines, joinLines, nextReliefHour, positionRows, renderLogistics, stockBlock,
   stockOrders, trainSheet,
 } from './logisticsPanels.js';
 import { isActive } from '../sim/raid.js';
@@ -331,7 +332,7 @@ function legProgress(app, u, leg) {
 function pointBlock(app, u) {
   const ap = activePoint(app);
   if (!ap || ap.u !== u) return '';
-  const pts = editableRoute(u);
+  const pts = workingRoute(app.world, u).points;
   const parts = [`<div class="point-block"><div class="sub">${escapeHtml(t('orders.point', { n: ap.index + 1, of: pts.length }))}</div>`];
   if (u.kind === 'squadron') {
     const altM = ap.point[2];
@@ -404,20 +405,33 @@ function planList(app, u) {
   // (An escort group's way out of port is its exit step, listed first: not a line of the player's.)
   const head = u.kind === 'escort' ? Math.min(u.routeHead || 0, u.route.length) : 0;
   const own = u.route ? u.route.length - head : 0;
+  // Radio silence: what is on its way to a ship is listed as it will be, and marked. The
+  // numbers of the legs are those the next orders count from.
+  const wait = u.kind === 'squadron' ? { route: null, legs: null } : awaited(w, u);
+  const plan = wait.legs || u.plan;
+  const hour = wait.route || wait.legs ? nextReliefHour(w) : 0;
   const parts = [exitStepBlock(app, u), `<div class="sub">${escapeHtml(t('orders.plan'))}</div>`];
-  if (own > 0 && !u.plan.length) {
-    parts.push(`<p class="hint">${escapeHtml(t(moving ? 'orders.followingRoute' : 'orders.waitingRoute', { n: own, s: own > 1 ? 's' : '' }))}</p>`);
-  } else if (!u.plan.length) {
+  if (wait.route) {
+    const n = wait.route.points.length;
+    const group = wait.route.via === 'ship' ? w.escorts.find((e) => e.id === wait.route.carrier) : null;
+    parts.push(`<p class="hint awaited">${escapeHtml(group ? t('orders.awaitedRouteShip', { n, s: n > 1 ? 's' : '', group: group.short }) : t('orders.awaitedRoute', { n, s: n > 1 ? 's' : '', hour }))}</p>`);
+  }
+  if (own > 0 && !plan.length) {
+    // (With a line on its way, the handles of the map are that line's: the hint says only what the ship does meanwhile.)
+    parts.push(`<p class="hint">${escapeHtml(t(wait.route ? 'orders.followingUntilRelief' : moving ? 'orders.followingRoute' : 'orders.waitingRoute', { n: own, s: own > 1 ? 's' : '' }))}</p>`);
+  } else if (!plan.length) {
     parts.push(`<p class="hint">${escapeHtml(moving ? t('orders.noLeg') : t('orders.noLegReady'))}</p>`);
   } else {
-    const track = planTrack(w, u);
+    const track = planTrack(w, u, plan);
     const editing = editingLegIndex(app, u);
     parts.push('<ol class="legs">');
-    u.plan.forEach((leg, i) => {
+    plan.forEach((leg, i) => {
       const end = track[i + 1];
       const when = end && !end.open ? t('legs.eta', { time: formatTime(w.startMs + end.t * 1000) }) : '';
-      const status = i === 0 && moving ? legProgress(app, u, leg) : when;
-      const cls = [i === 0 && moving ? 'current' : '', i === editing ? 'editing' : ''].filter(Boolean).join(' ');
+      // (A leg the ship does not have yet: on its way.)
+      const known = u.plan.includes(leg);
+      const status = !known ? t('orders.awaitedLeg') : i === 0 && moving ? legProgress(app, u, leg) : when;
+      const cls = [i === 0 && moving && known ? 'current' : '', i === editing ? 'editing' : '', known ? '' : 'awaited'].filter(Boolean).join(' ');
       parts.push(`<li${cls ? ` class="${cls}"` : ''}><span class="leg-text">${escapeHtml(legText(w, leg))}</span>
         <span class="leg-status">${escapeHtml(status)}</span>
         ${button('edit-leg', '✎', { id: u.id, kind: u.kind, extra: ` data-index="${i}" title="${escapeHtml(t('orders.editLeg'))}"`, cls: 'icon' })}
@@ -425,6 +439,9 @@ function planList(app, u) {
     });
     parts.push('</ol>');
   }
+  if (wait.legs) parts.push(`<p class="hint awaited">${escapeHtml(t('orders.awaitedLegs', { hour }))}</p>`);
+  // (Checked for good when the order is carried out; the player is warned before it leaves.)
+  if ((wait.route || wait.legs) && awaitedLand(w, u)) parts.push(`<p class="message warning">${escapeHtml(t('orders.awaitedLand'))}</p>`);
   return parts.join('');
 }
 
@@ -437,7 +454,8 @@ function messageBlock(app) {
 function legForm(app, u) {
   const sea = u.kind !== 'squadron';
   const editing = editingLegIndex(app, u);
-  const leg = editing === null ? null : u.plan[editing];
+  // (Under radio silence the legs listed are those on their way: the one changed is among them.)
+  const leg = editing === null ? null : (u.kind === 'squadron' ? u.plan : awaited(app.world, u).legs || u.plan)[editing];
   const value = (v) => (v === null || v === undefined || v === '' ? '' : ` value="${escapeHtml(String(v))}"`);
   return [
     `<div class="leg-form${leg ? ' editing' : ''}"><div class="sub">${escapeHtml(leg ? t('orders.editingLeg', { n: editing + 1 }) : t('orders.newLeg'))}</div>`,

@@ -16,6 +16,9 @@ export function viewOffered(app, name) {
 
 /** Is this tool (ruler, radarCover, reports, formations, roster, cards) one of the scenario's? */
 export function toolOffered(app, name) {
+  // The report of the watch is no tool a scenario declares: it comes with the sea lived by
+  // the watches, from the first report on.
+  if (name === 'watch') return Boolean(app.world.watch && app.world.watch.reports.length);
   const tools = mapOf(app).tools;
   if (tools && !tools.includes(name)) return false;
   // The radar cover has nothing to show without a radar.

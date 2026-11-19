@@ -8,7 +8,10 @@ import { project } from '../src/sim/geo.js';
 import { joinConvoy } from '../src/sim/orders.js';
 import { pendingDecisions } from '../src/sim/watch.js';
 import { ORDER_NAMES } from '../src/sim/comms.js';
-import { SIGNAL_FILTERS, createSignals, headlineText, passesFilter, reportHtml, unreadCount, watchLabel } from '../src/ui/watchPanel.js';
+import {
+  SIGNAL_FILTERS, createSignals, headlineText, onWatchClick, openWatch, passesFilter, renderSignals, reportHtml, unreadCount, watchLabel,
+} from '../src/ui/watchPanel.js';
+import { toolOffered } from '../src/ui/offered.js';
 
 setDictionary(data.fr);
 const H = 3600;
@@ -76,6 +79,70 @@ test('the report unfolded: the decision with the button that answers it, then se
   const after = reportHtml(app, r);
   assert.ok(!/data-watch="send"/.test(after));
   assert.match(after, /\(réglé\)/);
+});
+
+/** A dialog of the page, enough for the report of a watch to open in it. */
+function fakeDialog() {
+  return {
+    dataset: {}, innerHTML: '', open: false, addEventListener() {},
+    showModal() { this.open = true; },
+    close() { this.open = false; },
+  };
+}
+
+/** A click on a button of the « Signaux » tab: `watch` is its action, `reportId` the line it is on. */
+function click(app, watch, reportId = null) {
+  const line = reportId ? { dataset: { reportId } } : null;
+  const b = { dataset: { watch }, closest: (sel) => (sel === '[data-report-id]' ? line : null) };
+  return onWatchClick(app, { target: { closest: (sel) => (sel === '[data-watch]' ? b : null) } });
+}
+
+test('the report of a watch closed without an answer opens again as it was: the top bar, the tab, each line', () => {
+  const { w, app } = game();
+  app.el = { dlgWatch: fakeDialog(), signals: {} };
+  const dlg = app.el.dlgWatch;
+  // The « Quart » button: from the first report of a watch on, and only where the sea lives by the watches.
+  assert.equal(toolOffered({ world: makeWorld('standard', {}, 'hiver-atlantique') }, 'watch'), false, 'no report yet: no button');
+  assert.equal(toolOffered({ world: makeWorld('standard', {}, 'kanalkampf') }, 'watch'), false, 'no watches in the Channel');
+  run(w, 4 * H, (e) => e.type === 'seaStop');
+  assert.equal(toolOffered(app, 'watch'), true);
+  const stopped = w.watch.reports[w.watch.reports.length - 1];
+  // As at the relief: the page with what waits and the buttons that answer.
+  openWatch(app, stopped.id);
+  const first = dlg.innerHTML;
+  assert.match(first, /Relève de 16 h/);
+  assert.match(first, /HX 102 navigue sans escorte/);
+  assert.equal((first.match(/data-watch="send"/g) || []).length, 3);
+  // Closed without an answer, then the « Quart » button (or its key Q): the very same page.
+  dlg.close();
+  dlg.innerHTML = '';
+  openWatch(app);
+  assert.equal(dlg.open, true);
+  assert.equal(dlg.innerHTML, first, 'exactly the page of the relief');
+  dlg.close();
+  // Two watches on. The tab offers the last report, and each line its own.
+  app.paused = false;
+  run(w, 8 * H);
+  const latest = w.watch.reports[w.watch.reports.length - 1];
+  assert.notEqual(latest.id, stopped.id);
+  app.signals.tab = 'signals';
+  renderSignals(app);
+  const tab = app.el.signals.innerHTML;
+  assert.match(tab, /data-watch="last">Rouvrir le rapport de la relève de 0 h</);
+  assert.equal((tab.match(/data-watch="page"/g) || []).length, w.watch.reports.length, 'a button « Ouvrir » on every line');
+  assert.ok(click(app, 'last'));
+  assert.deepEqual([dlg.open, dlg.dataset.reportId], [true, latest.id]);
+  dlg.close();
+  assert.ok(click(app, 'page', stopped.id));
+  assert.deepEqual([dlg.open, dlg.dataset.reportId], [true, stopped.id]);
+  assert.match(dlg.innerHTML, /Relève de 16 h/);
+  assert.equal((dlg.innerHTML.match(/data-watch="send"/g) || []).length, 3, 'the decision still waits: its buttons are there');
+  // Answered from the page opened again, it shows as settled.
+  const d = pendingDecisions(w).find((x) => x.kind === 'reach');
+  assert.ok(joinConvoy(w, w.escorts.find((e) => e.id === d.groups[0]), d.unitId));
+  openWatch(app, stopped.id);
+  assert.ok(!/data-watch="send"/.test(dlg.innerHTML));
+  assert.match(dlg.innerHTML, /\(réglé\)/);
 });
 
 test('every text of the watch reports and of radio silence is in fr.json', () => {

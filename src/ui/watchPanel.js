@@ -239,12 +239,16 @@ export function renderSignals(app) {
     const unread = isUnread(app, r);
     const flags = `${unread ? ' unread' : ''}${r.stop ? ' stopped' : ''}${(r.notes || []).some((n) => n.family === 'attack') ? ' attack' : ''}`;
     days.get(day).lines.push(`<li class="watch-line${open ? ' open' : ''}${flags}" data-report-id="${escapeHtml(r.id)}">
-      <div class="watch-head" data-watch="toggle"><span class="fold">▾</span><span class="when">${escapeHtml(watchHours(w, r.toS))}</span>: ${escapeHtml(headlineText(w, r))}</div>
+      <div class="watch-head" data-watch="toggle"><span class="fold">▾</span><span class="when">${escapeHtml(watchHours(w, r.toS))}</span>: ${escapeHtml(headlineText(w, r))}
+        <button type="button" class="link watch-open" data-watch="page" title="${escapeHtml(t('watch.openPageTitle'))}">${escapeHtml(t('watch.openPage'))}</button></div>
       ${open ? `<div class="watch-body">${reportHtml(app, r, live)}</div>` : ''}</li>`);
   }
   const groups = [...days.values()].map((d) => `<li class="log-group"><div class="log-day">${escapeHtml(formatDate(d.ms, t('days'), t('months')))}</div><ol class="watch-lines">${d.lines.join('')}</ol></li>`);
   const unread = unreadCount(app);
-  setHtml(app.el.signals, `${filterBar(app)}
+  // The page of the last report, as it opened at the relief (closed without an answer, it
+  // comes back from here, from the « Quart » button of the top bar, or from each line).
+  const last = W.reports.length ? `<p class="signal-tools"><button type="button" data-watch="last">${escapeHtml(t('watch.openLast', { hour: clockHour(w, W.reports[W.reports.length - 1].toS) }))}</button></p>` : '';
+  setHtml(app.el.signals, `${filterBar(app)}${last}
     ${unread ? `<p class="signal-tools"><button type="button" class="link" data-watch="read-all">${escapeHtml(t('watch.readAll', { n: unread }))}</button></p>` : ''}
     ${groups.length ? `<ol class="log signals-list">${groups.join('')}</ol>` : `<p class="hint">${escapeHtml(t(W.reports.length ? 'watch.noneFiltered' : 'watch.none'))}</p>`}`);
 }
@@ -293,6 +297,10 @@ export function onWatchClick(app, e) {
     const r = w.watch.reports.find((x) => x.id === id);
     const head = r && (r.headline || []).find((h) => h.convoyId || h.escortId);
     if (head && s.open.has(id)) seeUnit(app, head.convoyId ? 'convoy' : 'escort', head.convoyId || head.escortId);
+  } else if (action === 'page' && line) {
+    openWatch(app, line.dataset.reportId);
+  } else if (action === 'last') {
+    openWatch(app);
   } else if (action === 'filter') {
     s.filter = b.dataset.filter;
   } else if (action === 'read-all') {

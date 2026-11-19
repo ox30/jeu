@@ -30,7 +30,7 @@ import { applySheet, attachSheetGrip, resize } from './ui/sheet.js';
 import { attachTutorial, stopTutorial } from './ui/tutorial.js';
 import { attachDropChoice } from './ui/dropChoice.js';
 import { initAlert, openJournal } from './ui/alerts.js';
-import { createSignals, onWatchClick } from './ui/watchPanel.js';
+import { createSignals, onWatchClick, openWatch } from './ui/watchPanel.js';
 import { initQuestions } from './ui/questions.js';
 import { loadDev, saveDev } from './ui/dev.js';
 import { openDesktopNotice, openHelp } from './ui/dialogs.js';
@@ -194,6 +194,7 @@ function wireTopBar(app) {
   el.btnMenu.addEventListener('click', () => openGameMenu(app));
   el.saveProblem.addEventListener('click', () => openGameMenu(app));
   el.btnReports.addEventListener('click', () => openReports(app));
+  el.btnWatch.addEventListener('click', () => openWatch(app));
   el.btnCards.addEventListener('click', () => openCards(app));
   el.btnFormations.addEventListener('click', () => openFormations(app));
   el.btnRoster.addEventListener('click', () => openRoster(app));

@@ -365,11 +365,15 @@ function speedFn(world, u) {
   return (leg) => legSpeed(u, leg);
 }
 
-/** Dead-reckoned track of a unit's plan, for drawing and checks. */
-export function planTrack(world, u, legs = u.plan) {
+/**
+ * Dead-reckoned track of a unit's plan, for drawing and checks. `from` ({ x, y, t }): where
+ * the table holds a ship whose place is an estimate, to draw from there and not from where
+ * it really is.
+ */
+export function planTrack(world, u, legs = u.plan, from = null) {
   const N = world.rules.navigation;
-  let start = null;
-  if (u.kind === 'escort' && legs.length && (u.state === 'inPort' || u.route.length)) {
+  let start = from;
+  if (!from && u.kind === 'escort' && legs.length && (u.state === 'inPort' || u.route.length)) {
     // An escort group goes out to the roads, or by the way out it was given (its exit step:
     // the route that waits in port, or the one it is following out); its legs start there.
     const out = u.route.length ? u.route : harbourWayOut(world, u);
@@ -450,6 +454,33 @@ function takePlan(world, u, legs) {
   }
   u.plan = legs;
   if (u.kind === 'squadron') checkEndAction(world, u);
+}
+
+/**
+ * The legs a unit would have after a list of leg orders ([{ name, args }], as a signal keeps
+ * them: addLeg, updateLeg, removeLeg, clearPlan), starting from `base`. Nothing is touched:
+ * this is for the table, to show what is on its way to a ship. An order that would be
+ * refused for its shape is skipped; the coast is only looked at when the order is carried out.
+ */
+export function plannedLegs(world, u, changes, base = u.plan) {
+  let legs = [...base];
+  for (const { name, args } of changes) {
+    if (name === 'clearPlan') legs = [];
+    else if (name === 'removeLeg') legs = legs.filter((_, i) => i !== args[0]);
+    else if (name === 'addLeg') {
+      const last = legs[legs.length - 1];
+      if (last && !last.end) continue;
+      const track = planTrack(world, u, legs);
+      const leg = buildLeg(world, u, args[0], track[track.length - 1].t);
+      if (leg) legs = [...legs, leg];
+    } else if (name === 'updateLeg') {
+      const [index, raw] = args;
+      if (!(index >= 0 && index < legs.length) || (!raw.end && index < legs.length - 1)) continue;
+      const leg = buildLeg(world, u, raw, planTrack(world, u, legs)[index].t);
+      if (leg) legs = legs.map((l, i) => (i === index ? leg : l));
+    }
+  }
+  return legs;
 }
 
 /**

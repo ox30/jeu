@@ -301,7 +301,7 @@ export function behaviourButtons(e) {
 }
 
 /** The hour of the next relief of the watch, by the clock. */
-function nextReliefHour(w) {
+export function nextReliefHour(w) {
   return (clockHour(w) - (clockHour(w) % 4) + 4) % 24;
 }
 

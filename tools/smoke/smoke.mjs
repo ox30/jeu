@@ -819,6 +819,43 @@ async function watches(page, errors) {
     note(s.paused && s.speed === 600, 'watches: the stop is a pause, the speed is left alone', JSON.stringify(s));
     note(s.sends >= 1, 'watches: the report offers the button that answers the decision');
     await shot(page, 'watch-relief');
+    // (2.10.4) Closed without an answer, to look at the map first: the « Quart » button of the
+    // top bar, with the number of decisions that wait, opens the very same page again.
+    const pageOf = () => game(page, () => {
+      const d = document.getElementById('dlg-watch');
+      const b = document.getElementById('btn-watch');
+      return {
+        open: d.open, title: d.querySelector('h2')?.textContent || '', sends: d.querySelectorAll('[data-watch="send"]').length, size: d.innerHTML.length,
+        button: Boolean(b.offsetParent), count: document.getElementById('watch-count').hidden ? '' : document.getElementById('watch-count').textContent, tip: b.title,
+      };
+    });
+    const first = await pageOf();
+    await page.click('#dlg-watch [data-watch="close"]');
+    await sleep(700);
+    const closed = await pageOf();
+    note(!closed.open && closed.button && Number(closed.count) >= 1 && /Rapport de quart.*\(Q\).*décision/.test(closed.tip),
+      'watches: the page closed without an answer, the « Quart » button counts what waits', JSON.stringify({ count: closed.count, tip: closed.tip }));
+    await shot(page, 'watch-closed');
+    await page.click('#btn-watch');
+    await sleep(300);
+    const again = await pageOf();
+    note(again.open && again.title === first.title && again.sends === first.sends && again.size === first.size, 'watches: … and opens the same page again, with its buttons', JSON.stringify([first.title, again.title, again.sends]));
+    await page.click('#dlg-watch [data-watch="close"]');
+    await sleep(200);
+    await page.keyboard.press('q');
+    await sleep(300);
+    note((await pageOf()).open, 'watches: … as its key does (Q)');
+    // With the button, the top bar still holds on one line at 1 024 px.
+    const size = page.viewportSize();
+    await page.setViewportSize({ width: 1024, height: 700 });
+    await sleep(300);
+    const narrow = await game(page, () => {
+      const hud = document.getElementById('hud');
+      return { height: hud.offsetHeight, overflow: hud.scrollWidth > hud.clientWidth + 1, tools: [...hud.querySelectorAll('button.tool')].filter((x) => x.offsetParent).length };
+    });
+    note(narrow.height <= 60 && !narrow.overflow && narrow.tools === 11, 'watches: the top bar with « Quart » holds on one line at 1 024 px', JSON.stringify(narrow));
+    await page.setViewportSize(size);
+    await sleep(300);
     await page.click('#dlg-watch [data-watch="send"]');
     await sleep(200);
     const sent = await game(page, () => ({
@@ -837,6 +874,28 @@ async function watches(page, errors) {
     await sleep(400);
     const lines = await game(page, () => document.querySelectorAll('#signals .watch-line').length);
     note(lines >= 6, 'watches: the « Signaux » tab lists the reports', `${lines} lines`);
+    // (2.10.4) From the tab: the last report, or the one of a line, as the page of the relief.
+    const tab = await game(page, () => ({
+      last: document.querySelector('#signals [data-watch="last"]')?.textContent || '', opens: document.querySelectorAll('#signals .watch-line [data-watch="page"]').length,
+      third: document.querySelectorAll('#signals .watch-line')[2]?.dataset.reportId || '',
+    }));
+    note(/Rouvrir le rapport de la relève de \d+ h/.test(tab.last) && tab.opens === lines, 'watches: the tab offers the last report again, and « Ouvrir » on every line', JSON.stringify(tab));
+    await page.click('#signals [data-watch="last"]');
+    await sleep(300);
+    const lastOpen = await game(page, () => ({ open: document.getElementById('dlg-watch').open, id: document.getElementById('dlg-watch').dataset.reportId, newest: window.__game.world.watch.reports.at(-1).id }));
+    note(lastOpen.open && lastOpen.id === lastOpen.newest, 'watches: … the last report opens as the page', JSON.stringify(lastOpen));
+    await page.click('#dlg-watch [data-watch="close"]');
+    await sleep(200);
+    await page.click('#signals .watch-line:nth-child(1) [data-watch="page"]');
+    await sleep(300);
+    const lineOpen = await game(page, () => ({ open: document.getElementById('dlg-watch').open, unfolded: document.querySelectorAll('#signals .watch-line.open').length }));
+    note(lineOpen.open && lineOpen.unfolded === 0, 'watches: … and a line opens its own, without unfolding', JSON.stringify(lineOpen));
+    await shot(page, 'watch-reopened');
+    await page.click('#dlg-watch [data-watch="close"]');
+    await sleep(200);
+    await game(page, () => {
+      window.__game.paused = true; // (the pages set the game going again when they close: not here)
+    });
     await page.click('#signals .watch-line .watch-head');
     await sleep(300);
     note(await game(page, () => document.querySelectorAll('#signals .watch-line.open .watch-body h4').length >= 4), 'watches: a click unfolds a report');
@@ -875,6 +934,80 @@ async function watches(page, errors) {
     }, id);
     note(!sent.zigzag && sent.pending.includes('zigzag:radio') && /par radio/.test(sent.text), 'radio silence: an order goes by radio at the next relief, and the sheet says so', JSON.stringify(sent.pending));
     await shot(page, 'radio-silence');
+    // (2.10.4) A line drawn for it waits for the relief too: it stays on the map as the route
+    // worked on (its points, the ring at its end), and a second line is drawn on from there.
+    const table = () => game(page, (cid) => {
+      const a = window.__game;
+      const r = a.canvas.getBoundingClientRect();
+      const at = (h) => (h ? [Math.round(r.left + h.x), Math.round(r.top + h.y)] : null);
+      const route = a.world.signals.find((s) => s.unitId === cid && s.name === 'route');
+      return {
+        mark: at(a.hits.find((h) => h.kind === 'convoy' && h.id === cid)), ring: at(a.hits.find((h) => h.kind === 'routeExtend' && h.id === cid)),
+        handles: a.hits.filter((h) => h.kind === 'routePoint' && h.id === cid).length, waiting: route ? route.args[0].length : 0, signal: route ? route.id : '',
+        own: a.world.convoys.find((x) => x.id === cid).route.length,
+        hint: document.querySelector('#unit-body .hint.awaited')?.textContent || '',
+        legs: [...document.querySelectorAll('#unit-body ol.legs li')].map((li) => `${li.className}|${li.textContent.replace(/\s+/g, ' ').trim()}`),
+        pending: a.world.signals.filter((s) => s.unitId === cid).map((s) => s.name),
+      };
+    }, id);
+    // The mark of the convoy in the open part of the map; the line goes back toward mid-ocean.
+    const aim = await game(page, async (cid) => {
+      const a = window.__game;
+      const cam = await import('./src/render/camera.js');
+      const G = await import('./src/sim/geo.js');
+      const h = a.hits.find((x) => x.kind === 'convoy' && x.id === cid);
+      if (h) cam.panBy(a.camera, 330 - h.x, 420 - h.y);
+      await new Promise((res) => setTimeout(res, 400));
+      const m = a.hits.find((x) => x.kind === 'convoy' && x.id === cid);
+      const [tx, ty] = cam.toScreen(a.camera, ...G.project(-32, 49));
+      const d = Math.hypot(tx - m.x, ty - m.y) || 1;
+      return [(tx - m.x) / d, (ty - m.y) / d];
+    }, id);
+    const drawFrom = async (from, far) => {
+      const [ux, uy] = aim;
+      await page.mouse.move(from[0], from[1]);
+      await page.mouse.down();
+      await page.mouse.move(from[0] + ux * far * 0.5 - uy * 14, from[1] + uy * far * 0.5 + ux * 14, { steps: 6 });
+      await page.mouse.move(from[0] + ux * far, from[1] + uy * far, { steps: 6 });
+      await page.mouse.up();
+      await sleep(450);
+    };
+    const before = await table();
+    // The first line as the drag from the mark gives it (a handle of its present route may
+    // lie under the mark: the mouse is kept for the ring, which is what is new).
+    await game(page, async ([cid, ux, uy]) => {
+      const a = window.__game;
+      const actions = await import('./src/ui/actions.js');
+      const h = a.hits.find((x) => x.kind === 'convoy' && x.id === cid);
+      actions.finishDrawing(a, h, [[h.x, h.y], [h.x + ux * 40 - uy * 14, h.y + uy * 40 + ux * 14], [h.x + ux * 80, h.y + uy * 80]]);
+      await new Promise((res) => setTimeout(res, 450));
+    }, [id, ...aim]);
+    const drawn = await table();
+    note(drawn.waiting >= 1 && drawn.own === before.own && drawn.handles === drawn.waiting && Boolean(drawn.ring) && /en attente.*relève de \d+ h/.test(drawn.hint),
+      'radio silence: a line drawn waits for the relief and stays on the table, with its points and the ring at its end', JSON.stringify({ ...drawn, legs: null }));
+    if (drawn.ring) await drawFrom(drawn.ring, 70);
+    const longer = await table();
+    note(longer.waiting > drawn.waiting && longer.pending.filter((x) => x === 'route').length === 1 && longer.own === before.own,
+      'radio silence: a second line is drawn on from its end, and one order waits', JSON.stringify({ waiting: longer.waiting, pending: longer.pending }));
+    await shot(page, 'radio-line-waiting');
+    // Taken back before it leaves (the convoy keeps its route for the rest of this game).
+    await page.click(`#unit-body [data-action="comms-cancel"][data-signal="${longer.signal}"]`);
+    await sleep(350);
+    const back = await table();
+    note(back.waiting === 0 && back.handles === before.handles && !back.hint, 'radio silence: « Annuler » takes the line back, the route of the ship is the one worked on again', JSON.stringify({ ...back, legs: null }));
+    // Legs typed: listed as on their way until they are sent.
+    await page.fill('#leg-heading', '250');
+    await page.fill('#leg-end', '6');
+    await page.click('#unit-body [data-action="add-leg"]');
+    await sleep(400);
+    const legs = await table();
+    note(legs.legs.length === 1 && /^awaited\|Cap 250° pendant 6 h à transmettre/.test(legs.legs[0]) && legs.pending.includes('addLeg') && /pas encore transmis/.test(legs.hint),
+      'radio silence: a leg typed is listed as on its way', JSON.stringify(legs.legs));
+    await shot(page, 'radio-legs-waiting');
+    const legSignal = await game(page, (cid) => window.__game.world.signals.find((s) => s.unitId === cid && s.name === 'addLeg').id, id);
+    await page.click(`#unit-body [data-action="comms-cancel"][data-signal="${legSignal}"]`);
+    await sleep(300);
+    note((await table()).legs.length === 0, 'radio silence: … and taken back, it leaves the list');
     const done = await playUntil(page, (a) => a.world.signals.length === 0, 5);
     note(done && await game(page, (cid) => window.__game.world.convoys.find((x) => x.id === cid).zigzag, id), 'radio silence: the order takes effect at the relief');
   });

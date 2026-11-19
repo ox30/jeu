@@ -347,6 +347,9 @@ button {
 .legs li .leg-text { font-family: "Courier New", Courier, monospace; font-weight: bold; }
 .legs li .leg-status { color: var(--ink-soft); font-style: italic; margin-left: 4px; }
 .legs li.current .leg-text { color: var(--raf-blue); }
+/* Radio silence: a leg, or a line, that has not reached its ship yet (the ochre of its pencil on the map). */
+.legs li.awaited .leg-text, .legs li.awaited .leg-status { color: var(--amber); }
+.hint.awaited { color: var(--amber); font-style: normal; }
 /* The way out of port at the head of a group's orders, and the line after it: not numbered legs. */
 ul.legs.steps { list-style: none; padding-left: 0; }
 .orders button.icon, .legs button.icon { padding: 0 6px; margin-left: 4px; font-size: 13px; line-height: 16px; background: transparent; border: 1px solid #b9a77f; border-radius: 3px; }
@@ -920,6 +923,8 @@ dialog.menu-dialog::backdrop { background: rgba(27, 21, 14, 0.62); }
 dialog#dlg-watch { width: 760px; }
 
 /* ---- Radio silence: the comms block of a ship's sheet ---- */
+/* The « Signaux » tab: the report of a watch opened again as the page of the relief. */
+.watch-head .watch-open { float: right; margin-left: 6px; }
 .comms .pending-orders { list-style: none; margin: 2px 0 6px; padding: 0; }
 .comms .pending-orders li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 3px 0; border-bottom: 1px dotted var(--paper-dark); }
 .comms .pending-orders .grow { flex: 1 1 140px; }

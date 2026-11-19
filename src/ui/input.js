@@ -19,7 +19,8 @@ import {
   scrambleSquadron, select,
   revealSelection, selectedFormation, selectedSquadron, selectedUnit, setActivePoint, orderBoost, togglePause,
 } from './actions.js';
-import { viewOffered } from './offered.js';
+import { toolOffered, viewOffered } from './offered.js';
+import { openWatch } from './watchPanel.js';
 import { handsOff, nudgeCoach } from './tutorial.js';
 import { membersOf } from '../sim/formations.js';
 import { answerShown } from './questions.js';
@@ -28,6 +29,7 @@ import { pickHit, unitsUnder } from './hit.js';
 import { memberSelection, stackChoice } from './stacks.js';
 import { closeDropChoice, dropTargets, openDropChoice } from './dropChoice.js';
 import { isFlying } from '../sim/squadron.js';
+import { shownPosition } from '../sim/comms.js';
 import { openJournal } from './alerts.js';
 import { openHelp } from './dialogs.js';
 
@@ -39,6 +41,12 @@ const ORDER_KEYS = new Set(['arrowup', 'arrowdown', 'delete', 'backspace', 'ente
 /** World position a measurement starts from when the player drags from a unit. */
 function unitOrigin(app, hit) {
   const u = hit.kind === 'rally' ? null : findUnit(app, hit.kind, hit.id);
+  if (u && (u.kind === 'convoy' || u.kind === 'escort')) {
+    // A ship is measured from where the table holds it (radio silence: an estimate), where
+    // its mark is — not from where it really is.
+    const p = shownPosition(app.world, u);
+    return [p.x, p.y];
+  }
   return u && Number.isFinite(u.x) ? [u.x, u.y] : toWorld(app.camera, hit.x, hit.y);
 }
 
@@ -401,6 +409,8 @@ export function attachInput(app) {
       app.toggleRadarCover();
     } else if (key === 'j' || key === 'J') {
       openJournal(app);
+    } else if ((key === 'q' || key === 'Q') && toolOffered(app, 'watch')) {
+      openWatch(app); // the last report of the watch, as it opened at the relief
     } else if (key === '?') {
       openHelp(app);
     } else if (key === 'Escape' && app.dropChoice) {

@@ -6,6 +6,7 @@ import { drawClock } from '../render/clock.js';
 import { SPEEDS, cancelSpeed, confirmSpeed, goView, requestSpeed, togglePause } from './actions.js';
 import { toolOffered, viewOffered } from './offered.js';
 import { unreadAlerts } from './alerts.js';
+import { pendingDecisions } from '../sim/watch.js';
 
 const icon = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${d}</svg>`;
 // The pictograms of the tools (drawn with the pen of the map: one stroke, no fill).
@@ -16,6 +17,8 @@ const ICONS = {
   formations: icon('<path d="M12 3l2.5 5h-5z"/><path d="M5.5 13l2.5 5H3z"/><path d="M18.5 13l2.5 5h-5z"/>'),
   roster: icon('<circle cx="12" cy="12" r="9"/><path d="M12 6.5V12l3.5 2.5"/>'),
   reports: icon('<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h7"/>'),
+  // (The ship's bell that strikes the watches.)
+  watch: icon('<path d="M6 17h12l-1.6-2.6V10a4.4 4.4 0 00-8.8 0v4.4z"/><path d="M10.4 19.6a1.6 1.6 0 003.2 0M12 3.4v2.2"/>'),
   cards: icon('<path d="M4 5h7a2 2 0 012 2v12a2 2 0 00-2-2H4z"/><path d="M20 5h-7a2 2 0 00-2 2v12a2 2 0 012-2h7z"/>'),
   journal: icon('<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>'),
   help: '<span class="tool-glyph" aria-hidden="true">?</span>',
@@ -30,6 +33,7 @@ export const TOOLS = [
   { el: 'btnFormations', name: 'formations', key: null },
   { el: 'btnRoster', name: 'roster', key: null },
   { el: 'btnReports', name: 'reports', key: null },
+  { el: 'btnWatch', name: 'watch', key: 'Q' },
   { el: 'btnCards', name: 'cards', key: null },
   { el: 'btnJournal', name: 'journal', key: 'J' },
   { el: 'btnHelp', name: 'help', key: '?' },
@@ -45,7 +49,9 @@ export function toolTip(tool) {
 function fillTools(el) {
   for (const tool of TOOLS) {
     const b = el[tool.el];
-    b.innerHTML = `${ICONS[tool.name]}<span class="tool-label">${escapeHtml(t(`hud.tools.${tool.name}.word`))}</span>${tool.name === 'journal' ? '<span class="tool-count" id="journal-count" hidden></span>' : ''}`;
+    // (The journal counts the alerts not read; the watch, the decisions that wait.)
+    const count = tool.name === 'journal' || tool.name === 'watch' ? `<span class="tool-count" id="${tool.name}-count" hidden></span>` : '';
+    b.innerHTML = `${ICONS[tool.name]}<span class="tool-label">${escapeHtml(t(`hud.tools.${tool.name}.word`))}</span>${count}`;
     b.title = toolTip(tool);
     b.setAttribute('aria-label', toolTip(tool));
   }
@@ -106,6 +112,30 @@ export function initHud(app) {
   el.btnPanel.addEventListener('click', () => el.panel.classList.toggle('open'));
 }
 
+/**
+ * The « Quart » button: shown from the first report of a watch on, with the number of
+ * decisions that wait (looked at twice a second: an order given anywhere answers one).
+ */
+function updateWatchTool(app) {
+  const b = app.el.btnWatch;
+  const offered = toolOffered(app, 'watch');
+  if (b.hidden === offered) b.hidden = !offered;
+  if (!offered) return;
+  const now = performance.now();
+  if (app.watchTool && now - app.watchTool.at < 500 && app.watchTool.world === app.world) return;
+  const n = pendingDecisions(app.world).length;
+  app.watchTool = { at: now, world: app.world };
+  const count = b.querySelector('.tool-count');
+  const text = n ? String(n) : '';
+  if (count && count.textContent !== text) {
+    count.hidden = n === 0;
+    count.textContent = text;
+    const tool = TOOLS.find((x) => x.name === 'watch');
+    b.title = n ? t('hud.watchDecisions', { name: toolTip(tool), n }) : toolTip(tool);
+    b.setAttribute('aria-label', b.title);
+  }
+}
+
 export function updateHud(app, ms) {
   const el = app.el;
   drawClock(el.clock, ms);
@@ -113,6 +143,7 @@ export function updateHud(app, ms) {
   if (el.date.textContent !== date) el.date.textContent = date;
   const time = formatTime(ms);
   if (el.time.textContent !== time) el.time.textContent = time;
+  updateWatchTool(app);
   if (!app.dirtyHud) return;
   app.dirtyHud = false;
   const subtitle = t(`scenarios.${app.world.scenario.id}.title`);

@@ -74,6 +74,10 @@
         "name": "Rapports de combat",
         "word": "Rapports"
       },
+      "watch": {
+        "name": "Rapport de quart : rouvrir le dernier rapport, avec ses décisions",
+        "word": "Quart"
+      },
       "cards": {
         "name": "Fiches techniques des avions et des navires",
         "word": "Fiches"
@@ -91,7 +95,8 @@
         "word": "Menu"
       }
     },
-    "journalUnread": "{name} : {n} alerte(s) non lue(s)"
+    "journalUnread": "{name} : {n} alerte(s) non lue(s)",
+    "watchDecisions": "{name} — {n} décision(s) en attente"
   },
   "panel": {
     "objectives": "Objectifs",
@@ -201,7 +206,10 @@
       "radar": "{escort} reçoit un radar",
       "markers": "{n} repère(s) U-Boot",
       "quiet": "rien à signaler"
-    }
+    },
+    "openPage": "Ouvrir",
+    "openPageTitle": "Ouvrir ce rapport en grand, comme à la relève",
+    "openLast": "Rouvrir le rapport de la relève de {hour} h"
   },
   "states": {
     "squadron": {
@@ -316,6 +324,7 @@
     "pointHintAir": "↑ ↓ règlent l'altitude que l'escadrille vise en allant vers ce point. Glissez le carré pour le déplacer, double-cliquez-le (ou Suppr) pour le retirer.",
     "pointHintSea": "Glissez le carré pour déplacer le point, double-cliquez-le (ou Suppr) pour le retirer. Le chenal de sortie du port et le chenal d'entrée ne se modifient pas.",
     "followingRoute": "Suit son tracé ({n} point{s}). Glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger.",
+    "followingUntilRelief": "Jusque-là, il suit son tracé actuel ({n} point{s}).",
     "editLeg": "Modifier cette étape",
     "editingLeg": "Modifier l'étape {n}",
     "applyLeg": "Enregistrer",
@@ -463,7 +472,12 @@
     "rosterResume": "Retour au planning",
     "openRoster": "Programmation des effectifs…",
     "manual": "à la main",
-    "manualNow": "Choisi à la main : il tient jusqu'à « Retour au planning ». En l'air {d} après l'ordre de décoller."
+    "manualNow": "Choisi à la main : il tient jusqu'à « Retour au planning ». En l'air {d} après l'ordre de décoller.",
+    "awaitedRoute": "Tracé de {n} point{s} en attente : il part par radio à la relève de {hour} h. Il reste sur la carte, en ocre : déplacez ses points, ou prolongez-le depuis l'anneau à son bout.",
+    "awaitedRouteShip": "Tracé de {n} point{s} confié à {group} : il sera remis à la rencontre. Il reste sur la carte, en ocre.",
+    "awaitedLeg": "à transmettre",
+    "awaitedLegs": "En ocre : pas encore transmis. Ces ordres partent par radio à la relève de {hour} h ; jusque-là le navire suit ses ordres actuels. La carte montre leur tracé, et vous pouvez en ajouter d'autres à la suite.",
+    "awaitedLand": "Vu de la position estimée du navire, ce trajet touche terre (cercle rouge sur la carte) : l'ordre serait refusé à l'arrivée. Corrigez-le avant la relève."
   },
   "sheet": {
     "type": "Appareil",
@@ -1185,7 +1199,9 @@
       "route": "{name} · {n} · en route",
       "station": "{name} · {n} · en patrouille",
       "home": "{name} · {n} · rentre"
-    }
+    },
+    "awaitedRadio": "part par radio à {hour} h",
+    "awaitedShip": "confié à {group}"
   },
   "help": {
     "title": "Comment jouer",
@@ -1223,8 +1239,8 @@
       ],
       "hiver-atlantique": [
         "Hiver 1941, du 10 janvier au 31 mars. Les convois HX (Halifax, tous les cinq jours) et SC (Sydney, tous les huit jours, plus lents) partent seuls sur la route de l'Amirauté. Changez-la pour contourner les U-Boote repérés ; mais le commandement allemand apprend où passent vos convois, et une route trop au sud est vite guettée à son tour, sous les Condor de Bordeaux.",
-        "Vous commandez depuis un QG à terre, au rythme des quarts. La mer ne vous appelle plus événement par événement : à chaque relève (0, 4, 8, 12, 16 et 20 h) un rapport s'écrit, onglet « Signaux » du journal — convois, groupes d'escorte, air, renseignement, et ce qui attend une décision. Le jeu ne s'arrête à une relève que si une décision nouvelle vous attend (un convoi à escorter, un groupe qui a fini ses ordres, des grenades épuisées, des repères U-Boote sur une route) ; entre deux relèves, seulement pour la première attaque d'un convoi dans la nuit. Un arrêt est une pause : « Reprendre » repart à la vitesse d'avant. Réglages, onglet Temps : arrêt aussi matin et soir, ou à chaque relève.",
-        "Silence radio (Standard et Réaliste ; réglage « Communications en mer ») : hors des eaux suivies — mer d'Irlande, canal du Nord, Minch, Manche, canal de Bristol, approches des ports, couverture des radars de Downhill et de Glenarm — vos navires ne sont vus que par estimation : un repère en tirets, marqué « ? », déplacé à chaque relève, avec un cercle de doute qui grandit depuis le dernier point sûr. Un point sûr vient d'un de vos avions en vue du navire, d'une attaque (le convoi émet alors), de ce qu'un groupe vous signale (un U-Boot vu ou attaqué, la fin d'une chasse), ou de « Demander la position », qui donne aussi un relèvement à l'ennemi. Un groupe en haute mer ne peut pas être mis dans un groupe de soutien : il faut le joindre au port ou en eaux suivies. Un ordre part par radio à la relève suivante (une nouvelle route peut être lue par le B-Dienst), au projecteur si un avion est en vue, ou confié à un groupe qui part rejoindre le convoi.",
+        "Vous commandez depuis un QG à terre, au rythme des quarts. La mer ne vous appelle plus événement par événement : à chaque relève (0, 4, 8, 12, 16 et 20 h) un rapport s'écrit, onglet « Signaux » du journal — convois, groupes d'escorte, air, renseignement, et ce qui attend une décision. Le jeu ne s'arrête à une relève que si une décision nouvelle vous attend (un convoi à escorter, un groupe qui a fini ses ordres, des grenades épuisées, des repères U-Boote sur une route) ; entre deux relèves, seulement pour la première attaque d'un convoi dans la nuit. Un arrêt est une pause : « Reprendre » repart à la vitesse d'avant. Le rapport fermé sans réponse, pour regarder la carte d'abord, se rouvre tel quel : bouton « Quart » de la barre du haut (touche Q), qui compte les décisions en attente, ou « Rouvrir le rapport » et « Ouvrir » dans l'onglet « Signaux ». Réglages, onglet Temps : arrêt aussi matin et soir, ou à chaque relève.",
+        "Silence radio (Standard et Réaliste ; réglage « Communications en mer ») : hors des eaux suivies — mer d'Irlande, canal du Nord, Minch, Manche, canal de Bristol, approches des ports, couverture des radars de Downhill et de Glenarm — vos navires ne sont vus que par estimation : un repère en tirets, marqué « ? », déplacé à chaque relève, avec un cercle de doute qui grandit depuis le dernier point sûr. Un point sûr vient d'un de vos avions en vue du navire, d'une attaque (le convoi émet alors), de ce qu'un groupe vous signale (un U-Boot vu ou attaqué, la fin d'une chasse), ou de « Demander la position », qui donne aussi un relèvement à l'ennemi. Un groupe en haute mer ne peut pas être mis dans un groupe de soutien : il faut le joindre au port ou en eaux suivies. Un ordre part par radio à la relève suivante (une nouvelle route peut être lue par le B-Dienst), au projecteur si un avion est en vue, ou confié à un groupe qui part rejoindre le convoi. En attendant la relève, un tracé ou des étapes donnés à un navire restent sur la carte, en ocre, et sur sa fiche (« à transmettre ») : déplacez les points du tracé, prolongez-le depuis l'anneau à son bout, ajoutez d'autres étapes à la suite ; un seul ordre part. Si ce trajet touche terre, vu de la position estimée, la fiche et la carte le disent avant le départ de l'ordre.",
         "Envoyez un groupe d'escorte au-devant de chaque convoi qui approche : vos groupes ont sept ou huit jours d'autonomie et rentrent se ravitailler. Chaque groupe emporte 40 grenades par navire (120 ou 160). « Rester » le garde serré autour du convoi ; « Chasser » le laisse poursuivre un contact frais : il revient seul quand le U-Boot est coulé ou touché, le contact perdu, ou ses grenades tombées au tiers gardé pour le convoi ; pendant ce temps le convoi n'a plus d'escorte. Un U-Boot coulé est remplacé par un autre trois semaines plus tard : couler soulage, sans vider la mer. Grenadage plein (dix par passe) ou économe (cinq, moins de chances de couler). À vide, le groupe passe encore, à blanc : le U-Boot plonge et perd le convoi, sans rien risquer ; les grenades se refont au port, avec le mazout. En mars, deux groupes reçoivent un premier radar. Les nuits d'hiver sont longues (seize heures en janvier, onze fin mars) : c'est alors que les meutes attaquent, chacune à son heure. L'ombre sur la carte montre où il fait nuit.",
         "Le Coastal Command patrouille de jour au-dessus des convois et oblige les U-Boote à plonger ; le radar ASV voit aussi un sous-marin en surface, et un convoi de nuit. Un avion qui surprend un U-Boot de près l'attaque, une fois par sortie : il coule rarement, mais le journal le dit, et son repère lance la chasse d'un groupe en « Chasser » à moins de 30 km de son convoi. Les deux cercles d'un repère U-Boot montrent où il peut être, en surface et en plongée. Les équipages se fatiguent en vol et ne récupèrent qu'au Repos : la fiche d'une escadrille au sol donne son état d'alerte, la page Effectifs (barre du haut) son planning, par exemple au repos la nuit et disponible avant l'aube. Depuis le Repos, il faut deux heures pour être en l'air.",
         "Onglet Logistique : la réserve de dollars paie la cargaison des convois, qui partent chargés à plein tant qu'elle le permet. Elle peut aussi payer des Hudson ou des Catalina, mais chaque dollar dépensé ainsi manquera aux cargaisons : l'onglet donne le prix de chaque offre en tonnes, son délai de livraison et la prévision de tonnage face à l'objectif. Après le prêt-bail, tout est gratuit. Victoire si 6 800 t de carburant et 4 400 t de matériel sont déchargées et si moins de 7,5 % des navires sont perdus ; défaite si les pertes dépassent 20 %."

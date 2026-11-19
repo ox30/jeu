@@ -4,12 +4,13 @@ import { t } from '../core/i18n.js';
 import { bearing, distance, simplifyPolyline } from '../sim/geo.js';
 import { contactEstimate } from '../sim/query.js';
 import {
-  addLeg, clearPlan, departConvoy, setSpeedPct, editableRoute, removeLeg, removeRoutePoint, returnToBase, routeCanExtend, scramble,
+  addLeg, clearPlan, departConvoy, setSpeedPct, editableRoute, removeLeg, removeRoutePoint, returnToBase, scramble,
   sendTrain, setAltitude, setCover, setEndAction, setMinStock, setOrbit, setPointAltitude, setRoute, setSpeed, setVector, updateLeg, interceptRaid,
   setAlert, followSquadron, leaveFormation, planGroundRoute,
 } from '../sim/orders.js';
 import { canHunt } from '../sim/asw.js';
-import { cancelOrder, carryByShip, requestPosition, sendOrder, shownPosition } from '../sim/comms.js';
+import { cancelOrder, carryByShip, pendingOrders, requestPosition, sendOrder, shownPosition } from '../sim/comms.js';
+import { plannedPlan, supersede, workingRoute } from './awaited.js';
 import { clockHour } from '../sim/watch.js';
 import { buyOffer } from '../sim/shipping.js';
 import { feetOf, squadronSpeed } from '../sim/squadron.js';
@@ -419,8 +420,18 @@ export function orderHome(app, sq) {
 export function shipOrder(app, u, name, ...args) {
   const sent = sendOrder(app.world, u, name, ...args);
   if (sent.via === 'radio') {
+    // (What it would overwrite when carried out no longer waits: one order, not two.)
+    supersede(app.world, u, name, sent.signalId);
     const hour = (clockHour(app.world) - (clockHour(app.world) % 4) + 4) % 24;
     sheetMessage(app, t('comms.sentByRadio', { unit: u.short || u.name, hour }));
+  } else if (sent.ok) {
+    // Carried out at once (tracked waters, the lamp of an aircraft): the same order still
+    // waiting for the relief would undo it there, and what it overwrites has no object left.
+    if (app.world.signals && app.world.signals.length) {
+      for (const s of pendingOrders(app.world, u)) if (s.name === name && s.via === 'radio') cancelOrder(app.world, s.id);
+      supersede(app.world, u, name, null);
+    }
+    if (sent.via === 'lamp') sheetMessage(app, t('comms.sentByLamp', { unit: u.short || u.name }));
   } else if (sent.via === 'lamp') {
     sheetMessage(app, t('comms.sentByLamp', { unit: u.short || u.name }));
   }
@@ -570,12 +581,12 @@ function legError(app, result) {
 /** The leg being changed in the sheet of this unit, or null. */
 export function editingLegIndex(app, u) {
   const e = app.editingLeg;
-  if (!e || !u || e.kind !== u.kind || e.id !== u.id || e.index >= u.plan.length) return null;
+  if (!e || !u || e.kind !== u.kind || e.id !== u.id || e.index >= plannedPlan(app.world, u).length) return null;
   return e.index;
 }
 
 export function startEditLeg(app, u, index) {
-  app.editingLeg = index >= 0 && index < u.plan.length ? { kind: u.kind, id: u.id, index } : null;
+  app.editingLeg = index >= 0 && index < plannedPlan(app.world, u).length ? { kind: u.kind, id: u.id, index } : null;
   app.dirtyPanels = true;
 }
 
@@ -756,7 +767,7 @@ export function activePoint(app) {
   const a = app.activePoint;
   const u = selectedUnit(app);
   if (!a || !u || a.kind !== u.kind || a.id !== u.id) return null;
-  const pts = editableRoute(u);
+  const pts = workingRoute(app.world, u).points;
   if (!pts || a.index >= pts.length) return null;
   return { u, index: a.index, point: pts[a.index] };
 }
@@ -766,12 +777,16 @@ export function setActivePoint(app, u, index) {
   app.dirtyPanels = true;
 }
 
-/** Gives the unit its edited route; ships are checked against the coast. */
+/**
+ * Gives the unit its edited route; ships are checked against the coast. A route still on its
+ * way to a ship (radio silence) is the one worked on: the order that waits is sent again
+ * with the new points, and takes its place.
+ */
 function applyRouteEdit(app, u, points) {
   let ok;
   if (u.kind === 'squadron') ok = setRoute(app.world, u, points);
   else {
-    const sent = shipOrder(app, u, 'editRoute', points);
+    const sent = shipOrder(app, u, workingRoute(app.world, u).pending || 'editRoute', points);
     const result = sent.result || { ok: sent.ok };
     if (!result.ok && result.at) app.flash = { x: result.at[0], y: result.at[1], until: performance.now() + 2500 };
     ok = result.ok;
@@ -780,12 +795,12 @@ function applyRouteEdit(app, u, points) {
   return ok;
 }
 
-function routeCopy(u) {
-  return (editableRoute(u) || []).map((p) => [p[0], p[1], p[2] ?? null]);
+function routeCopy(app, u) {
+  return (workingRoute(app.world, u).points || []).map((p) => [p[0], p[1], p[2] ?? null]);
 }
 
 export function movePoint(app, u, index, x, y) {
-  const pts = routeCopy(u);
+  const pts = routeCopy(app, u);
   if (index < 0 || index >= pts.length) return false;
   pts[index][0] = x;
   pts[index][1] = y;
@@ -793,7 +808,7 @@ export function movePoint(app, u, index, x, y) {
 }
 
 export function insertPoint(app, u, index, x, y) {
-  const pts = routeCopy(u);
+  const pts = routeCopy(app, u);
   if (index < 0 || index > pts.length) return false;
   pts.splice(index, 0, [x, y, null]);
   const ok = applyRouteEdit(app, u, pts);
@@ -805,14 +820,21 @@ export function deletePoint(app, u, index) {
   if (u.kind === 'squadron') {
     removeRoutePoint(app.world, u, index);
   } else {
-    const pts = routeCopy(u);
+    const work = workingRoute(app.world, u);
+    const pts = routeCopy(app, u);
     if (index < 0 || index >= pts.length) return false;
-    if (pts.length === 1 && !u.destination && !(u.routeHead > 0)) {
-      sheetMessage(app, t('orders.errors.lastPoint'));
-      return false;
+    if (pts.length === 1 && work.pending === 'route') {
+      // The last point of a line that has not left yet: the order itself is taken back.
+      cancelOrder(app.world, work.id);
+      app.dirtyPanels = true;
+    } else {
+      if (pts.length === 1 && !u.destination && !(u.routeHead > 0)) {
+        sheetMessage(app, t('orders.errors.lastPoint'));
+        return false;
+      }
+      pts.splice(index, 1);
+      if (!applyRouteEdit(app, u, pts)) return false;
     }
-    pts.splice(index, 1);
-    if (!applyRouteEdit(app, u, pts)) return false;
   }
   setActivePoint(app, null, null);
   return true;
@@ -820,12 +842,12 @@ export function deletePoint(app, u, index) {
 
 /** A line drawn from the end of a route lengthens it. */
 export function extendRoute(app, u, screenPoints) {
-  if (!routeCanExtend(u)) return false;
+  if (!workingRoute(app.world, u).canExtend) return false;
   // (From the ring at the end of an exit step: the route so far is all way out, and stays.)
   const simplified = simplifyPolyline(screenPoints, 3);
   const added = simplified.slice(1).map(([sx, sy]) => [...toWorld(app.camera, sx, sy), null]);
   if (!added.length) return false;
-  return applyRouteEdit(app, u, [...routeCopy(u), ...added]);
+  return applyRouteEdit(app, u, [...routeCopy(app, u), ...added]);
 }
 
 /** Altitude written on a point of a squadron's route, by steps of 1 000 ft. */

@@ -22,6 +22,7 @@ export function collectElements() {
     tabEnemies: $('tab-enemies'),
     subtitle: $('hud-subtitle'),
     btnReports: $('btn-reports'),
+    btnWatch: $('btn-watch'),
     btnCards: $('btn-cards'),
     btnFormations: $('btn-formations'),
     btnRuler: $('btn-ruler'),
