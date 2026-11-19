@@ -87,12 +87,14 @@ test('the preset can change during the game, and the game remembers how it began
   assert.equal(w.settings.carry, 'full', 'what was carried over stays as it began');
   const ev = w.events.find((e) => e.type === 'presetChanged');
   assert.equal(ev.from, 'realistic');
-  // With the carry-over of Réaliste kept, the settings match no preset by name… unless they
-  // do: the story tells the two ends as they are.
-  const story = presetStory(w);
-  assert.equal(story.start, 'realistic');
-  assert.equal(story.changed, true);
-  assert.equal(story.end, w.settings.preset);
+  // The carry-over, fixed at the start, does not count in the name: the game is Standard now.
+  assert.equal(w.settings.preset, 'standard');
+  assert.deepEqual(presetStory(w), { start: 'realistic', end: 'standard', changed: true });
+  // One setting changed after that: a preset of its own.
+  assert.ok(setGameSetting(w, 'fuel', 'unlimited', P));
+  assert.equal(w.settings.preset, 'custom');
+  assert.ok(applyPreset(w, 'realistic', P));
+  assert.deepEqual(presetStory(w), { start: 'realistic', end: 'realistic', changed: false });
 });
 
 test('the settings and the first preset are saved with the game, not taken from the player', () => {

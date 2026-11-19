@@ -23,11 +23,14 @@ export function copyGameSettings(settings = {}) {
   return out;
 }
 
-/** Name of the preset whose values the settings all have, or 'custom'. */
-export function matchingPreset(settings, presets) {
+/**
+ * Name of the preset whose values the settings all have, or 'custom'. `ignore`: keys left out
+ * of the comparison (for a game under way, what was fixed when it began).
+ */
+export function matchingPreset(settings, presets, ignore = null) {
   if (!presets || !presets.presets) return 'custom';
   for (const [name, values] of Object.entries(presets.presets)) {
-    if (Object.entries(values).every(([k, v]) => settings[k] === v)) return name;
+    if (Object.entries(values).every(([k, v]) => (ignore && ignore.has(k)) || settings[k] === v)) return name;
   }
   return 'custom';
 }
@@ -61,7 +64,7 @@ export function setGameSetting(world, key, value, presets = null) {
   if (world.settings[key] === value) return false;
   const from = world.settings[key];
   world.settings[key] = value;
-  world.settings.preset = matchingPreset(world.settings, presets);
+  world.settings.preset = matchingPreset(world.settings, presets, FIXED);
   settle(world, key);
   emit(world, 'settingChanged', { key, from: from ?? null, value, preset: world.settings.preset });
   return true;
@@ -83,7 +86,7 @@ export function applyPreset(world, name, presets) {
     settle(world, k);
     changed = true;
   }
-  world.settings.preset = matchingPreset(world.settings, presets);
+  world.settings.preset = matchingPreset(world.settings, presets, FIXED);
   if (!changed && from === world.settings.preset) return false;
   emit(world, 'presetChanged', { from, to: world.settings.preset });
   return true;
