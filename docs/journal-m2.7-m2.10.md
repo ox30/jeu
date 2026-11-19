@@ -1515,9 +1515,10 @@ fatigue, absent sans aucune escadrille, absent de la leçon de l'escorte parce q
 joue sans fatigue). Ce n'est pas un test affaibli pour passer : c'est le comportement
 demandé qui a changé, et il a ses propres tests.
 
-**Essais.** 405 tests (391 avant) : `tests/patrolrest.test.js` (cinq : une patrouille se
+**Essais.** 406 tests (391 avant) : `tests/patrolrest.test.js` (six : une patrouille se
 repose et se rappelle comme un chasseur ; depuis le repos elle part deux heures après
-l'ordre ; son plan du jour ; la page liste toutes les escadrilles ; les phrases du journal),
+l'ordre ; son plan du jour ; la page liste toutes les escadrilles ; les phrases du journal ;
+trois jours du rythme « repos la nuit »),
 `tests/siteunits.test.js` (six : aérodrome, installation vide, port, port étranger, groupe
 de soutien, pile de la carte), `tests/campaign.test.js` (trois de plus : le compte suit la
 chasse reportée, il est jugé et gardé, il est dit). Essai de fumée : 246 vérifications (228
@@ -1568,9 +1569,30 @@ graines chacune) sont identiques une à une à celles de la mesure du M2.10. Le 
 automatique note maintenant, pour chaque bataille d'une chaîne, le nombre d'avions demandé
 (`asked`).
 
+### 19 novembre, 15 h 50 à 16 h 05 — le rythme que Florian veut jouer, simulé
+
+« Pouvoir les mettre au repos la nuit » : j'ai fait tourner ce rythme trois jours dans
+l'Atlantique, pour vérifier que le planning le tient de bout en bout, et j'en ai fait un test.
+Plan du jour : au repos à 18:00, disponible (30 min) à 06:00 ; une sortie ordonnée chaque
+matin à 09:00, en l'air trente minutes plus tard, aussi longue que l'autonomie le permet.
+
+| Avion | Heures de vol par sortie | Fatigue au matin | Fatigue en fin de sortie, premier jour puis suivants |
+| --- | --- | --- | --- |
+| Hudson | 5,9 | 0 | 36, puis 27 |
+| Whitley | 8,9 | 0 | 47, puis 39 |
+| Sunderland | 12,9 | 0 | 63, puis 55 |
+
+Le planning tient : l'ordre de repos de 18:00 donné pendant le vol s'applique à
+l'atterrissage, et l'escadrille repart fraîche chaque matin. Le premier jour elle part des
+10 points du scénario : un Sunderland finit alors sa sortie à 63, fatigué une heure ou deux,
+puis ne repasse plus les 60. Sans planning, laissée en Alerte à 5 minutes, la même
+escadrille est fatiguée après une sortie (64 au matin suivant) et à 100 dès le troisième
+matin : c'est ce que Florian a vu. Le Catalina (18 h d'autonomie, 73 points) ne tiendrait pas une
+sortie pleine par jour ; il n'y en a pas dans le scénario au départ, on peut en acheter.
+
 ### Porte des retours de jeu
 
-405 tests, lint et construction verts ; 246 vérifications à l'essai de fumée, sur la version
+406 tests, lint et construction verts ; 246 vérifications à l'essai de fumée, sur la version
 de développement et sur `dist/index.html` ; 10 000 ordres au hasard par scénario ; mesure de
 la campagne ci-dessus. Branche `retours-jeu`, demande de fusion nº 6, vérifications de GitHub
 vertes. Artefact « Jeu 1940 — travaux de Fable » mis à jour (2.10.2). Non relu par un agent

@@ -624,7 +624,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 405 tests, environ quatre minutes
+npm test          # les 406 tests, environ quatre minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : leçons, pages, fiches, corrections, quarts, menu, interface

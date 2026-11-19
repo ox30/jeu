@@ -120,3 +120,44 @@ test('the journal tells a tired patrol how to rest, not that it fights less well
   assert.match(spent.text, /épuisée \(63 %\)/);
   assert.doesNotMatch(spent.text, /pertes|efficacité/);
 });
+
+test('rested each night by its plan, a patrol flies every day and starts every morning fresh', () => {
+  // Three days of the rhythm a player sets once: at rest from 18:00, available from 06:00, a
+  // sortie ordered at 09:00. Beside it, the same sorties with the squadron left at five minutes.
+  const fly = (planned) => {
+    const w = atlantic();
+    const s = w.squadrons.find((x) => x.type === 'Sunderland');
+    if (planned) {
+      addDaily(w, s, 18 * 3600, 'rest');
+      addDaily(w, s, 6 * 3600, 'min30');
+    }
+    const mornings = [];
+    const peaks = []; // the highest fatigue of each day's sortie
+    let sorties = 0;
+    for (let h = 0; h < 76; h++) { // from 06:00 on the first day to 10:00 on the fourth
+      if (Math.round(timeOfDay(w) / 3600) % 24 === 9 && s.state === 'ready') {
+        mornings.push(s.fatigue);
+        peaks.push(0);
+        if (scramble(w, s, { route: [[s.x - 600, s.y - 100, null]] })) sorties++;
+      }
+      // (Minute by minute: the peak is the minute of the landing.)
+      for (let m = 0; m < 60; m++) {
+        run(w, 60);
+        if (peaks.length) peaks[peaks.length - 1] = Math.max(peaks[peaks.length - 1], s.fatigue);
+      }
+    }
+    return { mornings, peaks, sorties, end: s.fatigue };
+  };
+  const rested = fly(true);
+  assert.equal(rested.sorties, 4, 'a sortie every morning');
+  assert.ok(rested.mornings.slice(1).every((f) => f < 5), `fresh every morning (${rested.mornings.map((f) => f.toFixed(0)).join(', ')})`);
+  // A sortie of thirteen hours costs some fifty points: the first one, flown from the ten
+  // points of the scenario, ends just over the line of « fatiguée »; the next ones under it.
+  assert.ok(rested.peaks[0] < 70, `the first sortie (${rested.peaks[0].toFixed(0)})`);
+  assert.ok(rested.peaks.slice(1, 3).every((f) => f > 40 && f < 60), `the sorties after a night of rest (${rested.peaks.map((f) => f.toFixed(0)).join(', ')})`);
+  // Left at five minutes it flies as often, and is worn out for good: what the player saw.
+  const left = fly(false);
+  assert.equal(left.sorties, 4);
+  assert.ok(left.mornings[1] >= 60, `tired after one sortie (${left.mornings[1].toFixed(0)})`);
+  assert.ok(left.end >= 85, `exhausted after three days (${left.end.toFixed(0)})`);
+});
