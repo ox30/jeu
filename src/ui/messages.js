@@ -14,6 +14,7 @@
 
 import { formatNumber, t } from '../core/i18n.js';
 import { formatDate, formatShortDate, formatTime } from '../core/time.js';
+import { convoyEndText } from './convoyEnd.js';
 import { FOOT_M } from '../sim/geo.js';
 import {
   cargoText, countText, dateTimeText, ftText, headingText, objectiveText, placeText, positionText, reportText, resourceName,
@@ -125,6 +126,9 @@ function signalShape(w, e, p) {
 }
 
 const ESCORT = {
+  // A ship stopped at the end of its route, waiting for orders (the watch reports file it with
+  // the groups). `after`: a convoy told to do something there that it could not.
+  convoyWaiting: { level: 'info', shape: (w, e) => (e.after && e.unitKind !== 'escort' ? 'log.convoyWaitingAfter' : undefined) },
   escortJoined: { level: 'success' },
   escortLowFuel: { level: 'warning' },
   escortDry: { level: 'alert', shape: (w, e) => (e.convoy ? 'log.escortDryConvoy' : undefined) },
@@ -154,11 +158,24 @@ const CONVOY = {
   convoyRouted: {
     shape(w, e, p) {
       p.eta = dateTimeText(e.etaMs);
-      return e.destination ? undefined : 'log.convoyRoutedOpen';
+      if (e.destination) return undefined;
+      // A line that ends at sea: what the convoy was told to do there, if it was told.
+      if (!e.then) return 'log.convoyRoutedOpen';
+      p.then = convoyEndText(w, e.then);
+      return 'log.convoyRoutedThen';
     },
   },
   convoyRouteRejected: { level: 'warning' },
   convoyStopped: { level: 'warning' },
+  // The end of a line or of its legs: what the convoy was told to do there.
+  convoyEndAction: {
+    level: 'info',
+    shape(w, e, p) {
+      p.heading = headingText(e.heading);
+      p.eta = missing(e.etaMs) ? '' : dateTimeText(e.etaMs);
+      return e.action === 'port' && !e.channel ? 'log.convoyEndAction.portDirect' : `log.convoyEndAction.${e.action}`;
+    },
+  },
   convoyArrived: { level: 'success', shape: (w, e) => (e.fuel || e.materiel ? 'log.convoyArrivedCargo' : undefined) },
   convoyUnloaded: { level: 'success' },
   straggler: {

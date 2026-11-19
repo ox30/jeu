@@ -57,6 +57,7 @@ test('every event a watch report keeps has its sentence', () => {
     dfFix: { lat: 55, lon: -20 },
     straggler: { tanker: true },
     convoyBombed: { sunk: 0 }, // with losses, shipsSunk says it
+    convoyEndAction: { action: 'port', port: 'Liverpool', channel: 'Canal Saint-Georges' },
   };
   // Kept for the filters of the page only: the decision of the report says it.
   const silent = new Set(['convoyInEscortRange']);

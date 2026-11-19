@@ -14,7 +14,7 @@ import { plannedPlan, supersede, workingRoute } from './awaited.js';
 import { clockHour } from '../sim/watch.js';
 import { buyOffer } from '../sim/shipping.js';
 import { feetOf, squadronSpeed } from '../sim/squadron.js';
-import { currentSpeed, legSpeed, planExit, shipThrottle } from '../sim/convoy.js';
+import { admiraltyAhead, currentSpeed, legSpeed, planExit, shipThrottle } from '../sim/convoy.js';
 import { parseLegEnd } from '../sim/navigation.js';
 import { deployMru } from '../sim/mru.js';
 import { animateTo, toScreen, toWorld, viewFrame } from '../render/camera.js';
@@ -459,17 +459,7 @@ export function orderAskPosition(app, u) {
 export function orderAdmiraltyRoute(app, convoy) {
   const route = convoy.admiraltyRoute;
   // From a convoy at sea, the route starts at the nearest point ahead.
-  let from = 1;
-  if (convoy.state !== 'inPort') {
-    let best = Infinity;
-    route.forEach(([x, y], i) => {
-      const d = distance(convoy.x, convoy.y, x, y);
-      if (d < best) {
-        best = d;
-        from = Math.min(route.length - 1, i + 1);
-      }
-    });
-  }
+  const from = convoy.state !== 'inPort' ? admiraltyAhead(convoy, route) : 1;
   const sent = shipOrder(app, convoy, 'route', route.slice(from));
   const result = sent.result || { ok: sent.ok };
   if (!result.ok && result.at) app.flash = { x: result.at[0], y: result.at[1], until: performance.now() + 2500 };
@@ -553,6 +543,19 @@ export function orderEscortPattern(app, escort, pattern) {
 export function orderShipEnd(app, escort, value) {
   const [kind, id] = String(value).split(':');
   for (const e of groupsOf(app, escort)) shipOrder(app, e, 'endAction', { kind, id: id || null });
+  app.dirtyPanels = true;
+}
+
+/**
+ * What a convoy does at the end of its line or of its legs, chosen in its sheet: "stop",
+ * "hold", "admiralty", "port:liverpool:Canal Saint-Georges" (a port, by one of its channels).
+ * A convoy with nothing left to follow does it at once.
+ */
+export function orderConvoyEnd(app, convoy, value) {
+  const [kind, id, ...via] = String(value).split(':');
+  if (!kind) return;
+  const sent = shipOrder(app, convoy, 'endAction', { kind, ...(id ? { id } : {}), ...(via.length ? { via: via.join(':') } : {}) });
+  if (sent.via !== 'radio' && !sent.ok) sheetMessage(app, t('orders.errors.endAction'));
   app.dirtyPanels = true;
 }
 

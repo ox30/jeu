@@ -6,9 +6,23 @@
 
 import { KNOT_KMH, distance, headingOf, headingVector, polylineLength, project, stepAlong } from './geo.js';
 import { emit } from './events.js';
-import { completeEntity } from './entities.js';
+import { completeEntity, declareFields } from './entities.js';
 import { followPlan } from './navigation.js';
 import { clearAtSea, seaPath } from './searoute.js';
+import { inClosedWaters, uboatPath } from './uboatnav.js';
+
+// What a convoy is told to do once it has nothing left to follow (the end of a line drawn
+// for it, or of its legs): { kind: stop | hold | port | admiralty, id, via }, or null.
+// Told nothing, it does as it always did: a line that passes by the entrance of a channel
+// is taken into port by itself (applyApproach), another line ends in a stop, legs end in a
+// course kept, and the pilot boards a convoy that steers through his station. Told what to
+// do, it follows its line or its legs to their end and does it there: nothing by itself
+// before. Told once: carried out, it is forgotten; and it goes with the line or the legs it
+// was the end of, when they are erased. (`quiet`: the order came by lamp or by a ship.)
+declareFields('convoy', (c) => {
+  c.endAction = null;
+  c.routeEnded = false;
+});
 
 export function createConvoy(world, def) {
   const port = def.from ? world.byId.port.get(def.from) : null;
@@ -193,6 +207,8 @@ function followRoute(world, u, dt, onArrive) {
     // An escort group leaving port by its channel goes on to its meeting or its legs.
   } else if (u.kind === 'escort' && u.endAction && u.endAction.kind !== 'stop') {
     u.routeEnded = true; // naval.js does what it was told to do there
+  } else if (u.kind === 'convoy' && u.endAction) {
+    u.routeEnded = true; // updateConvoy does what it was told to do there
   } else {
     u.state = 'waiting';
     emit(world, 'convoyWaiting', { convoy: u.name, convoyId: u.id, unitKind: u.kind });
@@ -203,6 +219,8 @@ function followRoute(world, u, dt, onArrive) {
 function checkPilot(world, u) {
   // Escort groups are only piloted in when they are on their way home.
   if (u.kind === 'escort' && !u.homeward) return false;
+  // A convoy told how its legs end goes on to that end: the pilot is not for it yet.
+  if (u.kind === 'convoy' && u.endAction) return false;
   const N = world.rules.navigation;
   for (const port of acceptingPorts(world, u)) {
     for (const approach of port.approaches || []) {
@@ -263,9 +281,234 @@ export function stepShip(world, u, dt, onArrive) {
 export function updateConvoy(world, c, dt) {
   c.px = c.x;
   c.py = c.y;
+  // An end told for a line or for legs that are no more (erased; or the coast right ahead
+  // stopped the convoy before their end): it goes with them.
+  if (c.endAction && !c.route.length && !c.plan.length) c.endAction = null;
   if (c.state !== 'atSea') return;
+  const legs = c.plan.length;
   stepShip(world, c, dt, (port) => arrive(world, c, port));
+  if (c.routeEnded) {
+    c.routeEnded = false;
+    convoyEndAction(world, c);
+  } else if (legs && !c.plan.length && !c.route.length && c.endAction && c.state === 'atSea') {
+    // The last of its legs is done. Told nothing, it keeps its course, as it always did.
+    convoyEndAction(world, c);
+  }
   if (world.t % 60 === 0) checkStragglers(world, c);
+}
+
+// ---- the end of a line or of the legs of a convoy ---------------------------------------
+
+function sameEnd(a, b) {
+  return a.kind === b.kind && (a.id || null) === (b.id || null) && (a.via || null) === (b.via || null);
+}
+
+/** The Admiralty's route of a convoy (a straggler: the one of the convoy it fell behind). */
+function admiraltyOf(world, c) {
+  if (c.admiraltyRoute && c.admiraltyRoute.length) return c.admiraltyRoute;
+  const parent = c.parentId ? world.convoys.find((x) => x.id === c.parentId) : null;
+  return parent && parent.admiraltyRoute ? parent.admiraltyRoute : [];
+}
+
+/**
+ * Where a convoy at sea takes the Admiralty's route again: the index of the point after the
+ * nearest one (the nearest point ahead, as the route is drawn).
+ */
+export function admiraltyAhead(c, route = c.admiraltyRoute) {
+  let from = 1;
+  let best = Infinity;
+  route.forEach(([x, y], i) => {
+    const d = distance(c.x, c.y, x, y);
+    if (d < best) {
+      best = d;
+      from = Math.min(route.length - 1, i + 1);
+    }
+  });
+  return from;
+}
+
+/**
+ * The Admiralty's route taken again from `from` (where the convoy is): to the nearest point
+ * ahead — straight, or by sea round the land that lies between — then the rest of the
+ * route. Points, or null (no such route, or no way by sea).
+ */
+export function admiraltyWay(world, c, from = [c.x, c.y]) {
+  const route = admiraltyOf(world, c);
+  if (route.length < 2) return null;
+  const i = admiraltyAhead({ x: from[0], y: from[1] }, route);
+  const way = world.terrain.findLandOnRoute([from, route[i]], 0, 0) ? seaPath(world, from, route[i]) : [route[i]];
+  return way ? [...way, ...route.slice(i + 1)].map(([x, y]) => [x, y]) : null;
+}
+
+/**
+ * What a convoy can be told to do once it has nothing left to follow: stop and wait, keep its
+ * course, go into one of the ports that take it — by each of the port's charted channels,
+ * where the pilot comes aboard — or take the Admiralty's route again. The ports are those of
+ * its kind (an ocean convoy: the convoy ports; a coastal one: the coastal ports), so that
+ * each scenario offers its own.
+ */
+export function convoyEndChoices(world, c) {
+  const list = [{ kind: 'stop' }, { kind: 'hold' }];
+  for (const p of acceptingPorts(world, c)) {
+    if (p.foreign) continue;
+    const ways = p.approaches || [];
+    if (!ways.length) list.push({ kind: 'port', id: p.id });
+    for (const a of ways) list.push({ kind: 'port', id: p.id, via: a.name });
+  }
+  if (admiraltyOf(world, c).length > 1) list.push({ kind: 'admiralty' });
+  return list;
+}
+
+/** The channel a route that ends in a port goes up (the pilot's): its name, or ''. */
+export function routeChannel(world, c) {
+  const port = c.destination ? world.byId.port.get(c.destination) : null;
+  if (!port || !c.route.length) return '';
+  const same = (p, q) => Math.abs(p[0] - q[0]) < 0.05 && Math.abs(p[1] - q[1]) < 0.05;
+  let best = null;
+  for (const a of port.approaches || []) {
+    // The points of the channel the route still ends with, counted from the port.
+    let n = 0;
+    while (n < a.points.length && n < c.route.length && same(a.points[a.points.length - 1 - n], c.route[c.route.length - 1 - n])) n++;
+    if (n > 0 && (!best || n > best.n)) best = { n, name: a.name, tie: false };
+    else if (best && n === best.n) best.tie = true;
+  }
+  return best && !best.tie ? best.name : '';
+}
+
+/**
+ * Tells a convoy what to do at the end of its line or of its legs. False when this is not
+ * one of its choices, or when it is too late (in the channel, the pilot aboard).
+ *
+ * A route that goes into a port already (taken in by the game, or the Admiralty's) loses
+ * what was added to take it in: the line stays, as far as it is the player's, and ends as
+ * told — unless told the very port and channel it was going to, which changes nothing.
+ * With nothing left to follow (stopped at the end of a line, or keeping its course after
+ * its legs), the convoy does it at once.
+ *
+ * `note`: only take note of it. The orders of a relief are read one after the other, and
+ * what the convoy is to do at the end of its route must be known before its routing is
+ * read (comms.js): a line with an end of its own is followed as it is drawn.
+ */
+export function setConvoyEndAction(world, c, action, { note = false } = {}) {
+  if (c.state !== 'atSea' && c.state !== 'waiting' && c.state !== 'inPort') return false;
+  // In port there must be something prepared for the order to be the end of.
+  if (c.state === 'inPort' && !c.route.length && !c.plan.length) return false;
+  const choice = action ? convoyEndChoices(world, c).find((x) => sameEnd(x, action)) : null;
+  if (!choice) return false;
+  const locked = Math.min(c.routeLocked || 0, c.route.length);
+  // In the channel, the pilot aboard (only charted points are left): too late.
+  if (c.destination && c.route.length && locked >= c.route.length) return false;
+  if (note) {
+    c.endAction = { ...choice };
+    return true;
+  }
+  if (c.destination && c.route.length) {
+    if (choice.kind === 'port' && choice.id === c.destination && (choice.via || '') === routeChannel(world, c)) {
+      c.endAction = null;
+      return true;
+    }
+    c.route = c.route.slice(0, c.route.length - locked);
+    c.routeLocked = 0;
+    c.destination = null;
+    c.routeVersion = (c.routeVersion || 0) + 1; // a new routing: it no longer goes into that port
+  }
+  c.endAction = { ...choice };
+  if ((c.state === 'atSea' || c.state === 'waiting') && !c.route.length && !c.plan.length) convoyEndAction(world, c);
+  return true;
+}
+
+/**
+ * The way into a port by one of its channels, from `from` ([x, y]): by sea to the entrance
+ * of the channel, where the pilot comes aboard, then up the channel. The entrance is reached
+ * from the open sea, round the waters behind the entrances (the Irish Sea, the Minch, the
+ * Channel: those closed to the U-boats, uboatnav.js) and not through them: told « Liverpool
+ * by St George's Channel » off the North Channel, a convoy goes round the west of Ireland; it
+ * does not come down the Irish Sea to the southern entrance to go up it again. A ship that
+ * is already in those waters, or in the channel itself (within the pilot's reach of its
+ * line), joins the channel where it is. A port without a charted channel: by sea to the
+ * port. { route, locked, km } or null (no way by sea).
+ */
+export function channelWay(world, from, port, via = null) {
+  const approach = via ? (port.approaches || []).find((a) => a.name === via) : null;
+  if (via && !approach) return null;
+  const behind = inClosedWaters(world, from[0], from[1]);
+  const options = [];
+  if (approach) {
+    const pts = approach.points;
+    let inside = null;
+    for (let i = 1; i < pts.length; i++) {
+      const near = closestOnSegment(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], from[0], from[1]);
+      if (!inside || near.d < inside.d) inside = { join: [near.x, near.y], tail: pts.slice(i), d: near.d };
+    }
+    if (inside && (behind || inside.d <= world.rules.navigation.pilotKm)) options.push(inside);
+    options.push({ join: pts[0], tail: pts.slice(1), d: distance(from[0], from[1], pts[0][0], pts[0][1]), entrance: true });
+  } else {
+    options.push({ join: [port.x, port.y], tail: [], d: distance(from[0], from[1], port.x, port.y) });
+  }
+  for (const o of options) {
+    let path = [];
+    if (o.d >= 0.2) {
+      // (An entrance that lies in those waters itself, like Spithead in the Channel: by any way.)
+      path = (o.entrance && !behind ? uboatPath(world, from, o.join) : null)
+        || seaPath(world, from, o.join, o.tail.length ? 0 : world.rules.convoy.harbourMarginKm);
+    }
+    if (!path) continue;
+    // By sea as far as the channel (the player's to move, like any line); then the channel
+    // from where it is joined, which is charted: `charted` marks those points.
+    const all = [...path.slice(0, -1).map((q) => ({ q, charted: false })), ...[...path.slice(-1), ...o.tail].map((q) => ({ q: [q[0], q[1]], charted: true }))];
+    // (Two points one on the other, joining at a corner of the channel: one is enough.)
+    const clean = all.filter((p, i) => i === 0 || distance(p.q[0], p.q[1], all[i - 1].q[0], all[i - 1].q[1]) > 0.2);
+    if (!clean.length) continue;
+    const route = clean.map((p) => p.q);
+    return { route, locked: clean.filter((p) => p.charted).length, km: polylineLength([from, ...route]) };
+  }
+  return null;
+}
+
+/**
+ * The convoy does what it was told for the end of its line or of its legs (told once). The
+ * way it takes from there is a new routing, which the B-Dienst may read like any other —
+ * unless the order came by lamp or by a ship, on no air.
+ */
+function convoyEndAction(world, c) {
+  const a = c.endAction || { kind: 'stop' };
+  c.endAction = null;
+  const told = (action, more = {}) => emit(world, 'convoyEndAction', { convoy: c.name, convoyId: c.id, unitKind: 'convoy', action, ...more });
+  if (a.kind === 'hold') {
+    c.state = 'atSea';
+    c.course = c.heading;
+    told('hold', { heading: Math.round(c.course) });
+    return;
+  }
+  if (a.kind === 'port') {
+    const port = world.byId.port.get(a.id);
+    const way = port ? channelWay(world, [c.x, c.y], port, a.via || null) : null;
+    if (way) {
+      c.route = way.route;
+      c.routeLocked = way.locked;
+      c.destination = port.id;
+      c.plan = [];
+      c.legState = null;
+      c.state = 'atSea';
+      c.routeVersion = (c.routeVersion || 0) + 1;
+      if (a.quiet) c.quietRoute = c.routeVersion;
+      const etaMs = world.startMs + (world.t + way.km / routeSpeed(c)) * 1000;
+      told('port', { port: port.name, portId: port.id, channel: a.via || '', etaMs });
+      return;
+    }
+  }
+  if (a.kind === 'admiralty') {
+    const way = admiraltyWay(world, c);
+    const res = way ? routeConvoy(world, c, way) : { ok: false };
+    if (res.ok) {
+      if (a.quiet) c.quietRoute = c.routeVersion;
+      told('admiralty');
+      return;
+    }
+  }
+  // A stop; or nothing of what it was told can be done from here: it waits, and says why.
+  c.state = 'waiting';
+  emit(world, 'convoyWaiting', { convoy: c.name, convoyId: c.id, unitKind: c.kind, ...(a.kind === 'stop' ? {} : { after: a.kind }) });
 }
 
 /**
@@ -339,6 +582,8 @@ function checkStragglers(world, c) {
     parentId: c.id,
     children: [],
   }, world);
+  // It has its convoy's route or legs, and what the convoy was told to do at their end.
+  s.endAction = c.endAction ? { ...c.endAction } : null;
   c.children = [...(c.children || []), s.id];
   world.convoys.push(s);
   emit(world, 'straggler', { convoy: c.name, convoyId: c.id, stragglerId: s.id, n, tanker, x: s.x, y: s.y });
@@ -559,13 +804,46 @@ function applyApproach(world, c, full) {
         if (near.d <= rules.gateRadiusKm && (!nearest || near.d < nearest.near.d)) nearest = { near, i };
       }
       if (!nearest) continue;
+      // From there the convoy steers straight for the entrance. Across land (a headland
+      // between the two) that is no way in: the route is left as it is drawn. (Until
+      // 2.10.4 such a line was refused, for a coast it did not touch itself.) Looked at as
+      // the whole route is, below: not within the harbour margin of the end.
+      const cut = [nearest.near.x, nearest.near.y];
+      const margin = Math.max(0, rules.harbourMarginKm - polylineLength(approach.points));
+      if (world.terrain.findLandOnRoute([cut, [gx, gy]], 0, margin)) continue;
       const score = toEnd * 10 + nearest.near.d;
-      if (!best || score < best.score) best = { score, port, approach, index: nearest.i, cut: [nearest.near.x, nearest.near.y] };
+      if (!best || score < best.score) best = { score, port, approach, index: nearest.i, cut };
     }
   }
   if (!best) return null;
   const route = [...full.slice(1, best.index), best.cut, ...best.approach.points];
-  return { route, port: best.port, locked: best.approach.points.length };
+  return { route, port: best.port, locked: best.approach.points.length, channel: best.approach.name };
+}
+
+/** The port whose bubble a route ends in (like an aerodrome's for the aircraft), or null. */
+function portAtEnd(world, c, last) {
+  let best = world.rules.navigation.portBubbleKm;
+  let found = null;
+  for (const p of acceptingPorts(world, c)) {
+    const d = distance(last[0], last[1], p.x, p.y);
+    if (d <= best) {
+      best = d;
+      found = p;
+    }
+  }
+  return found ? { port: found, d: best } : null;
+}
+
+/**
+ * The port a line drawn for this convoy from `from` would be taken into by itself, told
+ * nothing else: { port, channel } (channel '' for a line that ends in the port), or null.
+ */
+export function approachFor(world, c, from, points) {
+  if (c.kind !== 'convoy' || !points.length) return null;
+  const approach = applyApproach(world, c, [from, ...points]);
+  if (approach) return { port: approach.port, channel: approach.channel };
+  const end = portAtEnd(world, c, points[points.length - 1]);
+  return end ? { port: end.port, channel: '' } : null;
 }
 
 /**
@@ -603,27 +881,21 @@ export function routeConvoy(world, c, points, { keepHead = false } = {}) {
     const way = seaPath(world, end, pts[0]);
     pts = [...roads, ...(way ? way.slice(0, -1) : []), ...pts];
   }
-  const approach = applyApproach(world, c, [[c.x, c.y], ...pts]);
+  // A convoy told what to do at the end of its line follows it as it is drawn: it is not
+  // taken into port by itself. Unless the line itself ends in a port: there is no "after".
+  const atPort = portAtEnd(world, c, pts[pts.length - 1]);
+  const asDrawn = c.kind === 'convoy' && Boolean(c.endAction) && !atPort;
+  const approach = asDrawn ? null : applyApproach(world, c, [[c.x, c.y], ...pts]);
   if (approach) {
     pts = approach.route;
     destination = approach.port;
     locked = approach.locked;
-  } else {
-    const last = pts[pts.length - 1];
+  } else if (atPort) {
     // Into port when the route ends in its bubble (like an aerodrome's for the aircraft).
-    let best = world.rules.navigation.portBubbleKm;
-    for (const p of acceptingPorts(world, c)) {
-      const d = distance(last[0], last[1], p.x, p.y);
-      if (d <= best) {
-        best = d;
-        destination = p;
-      }
-    }
-    if (destination) {
-      if (best < 0.5) pts[pts.length - 1] = [destination.x, destination.y];
-      else pts.push([destination.x, destination.y]);
-      locked = 1;
-    }
+    destination = atPort.port;
+    if (atPort.d < 0.5) pts[pts.length - 1] = [destination.x, destination.y];
+    else pts.push([destination.x, destination.y]);
+    locked = 1;
   }
 
   // From the roads on, the route must keep to the sea (the harbour channel is charted).
@@ -639,6 +911,7 @@ export function routeConvoy(world, c, points, { keepHead = false } = {}) {
   c.route = pts;
   c.routeVersion = (c.routeVersion || 0) + 1; // a new routing signal (the B-Dienst may read it)
   c.routeLocked = locked;
+  if (c.kind === 'convoy' && destination) c.endAction = null; // it ends in a port: nothing comes after
   if (c.kind === 'escort') {
     // The charted way out is the head of the route: its points are not the player's to move.
     // (Until 2.10.2 it was counted with the way into port, at the wrong end: a group that
@@ -669,6 +942,7 @@ export function routeConvoy(world, c, points, { keepHead = false } = {}) {
     destination: destination ? destination.name : null,
     etaMs,
     unitKind: c.kind,
+    ...(c.kind === 'convoy' && c.endAction ? { then: { ...c.endAction } } : {}),
   });
   return { ok: true, destination };
 }

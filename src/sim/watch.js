@@ -55,7 +55,7 @@ const NOTED = {
   dfFix: 'intel', convoySighted: 'intel', condorSighted: 'intel',
   escortJoined: 'escort', escortLowFuel: 'escort', escortDry: 'escort', escortChargesOut: 'escort', escortInPort: 'escort', escortReady: 'escort',
   escortRadar: 'escort', convoyWaiting: 'escort',
-  convoyDeparted: 'convoy', convoyArrived: 'convoy', convoyStopped: 'convoy', convoyInEscortRange: 'convoy',
+  convoyDeparted: 'convoy', convoyArrived: 'convoy', convoyStopped: 'convoy', convoyInEscortRange: 'convoy', convoyEndAction: 'convoy',
   airborne: 'air', squadronLost: 'air', offerBought: 'convoy', scenarioEvent: 'intel',
 };
 

@@ -28,6 +28,7 @@ import { allViewZones } from '../sim/sight.js';
 import { drawNight } from './night.js';
 import { shownPosition } from '../sim/comms.js';
 import { awaited, awaitedLand, workingRoute } from '../ui/awaited.js';
+import { endPreview } from '../ui/convoyEnd.js';
 import { clockHour } from '../sim/watch.js';
 import { activeMember, findStacks, indexStacks, stackConvoy, stackKey, stackOfSelection, stackRole } from '../ui/stacks.js';
 import { patrolZone, shownAsZone } from '../ui/patrolZone.js';
@@ -153,9 +154,39 @@ function drawAwaited(ctx, cam, app, u, sx, sy, selected) {
   ctx.textBaseline = 'middle';
   ctx.lineWidth = 3;
   ctx.strokeStyle = 'rgba(247, 240, 220, 0.9)';
-  ctx.strokeText(label, end[0] + 12, end[1] + 14);
+  // (Above the end of the line: what the ship does there is written below it.)
+  ctx.strokeText(label, end[0] + 12, end[1] - 13);
   ctx.fillStyle = `rgba(${AWAITED}, 1)`;
-  ctx.fillText(label, end[0] + 12, end[1] + 14);
+  ctx.fillText(label, end[0] + 12, end[1] - 13);
+}
+
+/**
+ * The convoy in hand: what it was told to do at the end of its line or of its legs. A word
+ * by the end (« ⚓ Liverpool par Canal Saint-Georges », « → garde le cap »), and in faint
+ * dots the way it will take from there: to the entrance of the channel and up it, or the
+ * Admiralty's route from the nearest point ahead. Ochre while the order has not reached it.
+ */
+function drawConvoyEnd(ctx, cam, app, c) {
+  const world = app.world;
+  const end = endPreview(world, c);
+  if (!end || !end.from) return;
+  const a = end.action;
+  const rgb = end.waiting || awaited(world, c).route !== null ? AWAITED : '47, 79, 111';
+  const [fx, fy] = toScreen(cam, end.from[0], end.from[1]);
+  if (end.points && end.points.length) {
+    const pts = [[fx, fy], ...end.points.map(([x, y]) => toScreen(cam, x, y))];
+    pencilLine(ctx, pts, { color: `rgba(${rgb}, 0.9)`, width: 1.8, dash: [3, 5], arrow: true });
+  }
+  const port = a.kind === 'port' ? world.byId.port.get(a.id) : null;
+  const label = a.kind === 'port' ? t(a.via ? 'map.convoyEnd.portVia' : 'map.convoyEnd.port', { port: port ? port.name : '', channel: a.via || '' }) : t(`map.convoyEnd.${a.kind}`);
+  ctx.font = `italic 11px ${FONTS.serif}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(247, 240, 220, 0.9)';
+  ctx.strokeText(label, fx + 12, fy + 14);
+  ctx.fillStyle = `rgba(${rgb}, 0.95)`;
+  ctx.fillText(label, fx + 12, fy + 14);
 }
 
 function onScreen(cam, sx, sy, margin = 60) {
@@ -1478,6 +1509,7 @@ function drawConvoys(ctx, cam, app, alpha) {
       drawPlanTrack(ctx, cam, app, c, selected);
     }
     drawAwaited(ctx, cam, app, c, sx, sy, selected);
+    if (selected) drawConvoyEnd(ctx, cam, app, c);
     if (!onScreen(cam, sx, sy, est ? 60 + est.radiusKm * cam.scale : 60)) continue;
     if (est) drawEstimate(ctx, cam, sx, sy, est, c.y, selected);
     if (awaiting) {

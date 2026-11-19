@@ -36,6 +36,11 @@ export class SaveError extends Error {
 // chosen kept as a bare name — is read again as 2.10.3 keeps it at the first step of the game
 // (adoptWayOut, convoy.js): a group that waited in port with its channel sails, a group going
 // down its channel has its line back in the player's hands. No migration, nothing lost.
+// Version 2.10.5 too: two fields on a convoy, declared with their defaults (declareFields,
+// convoy.js): `endAction` (what it was told to do at the end of its line or of its legs;
+// absent = null, it ends as it always did) and `routeEnded` (a mark that lives within one
+// step; absent = false). An order « endAction » waiting in `signals` for a convoy is new
+// too: an earlier version would refuse it at the relief, as an order it does not know.
 // A new part of the world, or a field that cannot be defaulted, takes a new number and a
 // migration here (the check of the parts in src/save/game.js refuses a « complete » save
 // that lacks one).

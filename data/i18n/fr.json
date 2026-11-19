@@ -305,7 +305,8 @@
       "intercept": "Interception impossible : pas de contact sûr avec ce raid, ou l'escadrille ne peut pas recevoir d'ordre.",
       "clock": "Heure non comprise : tapez par exemple 09:30, 0930 ou 9h30.",
       "rosterAfter": "Ce moment tombe après la fin du planning des prochaines heures.",
-      "offset": "Nombre d'heures après H0 non compris : tapez par exemple 6, 6.5 ou 6:30."
+      "offset": "Nombre d'heures après H0 non compris : tapez par exemple 6, 6.5 ou 6:30.",
+      "endAction": "Cet ordre n'est pas possible pour ce convoi."
     },
     "join": "Rejoindre {convoy}",
     "leave": "Quitter le convoi",
@@ -477,7 +478,26 @@
     "awaitedRouteShip": "Tracé de {n} point{s} confié à {group} : il sera remis à la rencontre. Il reste sur la carte, en ocre.",
     "awaitedLeg": "à transmettre",
     "awaitedLegs": "En ocre : pas encore transmis. Ces ordres partent par radio à la relève de {hour} h ; jusque-là le navire suit ses ordres actuels. La carte montre leur tracé, et vous pouvez en ajouter d'autres à la suite.",
-    "awaitedLand": "Vu de la position estimée du navire, ce trajet touche terre (cercle rouge sur la carte) : l'ordre serait refusé à l'arrivée. Corrigez-le avant la relève."
+    "awaitedLand": "Vu de la position estimée du navire, ce trajet touche terre (cercle rouge sur la carte) : l'ordre serait refusé à l'arrivée. Corrigez-le avant la relève.",
+    "convoyEnd": {
+      "stop": "S'arrêter et attendre",
+      "hold": "Garder le cap",
+      "port": "Entrer à {port}",
+      "portVia": "Entrer à {port} par : {channel}",
+      "admiralty": "Reprendre la route de l'Amirauté",
+      "choose": "Choisir un ordre…",
+      "after": {
+        "route": "En fin de tracé",
+        "legs": "À la fin des étapes",
+        "now": "Et maintenant"
+      },
+      "hint": "Sans ordre, un convoi s'arrête au bout d'un tracé et attend ; au bout de ses étapes, il garde le cap. « Entrer à… » le mène par le large à l'entrée du chenal choisi, où le pilote monte à bord ; « Reprendre la route de l'Amirauté » la rejoint au prochain point devant lui.",
+      "hintNow": "Le convoi n'a plus rien à suivre : l'ordre choisi ici s'exécute tout de suite. Ou tracez-lui une route depuis son repère.",
+      "intoPort": "Plus de tracé à terminer : le convoi entre à {port}.",
+      "intoPortVia": "Plus de tracé à terminer : le convoi rejoint le chenal ({channel}) et entre à {port}.",
+      "waiting": "En attente : « {what} », transmis par radio à la relève de {hour} h.",
+      "autoPort": "Ce tracé passe près de l'entrée de ce chenal et finit vers ce port : sans autre ordre, le convoi y entre de lui-même. Avec un autre choix, il suit le tracé jusqu'au bout, sans le chenal, puis fait ce qui est choisi."
+    }
   },
   "sheet": {
     "type": "Appareil",
@@ -1084,7 +1104,15 @@
     "asdicContactNoCourse": "{by} : contact ASDIC tenu, U-Boot vers {depth} m.",
     "condorSighted": "Un Condor tourne au-dessus du convoi {convoy} : sa position est signalée aux U-Boote.",
     "condorAttack": "Un Condor bombarde le convoi {convoy} : manqué.",
-    "condorAttackHit": "Un Condor bombarde le convoi {convoy} : un navire coulé."
+    "condorAttackHit": "Un Condor bombarde le convoi {convoy} : un navire coulé.",
+    "convoyEndAction": {
+      "hold": "Convoi {convoy} : fin de sa route, il garde le cap {heading}.",
+      "port": "Convoi {convoy} : fin de sa route, il fait route vers {port} par l'entrée du chenal ({channel}), arrivée prévue le {eta}.",
+      "portDirect": "Convoi {convoy} : fin de sa route, il fait route vers {port}, arrivée prévue le {eta}.",
+      "admiralty": "Convoi {convoy} : fin de sa route, il reprend la route de l'Amirauté."
+    },
+    "convoyWaitingAfter": "Convoi {convoy} : l'ordre prévu en fin de route ne peut pas être exécuté d'ici (pas de passage par la mer). En attente d'ordres en mer.",
+    "convoyRoutedThen": "Convoi {convoy} : route acceptée. En fin de tracé : « {then} »."
   },
   "reasons": {
     "fuel": "carburant",
@@ -1201,13 +1229,20 @@
       "home": "{name} · {n} · rentre"
     },
     "awaitedRadio": "part par radio à {hour} h",
-    "awaitedShip": "confié à {group}"
+    "awaitedShip": "confié à {group}",
+    "convoyEnd": {
+      "hold": "→ garde le cap",
+      "port": "⚓ {port}",
+      "portVia": "⚓ {port} par {channel}",
+      "admiralty": "↪ route de l'Amirauté",
+      "stop": "■ s'arrête"
+    }
   },
   "help": {
     "title": "Comment jouer",
     "steps": [
       "Kanalkampf, 10-24 juillet 1940. Trois choses à tenir : les convois, les stocks, la défense aérienne. Vue Atlantique (A), Grande-Bretagne (L) et Angleterre (G).",
-      "Convois : les HX 55 et HX 57 sont en mer. Tracez leur route (ou donnez-leur des étapes en Réaliste) jusqu'au chenal du nord de l'Irlande ou au canal Saint-Georges, où un pilote les conduit à Liverpool ou à la Clyde. Les cercles hachurés sont des U-Boote probables, repérés par radiogoniométrie : contournez-les, ou envoyez un groupe d'escorte au-devant du convoi.",
+      "Convois : les HX 55 et HX 57 sont en mer. Tracez leur route (ou donnez-leur des étapes en Réaliste) jusqu'au chenal du nord de l'Irlande ou au canal Saint-Georges, où un pilote les conduit à Liverpool ou à la Clyde. La fiche du convoi dit par quel chenal et dans quel port il entre, et vous laisse en choisir un autre (« En fin de tracé »). Les cercles hachurés sont des U-Boote probables, repérés par radiogoniométrie : contournez-les, ou envoyez un groupe d'escorte au-devant du convoi.",
       "Le convoi côtier CW 7 attend dans la Tamise avec du matériel pour Southampton. Faites-le appareiller quand vous pourrez le couvrir : de jour, la Luftwaffe l'attaque dans la Manche. Une escadrille peut « Couvrir » le convoi.",
       "Logistique : les convois déchargent carburant et matériel dans les ports. Envoyez des trains vers les bases (carburant) et les usines (matériel), ou fixez un stock minimum dans la fiche d'une base : les trains partent seuls. Sans carburant, une escadrille ne refait pas le plein. Les usines remplacent les avions perdus.",
       "Défense : à l'alerte, faites décoller une escadrille vers le raid, réglez son altitude (↑ ↓) pour arriver au-dessus. En Arcade, « Intercepter » (ou glisser jusqu'au raid) laisse le contrôleur la guider : sa chance dépend de la couverture radar. Le trait pointillé d'un raid manqué donne l'écart ; chaque raid finit par un rapport, rangé dans « Rapports ».",
@@ -1274,6 +1309,7 @@
     ],
     "sea": [
       "Appareiller : un groupe d'escorte met une heure à quitter son quai. Sa sortie est la première étape de ses ordres : choisissez-la dans la section Au port (en rade, juste au large du port, ou un chenal suivi jusqu'au bout). Elle se dessine sur la carte et s'inscrit sous « Route et étapes », où une croix la retire. Prolongez-la par un tracé tiré depuis l'anneau à son bout, ou par des étapes au cap, et choisissez ce que le groupe fait à la fin (attendre, garder le cap, chercher un U-Boot, rejoindre un convoi, entrer dans un port). Tout cela attend « Appareiller » ou l'heure programmée. Sans sortie choisie, « Appareiller » mène le groupe en rade, où il attend vos ordres, et un tracé tiré depuis le port le fait partir tout de suite, par la rade ou le chenal qui y mène.",
+      "Fin de route d'un convoi : dans sa fiche, la section « Route et étapes » dit ce qu'il fait au bout de son tracé ou de ses étapes, et vous laisse en décider. Sans ordre, le jeu fait comme toujours : un tracé qui passe à moins de 160 km de l'entrée d'un chenal et finit à moins de 450 km de son port est prolongé de lui-même jusqu'au port (le pilote monte à bord à l'entrée) ; un autre tracé finit par un arrêt en mer ; après ses étapes, le convoi garde le cap, et un pilote le prend s'il passe dans le cercle « Pilote » d'un chenal. Avec un ordre, le convoi suit son tracé ou ses étapes jusqu'au bout, puis l'exécute : s'arrêter, garder le cap, reprendre la route de l'Amirauté, ou entrer dans un port par le chenal de votre choix (Liverpool par le Nord de l'Irlande ou par le canal Saint-Georges, la Clyde ; Southampton par Spithead pour un convoi côtier). Pour entrer dans un port, il gagne l'entrée du chenal par le large (il contourne l'Irlande plutôt que de traverser la mer d'Irlande pour ressortir au sud), puis remonte le chenal ; le chemin prévu se dessine en pointillé après le bout du tracé. Un convoi qui n'a plus rien à suivre exécute l'ordre tout de suite. Sous silence radio, l'ordre part à la relève, comme les autres.",
       "En mer, la barre de commandes d'un groupe d'escorte donne « Face aux U-Boote » : Rester avec le convoi ou Chasser les contacts, et le grenadage, plein ou économe (section « Chasse aux U-Boote ») ; « Stop » ou tout autre ordre arrête la chasse. Un U-Boot tenu à l'ASDIC reçoit une passe de grenades toutes les 10 minutes. « Au port » rentre au port choisi dans la section « Retour au port » ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un port y entre. Section « Route et étapes » : que faire à la fin du tracé ou des étapes (s'arrêter, garder le cap, chercher un U-Boot sur place, rejoindre un convoi, entrer au port).",
       "Vitesse des navires : un convoi à 100 % garde ses navires groupés ; son boost (sa meilleure vitesse) en laisse décrocher. Un groupe d'escorte à 100 % file à sa vitesse de mer ; son boost (+15 %) use son autonomie 1,6 fois plus vite. Zigzag et route de l'Amirauté sont dans la barre d'un convoi.",
       "Autonomie : un groupe rentre de lui-même quand il ne lui reste que de quoi regagner le port le plus proche, plus un jour de marge (« Retour au port » montre la distance et le temps pour chaque port). Si vous le retenez en mer et que son mazout s'épuise, il quitte tout, convoi compris, et se traîne au port le plus proche à 7 nœuds au plus : vous ne pouvez plus que choisir son port.",

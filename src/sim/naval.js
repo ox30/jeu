@@ -6,7 +6,7 @@ import { KNOT_KMH, bearing, distance, headingVector, polylineLength, project, un
 import { clearAtSea, fieldJoin, seaKmToPort, seaPath } from './searoute.js';
 import { emit } from './events.js';
 import { solveIntercept } from './intercept.js';
-import { acceptingPorts, adoptWayOut, currentSpeed, stepShip } from './convoy.js';
+import { acceptingPorts, adoptWayOut, currentSpeed, setConvoyEndAction, stepShip } from './convoy.js';
 import { canHunt, dive, endHunt, engage, isSubmerged, rearm, spotAttacker, startHunt, stepHunt, willCounter } from './asw.js';
 import { callBoats, noteConvoy } from './bdu.js';
 import { inClosedWaters, moveTo, openForUboat, steerUboat, uboatSpot } from './uboatnav.js';
@@ -268,6 +268,8 @@ export function sendEscortHome(world, e, portId = null) {
     e.routeHead = 0;
     e.routeLocked = way.locked;
     e.destination = port.id;
+    // (The same order given to a convoy: its route ends in the port, nothing comes after.)
+    if (e.kind === 'convoy') e.endAction = null;
   }
 }
 
@@ -534,6 +536,8 @@ export function shipEndChoices(world, e) {
 }
 
 export function setShipEndAction(world, e, action) {
+  // (A convoy has its own: into a port by one of its channels, the Admiralty's route again.)
+  if (e.kind === 'convoy') return setConvoyEndAction(world, e, action);
   const choice = shipEndChoices(world, e).find((c) => c.kind === action.kind && (c.id || null) === (action.id || null));
   if (!choice) return false;
   e.endAction = { ...choice };

@@ -6,7 +6,7 @@
 import {
   activePoint, addRulerLeg, addTypedLeg, cancelConfirm, cancelEditLeg, centreOn, changeAltitude,
   changePointAltitude, clearPointAltitude, deletePoint, findUnit, orderAdmiraltyRoute,
-  orderAlertChecked, orderAskPosition, orderBoost, orderBreakOff, orderCancelSchedule, orderClearPlan, orderCommsCancel, orderCommsCarry,
+  orderAlertChecked, orderAskPosition, orderBoost, orderBreakOff, orderCancelSchedule, orderClearPlan, orderCommsCancel, orderCommsCarry, orderConvoyEnd,
   orderCover, orderDissolve, orderDropLine, orderEndAction, orderEscortBehaviour, orderEscortHome, orderEscortPattern, orderExitChannel,
   orderHome, orderHuntPlot, orderHuntStop, orderIntercept, orderJoin,
   orderLaunchWaiting, orderLeave, orderLeaveFormationOf, orderMerge, orderMinStock, orderNewFormation,
@@ -258,6 +258,11 @@ export const PANEL_CHANGES = {
   'ship-end': (app, { id, target }) => {
     const e = app.world.escorts.find((x) => x.id === id);
     if (e) orderShipEnd(app, e, target.value);
+  },
+  'convoy-end': (app, { id, target }) => {
+    const c = app.world.convoys.find((x) => x.id === id);
+    if (c) orderConvoyEnd(app, c, target.value);
+    target.blur();
   },
   'speed-pct': (app, { id, kind, target }) => {
     const u = findUnit(app, kind, id);

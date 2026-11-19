@@ -14,6 +14,7 @@ import { shipEndChoices } from '../sim/naval.js';
 import { legTarget } from '../sim/navigation.js';
 import { endChoices, planTrack } from '../sim/orders.js';
 import { awaited, awaitedLand, workingRoute } from './awaited.js';
+import { convoyEnd, convoyEndText, endValue } from './convoyEnd.js';
 import { interceptChance } from '../sim/control.js';
 import { activePoint, editingLegIndex, raidsInHand } from './actions.js';
 import { formationById, formationOf, membersOf } from '../sim/formations.js';
@@ -489,9 +490,34 @@ function climbArrow(s) {
 }
 
 /** End of route (or of legs) of an escort group: stop, hold on, meet a convoy, hunt there, into a port. */
+/**
+ * A convoy: what it does at the end of its line or of its legs — or at once, when it follows
+ * nothing. A route that already goes into a port says so, with the channel the pilot takes.
+ */
+function convoyEndLine(app, c) {
+  const w = app.world;
+  const e = convoyEnd(w, c);
+  if (!e) return '';
+  if (e.mode === 'port') {
+    return `<p class="hint">${escapeHtml(t(e.channel ? 'orders.convoyEnd.intoPortVia' : 'orders.convoyEnd.intoPort', { port: e.port, channel: e.channel }))}</p>`;
+  }
+  const list = e.choices.map((a) => ({ value: endValue(a), label: convoyEndText(w, a) }));
+  // (With nothing to follow the choice is an order to carry out now: it starts on no choice.)
+  if (e.after === 'now') list.unshift({ value: '', label: t('orders.convoyEnd.choose') });
+  // An order on its way is what the list shows: it is the last thing the player chose.
+  const shown = e.waiting || e.current;
+  const current = shown ? endValue(shown) : '';
+  const told = e.waiting ? `<p class="hint awaited">${escapeHtml(t('orders.convoyEnd.waiting', { what: convoyEndText(w, e.waiting), hour: nextReliefHour(w) }))}</p>` : '';
+  // Taken into port by the game, told nothing: said, with the way to have it otherwise.
+  const own = !e.waiting && e.auto && e.current && e.current.kind === 'port';
+  const hint = e.after === 'now' ? 'orders.convoyEnd.hintNow' : own ? 'orders.convoyEnd.autoPort' : 'orders.convoyEnd.hint';
+  return `<div class="order-line"><label class="grow">${escapeHtml(t(`orders.convoyEnd.after.${e.after}`))} <select id="convoy-end-${escapeHtml(c.id)}" data-change="convoy-end" data-id="${escapeHtml(c.id)}">${options(list, current)}</select></label></div>
+    ${told}<p class="hint">${escapeHtml(t(hint))}</p>`;
+}
+
 function shipEndLine(app, e) {
-  // Going to meet a convoy, or into a port: the route already says how it ends. A convoy
-  // keeps its course at the end of its legs (its route ends in a port).
+  if (e.kind === 'convoy') return convoyEndLine(app, e);
+  // Going to meet a convoy, or into a port: the route already says how it ends.
   if (e.kind !== 'escort') return '';
   if (!(e.route.length || e.plan.length) || e.homeward || e.joinTarget || e.state === 'escorting') return '';
   const w = app.world;
@@ -1040,7 +1066,8 @@ function convoyPanel(app, c) {
     c.state !== 'inPort' ? `<p class="hint">${escapeHtml(headings ? t('orders.headingsHint') : t('orders.drawHint'))}</p>` : '',
   ].join('') : '';
   const tabs = [
-    canOrder ? tab('cmd', { keyed: cmd, key: `${editingLegIndex(app, c)}:${commsKey(w, c)}` }) : null,
+    // (The choice of the end of its route starts afresh when what it follows changes.)
+    canOrder ? tab('cmd', { keyed: cmd, key: `${editingLegIndex(app, c)}:${commsKey(w, c)}:${c.state}:${c.route.length > 0}:${c.plan.length}:${c.destination || ''}:${c.route.length > (c.routeLocked || 0)}:${c.endAction ? endValue(c.endAction) : ''}` }) : null,
     tab('state', { pre: rows }),
     tab('card', { keyed: unitCardHtml(w, c) }),
   ].filter(Boolean);

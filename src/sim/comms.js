@@ -25,7 +25,7 @@ import { declareFields } from './entities.js';
 import { inClosedWaters } from './uboatnav.js';
 import { isDaylight } from './daylight.js';
 import { callBoats, noteConvoy } from './bdu.js';
-import { currentSpeed } from './convoy.js';
+import { currentSpeed, setConvoyEndAction } from './convoy.js';
 import {
   addLeg, clearPlan, editShipRoute, escortHome, huntPlot, joinConvoy, leaveConvoy, removeLeg, routeConvoy, setConvoySpeed, setEscortBehaviour,
   setEscortPattern, setShipBoost, setShipSpeedPct, setZigzag, updateLeg,
@@ -194,7 +194,23 @@ function carryOut(world, u, name, args, via) {
   const result = ORDERS[name](world, u, ...args);
   // A routing handed over by lamp or by a ship is no radio signal: the B-Dienst cannot read it.
   if ((via === 'lamp' || via === 'ship') && (u.routeVersion || 0) !== before) u.quietRoute = u.routeVersion;
+  // Nor the way a convoy will take at the end of its route, told the same way.
+  if ((via === 'lamp' || via === 'ship') && name === 'endAction' && u.kind === 'convoy' && u.endAction) u.endAction.quiet = true;
   return result;
+}
+
+/**
+ * What a convoy is to do at the end of its route is known before its routing is read: the
+ * orders of a relief (or handed over by a group) are read one after the other, and a line
+ * with an end of its own is followed as it is drawn (convoy.js). The order itself is
+ * carried out in its turn.
+ */
+function noteEnds(world, list) {
+  for (const s of list) {
+    if (s.name !== 'endAction' || s.unitKind !== 'convoy') continue;
+    const u = unitOf(world, s.unitKind, s.unitId);
+    if (u && atSea(u)) setConvoyEndAction(world, u, s.args[0], { note: true });
+  }
 }
 
 /**
@@ -221,6 +237,12 @@ export function sendOrder(world, u, name, ...args) {
   if (replace.includes(name)) world.signals = world.signals.filter((s) => !(s.unitId === u.id && s.name === name));
   const signal = { id: `S${world.nextSignalId++}`, unitKind: u.kind, unitId: u.id, name, args, via: 'radio', carrier: null, sentT: world.t };
   world.signals.push(signal);
+  // What a ship is to do at the end of its route is read after its routes, whenever it was
+  // sent: at the end of the route it is given now, not at once where it is.
+  if (name !== 'endAction') {
+    const i = world.signals.findIndex((s) => s.unitId === u.id && s.unitKind === u.kind && s.name === 'endAction' && s.via === 'radio');
+    if (i >= 0) world.signals.push(...world.signals.splice(i, 1));
+  }
   return { ok: true, via: 'radio', signalId: signal.id };
 }
 
@@ -353,6 +375,7 @@ export function updateComms(world, first, relief) {
     const e = world.escorts.find((x) => x.id === s.carrier);
     if (e && e.escorting === s.unitId) {
       world.signals = world.signals.filter((x) => x !== s);
+      noteEnds(world, world.signals.filter((x) => x.via === 'ship' && x.carrier === s.carrier && x.unitId === s.unitId));
       deliver(world, s, 'ship');
     } else if (!e || e.dry || (e.joinTarget !== s.unitId && e.huntFor !== s.unitId)) {
       s.via = 'radio';
@@ -365,6 +388,7 @@ export function updateComms(world, first, relief) {
   // The radio schedule of the relief: every order waiting goes out.
   const radio = world.signals.filter((s) => s.via === 'radio');
   world.signals = world.signals.filter((s) => s.via !== 'radio');
+  noteEnds(world, radio);
   for (const s of radio) deliver(world, s, 'radio');
 }
 
@@ -375,6 +399,7 @@ export function updateComms(world, first, relief) {
 export function flushSignals(world) {
   const waiting = world.signals || [];
   world.signals = [];
+  noteEnds(world, waiting);
   for (const s of waiting) deliver(world, s, 'radio');
 }
 
