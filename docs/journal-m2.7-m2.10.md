@@ -1712,4 +1712,8 @@ la sortie posée, prolongée à la souris, retirée, deux appareillages programm
 avec une étape, l'autre sans rien), sur la version de développement et sur
 `dist/index.html` ; 10 000 ordres au hasard par scénario, et 30 000 de plus dans
 l'Atlantique (trois parties : Standard graine 2, Réaliste graines 2 et 3) ; 36 parties du
-joueur automatique identiques. Non relu par un agent neuf.
+joueur automatique identiques. Branche `retours-jeu-2`, demande de fusion nº 7,
+vérifications de GitHub vertes (commit 175ff26, le dernier avant cette ligne). Artefact
+« Jeu 1940 — travaux de Fable » mis à jour (2.10.3) ; compte rendu du projet complété. Essayé
+aussi sous silence radio, à la souris : au port et dans le chenal, les ordres sont immédiats.
+Non relu par un agent neuf.
