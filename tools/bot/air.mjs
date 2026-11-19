@@ -284,6 +284,8 @@ export function runChain(cfg = {}) {
       start: carry ? +carry.fighterShare.toFixed(3) : 1,
       outcome: w.outcome,
       down: sim.objectives.enemyDown(w),
+      // What the battle asked: the scenario's count, cut to the fighters carried over (2.10.2).
+      asked: w.objectives.find((o) => o.type === 'enemyDown')?.count ?? null,
       fighterShare: +share.toFixed(3),
       failed: w.objectives.filter((o) => !o.done).map((o) => o.type),
     });

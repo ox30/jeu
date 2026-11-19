@@ -1526,3 +1526,52 @@ patrouilles, les onglets de Liverpool et de Tangmere, le briefing de campagne (�
 de 32 »). Captures `patrol-alert`, `patrol-roster`, `site-tabs-port`, `site-tabs-group`,
 `site-tabs-airfield`, `site-tabs-squadron`, `briefing-campaign`, `objective-campaign`.
 Ordres au hasard : 10 000 par scénario, sans erreur.
+
+### Mesure de la campagne après la 2.10.2 (19 novembre, 15 h 37 à 15 h 50)
+
+Les quatre lignes de campagne rejouées sur les trente graines de la mesure finale du M2.10
+(120 chaînes, `node tools/bot/measure.mjs --name retours --seeds 30 --only campagne`). Une
+chaîne, c'est Kanalkampf, Adlertag puis le 15 septembre, sans rejouer une bataille perdue.
+
+| Préréglage | Conduite | Kanalkampf gagné | Adlertag gagné | 15 septembre gagné, avant → après | Campagne gagnée, avant → après |
+| --- | --- | --- | --- | --- | --- |
+| Standard | simple | 23 sur 30 | 16 sur 23 | 8 → **14 sur 16** | 8 → 14 sur 30 |
+| Réaliste | simple | 17 sur 30 | 14 sur 17 | 0 → **11 sur 14** | 0 → 11 sur 30 |
+| Réaliste | soigné (en masse le 15) | 20 sur 30 | 18 sur 20 | 13 → 13 sur 18 | 13 → 13 sur 30 |
+| Réaliste | simple, puis en masse le 15 | 17 sur 30 | 14 sur 17 | 10 → 10 sur 14 | 10 → 10 sur 30 |
+
+Ce que la mesure dit :
+
+- **Le 15 septembre se gagne en campagne à peu près comme seul.** Joué simplement en
+  Standard : 14 fois sur 16 en campagne (25 sur 30 seul). En Réaliste : 11 sur 14 (21 sur 30
+  seul). La chasse y commence à 75 à 79 % de ses avions en Standard (24 avions demandés) et
+  à 60 % en Réaliste (19 demandés) ; les parties jouées simplement en abattent de 21 à 42 et
+  de 11 à 30.
+- **Les 17 chaînes qui changent d'issue sont toutes des 15 septembre perdus faute d'avions
+  abattus**, et gagnés maintenant. Aucune autre bataille ne change : Kanalkampf est la
+  première, et Adlertag commence avec 93 à 100 % de sa chasse (les usines ont comblé les
+  vides de Kanalkampf), soit 83 à 90 avions demandés pour 90 à 162 abattus. La règle vaut
+  pour Adlertag, mais elle n'y décide de rien dans ces 120 chaînes : ses défaites tiennent à
+  la chasse gardée et aux heures hors service.
+- **En masse le 15, rien ne bouge** : ces journées abattent 34 à 58 avions, bien au-delà du
+  compte ; elles se perdent sur la chasse gardée (moins de 70 % des présents), ce que la
+  règle ne touche pas. Jouer simple et jouer en masse se valent donc ce jour-là en campagne
+  (11 et 10 sur 14) : l'un risque de ne pas abattre assez, l'autre de trop perdre.
+- La campagne entière reste difficile : 14 sur 30 en Standard joué simplement. Ce sont trois
+  victoires de suite, et Kanalkampf puis Adlertag en arrêtent déjà 14.
+
+**Hors campagne, rien ne change**, et c'est vérifié : `git diff idee-b -- src/sim
+data/rules.json data/scenarios` ne touche que `objectives.js` et `world.js`, pour la règle
+ci-dessus ; quinze parties rejouées (Kanalkampf, Adlertag, 15 septembre en Standard simple,
+15 septembre en Réaliste soigné, Atlantique en Standard soigné avec ses patrouilles, trois
+graines chacune) sont identiques une à une à celles de la mesure du M2.10. Le joueur
+automatique note maintenant, pour chaque bataille d'une chaîne, le nombre d'avions demandé
+(`asked`).
+
+### Porte des retours de jeu
+
+405 tests, lint et construction verts ; 246 vérifications à l'essai de fumée, sur la version
+de développement et sur `dist/index.html` ; 10 000 ordres au hasard par scénario ; mesure de
+la campagne ci-dessus. Branche `retours-jeu`, demande de fusion nº 6, vérifications de GitHub
+vertes. Artefact « Jeu 1940 — travaux de Fable » mis à jour (2.10.2). Non relu par un agent
+neuf.
