@@ -39,7 +39,8 @@ travaux est dans `docs/journal-m2.7-m2.10.md`.
 - **Aides des fiches** repliables (Réglages, Carte et fiche) : chaque section garde un « ? »
   qui rouvre la sienne ; les avertissements restent visibles.
 - **Unités superposées** : un pion empilé porte le nombre d'unités ; un clic ouvre la pile en
-  onglets au-dessus de la fiche, et le glisser part de l'unité en main, jamais d'une autre.
+  onglets sur le bord gauche de la fiche, et le glisser part de l'unité en main, jamais d'une
+  autre.
   Un glisser lâché sur plusieurs cibles demande laquelle.
 
 ## Nouveautés du M2.9
@@ -210,8 +211,9 @@ fiche, Air, Mer, Temps et alertes, Parties et réglages, Touches — avec quelqu
 sur le banc d'essai (`data/help/images.json`).
 
 Quand plusieurs unités sont au même endroit (deux groupes dans le même port), leur pion porte
-le nombre d'unités : un clic ouvre la pile en onglets au-dessus de la fiche, et les ordres
-vont à l'unité dont l'onglet est choisi.
+le nombre d'unités : un clic ouvre la pile en onglets sur le bord gauche de la fiche ; l'unité
+de l'onglet choisi est mise en avant sur la carte, les autres s'estompent, et les ordres vont
+à elle seule.
 
 **La fiche d'une unité** s'ouvre quand on clique une unité ou une installation, sur la carte
 ou dans le tableau d'état : à droite de la carte, ou à gauche, ou en bas (Réglages, onglet
