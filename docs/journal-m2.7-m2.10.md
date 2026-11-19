@@ -1988,3 +1988,11 @@ en campagne). Ce tour ne change donc aucune partie jouée sans ordre de fin.
 Branche `retours-jeu-4`, demande de fusion nº 9, vérifications de GitHub vertes (commit
 8ec5aeb, le dernier avant cette ligne). Artefact « Jeu 1940 — travaux de Fable » mis à jour
 (2.10.5) ; compte rendu du projet complété. Non relu par un agent neuf.
+
+**20 novembre, 0 h 45 — une ligne de journal de plus.** En regardant à l'écran le cas que
+décrit Florian (un tracé tiré jusqu'au cercle du Nord de l'Irlande, puis Liverpool choisi
+dans la liste), le journal du jeu disait encore « route acceptée vers la Clyde ». Quand un
+ordre de fin rend au joueur un tracé que le jeu prolongeait, le journal dit maintenant ce en
+quoi le tracé finit (« route acceptée. En fin de tracé : « Entrer à Liverpool par : Nord de
+l'Irlande » »). Les 456 tests, l'essai de fumée complet (289) et le singe (10 000 ordres par
+scénario) repassés ; artefact republié.

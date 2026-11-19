@@ -411,6 +411,9 @@ export function setConvoyEndAction(world, c, action, { note = false } = {}) {
     c.routeLocked = 0;
     c.destination = null;
     c.routeVersion = (c.routeVersion || 0) + 1; // a new routing: it no longer goes into that port
+    // (The journal said « route accepted to … »: it says what the route ends in now.)
+    const etaMs = world.startMs + (world.t + polylineLength([[c.x, c.y], ...c.route]) / routeSpeed(c)) * 1000;
+    emit(world, 'convoyRouted', { convoy: c.name, convoyId: c.id, destination: null, etaMs, unitKind: c.kind, then: { ...choice } });
   }
   c.endAction = { ...choice };
   if ((c.state === 'atSea' || c.state === 'waiting') && !c.route.length && !c.plan.length) convoyEndAction(world, c);

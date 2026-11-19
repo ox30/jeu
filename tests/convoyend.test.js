@@ -300,7 +300,13 @@ test('a line the game took into port can be told to end otherwise: the line stay
   // Told Liverpool by the same channel: the line is the player's again, and ends as told.
   const { w, c } = drawn();
   const version = c.routeVersion;
+  run(w, 1);
   assert.ok(setConvoyEndAction(w, c, LIVERPOOL_NORTH));
+  // The journal had said « route accepted to the Clyde »: it says what the route ends in now.
+  const said = run(w, 1).filter((e) => e.type === 'convoyRouted');
+  assert.equal(said.length, 1);
+  assert.deepEqual([said[0].destination, said[0].then], [null, LIVERPOOL_NORTH]);
+  assert.match(eventMessage(w, said[0]).text, /En fin de tracé : « Entrer à Liverpool par : Nord de l'Irlande »/);
   assert.equal(c.destination, null);
   assert.equal(c.routeLocked, 0);
   assert.equal(c.route.length, 2, 'the two points drawn');
