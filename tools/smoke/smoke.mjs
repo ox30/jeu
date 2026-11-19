@@ -32,62 +32,197 @@ const settle = async (page) => {
 };
 
 /** The guided tutorial, as a new player meets it. */
+/** The step of the lesson under way: "lesson:step", or "none". */
+const lessonStep = (page) => game(page, () => (window.__game.tutorial ? `${window.__game.tutorial.lesson}:${window.__game.tutorial.steps[window.__game.tutorial.index].id}` : 'none'));
+
+/** Waits until the lesson is at this step (closing the pages that open on the way). */
+async function untilStep(page, id, ms = 90000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    if ((await lessonStep(page)).endsWith(`:${id}`)) return true;
+    await sleep(150);
+  }
+  return false;
+}
+
+async function coachNext(page) {
+  await closeDialogs(page);
+  await page.click('#coach [data-coach="next"]');
+  await sleep(150);
+}
+
+/**
+ * The four lessons of the tutorial, played from the menu to their last step (I10 of the audit;
+ * the gate of the lot: « tutoriel joué de bout en bout »).
+ */
 async function tutorial(page) {
   await page.click('#menu [data-menu="training"]');
-  await page.waitForSelector('#coach:not([hidden])');
-  await page.click('#coach [data-coach="next"]');
-  await sleep(300);
-  await page.click('#unit-bar [data-action="admiralty"]');
-  await sleep(300);
-  await page.keyboard.press('Space');
-  await page.keyboard.press('4');
   await sleep(200);
-  note(await game(page, () => window.__game.speed === 600), 'tutorial: key 4 sets ×600');
-  // Time goes by until the radar sees the first raid (the alert would stop a player there).
-  await game(page, () => {
-    const a = window.__game;
-    for (let i = 0; i < 100000 && !a.world.contacts.size && !a.world.ended; i++) a.stepWorld(1);
-  });
-  await sleep(400);
-  const raidId = await game(page, () => [...window.__game.world.contacts.keys()][0]);
-  note(Boolean(raidId), 'tutorial: the radar reports a raid');
+  note(await game(page, () => document.querySelectorAll('#menu [data-lesson]').length === 4 && window.__game.menuPage === 'training'), 'tutorial: the training page lists the four lessons');
+  await shot(page, 'lessons-menu');
+
+  // ---- lesson 1: a raid lost as a demonstration, then one to win ----
+  await page.click('#menu [data-lesson="intercept"]');
+  await page.waitForSelector('#coach:not([hidden])');
+  note(await game(page, () => window.__game.world.settings.fatigue === 'off' && window.__game.world.settings.interceptAid === 'track'), 'lesson 1: played with the settings of the lesson, not the player\'s');
+  await coachNext(page);
+  note(await untilStep(page, 'why'), 'lesson 1: the demonstration runs by itself to the bombs on Hawkinge');
+  const why = await game(page, () => ({ text: document.querySelector('#coach p').textContent, paused: window.__game.paused, intercepted: window.__game.world.stats.raidsIntercepted }));
+  note(why.paused && why.intercepted === 0 && /à \d\d:\d\d.*\d+ minutes plus tard.*à \d\d:\d\d, \d+ minutes après/.test(why.text), 'lesson 1: the raid of the demonstration is lost, and the summary tells its hours', why.text.slice(0, 90));
+  await shot(page, 'lesson1-why');
+  await coachNext(page);
+  await untilStep(page, 'yourTurn');
+  await coachNext(page);
+  note(await untilStep(page, 'scramble', 60000), 'lesson 1: the second raid appears two minutes after the briefing');
   await game(page, () => {
     window.__game.paused = true;
   });
-  // The tutorial moves the map to England: wait until the camera has arrived.
   await page.waitForFunction(() => !window.__game.camera.anim, null, { timeout: 15000 });
-  await sleep(150);
-  const from = await screenOf(page, 'airfield', 'biggin_hill');
-  const to = await screenOf(page, 'raid', raidId);
-  // Both ends of the gesture must be on the map, not under the unit sheet (I8 of the audit).
+  await sleep(200);
+  await closeDialogs(page);
+  // The pupil: a drag from Croydon to the raid (both clear of the sheet: I8 of the audit).
+  const from = await screenOf(page, 'airfield', 'croydon');
+  const to = await screenOf(page, 'raid', 'd02');
   const onMap = (p) => game(page, ([x, y]) => document.elementFromPoint(x, y) === window.__game.canvas, p);
-  note((await onMap(from)) && (await onMap(to)), 'tutorial: the aerodrome and the raid are in view, clear of the unit sheet');
+  note(Boolean(from && to) && (await onMap(from)) && (await onMap(to)), 'lesson 1: the aerodrome and the raid are in view, clear of the unit sheet');
   await page.mouse.move(from[0], from[1]);
   await page.mouse.down();
   await page.mouse.move((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, { steps: 6 });
   await page.mouse.move(to[0], to[1], { steps: 6 });
   await page.mouse.up();
   await sleep(300);
-  note(await game(page, () => window.__game.world.squadrons.some((s) => s.state !== 'ready')), 'tutorial: a drag from the aerodrome scrambles a squadron');
-  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowUp');
-  await shot(page, 'tutorial-scramble');
-  let fought = false;
-  for (let i = 0; i < 400 && !fought; i++) {
-    await fastForward(page, 30);
-    await sleep(40);
-    if (await game(page, () => window.__game.world.questions.length > 0)) await page.keyboard.press('Enter');
-    fought = await game(page, () => window.__game.world.reports.size > 0 && window.__game.tutorial && window.__game.tutorial.index >= 7);
-  }
-  note(fought, 'tutorial: the fight happens and the tutorial reaches the reports');
+  note(await game(page, () => window.__game.world.squadrons.find((s) => s.id === '111').state !== 'ready'), 'lesson 1: a drag from the aerodrome scrambles the squadron');
+  note(await untilStep(page, 'altitude', 15000), 'lesson 1: the lesson goes on once the squadron is off the ground');
+  for (let i = 0; i < 2; i++) await page.keyboard.press('ArrowUp');
+  await shot(page, 'lesson1-scramble');
+  // The pupil keeps the route on the raid as it comes on (a new line each minute of game).
+  await game(page, async () => {
+    const a = window.__game;
+    const O = await import('./src/sim/orders.js');
+    const Q = await import('./src/sim/query.js');
+    const sq = a.world.squadrons.find((s) => s.id === '111');
+    a.pupil = setInterval(() => {
+      const c = a.world.contacts.get('d02');
+      const est = c && !c.lost ? Q.contactEstimate(a.world, c) : null;
+      if (est && sq.state === 'airborne') O.setRoute(a.world, sq, [[est.x, est.y, (est.altFt + 2000) * 0.3048]]);
+    }, 300);
+    a.speed = 60;
+    a.paused = false;
+  });
+  const fought = await untilStep(page, 'reports', 150000);
+  await game(page, () => clearInterval(window.__game.pupil));
+  note(fought && await game(page, () => window.__game.world.stats.raidsIntercepted === 1), 'lesson 1: the pupil\'s raid is intercepted and the lesson reaches the reports');
   await settle(page);
   await page.click('#btn-reports');
   await sleep(300);
-  note(await game(page, () => document.getElementById('dlg-reports').open), 'tutorial: the reports page opens');
-  await shot(page, 'tutorial-reports');
+  note(await game(page, () => document.getElementById('dlg-reports').open && window.__game.world.reports.size === 2), 'lesson 1: the reports page opens on the two raids');
+  await shot(page, 'lesson1-reports');
   await page.keyboard.press('Escape');
+  note(await untilStep(page, 'end', 10000), 'lesson 1: opening the reports is enough to go on');
+  await coachNext(page);
   await sleep(300);
-  const last = await game(page, () => (window.__game.tutorial ? window.__game.tutorial.index : -1));
-  note(last >= 8 || last === -1, 'tutorial: played to its last step', `step ${last}`);
+  note(await game(page, () => window.__game.onMenu && window.__game.menuPage === 'training' && document.querySelectorAll('#menu .mm-step.won').length === 1),
+    'lesson 1: played to its end, it is marked done and the list comes back');
+  note(await game(page, () => !window.__game.store.current()), 'lesson 1: a lesson finished is no game to continue');
+
+  // ---- lesson 2: a train and a minimum stock ----
+  await page.click('#menu [data-lesson="supply"]');
+  await page.waitForSelector('#coach:not([hidden])');
+  await coachNext(page);
+  await untilStep(page, 'base');
+  await coachNext(page);
+  await untilStep(page, 'train');
+  await sleep(300);
+  await closeDialogs(page);
+  await shot(page, 'lesson2-train');
+  await page.fill('#train-fuel', '20');
+  await page.selectOption('#train-to', 'airfield:biggin_hill');
+  await page.click('#unit-panel [data-action="send-train"]');
+  note(await untilStep(page, 'minimum', 10000), 'lesson 2: a train sent to Biggin Hill moves the lesson on');
+  await sleep(300);
+  await page.fill('#min-stock-fuel', '30');
+  await page.click('#unit-panel [data-action="set-min"]');
+  note(await untilStep(page, 'wait', 10000), 'lesson 2: so does the minimum stock');
+  await page.keyboard.press('4');
+  await sleep(150);
+  await game(page, () => {
+    window.__game.paused = false;
+  });
+  note(await game(page, () => window.__game.speed === 600), 'lesson 2: key 4 sets ×600');
+  note(await untilStep(page, 'end', 120000) && await game(page, () => window.__game.world.sites.get('airfield:biggin_hill').stocks.fuel >= 20), 'lesson 2: the fuel arrives at Biggin Hill');
+  await coachNext(page);
+  await sleep(300);
+
+  // ---- lesson 3: a watch report, a group sent, the depth charges ----
+  await page.click('#menu [data-lesson="escort"]');
+  await page.waitForSelector('#coach:not([hidden])');
+  await coachNext(page);
+  note(await untilStep(page, 'send', 90000), 'lesson 3: the relief of 8 o\'clock stops the game');
+  await page.waitForSelector('#dlg-watch[open]', { timeout: 10000 }).catch(() => {});
+  await shot(page, 'lesson3-report');
+  const sent = await game(page, () => {
+    const b = [...document.querySelectorAll('#dlg-watch button')].find((x) => /Envoyer/.test(x.textContent));
+    if (b) b.click();
+    return Boolean(b);
+  });
+  note(sent && await untilStep(page, 'orders', 15000), 'lesson 3: « Envoyer », in the watch report, sends the group');
+  await closeDialogs(page);
+  await sleep(300);
+  await page.click('#unit-panel [data-action="escort-pattern"][data-pattern="light"]');
+  note(await untilStep(page, 'sail', 10000), 'lesson 3: a standing order chosen moves the lesson on');
+  for (let i = 0; i < 300 && !(await lessonStep(page)).endsWith(':end'); i++) {
+    await closeDialogs(page);
+    // (A relief or a night attack stops the game: the pupil sets it going again.)
+    await game(page, () => {
+      const a = window.__game;
+      if (a.tutorial) {
+        a.paused = false;
+        a.speed = 3600;
+      }
+    });
+    await sleep(250);
+  }
+  note((await lessonStep(page)).endsWith(':end') && await game(page, () => window.__game.world.escorts[0].state === 'escorting'), 'lesson 3: the group joins its convoy');
+  await coachNext(page);
+  await sleep(300);
+
+  // ---- lesson 4: alert states and fatigue ----
+  await page.click('#menu [data-lesson="alert"]');
+  await page.waitForSelector('#coach:not([hidden])');
+  note(await game(page, () => !document.getElementById('btn-roster').hidden), 'lesson 4: with fatigue on, the Effectifs button is there');
+  await coachNext(page);
+  await untilStep(page, 'rest');
+  await sleep(300);
+  await closeDialogs(page);
+  await page.click('#unit-panel [data-action="alert"][data-alert="rest"]');
+  // (The confirmation shows as the press ends, not at the next quarter-second refresh.)
+  const asked = await page.waitForSelector('#unit-panel [data-action="confirm-rest"]', { timeout: 120 }).then(() => true, () => false);
+  note(asked, 'lesson 4: « Repos » asks for its confirmation at once');
+  await page.click('#unit-panel [data-action="confirm-rest"]');
+  note(await untilStep(page, 'ready', 10000), 'lesson 4: the tired squadron is stood down');
+  await sleep(300);
+  await page.click('#unit-panel [data-action="alert"][data-alert="min5"]');
+  note(await untilStep(page, 'roster', 10000), 'lesson 4: the fresh squadron is recalled');
+  await page.click('#btn-roster');
+  await sleep(300);
+  note(await game(page, () => document.getElementById('dlg-roster').open), 'lesson 4: the Effectifs page opens');
+  await shot(page, 'lesson4-roster');
+  await closeDialogs(page);
+  await untilStep(page, 'night', 10000);
+  await game(page, () => {
+    window.__game.speed = 600;
+    window.__game.paused = false;
+  });
+  note(await untilStep(page, 'end', 90000), 'lesson 4: a night at rest brings the fatigue down');
+  await coachNext(page);
+  await sleep(300);
+  note(await game(page, () => document.querySelectorAll('#menu .mm-step.won').length === 4), 'tutorial: the four lessons are played to their end and marked done');
+  await page.click('#menu [data-menu="home"]');
+  await sleep(150);
+  note(await game(page, () => {
+    const entries = [...document.querySelectorAll('#menu .mm-entry')].map((b) => b.dataset.menu);
+    return entries.indexOf('training') > entries.indexOf('campaign');
+  }), 'tutorial: once done, the training no longer stands before the campaign (C16)');
 }
 
 const PAGES = [['#btn-reports', 'dlg-reports'], ['#btn-formations', 'dlg-formations'], ['#btn-roster', 'dlg-roster'], ['#btn-cards', 'dlg-cards'],

@@ -140,7 +140,6 @@ function begin(app, step) {
   }
   if (step.pause) pause(app, true);
   if (step.play) pause(app, false);
-  if (step.view) goView(app, step.view);
   // The tab of the sheet the step speaks of ({ group of the sheet: tab }).
   if (step.unitTab) app.unitTabs = { ...(app.unitTabs || {}), ...step.unitTab };
   if (step.select) {
@@ -154,7 +153,21 @@ function begin(app, step) {
       if (u) select(app, sel.kind, u.id);
     }
   }
+  // The view is framed in the part of the map the sheet leaves free: it waits for the sheet of
+  // the unit in hand to be drawn (updateTutorial), so that what the step speaks of is not under it.
+  tu.view = step.view || null;
+  frameView(app);
   script(app, step);
+}
+
+/** Goes to the view a step asked for, once the sheet of the selection is on the screen. */
+function frameView(app) {
+  const tu = app.tutorial;
+  if (!tu || !tu.view) return;
+  const el = app.el && app.el.unitPanel;
+  if (app.selection && el && el.hidden) return;
+  goView(app, tu.view);
+  tu.view = null;
 }
 
 /** The orders of the instructor for this step: each once, when its moment comes. */
@@ -244,6 +257,7 @@ export function updateTutorial(app) {
   if (!tu) return;
   const steps = tu.steps;
   let moved = false;
+  frameView(app);
   for (let guard = 0; guard < steps.length; guard++) {
     const step = steps[tu.index];
     script(app, step);

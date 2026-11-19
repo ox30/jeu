@@ -54,12 +54,13 @@ function display(app, now, state) {
   updateHud(app, world.startMs + world.t * 1000);
   // The sheets follow an order at once; the game's own news, at most a few times a second.
   if (app.dirtyPanels || (app.panelsStale && now - state.lastPanels > 150) || now - state.lastPanels > 250) {
+    // (Cleared first: a part held under a press asks for another pass.)
+    app.dirtyPanels = false;
+    app.panelsStale = false;
     renderPanels(app);
     updateSignalsChrome(app);
     if (app.el.dlgRoster.open) renderRosterPage(app);
     state.lastPanels = now;
-    app.dirtyPanels = false;
-    app.panelsStale = false;
   }
 }
 

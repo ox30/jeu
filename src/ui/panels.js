@@ -1488,6 +1488,9 @@ function buildPanel(app, sel) {
 // The keyed part being pressed (mouse or finger down on one of its buttons): it is not
 // redrawn until the press ends, or the click would land on a button that no longer exists.
 let pressedKeyed = null;
+// A part left as it was under a press: the panels are drawn again on the next image, so that
+// what the click changed (a confirmation to give, a button now lit) shows as the press ends.
+let redrawOwed = false;
 if (typeof document !== 'undefined') {
   document.addEventListener('pointerdown', (e) => {
     pressedKeyed = e.target && e.target.closest ? e.target.closest('[data-keyed]') : null;
@@ -1511,6 +1514,7 @@ function setKeyed(el, html, key) {
   const sameKey = el.__key === key;
   el.dataset.keyed = '1';
   if (sameKey && (pressedKeyed === el || (busyField(document.activeElement) && el.contains(document.activeElement)))) {
+    if (pressedKeyed === el) redrawOwed = true;
     return; // redrawn on a later frame, once the player is done
   }
   const typed = new Map();
@@ -1619,5 +1623,9 @@ export function renderPanels(app) {
     hint.hidden = Boolean(app.selection);
     const text = app.world.settings.orders === 'headings' ? t('panel.hintHeadings') : t('panel.hint');
     if (hint.textContent !== text) hint.textContent = text;
+  }
+  if (redrawOwed) {
+    redrawOwed = false;
+    app.dirtyPanels = true;
   }
 }

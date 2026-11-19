@@ -95,7 +95,8 @@
           },
           "unitTab": {
             "squadron": "cmd"
-          }
+          },
+          "view": "england"
         },
         {
           "id": "watch",
@@ -122,7 +123,8 @@
             "airborne": [
               "111"
             ]
-          }
+          },
+          "view": "england"
         },
         {
           "id": "altitude",
