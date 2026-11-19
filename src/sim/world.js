@@ -180,9 +180,11 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null, 
   });
   if (world.carry) {
     const total = fighterCount(world).establishment;
+    // (The count of enemy aircraft asked follows the fighters of the morning: objectives.js.)
+    const asked = world.objectives.find((o) => o.type === 'enemyDown' && o.full);
     emit(world, 'carryApplied', {
       share: total ? Math.round((100 * world.fightersAtStart) / total) : 100, from: world.carry.from,
-      n: world.fightersAtStart, total,
+      n: world.fightersAtStart, total, down: asked ? asked.count : null, downFull: asked ? asked.full : null,
     });
   }
   return world;

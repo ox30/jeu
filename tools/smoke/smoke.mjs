@@ -702,12 +702,20 @@ async function corrections(page, errors) {
     const share = await page.evaluate(() => {
       const w = window.__game.world;
       const now = w.squadrons.filter((s) => s.role === 'fighter').reduce((n, s) => n + s.aircraft, 0);
-      return { atStart: w.fightersAtStart, now, carry: w.carry && w.carry.fighterShare };
+      const asked = w.objectives.find((o) => o.type === 'enemyDown');
+      const total = w.squadrons.filter((s) => s.role === 'fighter').reduce((n, s) => n + s.aircraftStart, 0);
+      return { atStart: w.fightersAtStart, now, total, carry: w.carry && w.carry.fighterShare, down: asked.count, full: asked.full };
     });
     await shot(page, 'briefing-campaign');
     note(/Campagne/.test(briefing) && briefing.includes(String(share.atStart)) && share.carry === 0.6 && share.now <= share.atStart,
       'campaign: the losses carried over are said in the briefing', `${share.atStart} fighters at the start`);
+    // (2.10.2: the aircraft to shoot down follow the fighters carried over, as the fighter objective does.)
+    note(share.full === 32 && share.down === Math.round((32 * share.atStart) / share.total) && briefing.includes(`${share.down} au lieu de 32`),
+      'campaign: the aircraft to shoot down follow the fighters carried over, and the briefing says so', `${share.down} instead of ${share.full}`);
     await closeDialogs(page);
+    const panel = await game(page, () => document.getElementById('objectives').textContent);
+    note(new RegExp(`Abattre au moins ${share.down} avions ennemis .* 32 à effectif complet`).test(panel), 'campaign: the objective shows the count of the campaign and the scenario\'s own', panel.slice(0, 120));
+    await shot(page, 'objective-campaign');
     await game(page, () => {
       const a = window.__game;
       a.campaign.results = {};

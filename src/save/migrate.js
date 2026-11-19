@@ -25,6 +25,10 @@ export class SaveError extends Error {
 //   - `outS` on an objective « outOfServiceBelow » (seconds out of service counted so far;
 //     absent = 0). A save of 2.9 keeps the objectives it was saved with, which have none.
 //   - `held` on a raid (a raid a lesson of the tutorial releases itself; absent = false).
+// Version 2.10.2 too: `full` on an objective « enemyDown » (the count of the scenario, when
+// the campaign cut it to the fighters carried over; absent = the count is the scenario's).
+// The objectives come back as they were saved: a campaign battle begun before 2.10.2 keeps
+// the count it began with.
 // A new part of the world, or a field that cannot be defaulted, takes a new number and a
 // migration here (the check of the parts in src/save/game.js refuses a « complete » save
 // that lacks one).

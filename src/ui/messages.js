@@ -415,6 +415,13 @@ const GAME = {
       return undefined;
     },
   },
+  // Campaign: the fighters the battle starts with and, when one is asked, the count of enemy
+  // aircraft that follows them.
+  carryApplied: {
+    shape(w, e, p) {
+      if (e.down) p.suffix = ` ${t('log.carryDown', { count: e.down, full: e.downFull })}`;
+    },
+  },
   objectiveDone: { level: 'success', shape: objectiveShape },
   allObjectivesDone: { level: 'success' },
   objectiveFailed: { level: 'alert', shape: objectiveShape },

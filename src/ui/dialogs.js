@@ -452,10 +452,11 @@ function carryNote(world) {
   // The share really present: the carry is applied squadron by squadron, and rounded there.
   const n = world.carry.aircraft ?? world.fightersAtStart;
   const total = world.carry.establishment ?? fighterCount(world).establishment;
+  const asked = world.objectives.find((o) => o.type === 'enemyDown' && o.full);
   return `<p class="dialog-note">${escapeHtml(t('events.carry', {
     from: t(`scenarios.${world.carry.from}.title`),
     share: total ? Math.round((100 * n) / total) : 100,
     n,
     total,
-  }))}</p>`;
+  }))}${asked ? ` ${escapeHtml(t('log.carryDown', { count: asked.count, full: asked.full }))}` : ''}</p>`;
 }

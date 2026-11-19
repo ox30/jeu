@@ -235,7 +235,8 @@ export function objectiveText(world, o) {
     case 'radarsOperational':
       return t('objectives.radarsOperational', { min: o.min, total: o.radars.length, n: radarsInService(world, o) });
     case 'enemyDown':
-      return t('objectives.enemyDown', { count: o.count, n: enemyDown(world) });
+      // In a campaign the count follows the fighters carried over: the scenario's own is said too.
+      return t(o.full ? 'objectives.enemyDownCarried' : 'objectives.enemyDown', { count: o.count, full: o.full, n: enemyDown(world) });
     case 'outOfServiceBelow': {
       const h = outOfServiceHours(o);
       return t(`objectives.outOfServiceBelow.${o.radars ? 'radars' : 'airfields'}`, {

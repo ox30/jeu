@@ -8,7 +8,13 @@ import { cargoShare } from './convoy.js';
 import { isOperational } from './sites.js';
 
 export function createObjectives(world, defs) {
-  return defs.map((o) => ({ ...o, done: false, failed: false, ...(o.type === 'outOfServiceBelow' ? { outS: 0 } : {}) }));
+  return defs.map((o) => ({
+    ...o,
+    done: false,
+    failed: false,
+    ...(o.type === 'outOfServiceBelow' ? { outS: 0 } : {}),
+    ...(o.type === 'enemyDown' ? carriedCount(world, o) : {}),
+  }));
 }
 
 /** Fighter aircraft of the squadrons: { now, establishment }. */
@@ -21,6 +27,21 @@ export function fighterCount(world) {
     establishment += s.aircraftStart;
   }
   return { now, establishment };
+}
+
+/**
+ * Campaign: the squadrons start a battle short of the aircraft lost in the one before, and
+ * what is asked of them follows. An objective counted in enemy aircraft is cut to the share
+ * of the fighters present that morning (three quarters of the fighters: three quarters of
+ * the count), as the objective of fighter strength is measured on them since 2.7: the
+ * battle must stay winnable. `full` keeps the count of the scenario, for the words of the
+ * objective. Set once, when the battle begins; a relief that arrives later does not change it.
+ */
+function carriedCount(world, o) {
+  if (!world.carry) return {};
+  const { now, establishment } = fighterCount(world);
+  if (!establishment || now >= establishment) return {};
+  return { count: Math.max(1, Math.round((o.count * now) / establishment)), full: o.count };
 }
 
 /**

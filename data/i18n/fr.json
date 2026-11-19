@@ -765,6 +765,7 @@
     "stateLost": "perdu",
     "radarsOperational": "Garder au moins {min} des {total} stations radar en service jusqu'à la fin (aujourd'hui {n})",
     "enemyDown": "Abattre au moins {count} avions ennemis (aujourd'hui {n})",
+    "enemyDownCarried": "Abattre au moins {count} avions ennemis (aujourd'hui {n}) ; {full} à effectif complet",
     "siteDamageBelow": "Garder {site} sous {max} % de dégâts (aujourd'hui {n} %)",
     "tonnageDelivered": "Décharger dans les ports au moins {fuel} t de carburant et {materiel} t de matériel (aujourd'hui {nf} t et {nm} t)",
     "shipLossesBelow": "Perdre moins de {share} % des navires marchands partis (aujourd'hui {n} %, {sunk} sur {sailed})",
@@ -960,6 +961,7 @@
     "formationBroken": "{squadron} vole seule : la formation est rompue.",
     "offerBought": "Commande passée en Amérique : {offer}, pour {cost} millions de dollars. Livraison vers le {date}.",
     "carryApplied": "Campagne : la chasse commence à {share} % de ses avions ({n} sur {total}), après les pertes de la bataille précédente. Les usines et les convoyeurs combleront les vides ; l'objectif de chasse se mesure sur les {n} avions présents ce matin.",
+    "carryDown": "Le nombre d'avions à abattre suit la même proportion : {count} au lieu de {full}.",
     "scenarioStartAtSea": "Prise de service. Le convoi {convoy} est en mer : tracez sa route sur la carte de l'Atlantique, ou donnez-lui des étapes.",
     "raidSighted": "Raid {raid} en vue de {by} : {force}, vers {alt}.",
     "raidSightLost": "Raid {raid} perdu de vue : retour aux plots.",
@@ -1195,13 +1197,13 @@
         "Adlertag, 12-18 août 1940. La Luftwaffe vise d'abord les radars de la côte (Dover, Rye, Pevensey, Ventnor), puis les aérodromes. Un radar détruit ouvre un trou dans la couverture : placez la station mobile (onglet Installations, « Déployer ») quand elle arrive.",
         "Les raids sans bombardiers, très haut et rapides, sont des chasses libres de Bf 109 : elles cherchent à user vos escadrilles. Gardez vos forces pour les bombardiers. L'état d'alerte (repos 2 h, disponible 30 min, alerte 5 min, cockpit 2 min) règle le délai de décollage et la fatigue ; la page Effectifs le programme.",
         "Les bases de secteur (Biggin Hill, Kenley, Hornchurch, North Weald, Tangmere, Middle Wallop, Northolt) doivent rester en service. Sans munitions ni carburant, une base ne réarme plus : surveillez les stocks et les trains depuis Chilmark et les ports.",
-        "Victoire si les sept bases de secteur restent moins de 10 heures hors service au total et les neuf radars moins de 36 heures, si 90 avions ennemis sont abattus, si la chasse garde 45 % de ses avions et si le HX 62 livre 60 % de sa cargaison. Chaque raid qui passe compte : une base est réparée en quelques heures, un radar en plus d'un jour.",
+        "Victoire si les sept bases de secteur restent moins de 10 heures hors service au total et les neuf radars moins de 36 heures, si 90 avions ennemis sont abattus, si la chasse garde 45 % de ses avions et si le HX 62 livre 60 % de sa cargaison. Chaque raid qui passe compte : une base est réparée en quelques heures, un radar en plus d'un jour. En campagne, le nombre d'avions à abattre suit la chasse reportée de la bataille précédente : avec les trois quarts de ses avions, les trois quarts du compte.",
         "Le carburant des bases ne tient pas la semaine : commandez des trains depuis les ports ou fixez un stock minimum dans la fiche de chaque base (onglet Installations). Une base à sec ne fait plus décoller personne."
       ],
       "quinze-septembre": [
         "15 septembre 1940, une seule journée. Deux grandes vagues visent les docks de Londres, vers 11 h et vers 14 h, précédées de chasses libres.",
         "Contre une escorte de cent chasseurs, engagez beaucoup d'escadrilles sur le même raid : la pression de l'escorte se partage entre elles. Les cinq escadrilles de Duxford peuvent voler en « Big Wing » : groupez-les dans « Formations » (barre du haut). Elles décollent ensemble, se rassemblent au-dessus du chef — ce qui prend du temps — puis volent à la vitesse des Hurricane.",
-        "Victoire si 32 avions ennemis sont abattus, si les docks restent sous 50 % de dégâts et si la chasse garde 70 % de ses avions."
+        "Victoire si 32 avions ennemis sont abattus, si les docks restent sous 50 % de dégâts et si la chasse garde 70 % de ses avions. En campagne, le nombre d'avions à abattre suit la chasse reportée de la bataille précédente : avec les trois quarts de ses avions, les trois quarts du compte."
       ],
       "hiver-atlantique": [
         "Hiver 1941, du 10 janvier au 31 mars. Les convois HX (Halifax, tous les cinq jours) et SC (Sydney, tous les huit jours, plus lents) partent seuls sur la route de l'Amirauté. Changez-la pour contourner les U-Boote repérés ; mais le commandement allemand apprend où passent vos convois, et une route trop au sud est vite guettée à son tour, sous les Condor de Bordeaux.",
