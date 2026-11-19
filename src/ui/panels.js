@@ -40,6 +40,7 @@ import {
   objectiveText, positionText, reportText, siteEffectText, siteRepairText, siteStatusText, siteTitle,
 } from './format.js';
 import { applySheetHelp } from './sheetHelp.js';
+import { activeMember, memberSelection, stackOfSelection } from './stacks.js';
 
 const MAX_LOG = 300; // lines shown on the page
 const MAX_KEPT = 2000; // lines kept for the saved game (a whole air battle, weeks of the sea)
@@ -1570,6 +1571,15 @@ function renderUnitPanel(app) {
   }
   el.unitPanel.hidden = false;
   el.table.classList.add('with-unit');
+  // The unit in hand stands in a stack on the map: a tab for each unit of the stack, on the
+  // edge of the sheet. The orders and the routes drawn go to the unit of the active tab.
+  const stack = stackOfSelection(app.stackOf, sel);
+  const inHand = stack ? activeMember(stack, sel) : null;
+  setHtml(el.unitStack, stack ? stack.members.map((m) => {
+    const to = memberSelection(m);
+    return `<button type="button" role="tab" aria-selected="${m === inHand}" data-action="select" data-kind="${to.kind}" data-id="${escapeHtml(to.id)}" class="${m === inHand ? 'active' : ''}" title="${escapeHtml(t('unit.stackTab', { name: m.label }))}">${escapeHtml(m.label)}</button>`;
+  }).join('') : '');
+  el.unitStack.hidden = !stack;
   setHtml(el.unitTitle, panel.title);
   setHtml(el.unitSummary, panel.summary);
   app.unitTabs = app.unitTabs || {};

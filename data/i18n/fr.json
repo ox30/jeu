@@ -1153,7 +1153,8 @@
     "viewSurfaceNight": "surface, de nuit {km} km",
     "greatCircle": "plus court sur le globe vers {name} : {km} km",
     "routeLength": "route suivie : {km} km restants",
-    "condorZone": "rayon d'action des Condor ({name})"
+    "condorZone": "rayon d'action des Condor ({name})",
+    "stackMore": " +{n}"
   },
   "help": {
     "title": "Comment jouer",
@@ -2101,7 +2102,8 @@
       "defend": "N'attaque pas d'elle-même (sauf un raid sur le convoi qu'elle couvre) : un raid en vue demande votre autorisation.",
       "attack": "Attaque les raids qui arrivent ; un raid qui rentre demande votre autorisation de poursuivre.",
       "pursue": "Attaque et poursuit les raids qui rentrent, sans demander, jusqu'à mi-Manche ; au-delà, elle demande."
-    }
+    },
+    "stackTab": "{name} : ouvrir sa fiche (les unités superposées sur la carte ont chacune leur onglet)"
   },
   "question": {
     "title": {
@@ -2400,5 +2402,13 @@
     "exported": "Partie exportée, avec le détail de l'erreur.",
     "exportFailed": "L'export n'a pas abouti.",
     "resumeFailed": "La sauvegarde n'a pas pu être reprise : {message}"
+  },
+  "drop": {
+    "title": "Plusieurs cibles ici :",
+    "raid": "Attaquer le raid {raid}",
+    "join": "Rejoindre {convoy}",
+    "hunt": "Chasser le repère de {time}",
+    "routeOnly": "Seulement la route",
+    "cancel": "Annuler le tracé"
   }
 }

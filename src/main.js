@@ -26,6 +26,7 @@ import { startLoop } from './ui/loop.js';
 import { attachPanels } from './ui/panelActions.js';
 import { applySheet, attachSheetGrip, resize } from './ui/sheet.js';
 import { attachTutorial } from './ui/tutorial.js';
+import { attachDropChoice } from './ui/dropChoice.js';
 import { initAlert, openJournal } from './ui/alerts.js';
 import { createSignals, onWatchClick } from './ui/watchPanel.js';
 import { initQuestions } from './ui/questions.js';
@@ -205,6 +206,7 @@ async function start() {
   attachPanels(app);
   attachSheetGrip(app);
   attachMenu(app);
+  attachDropChoice(app);
   wireTopBar(app);
   applySheet(app);
 

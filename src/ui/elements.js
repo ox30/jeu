@@ -38,6 +38,8 @@ export function collectElements() {
     unitPanel: $('unit-panel'),
     unitBar: $('unit-bar'),
     unitBody: $('unit-body'),
+    unitStack: $('unit-stack'),
+    dropChoice: $('drop-choice'),
     unitTitle: $('unit-title'),
     unitSummary: $('unit-summary'),
     unitTabs: $('unit-tabs'),

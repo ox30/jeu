@@ -22,6 +22,8 @@ import { membersOf } from '../sim/formations.js';
 import { answerShown } from './questions.js';
 import { speedIndexOfKey } from './keys.js';
 import { pickHit, unitsUnder } from './hit.js';
+import { memberSelection, stackChoice } from './stacks.js';
+import { closeDropChoice, dropTargets, openDropChoice } from './dropChoice.js';
 import { isFlying } from '../sim/squadron.js';
 import { openJournal } from './alerts.js';
 import { openHelp } from './dialogs.js';
@@ -52,9 +54,19 @@ function selectFromAirfield(app, fieldId) {
   else select(app, 'airfield', fieldId);
 }
 
+/**
+ * A click on a stack: the sheet opens with a tab a unit. The unit already in hand stays in
+ * hand if it is one of them; otherwise the first of the stack, never a neighbour by chance.
+ */
+function openStack(app, hit) {
+  const choice = memberSelection(stackChoice(hit, app.selection));
+  select(app, choice.kind, choice.id);
+}
+
 /** What a click on a symbol selects: the formation of a squadron or a group in one. */
 function selectClicked(app, hit) {
-  if (hit.formation) select(app, 'formation', hit.formation);
+  if (hit.kind === 'stack') openStack(app, hit);
+  else if (hit.formation) select(app, 'formation', hit.formation);
   else if (hit.kind === 'rally') select(app, 'formation', hit.id);
   else select(app, hit.kind, hit.id);
 }
@@ -111,6 +123,7 @@ export function attachInput(app) {
 
   canvas.addEventListener('pointerdown', (e) => {
     app.unlockAudio();
+    if (app.dropChoice) closeDropChoice(app); // a choice left open: the line is given up
     canvas.setPointerCapture(e.pointerId);
     const p = pos(e);
     pointers.set(e.pointerId, p);
@@ -167,6 +180,12 @@ export function attachInput(app) {
       } else {
         gesture = { type: 'edit', hit, start: p, moved: false };
       }
+      return;
+    }
+    if (hit && hit.kind === 'stack') {
+      // A stack with none of its units in hand: nothing is drawn from it (whose route would
+      // it be?). A click opens its tabs; the drag then starts from the unit chosen.
+      gesture = { type: 'stack', hit, start: p, moved: false };
       return;
     }
     // What the gesture selects if it turns out to be a plain click.
@@ -228,6 +247,8 @@ export function attachInput(app) {
       gesture.last = p;
       if (far(5)) gesture.moved = true;
       canvas.style.cursor = 'grabbing';
+    } else if (gesture.type === 'stack') {
+      if (far(10)) gesture.moved = true;
     } else if (gesture.type === 'ruler' || gesture.type === 'mru') {
       app.ruler.b = toWorld(app.camera, p[0], p[1]);
     } else if (gesture.type === 'measure') {
@@ -252,7 +273,10 @@ export function attachInput(app) {
         const q = pos(e);
         const points = [...app.drawing.points, q];
         const endHit = hitTest(app, q[0], q[1], 8);
-        finishDrawing(app, gesture.hit, points, endHit);
+        // Several targets where the line ends: a small choice says which one it means.
+        const targets = dropTargets(app, gesture.hit, q[0], q[1], e.pointerType === 'touch' ? 14 : 8);
+        if (targets.length > 1) openDropChoice(app, gesture.hit, points, targets, q[0], q[1]);
+        else finishDrawing(app, gesture.hit, points, endHit);
       } else if (!gesture.moved) {
         clickSelect(app, gesture.clickHit || gesture.hit);
       }
@@ -276,6 +300,8 @@ export function attachInput(app) {
         }
       }
       app.routeDrag = null;
+    } else if (gesture.type === 'stack') {
+      if (!gesture.moved && up) clickSelect(app, gesture.hit);
     } else if (gesture.type === 'measure') {
       if (!gesture.moved) clickSelect(app, gesture.clickHit || gesture.hit);
     } else if (gesture.type === 'mru') {
@@ -346,6 +372,8 @@ export function attachInput(app) {
       openJournal(app);
     } else if (key === '?') {
       openHelp(app);
+    } else if (key === 'Escape' && app.dropChoice) {
+      closeDropChoice(app);
     } else if (key === 'Escape') {
       app.drawing = null;
       app.ruler = null;

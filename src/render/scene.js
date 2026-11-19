@@ -27,6 +27,7 @@ import { rallyPoint } from '../sim/rally.js';
 import { allViewZones } from '../sim/sight.js';
 import { drawNight } from './night.js';
 import { pendingOrders, shownPosition } from '../sim/comms.js';
+import { activeMember, findStacks, indexStacks, stackKey, stackOfSelection, stackRole } from '../ui/stacks.js';
 
 const DEG = Math.PI / 180;
 
@@ -157,6 +158,73 @@ function placePlaque(ctx, app, x, y, lines, opts = {}, r = 10) {
   const box = plaque(ctx, pick[0], pick[1], lines, opts);
   app.plaqueBoxes.push(box);
   return box;
+}
+
+// ---- stacks: units whose marks overlap (C9 of the audit) ----------------------------
+
+/**
+ * Notes where the mark of a unit stands (the stacks of the next image are found from the
+ * marks of this one) and tells how to draw it: as usual (null or 'active'), faded (another
+ * unit of its stack is in hand) or not at all (the stack's own mark stands for it).
+ */
+function markRole(app, family, kind, id, x, y, label, formation = null) {
+  app.marks.push({ family, kind, id, x, y, label, formation });
+  return stackRole(app.stackOf, app.selection, kind, id);
+}
+
+/** A small disc with the number of units of a stack. */
+function countBadge(ctx, x, y, n) {
+  ctx.beginPath();
+  ctx.arc(x, y, 8, 0, Math.PI * 2);
+  ctx.fillStyle = '#2b241a';
+  ctx.fill();
+  ctx.strokeStyle = '#f2e9d2';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.font = `bold 11px ${FONTS.mono}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#f2e9d2';
+  ctx.fillText(String(n), x, y + 0.5);
+}
+
+/** The mark of a stack of ships: a disc of the table's paper with a warship on it. */
+function navalMark(ctx, x, y) {
+  ctx.beginPath();
+  ctx.arc(x, y, 11, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(242, 233, 210, 0.95)';
+  ctx.fill();
+  ctx.strokeStyle = '#4f6070';
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  warship(ctx, x, y, 90, 7);
+}
+
+/**
+ * The stacks: with no unit of a stack in hand, one mark for all (the RAF roundel for
+ * squadrons, the naval mark for groups and convoys), their number and their names; a click
+ * opens the sheet with a tab a unit. With one in hand, that one is drawn as usual and the
+ * number stays beside it.
+ */
+function drawStacks(ctx, cam, app) {
+  for (const s of app.stacks) {
+    const n = s.members.length;
+    const members = s.members.map(({ kind, id, formation }) => ({ kind, id, formation }));
+    const active = activeMember(s, app.selection);
+    if (active) {
+      countBadge(ctx, active.x + 13, active.y - 12, n);
+      // Behind the unit in hand: a click beside it, on the others, keeps the stack open.
+      app.hits.push({ kind: 'stack', family: s.family, members, x: s.x, y: s.y, r: 16, priority: 1.5, box: null });
+      continue;
+    }
+    if (!onScreen(cam, s.x, s.y)) continue;
+    if (s.family === 'air') roundel(ctx, s.x, s.y, 9);
+    else navalMark(ctx, s.x, s.y);
+    countBadge(ctx, s.x + 11, s.y - 10, n);
+    const names = s.members.slice(0, 3).map((m) => m.label).join(' · ') + (n > 3 ? t('map.stackMore', { n: n - 3 }) : '');
+    const box = placePlaque(ctx, app, s.x, s.y, [names], { size: 10, accent: s.family === 'air' ? null : '#4f6070' }, 15);
+    app.hits.push({ kind: 'stack', family: s.family, members, x: s.x, y: s.y, r: 16, priority: 0, box });
+  }
 }
 
 // ---- grid and coverage -------------------------------------------------------------
@@ -919,8 +987,18 @@ function drawEscorts(ctx, cam, app, alpha) {
     if (est && (e.state !== 'escorting' || selected)) drawEstimate(ctx, cam, sx, sy, est, e.y, selected);
     const ox = e.state === 'inPort' || e.state === 'refit' ? 14 : 0;
     const oy = e.state === 'inPort' || e.state === 'refit' ? 12 : 0;
+    // In a stack (the groups of one port, a group with its convoy): its mark stands for it,
+    // or it fades behind the unit in hand. A support group counts for one unit.
+    const leads = Boolean(f && m.index === 0);
+    const role = markRole(app, 'sea', 'escort', e.id, sx + ox, sy + oy, leads ? f.name : e.short, leads ? f.id : null);
+    if (role === 'hidden') continue;
+    if (role === 'faded') ctx.globalAlpha = 0.35;
     warship(ctx, sx + ox - 3, sy + oy, e.heading, 6);
     warship(ctx, sx + ox + 3, sy + oy - 3, e.heading, 6);
+    if (role === 'faded') {
+      ctx.globalAlpha = 1;
+      continue;
+    }
     if (selected) {
       ctx.strokeStyle = COLORS.select;
       ctx.lineWidth = 2;
@@ -1281,13 +1359,21 @@ function drawConvoys(ctx, cam, app, alpha) {
       ctx.arc(sx, sy, 15 + 3 * pulse, 0, Math.PI * 2);
       ctx.stroke();
     }
+    const name = c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name;
+    // In a stack: its mark stands for it, or it fades behind the unit in hand.
+    const role = markRole(app, 'sea', 'convoy', c.id, sx, sy, name);
+    if (role === 'hidden') continue;
+    if (role === 'faded') ctx.globalAlpha = 0.35;
     if (c.straggler) ship(ctx, sx, sy, c.heading, 8);
     else {
       ship(ctx, sx - 4, sy + 2, c.heading, 8);
       ship(ctx, sx + 4, sy - 2, c.heading, 8);
     }
+    if (role === 'faded') {
+      ctx.globalAlpha = 1;
+      continue;
+    }
     const kn = Math.round((currentSpeed(c) * 3600) / 1.852);
-    const name = c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name;
     const plaque = t('map.convoyPlaque', {
       name: `${name}${est ? t('map.estimated') : ''}`, ships: c.ships, kn: c.state === 'atSea' ? kn : c.speedKn, zigzag: c.zigzag ? t('map.convoyPlaqueZigzag') : '',
     });
@@ -1588,9 +1674,25 @@ function drawSquadrons(ctx, cam, app, alpha) {
     }
     if (!onScreen(cam, sx, sy)) continue;
     const h = stalkPx(app, altFt);
-    stalk(ctx, sx, sy, h, 'rgba(44, 74, 124, 0.85)');
     const top = sy - h;
     const ox = sq.state === 'combat' && h > 0 ? -14 : 0;
+    // In a stack (squadrons flying together): its mark stands for it, or it fades behind the
+    // unit in hand. The leader of a big wing stands for its wing.
+    const leads = Boolean(f && m.index === 0);
+    const role = markRole(app, 'air', 'squadron', sq.id, sx + ox, top, leads ? f.name : sq.name, leads ? f.id : null);
+    if (role === 'hidden') {
+      stalk(ctx, sx, sy, h, 'rgba(44, 74, 124, 0.35)');
+      continue;
+    }
+    if (role === 'faded') {
+      ctx.globalAlpha = 0.35;
+      stalk(ctx, sx, sy, h, 'rgba(44, 74, 124, 0.85)');
+      if (isPatrol(sq)) patrolMark(ctx, sx + ox, top, 7, sq.role === 'coastal');
+      else roundel(ctx, sx + ox, top, 7);
+      ctx.globalAlpha = 1;
+      continue;
+    }
+    stalk(ctx, sx, sy, h, 'rgba(44, 74, 124, 0.85)');
     if (sq.state === 'combat' && !meleeDone.has(sq.engagedRaid)) {
       meleeDone.add(sq.engagedRaid);
       drawMelee(ctx, sx, top, now, sq.id.length * 7);
@@ -1994,6 +2096,17 @@ export function drawScene(ctx, app, alpha) {
   const cam = app.camera;
   const dpr = app.dpr;
   app.hits = [];
+  // The stacks, from where the marks stood in the image before (a sixtieth of a second ago).
+  app.stacks = findStacks(app.marks || []);
+  app.stackOf = indexStacks(app.stacks);
+  app.marks = [];
+  // The tabs of the sheet follow the stack of the unit in hand.
+  const mine = stackOfSelection(app.stackOf, app.selection);
+  const signature = mine ? mine.members.map((m) => stackKey(m.kind, m.id)).join(',') : '';
+  if (signature !== (app.stackSignature || '')) {
+    app.stackSignature = signature;
+    app.dirtyPanels = true;
+  }
   app.plaqueBoxes = symbolObstacles(app, alpha);
   drawMap(ctx, cam, dpr, app.mapRenderer);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -2022,6 +2135,7 @@ export function drawScene(ctx, app, alpha) {
   drawContacts(ctx, cam, app, alpha);
   drawInterceptPoint(ctx, cam, app, alpha);
   drawSquadrons(ctx, cam, app, alpha);
+  drawStacks(ctx, cam, app);
   drawDevLayer(ctx, cam, app, alpha);
   drawRouteEditor(ctx, cam, app, alpha);
   drawEffects(ctx, app, FX_LABELS);

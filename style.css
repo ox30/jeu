@@ -172,6 +172,16 @@ button {
 .alert[hidden] { display: none; }
 .alert strong { letter-spacing: 0.12em; white-space: nowrap; }
 #alert-text { flex: 1 1 auto; min-width: 0; }
+/* A line dropped where several targets overlap: the small choice (dropChoice.js). */
+.drop-choice {
+  position: absolute; z-index: 6; display: flex; flex-direction: column; gap: 4px; min-width: 190px; max-width: 280px;
+  padding: 8px 30px 8px 10px; background: var(--paper); color: var(--ink); border: 2px solid #1b150e; border-radius: 5px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+.drop-choice[hidden] { display: none; }
+.drop-choice strong { font-size: 12px; letter-spacing: 0.04em; }
+.drop-choice button { text-align: left; padding: 7px 10px; border: 1px solid #8a7350; border-radius: 4px; background: #f7f0dc; color: var(--ink); font: 13px Georgia, serif; cursor: pointer; }
+.drop-choice button.secondary { background: transparent; font-style: italic; }
+.drop-choice button.close { position: absolute; top: 4px; right: 4px; padding: 0 6px; border: none; background: transparent; font-size: 16px; }
 .alert-kind { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; border: 1px solid #f0b8a0; border-radius: 3px; padding: 1px 5px; white-space: nowrap; }
 .alert-kind[hidden] { display: none; }
 .alert-buttons { display: flex; gap: 6px; white-space: nowrap; }
@@ -534,6 +544,22 @@ button.link { background: none; border: none; padding: 0; font: inherit; color: 
   font-size: 13px;
 }
 .unit-panel[hidden] { display: none; }
+/* The units of a stack: vertical tabs on the edge of the sheet that faces the map. */
+.unit-stack {
+  position: absolute; top: 58px; right: 100%; z-index: 4; display: flex; flex-direction: column; gap: 3px; align-items: flex-end;
+  max-height: calc(100% - 70px); overflow-y: auto;
+}
+.unit-stack[hidden] { display: none; }
+.unit-stack button {
+  max-width: 150px; padding: 7px 10px; border: 2px solid #1b150e; border-right: none; border-radius: 5px 0 0 5px;
+  background: #d9ccac; color: var(--ink); font: 13px Georgia, serif; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer; box-shadow: -3px 2px 8px rgba(0, 0, 0, 0.25);
+}
+.unit-stack button.active { background: var(--paper); font-weight: bold; padding-right: 14px; }
+#table.sheet-left .unit-stack { right: auto; left: 100%; align-items: flex-start; }
+#table.sheet-left .unit-stack button { border: 2px solid #1b150e; border-left: none; border-radius: 0 5px 5px 0; box-shadow: 3px 2px 8px rgba(0, 0, 0, 0.25); }
+#table.sheet-bottom .unit-stack { top: auto; bottom: 100%; right: auto; left: 12px; flex-direction: row; align-items: flex-end; max-height: none; }
+#table.sheet-bottom .unit-stack button { border: 2px solid #1b150e; border-bottom: none; border-radius: 5px 5px 0 0; }
 .unit-head { display: flex; align-items: flex-start; gap: 6px; padding: 8px 10px 0; }
 .unit-head h2 { flex: 1 1 auto; margin: 0; font-size: 15px; line-height: 1.25; }
 .unit-head h2 small { font-weight: normal; font-style: italic; color: var(--ink-soft); font-size: 12px; }

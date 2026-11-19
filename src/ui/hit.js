@@ -42,3 +42,20 @@ export function unitsUnder(hits, x, y, pad, kinds) {
   }
   return found.size;
 }
+
+/**
+ * Every different target of the kinds given under the pointer, nearest first: where raids,
+ * convoys or U-boat markers overlap, a line dropped there has to say which one it means.
+ */
+export function targetsUnder(hits, x, y, pad, kinds) {
+  const found = new Map();
+  for (const h of hits) {
+    if (!kinds.has(h.kind)) continue;
+    const at = under(h, x, y, pad);
+    if (!at) continue;
+    const key = `${h.kind}:${h.id}`;
+    const d = at.inBox ? Math.min(h.r, at.d) : at.d;
+    if (!found.has(key) || d < found.get(key).d) found.set(key, { kind: h.kind, id: h.id, d });
+  }
+  return [...found.values()].sort((a, b) => a.d - b.d).map(({ kind, id }) => ({ kind, id }));
+}
