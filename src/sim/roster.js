@@ -9,6 +9,12 @@
 
 import { emit } from './events.js';
 import { ALERT_STATES, changeAlert, fatigueOn } from './crews.js';
+import { declareFields } from './entities.js';
+
+declareFields('squadron', (s) => {
+  s.roster = { daily: [], override: null }; // duty roster: alert states by the hour
+  s.alertManual = false; // a state set by hand holds until the player goes back to the plan
+});
 
 const DAY = 86400;
 

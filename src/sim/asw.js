@@ -32,6 +32,19 @@ declareFields('escort', (e, world) => {
   e.chargesOut = false; // told once that the racks are empty (until it rearms)
 });
 
+// A hunt, and a counter-attack near the convoy.
+declareFields('escort', (e) => {
+  e.huntPath = null; // a hunt's way around the land (searoute.js)
+  e.huntGoal = null; // the point that way leads to
+  e.huntStay = false; // a short counter-attack near its convoy, not a hunt
+  e.engage = null; // the U-boat it is attacking: { uboatId, since, nextPass, reportId }
+});
+
+// A boat gone deep after shaking off a hunt: no ASDIC holds it until then.
+declareFields('uboat', (u) => {
+  u.deepUntil = 0;
+});
+
 // A patrol aircraft carries the load of one attack: after it, it still makes a U-boat dive.
 declareFields('squadron', (s) => {
   s.uboatAttacks = 0; // attacks on U-boats in this sortie (set back to zero on landing)

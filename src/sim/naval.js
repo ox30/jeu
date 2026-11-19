@@ -80,6 +80,24 @@ declareFields('escort', (e, world) => {
   e.radarFrom = def && def.radarFrom ? (parseGameDate(def.radarFrom) - world.startMs) / 1000 : null; // fitted in port from then on
 });
 
+// What the life of a group at sea keeps on it, beyond what the scenario describes.
+declareFields('escort', (e) => {
+  e.berthed = e.state === 'inPort' || e.state === 'refit'; // alongside: leaving takes escortGroups.sailDelayH to cast off
+  e.leftConvoy = null; // convoy it was ordered to leave: it does not take station again by itself
+  e.exitChannel = null; // how it goes out of port: null (the roads) or a channel's name
+  e.boost = false; // sprinting above its sea speed (endurance burnt faster)
+  e.boostKn = null;
+  e.dry = false; // out of fuel: into port at a crawl (dryKn)
+  e.dryKn = null;
+  e.endAction = { kind: 'stop' }; // at the end of its route: stop | hold | escort | hunt | port
+  e.routeEnded = false;
+});
+
+/**
+ * An escort group as the scenario describes it. What the subsystems keep on it (depth
+ * charges and hunts, radar, formation, timetable, last sure point…) is declared by each of
+ * them (entities.js) and added by completeEntity().
+ */
 export function createEscortGroup(world, def) {
   const port = world.byId.port.get(def.from);
   return completeEntity('escort', {
@@ -103,36 +121,17 @@ export function createEscortGroup(world, def) {
     plan: [],
     legState: null,
     state: 'inPort', // inPort | atSea | waiting | escorting | hunting | refit
-    berthed: true, // alongside: leaving takes escortGroups.sailDelayH to cast off
     portId: port.id,
     destination: null,
     joinTarget: null, // convoy the group is ordered to meet
     escorting: null, // convoy the group is with
-    leftConvoy: null, // convoy it was ordered to leave: it does not take station again by itself
-    schedule: null, // a sailing ordered for later (timetable.js)
-    exitChannel: null, // how it goes out of port: null (the roads) or a channel's name
-    boost: false, // sprinting above its sea speed (endurance burnt faster)
-    boostKn: null,
-    lateFor: null, // a support group it is catching up with (rally.js)
     enduranceMax: def.enduranceDays * 86400,
     endurance: def.enduranceDays * 86400,
     timer: 0,
     lowWarned: false,
-    dry: false, // out of fuel: into port at a crawl (dryKn)
-    dryKn: null,
     homeward: false,
     behaviour: def.behaviour || 'stay', // stay with the convoy, or hunt the contacts
     huntFor: null,
-    huntPath: null, // a hunt's way around the land (searoute.js)
-    huntGoal: null, // the point that way leads to
-    huntStay: false, // a short counter-attack near its convoy, not a hunt
-    engage: null, // the U-boat it is attacking: { uboatId, since, nextPass, reportId }
-    endAction: { kind: 'stop' }, // at the end of its route: stop | hold | escort | hunt | port
-    routeEnded: false,
-    formation: null, // id of the support group (formation) it belongs to
-    followEscort: null, // a support group's member: the leader it sails with
-    followSlot: 0,
-    waitForGroup: false, // a support group's leader slows down until its groups close up
   }, world);
 }
 
@@ -535,9 +534,16 @@ export function setShipEndAction(world, e, action) {
  */
 export const LONG_AGO = -1e9;
 
+// A boat sunk is replaced by another (uboats.replaceDays): when it went down, and which boat
+// of the station this one is.
+declareFields('uboat', (u) => {
+  u.sunkAt = null;
+  u.boat = 1;
+});
+
 export function createUboat(world, def) {
   const [x, y] = project(def.lon, def.lat);
-  return {
+  return completeEntity('uboat', {
     kind: 'uboat',
     id: def.id,
     hx: x,
@@ -549,9 +555,6 @@ export function createUboat(world, def) {
     wy: y,
     state: 'patrol', // patrol | closing | shadow | leaving | gone | sunk
     submergedUntil: 0,
-    deepUntil: 0, // gone deep after shaking off a hunt: no ASDIC holds it until then
-    sunkAt: null,
-    boat: 1,
     target: null,
     torpedoes: def.torpedoes ?? 3,
     torpedoesFull: def.torpedoes ?? 3,
@@ -559,9 +562,7 @@ export function createUboat(world, def) {
     lastAttack: LONG_AGO,
     lastReport: LONG_AGO,
     known: Boolean(def.known),
-    way: null, // its way round the land to where it is going (uboatnav.js)
-    wanderAt: 0,
-  };
+  }, world);
 }
 
 /** A radio message from a U-boat gives a direction-finding fix, with an error. */

@@ -2,7 +2,6 @@
 // freshly built from the same scenario. Kept in the browser (one game at a time) and
 // exported or imported as a JSON file.
 
-import { createBdu } from '../sim/bdu.js';
 import { bringToSea } from '../sim/uboatnav.js';
 import { normalizeRoster } from '../sim/roster.js';
 import { fillMissingFields } from '../sim/entities.js';
@@ -18,24 +17,10 @@ const VALUES = ['t', 'nextPlotId', 'nextTrainId', 'stats', 'objectives', 'allDon
   'questions', 'nextQuestionId', 'asked', 'nextTimetableId', 'navalReports', 'nextNavalReportId', 'bdu', 'carry', 'fightersAtStart', 'watch', 'signals', 'nextSignalId',
   'settings', 'presetStart'];
 
-// Fields added after a save was made: a game saved by an earlier version gets them on restore.
-const SQUADRON_DEFAULTS = () => ({
-  formation: null, holdForWing: false, wingSlowest: null, roe: 'attack', speedPct: 100, cleared: new Set(), letGo: new Set(), clearedBeyond: new Set(),
-  attackRaid: null, breakOff: null, alertAt: null, alertFrom: null, alertLong: false, roster: { daily: [], override: null }, alertManual: false, schedule: null, lateFor: null, rallySlow: null,
-});
-const SHIP_DEFAULTS = () => ({
-  formation: null, followEscort: null, followSlot: 0, waitForGroup: false, leftConvoy: null, schedule: null, lateFor: null,
-  huntPath: null, huntGoal: null, huntStay: false, engage: null, endAction: { kind: 'stop' }, routeEnded: false, exitChannel: null, boost: false, boostKn: null,
-  dry: false, dryKn: null,
-});
-const WORLD_DEFAULTS = () => ({
-  formations: [], nextFormationId: 1, questions: [], nextQuestionId: 1, asked: new Set(), nextTimetableId: 1,
-  navalReports: [], nextNavalReportId: 1, bdu: createBdu(), signals: [], nextSignalId: 1,
-});
-
-function fillDefaults(target, defaults) {
-  for (const [k, v] of Object.entries(defaults)) if (target[k] === undefined) target[k] = v;
-}
+// Fields added after a save was made: a game saved by an earlier version gets them on restore
+// from the entity factory (entities.js), where each subsystem declares what it keeps on a
+// squadron, a group, a convoy, a U-boat, a raid or an installation. What belongs to the world
+// itself is already there: the snapshot is put back onto a world freshly built.
 
 /** Plain JSON for Maps, Sets and nested objects. */
 function encode(v) {
@@ -134,18 +119,14 @@ export function restore(world, saved, addMobileRadar = null) {
   snap.railFree.forEach((v, i) => {
     if (world.rail.links[i]) world.rail.links[i].nextFree = v;
   });
-  fillDefaults(world, WORLD_DEFAULTS());
   // The share of each convoy bought with dollars, a setting until 2.7, is gone (I4): the
   // convoys sail fully laden as long as the reserve can pay.
   if (world.currency) delete world.currency.purchase;
   for (const s of world.squadrons) {
-    fillDefaults(s, SQUADRON_DEFAULTS());
     fillMissingFields('squadron', s, world);
     normalizeRoster(world, s); // a roster of M2.3 (a list of dated changes) becomes a daily plan
   }
   for (const e of world.escorts) {
-    fillDefaults(e, SHIP_DEFAULTS());
-    if (e.berthed === undefined) e.berthed = e.state === 'inPort' || e.state === 'refit';
     // A group saved before the depth charges (2.8) gets full racks and full patterns; the
     // length of its hunts, which the player used to set, is gone. A hunt under way then goes
     // on at most for the time of a search.
@@ -163,8 +144,9 @@ export function restore(world, saved, addMobileRadar = null) {
   if (!('fightersAtStart' in snap)) {
     for (const s of world.squadrons) if (s.role === 'fighter' && !initialSquadrons.has(s.id)) world.fightersAtStart += s.aircraftStart;
   }
+  for (const r of world.raids) fillMissingFields('raid', r, world);
   for (const u of world.uboats) {
-    fillDefaults(u, { way: null, wanderAt: 0, deepUntil: 0, sunkAt: null, boat: 1 });
+    fillMissingFields('uboat', u, world);
     // "Never yet" was an infinity until 2.8, which a save turned into nothing.
     if (!Number.isFinite(u.lastAttack)) u.lastAttack = LONG_AGO;
     if (!Number.isFinite(u.lastReport)) u.lastReport = LONG_AGO;

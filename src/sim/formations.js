@@ -14,6 +14,19 @@ import { isRelief } from './watch.js';
 import { aircraftSpec, isFlying } from './squadron.js';
 import { interceptRaid, joinConvoy, leavePort, scramble } from './orders.js';
 import { sendEscortHome } from './naval.js';
+import { declareFields } from './entities.js';
+
+declareFields('squadron', (s) => {
+  s.formation = null; // id of the formation (big wing) it belongs to
+  s.holdForWing = false; // a wing's leader circles while its squadrons gather
+  s.wingSlowest = null; // a wing's leader: speeds of its slowest squadron in formation
+});
+declareFields('escort', (e) => {
+  e.formation = null; // id of the support group (formation) it belongs to
+  e.followEscort = null; // a support group's member: the leader it sails with
+  e.followSlot = 0;
+  e.waitForGroup = false; // a support group's leader slows down until its groups close up
+});
 
 export function createFormations(world) {
   world.formations = [];

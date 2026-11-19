@@ -16,6 +16,15 @@ import { scrambleSeconds } from './crews.js';
 import { departConvoy, leaveConvoy, leavePort, scramble } from './orders.js';
 import { askRallyQuestion, questionsOn } from './engagement.js';
 import { formationById, leaderOf, linkToLeader, membersOf } from './formations.js';
+import { declareFields } from './entities.js';
+
+declareFields('squadron', (s) => {
+  s.lateFor = null; // a formation it is catching up with, late at the rendezvous
+  s.rallySlow = null; // a wing's leader slowing for its latecomers: speed factor
+});
+declareFields('escort', (e) => {
+  e.lateFor = null; // a support group it is catching up with
+});
 
 const RALLY_KM = 8; // within this of the point, a squadron is at the rendezvous
 const SEA_RALLY_KM = 12;

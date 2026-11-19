@@ -4,6 +4,14 @@
 // over the sea, and replacements come from the training units after some hours.
 
 import { emit } from './events.js';
+import { declareFields } from './entities.js';
+
+// A recall under way (the alert state itself is the scenario's: createSquadron).
+declareFields('squadron', (s) => {
+  s.alertAt = null; // when the new state holds
+  s.alertFrom = null; // the state it holds until then
+  s.alertLong = false;
+});
 
 // Readiness on the ground, from the lowest: at rest (the pilots may be anywhere: two hours to
 // get them back), available (30 min), at readiness (5 min), in the cockpit (2 min). The delay

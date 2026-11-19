@@ -17,10 +17,13 @@ import { declareFields } from './entities.js';
 
 const DAY = 86400;
 
-// A sailing ordered for later, on every convoy (a straggler included).
-declareFields('convoy', (c) => {
-  c.schedule = null;
-});
+// A sailing or a take-off ordered for later: on every convoy (a straggler included), every
+// escort group and every squadron.
+for (const kind of ['convoy', 'escort', 'squadron']) {
+  declareFields(kind, (u) => {
+    u.schedule = null;
+  });
+}
 
 export function createTimetable(world) {
   world.nextTimetableId = 1;

@@ -7,6 +7,12 @@
 
 import { bearing, distance, project, scaleX } from './geo.js';
 import { seaPath, seaRaster } from './searoute.js';
+import { declareFields } from './entities.js';
+
+declareFields('uboat', (u) => {
+  u.way = null; // its way round the land to where it is going
+  u.wanderAt = 0;
+});
 
 const CACHE = new WeakMap(); // the rules' list → its polygons on the plane
 
