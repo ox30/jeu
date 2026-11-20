@@ -8,12 +8,54 @@ avec un menu principal, un tutoriel en cinq leçons et une aide illustrée.
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.11.1** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit,
-les retours des premières parties d'essai en quatre tours, et le rangement des textes d'aide).
+**Version 2.12.0** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit,
+les retours des premières parties d'essai en quatre tours, le rangement des textes d'aide, et
+les quarts dès qu'il y a des navires).
 Les décisions qui guident les lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md`
 (fichier du projet) ; le journal des travaux est dans `docs/journal-m2.7-m2.10.md`. Le
 rangement de l'aide suit `claude/textes-aide-plan-rangement.md` ; son journal, avec la table
-« ancienne clé → nouvelle place », est dans `docs/journal-aide-en-jeu.md`.
+« ancienne clé → nouvelle place », est dans `docs/journal-aide-en-jeu.md`. Les quarts dès
+qu'il y a des navires (décision du 20 novembre 2026) ont leur journal dans
+`docs/journal-quarts.md`, avec les mesures du joueur automatique.
+
+## Nouveautés de la 2.12.0 : les quarts dès qu'il y a des navires
+
+Décision de Florian du 20 novembre 2026. Elle remplace « Kanalkampf, Adlertag et le
+15 septembre ne changent pas » du M2.
+
+- **La règle.** Tout scénario qui a des navires (convois, groupes d'escorte ou convois
+  programmés) vit au rythme des quarts, et le silence radio y vaut en Standard et en
+  Réaliste : Kanalkampf et Adlertag rejoignent « Hiver dans l'Atlantique ». Le jeu lit la
+  règle sur le scénario tel qu'il se joue (une leçon avec les clés de sa base) : un scénario
+  n'a plus rien à déclarer, et ne peut pas l'oublier. Le 15 septembre et les quatre leçons
+  de l'air n'ont pas de navire : rien n'y change.
+- **Le bouton « Quart » est là dès le début** de toute partie au rythme des quarts (touche
+  Q). Avant la première relève, sa page dit qu'aucun rapport n'est encore écrit et quand
+  viendra le premier, et montre déjà ce qui attend une décision.
+- **Près de nous, les alertes restent en direct.** Un navire en eaux suivies (eaux fermées
+  aux U-Boote, approches des ports, couverture de surface des radars côtiers) ou sous un de
+  nos avions garde ses alertes comme sans les quarts : le jeu revient à ×1. En haute mer,
+  l'événement attend le rapport de la relève. Dans les deux cas, le rapport le note. Le
+  convoi côtier CW 7, bombardé dans la Manche, appelle donc le joueur aussitôt. Les raids,
+  les combats aériens et les questions des escadrilles ne changent pas.
+- **Le rapport liste aussi les convois côtiers**, et le filtre de l'onglet « Signaux » les
+  propose.
+- **Un convoi sans route est une décision**, comme un convoi arrêté : un convoi en mer qui
+  n'a plus rien à suivre garde son cap, et la relève le signale une fois, avec les boutons
+  « Amirauté » et « Voir ». À Kanalkampf, les HX 55 et HX 57 arrivent sans route : la
+  question est posée dès la première seconde, dans la page du bouton « Quart ».
+- **Adlertag** : la vue Atlantique (touche A), pour le convoi HX 62 qui vient de 21° O ;
+  Aldergrove, avec le 502 Sqn (Anson) et le 233 Sqn (Hudson, radar ASV) du Coastal Command.
+- **Réglages** : dans une partie sans navire, « Communications en mer » et « Arrêt aux
+  relèves » sont grisés, avec une ligne qui dit pourquoi.
+- **Textes** : l'aide, les bulles des deux réglages, la liste des touches et la fin de la
+  leçon « Escorter » ne réservent plus les quarts et le silence radio à l'Atlantique.
+- **Parties sauvegardées** : une partie de Kanalkampf ou d'Adlertag sauvegardée avant la
+  2.12.0 reprend au rythme des quarts, à la relève qui suit son chargement. Les sauvegardes
+  passent au format 3. Une partie d'Adlertag d'avant garde ce avec quoi elle a commencé :
+  elle n'a pas les deux escadrilles d'Aldergrove.
+- **Barre du haut** : sous 1 100 px de large, le cadran de l'horloge laisse sa place (l'heure
+  reste, en chiffres), pour que la barre tienne sur une ligne avec le bouton « Quart ».
 
 ## Nouveautés de la 2.11.1 : trois retouches de l'aide
 
@@ -419,7 +461,7 @@ Standard, Réaliste) se choisit sur les pages Campagne et Scénarios.
 | Scénario | Période | L'essentiel |
 | --- | --- | --- |
 | Kanalkampf | 10-24 juillet 1940 | deux convois HX, un convoi côtier dans la Manche, le rail, les premiers raids |
-| Adlertag | 12-18 août 1940 | raids sur les radars et les aérodromes, chasses libres, station radar mobile, relève |
+| Adlertag | 12-18 août 1940 | raids sur les radars et les aérodromes, chasses libres, station radar mobile, relève ; le convoi HX 62 et les patrouilles d'Aldergrove |
 | 15 septembre | une journée | deux grandes vagues sur les docks de Londres, Big Wing de Duxford |
 | Hiver dans l'Atlantique | 10 janvier - 31 mars 1941 | convois réguliers HX et SC, meutes de U-Boote, dollars, prêt-bail |
 | Entraînement | juillet 1940 | les cinq leçons du **tutoriel**, puis un scénario d'essai : un convoi, quelques raids |
@@ -520,10 +562,10 @@ autonomie 1,6 fois plus vite.
    repère frais à moins de 80 km peut être chassé d'un clic. **Grenades** : 40 par navire
    (120 ou 160 par groupe), refaites au port avec le mazout ; grenadage plein (dix par passe)
    ou économe (cinq, moins de chances de couler) ; à vide, les passes sont à blanc : le
-   U-Boot reste en plongée, sans rien risquer. Hors de l'Atlantique (alertes en direct), un U-Boot vu par un avion ou
+   U-Boot reste en plongée, sans rien risquer. Près de nous (en eaux suivies, ou sous un de vos avions), un U-Boot vu par un avion ou
    par une escorte lève l'alerte « U-Boot en vue » et ramène le jeu à ×1
-   (une fois par heure et par U-Boot ; une attaque a sa propre alerte) ; dans l'Atlantique,
-   la mer vit au rythme des quarts (voir plus bas). Un U-Boot tenu
+   (une fois par heure et par U-Boot ; une attaque a sa propre alerte) ; en haute mer,
+   il attend le rapport de la relève (voir plus bas). Un U-Boot tenu
    (ASDIC, ou vu tout près) reçoit une passe de grenades toutes les 10 minutes : coulé,
    touché (il rentre et n'est plus attaqué), perdu ou rien de visible ; chaque attaque a son rapport, avec les grenades lancées. « Au port »
    rentre au port choisi dans la section « Retour au port », du plus proche par mer au plus
@@ -654,17 +696,21 @@ autonomie 1,6 fois plus vite.
    Logistique donne la prévision de tonnage face à l'objectif et les offres d'avions (Hudson,
    Catalina), chacune avec son prix en dollars et en tonnes de cargaison, son délai et sa date
    d'arrivée : chaque dollar dépensé là manquera aux cargaisons.
-12. **Quarts (hiver 1941).** Dans l'Atlantique vous commandez depuis un QG à terre. À chaque
+12. **Quarts (dès qu'il y a des navires).** Vous commandez la mer depuis un QG à terre. À chaque
    relève (0, 4, 8, 12, 16 et 20 h) un rapport s'écrit, onglet « Signaux » du journal :
    convois, groupes d'escorte (mazout, grenades, consigne), air, renseignement, signaux du
    quart, et « À décider » avec le bouton qui répond. Le jeu s'arrête à une relève quand une
    décision nouvelle attend (réglage « Arrêt aux relèves » : aussi à 8 h et 20 h, ou à chaque
-   relève) et, entre deux relèves, seulement pour la première attaque d'un convoi dans la
-   nuit. Un arrêt est une pause : « Reprendre » repart à la vitesse d'avant. Un rapport
-   fermé sans réponse se rouvre tel quel : bouton « Quart » de la barre du haut (touche Q),
-   ou « Ouvrir » dans l'onglet « Signaux ».
-13. **Silence radio (hiver 1941, Standard et Réaliste).** Hors des eaux suivies (eaux fermées
-   aux U-Boote, approches des ports, couverture des radars de Downhill et de Glenarm), un
+   relève) et, entre deux relèves, seulement pour la première attaque d'un convoi en haute
+   mer dans la nuit. Comptent comme décisions : un convoi à portée d'un groupe libre, un
+   convoi arrêté ou sans route, un groupe qui a fini ses ordres, des grenades épuisées, un
+   repère U-Boot sur la route d'un convoi. Un arrêt est une pause : « Reprendre » repart à
+   la vitesse d'avant. Le bouton « Quart » de la barre du haut (touche Q) est là dès le
+   début ; un rapport fermé sans réponse s'y rouvre tel quel, comme par « Ouvrir » dans
+   l'onglet « Signaux ». **Près de nous**, un navire en eaux suivies ou sous un de vos
+   avions garde ses alertes en direct, à ×1 ; le rapport les note aussi.
+13. **Silence radio (dès qu'il y a des navires, Standard et Réaliste).** Hors des eaux suivies (eaux fermées
+   aux U-Boote, approches des ports, couverture de surface des radars de Downhill et de Glenarm), un
    convoi ou un groupe est dessiné à sa position estimée : contour en tirets, « ? » sur la
    plaque, cercle de doute qui grandit depuis le dernier point sûr. Un point sûr vient d'un
    avion en vue, d'une attaque, ou de « Demander la position » (qui donne un relèvement à
@@ -750,8 +796,9 @@ préréglages, modifiables un par un :
 Le réglage **B-Dienst** (Partie) dit quelle part des messages de routage des convois la
 marine allemande lit : 0 % en Arcade, 25 % en Standard, 50 % en Réaliste (0, 10, 25, 50, 75
 ou 100 %). **Communications en mer** (Partie) : directes en Arcade, silence radio en Standard
-et en Réaliste (il ne joue que dans l'Atlantique). **Arrêt aux relèves** (Temps et alertes) :
-sur décision seulement, matin et soir aussi, ou à chaque relève. **Ombre de la nuit**,
+et en Réaliste (il joue dès qu'un scénario a des navires). **Arrêt aux relèves** (Temps et alertes) :
+sur décision seulement, matin et soir aussi, ou à chaque relève. Dans une partie sans navire,
+ces deux réglages sont grisés. **Ombre de la nuit**,
 **Aides des fiches** (masquées derrière un « ? » par section, le défaut, ou affichées sous le
 titre de chaque section) et **Revoir les astuces** : Carte et fiche. Chaque réglage qui
 demande une explication a son « ? ».
@@ -969,6 +1016,18 @@ node tools/smoke/help-images.mjs               # refait les trois images de l'ai
 - Libertés assumées : la section de guet (le 421 Flight date du 21 septembre 1940) est déjà
   là en juillet ; les Catalina du 240 Squadron arrivent un peu tôt ; les heures de jour et
   de nuit sont simplifiées (été, hiver).
+- Aldergrove en août 1940 (Adlertag, 2.12.0) : le 502 Sqn y vole sur Anson jusqu'en
+  novembre 1940, le Whitley arrivant à l'automne ; le 233 Sqn y vient de Leuchars début août,
+  sur Hudson, pour couvrir les convois de Liverpool et de la Clyde, et repart mi-septembre
+  ([502 Sqn](https://www.historyofwar.org/air/units/RAF/502_wwII.html),
+  [233 Sqn](https://www.historyofwar.org/air/units/RAF/233_wwII.html),
+  [233 Sqn, Pegasus Archive](https://pegasusarchive.org/arnhem/batt_233.htm)). L'ordre de
+  bataille d'août 1940 d'Air of Authority donne autre chose à Aldergrove : le 224 Sqn sur
+  Hudson, le 502 déjà « Whitleys », et le 233 à Leuchars
+  ([source](https://www.rafweb.org/Members%20Pages/Orders%20of%20Battle/1940/1940_08_Coastal.htm)).
+  Radar ASV Mk I : douze Hudson en portent à la mi-janvier 1940
+  ([S. Watts, IEEE AES Magazine, août 2019](https://nxtbook.com/nxtbooks/ieee/aerospace_august2019/index.php?startid=50)),
+  vingt-quatre fin 1940 ([uboat.net](https://uboat.net/allies/technical/uk_radars.htm)).
 - Corrigé au M2.7 d'après l'audit : le 502 Sqn vole sur Whitley (depuis octobre 1940) ; le
   10 Sqn RAAF est à Oban, où l'unité avait un détachement ; la série HX commence à HX 102 le
   10 janvier 1941, si bien que le convoi du 1er mars est le HX 112.
