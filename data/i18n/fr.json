@@ -101,10 +101,10 @@
     "objectives": "Objectifs",
     "tote": "Tableau d'état",
     "log": "Journal des opérations",
-    "hint": "Cliquez sur une unité ou une installation pour ouvrir sa fiche à droite de la carte. Glissez depuis une unité pour tracer sa route.",
+    "hint": "Cliquez sur une unité ou une installation pour ouvrir sa fiche. Glissez depuis une unité pour tracer sa route.",
     "units": "Unités",
     "sites": "Installations",
-    "hintHeadings": "Cliquez sur une unité ou une installation pour ouvrir sa fiche à droite de la carte. Glissez depuis une unité pour mesurer un cap avec la règle.",
+    "hintHeadings": "Cliquez sur une unité ou une installation pour ouvrir sa fiche. Glissez depuis une unité pour mesurer un cap avec la règle.",
     "logistics": "Logistique",
     "logCount": "· {n}",
     "logJournal": "Journal",
@@ -125,14 +125,13 @@
     "rearm": "Rentrer réarmer",
     "settled": "(réglé)",
     "decideTitle": "À décider",
-    "decideHint": "Une décision laissée de côté reste dans les rapports suivants, sans arrêter le jeu une seconde fois.",
     "decide": {
       "reach": "{convoy} navigue sans escorte, à {km} km de vos groupes prêts au port.",
       "waitingEscort": "{name} a fini ses ordres et attend en mer.",
       "waitingConvoy": "{name} est arrêté et attend des ordres.",
       "charges": "{name} n'a plus de grenades près de {convoy} : il fait encore plonger, mais ne coulera plus rien.",
       "chargesAlone": "{name} n'a plus de grenades : il fait encore plonger, mais ne coulera plus rien.",
-      "marker": "{convoy} : {n} repère(s) U-Boot sur sa route dans les 24 heures ({plots} vu(s), {fixes} relèvement(s) radio). Changer de route (glissez depuis le convoi), ou la garder."
+      "marker": "{convoy} : {n} repère(s) U-Boot sur sa route dans les 24 heures ({plots} vu(s), {fixes} relèvement(s) radio). Changer de route, ou la garder."
     },
     "convoys": "Convois",
     "convoysNone": "Aucun convoi en mer.",
@@ -655,21 +654,18 @@
     "devCancel": "Annuler",
     "devWrong": "Mot de passe incorrect.",
     "devUnavailable": "Cette page ne peut pas vérifier le mot de passe.",
-    "devHint": "Pour contrôler les scénarios : les vraies positions ennemies en magenta et un onglet « Ennemis ». Il ne change rien à la partie. Le cocher demande le mot de passe.",
     "rosterHours": "Effectifs : un planning des prochaines heures dure",
     "seaComms": "Communications en mer",
     "seaCommsChoices": {
       "direct": "directes : positions exactes, ordres immédiats",
       "silence": "silence radio : positions estimées en haute mer, ordres à la relève"
     },
-    "seaCommsHint": "Silence radio (dans l'Atlantique) : hors des eaux suivies — eaux fermées aux U-Boote, approches des ports, couverture des radars côtiers — vos navires ne sont vus que par estimation. Un ordre part par radio à la relève suivante, au projecteur si un de vos avions est en vue, ou confié à un groupe qui rejoint le convoi.",
     "watchStops": "Arrêt aux relèves (mer au rythme des quarts)",
     "watchStopsChoices": {
       "decision": "sur décision seulement",
       "twice": "matin et soir (8 h et 20 h), et sur décision",
       "every": "à chaque relève"
     },
-    "watchStopsHint": "Dans l'Atlantique, un rapport s'écrit à chaque relève de quart (0, 4, 8, 12, 16 et 20 h), que le jeu s'arrête ou non : onglet « Signaux » du journal. Entre deux relèves, le jeu ne s'arrête que pour la première attaque d'un convoi dans la nuit.",
     "rosterHoursChoices": {
       "6": "6 h",
       "12": "12 h",
@@ -690,14 +686,12 @@
     },
     "speedDefault": "par défaut ({speed})",
     "speedNone": "pas de ralenti",
-    "alertSpeedsHint": "Avec « Ralentir le temps à chaque alerte », chaque alerte ramène le jeu au plus à la vitesse choisie ici. En mer, tout passe à ×1 par défaut : on décide, puis on accélère soi-même.",
     "viewZones": "Zones de vue des unités",
     "viewZonesChoices": {
       "none": "aucune",
       "selected": "de l'unité choisie",
       "all": "de toutes les unités"
     },
-    "viewZonesHint": "Ce que voient les unités, de jour ou de nuit. Un avion : son rayon de vue sur les autres avions (à même altitude ; de bien plus haut ou plus bas, moitié moins loin) et, pour une patrouille côtière, sur un U-Boot en surface. Un groupe d'escorte : un U-Boot en surface (vigies, radar s'il en a) et en plongée (ASDIC).",
     "volume": "Volume",
     "alertNames": {
       "raidDetected": "Raid détecté",
@@ -724,7 +718,6 @@
       "left": "à gauche de la carte",
       "bottom": "en bas de la carte"
     },
-    "sheetHint": "Tirez le bord de la fiche pour l'élargir (ou la grandir en bas). Ses sections se replient d'un clic sur leur titre et restent comme vous les laissez.",
     "bdienst": "Messages britanniques lus par la marine allemande (B-Dienst)",
     "bdienstChoices": {
       "0": "jamais",
@@ -739,7 +732,7 @@
       "folded": "Masquées (un « ? » par section)",
       "shown": "Affichées"
     },
-    "sheetHelpHint": "Masquées, les aides d'une fiche s'ouvrent section par section avec le « ? ». Affichées, leur texte reste écrit sous le titre de chaque section : utile pour débuter."
+    "alertSpeedsTitle": "Vitesse du jeu à chaque alerte"
   },
   "objectives": {
     "convoyArrived": "Amener le convoi {convoy} dans un port britannique",
@@ -1600,6 +1593,14 @@
           "text": [
             "Les réglages qui changent les règles (préréglage, détection, carburant, fatigue, B-Dienst, communications en mer, arrêt aux relèves…) appartiennent à la partie : fixés au lancement, ils se changent en cours de route par ☰, Réglages de la partie, et le journal note chaque changement. Si le préréglage change, l'écran de fin et la campagne le disent : « commencée en Réaliste, terminée en Standard ». Le report de campagne reste celui du départ. Les réglages d'affichage (son, ombre de la nuit, place de la fiche…) restent ceux du joueur."
           ]
+        },
+        {
+          "id": "astuces",
+          "title": "Astuces de première fois",
+          "text": [
+            "Cinq astuces courtes s'affichent au coin de la carte, chacune la première fois qu'elle sert : la première fiche d'une unité qui se déplace, le premier point choisi sur un tracé, le premier groupe d'escorte au port, le premier navire sous silence radio, le premier départ programmé. Une seule à la fois, jamais pendant une leçon ; « Compris » la range pour de bon.",
+            "Réglages, onglet Carte et fiche, « Revoir les astuces » les fait revenir, chacune à son occasion. Tant qu'aucune fiche n'a été ouverte, le panneau de droite rappelle comment en ouvrir une ; et tant que cette aide n'a pas été lue, son bouton porte un point."
+          ]
         }
       ],
       "keys": [
@@ -1960,7 +1961,6 @@
   "reasonsScramble": {},
   "cards": {
     "title": "Fiches techniques",
-    "intro": "Les chiffres que le jeu utilise, proches de ceux de l'époque. Le plafond limite l'altitude qu'on peut ordonner.",
     "open": "Voir la fiche technique",
     "fighters": "Chasse (Fighter Command)",
     "patrols": "Patrouilles",
@@ -2151,15 +2151,12 @@
   },
   "offers": {
     "title": "Achats en Amérique",
-    "intro": "Avant le prêt-bail, la Grande-Bretagne paie comptant. Les convois partent chargés à plein tant que la réserve le permet ; ce qu'elle ne peut plus payer part sur lest.",
     "congress": "Le Congrès débat du prêt-bail : chaque dollar dépensé ici manquera aux cargaisons. Vote attendu en mars.",
     "stock": "Réserve : {n} millions de dollars (sur {m})",
     "forecast": "Prévision de tonnage",
     "fuel": "Carburant :",
     "materiel": "Matériel :",
     "forecastLine": "{unloaded} t déchargées + {atSea} t en mer + {buyable} t encore achetables = {total} t (objectif {target} t)",
-    "forecastHint": "Sans compter les pertes à venir, ni un éventuel prêt-bail. « Achetables » : les convois qui peuvent encore arriver avant la fin, payés avec la réserve.",
-    "forecastHintLend": "Sans compter les pertes à venir. Les convois qui peuvent encore arriver avant la fin partent chargés à plein.",
     "next": "Prochains départs",
     "nextLine": "{convoy} : {date}, chargé à plein, {cost} millions",
     "nextLineShort": "{convoy} : {date}, chargé à {share} % seulement, faute de dollars ({cost} millions)",
@@ -2532,10 +2529,6 @@
   },
   "formations": {
     "title": "Formations",
-    "intro": {
-      "air": "Une big wing est une seule unité : une fiche, les mêmes ordres pour toutes ses escadrilles. Elle décolle ensemble, se rassemble au-dessus de son chef, puis vole à la vitesse de la plus lente. Une escadrille à court d'essence ou de munitions la quitte et rentre ; le chef suivant (★) prend la tête.",
-      "naval": "Un groupe de soutien réunit des groupes d'escorte : ils appareillent, escortent et chassent ensemble. Quand le plus court d'entre eux arrive au bout de son autonomie, tout le groupe rentre au port."
-    },
     "kind": {
       "air": "Big wing (air)",
       "naval": "Groupe de soutien (mer)"
@@ -2823,7 +2816,6 @@
   },
   "roster": {
     "title": "Effectifs : états d'alerte et plannings",
-    "intro": "Choisissez un aérodrome, puis réglez chaque escadrille : son état maintenant, son plan de chaque jour (de 00:00 à 24:00, il se répète) ou, case cochée, un plan d'exception pour les prochaines {n} h en heures H. Un état choisi à la main garde la main jusqu'à « Retour au planning ».",
     "noFatigue": "Sans fatigue des pilotes (réglage), les états d'alerte n'ont pas d'effet.",
     "fields": "Aérodromes",
     "fieldLine": "{n} escadrille(s) · {ready} prête(s)",
@@ -2870,7 +2862,6 @@
       "minutes": "{a} à {b} min",
       "range": "{a} à {b}"
     },
-    "loadIntro": "La partie en cours, ses cinq dernières sauvegardes automatiques (une par jour de jeu, toutes les deux heures de jeu dans une bataille d'une journée), la dernière de chacune des parties d'avant (cinq au plus) et vos sauvegardes manuelles. Charger une sauvegarde remplace la partie en cours, qui est d'abord gardée parmi les sauvegardes automatiques.",
     "noSaves": "Aucune sauvegarde dans ce navigateur pour l'instant.",
     "noStorage": "Ce navigateur ne laisse pas le jeu enregistrer (navigation privée, ou page ouverte dans un cadre fermé) : seul l'export dans un fichier garde une partie.",
     "kinds": {
@@ -2984,7 +2975,21 @@
     "rallySea": "Sur le chef : le chef appareille à son heure avec ses propres ordres ; chaque groupe appareille à la sienne, le rejoint en mer et prend son poste. Sur un point : avec une heure de rendez-vous, le groupe de soutien part à cette heure et les premiers arrivés l'attendent ; pour la route d'après, glissez depuis le point RV sur la carte. S'il manque un groupe à l'heure, le choix fait ici s'applique : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans lui.",
     "minStock": "Le stock minimum est un ordre permanent : quand le stock (trains en route compris) passe sous ce seuil, un train part du port le mieux placé. Champ vide : pas d'ordre. En Arcade, le seuil est automatique.",
     "train": "Un train compte au plus {wagons} wagons : citernes de {fuel} t pour le carburant, wagons couverts de {materiel} t pour le reste. Il lui faut au moins {min} t. Un petit train prend quand même un des trains de la ligne.",
-    "portPlain": "« Appareiller » fait sortir le groupe au large du port, où il attend vos ordres. Un tracé tiré depuis le port part tout de suite. Avec un appareillage programmé, tracé et étapes attendent l'heure dite."
+    "portPlain": "« Appareiller » fait sortir le groupe au large du port, où il attend vos ordres. Un tracé tiré depuis le port part tout de suite. Avec un appareillage programmé, tracé et étapes attendent l'heure dite.",
+    "offers": "Avant le prêt-bail, la Grande-Bretagne paie comptant. Les convois partent chargés à plein tant que la réserve le permet ; ce qu'elle ne peut plus payer part sur lest.",
+    "roster": "Choisissez un aérodrome, puis réglez chaque escadrille : son état maintenant, son plan de chaque jour (de 00:00 à 24:00, il se répète) ou, case cochée, un plan d'exception pour les prochaines {n} h en heures H. Un état choisi à la main garde la main jusqu'à « Retour au planning ».",
+    "formationsAir": "Une big wing est une seule unité : une fiche, les mêmes ordres pour toutes ses escadrilles. Elle décolle ensemble, se rassemble au-dessus de son chef, puis vole à la vitesse de la plus lente. Une escadrille à court d'essence ou de munitions la quitte et rentre ; le chef suivant (★) prend la tête.",
+    "formationsNaval": "Un groupe de soutien réunit des groupes d'escorte : ils appareillent, escortent et chassent ensemble. Quand le plus court d'entre eux arrive au bout de son autonomie, tout le groupe rentre au port.",
+    "cards": "Les chiffres que le jeu utilise, proches de ceux de l'époque. Le plafond limite l'altitude qu'on peut ordonner.",
+    "load": "La partie en cours, ses cinq dernières sauvegardes automatiques (une par jour de jeu, toutes les deux heures de jeu dans une bataille d'une journée), la dernière de chacune des parties d'avant (cinq au plus) et vos sauvegardes manuelles. Charger une sauvegarde remplace la partie en cours, qui est d'abord gardée parmi les sauvegardes automatiques.",
+    "setSeaComms": "Silence radio (dans l'Atlantique) : hors des eaux suivies — eaux fermées aux U-Boote, approches des ports, couverture des radars côtiers — vos navires ne sont vus que par estimation. Un ordre part par radio à la relève suivante, au projecteur si un de vos avions est en vue, ou confié à un groupe qui rejoint le convoi.",
+    "setWatchStops": "Dans l'Atlantique, un rapport s'écrit à chaque relève de quart (0, 4, 8, 12, 16 et 20 h), que le jeu s'arrête ou non : onglet « Signaux » du journal. Entre deux relèves, le jeu ne s'arrête que pour la première attaque d'un convoi dans la nuit.",
+    "setAlertSpeeds": "Avec « Ralentir le temps à chaque alerte », chaque alerte ramène le jeu au plus à la vitesse choisie ici. En mer, tout passe à ×1 par défaut : on décide, puis on accélère soi-même.",
+    "setSheetPos": "Tirez le bord de la fiche pour l'élargir (ou la grandir en bas). Ses sections se replient d'un clic sur leur titre et restent comme vous les laissez.",
+    "setSheetHelp": "Masquées, les aides d'une fiche s'ouvrent section par section avec le « ? ». Affichées, leur texte reste écrit sous le titre de chaque section : utile pour débuter.",
+    "setTips": "Cinq astuces courtes s'affichent au coin de la carte, chacune la première fois qu'elle sert, jamais pendant une leçon. « Revoir les astuces » les fait revenir, chacune à son occasion ; la phrase « Cliquez sur une unité… » du panneau de droite revient aussi.",
+    "setViewZones": "Ce que voient les unités, de jour ou de nuit. Un avion : son rayon de vue sur les autres avions (à même altitude ; de bien plus haut ou plus bas, moitié moins loin) et, pour une patrouille côtière, sur un U-Boot en surface. Un groupe d'escorte : un U-Boot en surface (vigies, radar s'il en a) et en plongée (ASDIC).",
+    "setDev": "Pour contrôler les scénarios : les vraies positions ennemies en magenta et un onglet « Ennemis ». Il ne change rien à la partie. Le cocher demande le mot de passe."
   },
   "tips": {
     "legEnd": {
@@ -3019,14 +3024,16 @@
     "boostConvoy": "Vitesse maximale ({best} nœuds) : des navires lents décrochent et deviennent des traînards. À {n} nœuds ou moins, le convoi reste groupé.",
     "minStock": "Ordre permanent : quand le stock (trains en route compris) passe sous ce seuil, un train part du port le mieux placé. Vide : pas d'ordre.",
     "minStockAuto": "En Arcade, le seuil est automatique : il s'affiche en grisé. Un seuil saisi ici le remplace.",
-    "trainLoad": "Au plus {wagons} wagons par train : citernes de {fuel} t pour le carburant, wagons couverts de {materiel} t pour le reste. Au moins {min} t par train."
+    "trainLoad": "Au plus {wagons} wagons par train : citernes de {fuel} t pour le carburant, wagons couverts de {materiel} t pour le reste. Au moins {min} t par train.",
+    "forecast": "Sans compter les pertes à venir, ni un éventuel prêt-bail. « Achetables » : les convois qui peuvent encore arriver avant la fin, payés avec la réserve.",
+    "forecastLend": "Sans compter les pertes à venir. Les convois qui peuvent encore arriver avant la fin partent chargés à plein.",
+    "decide": "Une décision laissée de côté reste dans les rapports suivants, sans arrêter le jeu une seconde fois."
   },
   "firstTips": {
     "understood": "Compris",
     "more": "Plus dans l'aide",
     "review": "Revoir les astuces",
     "reviewDone": "Les astuces reviendront, chacune à son heure.",
-    "reviewHint": "Cinq astuces courtes s'affichent une seule fois, au coin de la carte, la première fois qu'elles servent : jamais pendant une leçon.",
     "sheet": {
       "title": "Tracer et corriger",
       "text": "Glissez depuis l'unité pour tracer sa route. Sur le tracé, glissez un carré pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger.",

@@ -8,6 +8,7 @@ import { knownOutcome, reportTotals } from '../sim/reports.js';
 import { aircraftSpec } from '../sim/squadron.js';
 import { countText, ftText } from './format.js';
 import { toolOffered } from './offered.js';
+import { pageTitle } from './commands.js';
 
 /** Opens a dialog as a page; the game pauses while it is open when the setting asks. */
 export function showPage(app, dlg) {
@@ -108,7 +109,7 @@ function reportCard(app, rep) {
     });
     lines.push(`<table class="fights"><thead><tr><th>${escapeHtml(t('reports.squadron'))}</th><th>${escapeHtml(t('reports.result'))}</th><th class="n">${escapeHtml(t('reports.down'))}</th><th class="n">${escapeHtml(t('reports.losses'))}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`);
   } else if (outcome !== 'unseen') {
-    lines.push(`<p class="hint">${escapeHtml(t('reports.noSquadron'))}</p>`);
+    lines.push(`<p class="state-line">${escapeHtml(t('reports.noSquadron'))}</p>`);
   }
   if (rep.squadrons.length || hits.length || outcome !== 'unseen') {
     lines.push(`<p class="totals">${escapeHtml(t('reports.totals', { down: totals.down, b: totals.bombers, f: totals.fighters, lost: totals.lost }))}</p>`);
@@ -145,7 +146,7 @@ function navalCard(app, rep) {
     <header><b>${escapeHtml(t('reports.naval.title', { escort: rep.escort }))}</b> <span class="when">${escapeHtml(from)} – ${escapeHtml(to)}</span>
     <span class="tag">${escapeHtml(t(`reports.naval.outcome.${outcome}`))}</span></header>
     <p class="comp">${escapeHtml(t(rep.convoy ? 'reports.naval.context' : 'reports.naval.contextAlone', { ships: rep.ships, convoy: rep.convoy, how: t(`log.engageHow.${rep.how}`) }))}</p>
-    ${passes.length ? `<ol class="passes">${passes.join('')}</ol>` : `<p class="hint">${escapeHtml(t('reports.naval.noPass'))}</p>`}
+    ${passes.length ? `<ol class="passes">${passes.join('')}</ol>` : `<p class="state-line">${escapeHtml(t('reports.naval.noPass'))}</p>`}
     ${used ? `<p class="comp">${escapeHtml(t('reports.naval.chargesTotal', { n: used }))}</p>` : ''}
   </article>`;
 }
@@ -187,7 +188,7 @@ export function openReports(app, focus = null) {
   dlg.innerHTML = `
     <form method="dialog" class="page reports-page">
       <h2>${escapeHtml(t('reports.title'))}</h2>
-      ${sections.length ? sections.join('') : `<p class="hint">${escapeHtml(t('reports.none'))}</p>`}
+      ${sections.length ? sections.join('') : `<p class="state-line">${escapeHtml(t('reports.none'))}</p>`}
       <div class="dialog-buttons"><button value="close">${escapeHtml(t('reports.close'))}</button></div>
     </form>`;
   showPage(app, dlg);
@@ -307,8 +308,7 @@ export function openCards(app, focus = null) {
   const section = (title, html) => `<section class="card-section"><h3>${escapeHtml(title)}</h3><div class="cards">${html}</div></section>`;
   dlg.innerHTML = `
     <form method="dialog" class="page cards-page">
-      <h2>${escapeHtml(t('cards.title'))}</h2>
-      <p class="hint">${escapeHtml(t('cards.intro'))}</p>
+      ${pageTitle(app, t('cards.title'), 'cards')}
       ${section(t('cards.fighters'), Object.entries(R.fighters).map(([k, f]) => fighterCard(k, f)).join(''))}
       ${section(t('cards.patrols'), Object.entries(R.patrols).map(([k, f]) => fighterCard(k, f, true)).join(''))}
       ${section(t('cards.bombers'), Object.entries(R.bombers).map(([k, b]) => bomberCard(k, b)).join(''))}

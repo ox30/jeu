@@ -80,6 +80,21 @@ function save(app, storage = globalThis.localStorage) {
   }
 }
 
+/**
+ * The word of the right panel on how to open a sheet (« Cliquez sur une unité… »): only until
+ * a first sheet has been opened in this browser. It is no tip of the card: kept with them.
+ */
+export function panelHintDue(app) {
+  return Boolean(app.tips) && !app.tips.seen.has('panel');
+}
+
+/** A sheet is open by the player's hand (a lesson opens its own): the word has done its work. */
+export function sheetOpened(app) {
+  if (!app.tips || app.tutorial || app.onMenu || app.tips.seen.has('panel')) return;
+  app.tips.seen.add('panel');
+  save(app);
+}
+
 /** An occasion that an order makes, not a state of the game: « schedule ». */
 export function tipOccasion(app, id) {
   if (app.tips && !app.tips.seen.has(id)) app.tips.asked.add(id);
@@ -118,6 +133,9 @@ function render(app) {
 export function updateTips(app, now = performance.now()) {
   const tips = app.tips;
   if (!tips) return;
+  // A lesson begins, or the menu comes: the tip on the screen leaves, not counted as seen; it
+  // will come back with its occasion.
+  if (!allowed(app)) tips.shown = null;
   if (!tips.shown && now >= tips.quietUntil) {
     const id = tipDue(app);
     if (id) {

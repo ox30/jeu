@@ -83,7 +83,17 @@ export function helpMark(key, args = null) {
 /** With the setting « Aides des fiches : affichées », the text of a bubble under its title. */
 export function helpInline(app, key, args = null) {
   if (!hasHelp(key) || app.settings.sheetHelp !== 'shown') return '';
-  return `<p class="hint help-inline">${escapeHtml(helpText(key, app.world.settings, args || {}))}</p>`;
+  return `<p class="hint help-inline">${escapeHtml(helpText(key, app.world ? app.world.settings : null, args || {}))}</p>`;
+}
+
+/** The name of a setting, with the « ? » that says what it changes. */
+export function named(title, help) {
+  return `<span>${escapeHtml(title)}${helpMark(help)}</span>`;
+}
+
+/** The title of a page, with the « ? » of the help it carries. */
+export function pageTitle(app, title, help = null, args = null) {
+  return `<h2>${escapeHtml(title)}${help ? helpMark(help, args) : ''}</h2>${help ? helpInline(app, help, args) : ''}`;
 }
 
 /** A sub-title, with the « ? » of the help it carries. */

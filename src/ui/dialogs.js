@@ -8,6 +8,7 @@ import { markHelpSeen, saveSettings } from '../save/settings.js';
 import { GAME_SETTING_KEYS, applyPreset, canSetGameSetting, matchingPreset, setGameSetting } from '../sim/gameSettings.js';
 import { showPage } from './pages.js';
 import { resetTips } from './tips.js';
+import { helpMark, named } from './commands.js';
 import { fighterCount } from '../sim/objectives.js';
 import { presetStory } from '../sim/gameSettings.js';
 import { ALERT_GROUPS, defaultAlertSpeed } from './alertRules.js';
@@ -82,18 +83,16 @@ export function openSettings(app, { scope = 'game' } = {}) {
         <label>${escapeHtml(t('settings.rosterHours'))} ${select('rosterHours', String(s.rosterHours || '24'), presets.choices.rosterHours, 'settings.rosterHoursChoices')}</label>
         <label>${escapeHtml(t('settings.carry'))} ${select('carry', s.carry || 'none', presets.choices.carry, 'settings.carryChoices')}</label>
         <label>${escapeHtml(t('settings.bdienst'))} ${select('bdienst', String(s.bdienst ?? '25'), presets.choices.bdienst, 'settings.bdienstChoices')}</label>
-        <label>${escapeHtml(t('settings.seaComms'))} ${select('seaComms', s.seaComms || 'direct', presets.choices.seaComms, 'settings.seaCommsChoices')}</label>
-        <p class="hint">${escapeHtml(t('settings.seaCommsHint'))}</p>
+        <label>${named(t('settings.seaComms'), 'setSeaComms')} ${select('seaComms', s.seaComms || 'direct', presets.choices.seaComms, 'settings.seaCommsChoices')}</label>
       </fieldset>`)}
       ${pane('time', `
       <fieldset>
         ${checkbox('slowOnAlert', s.slowOnAlert, t('settings.slowOnAlert'))}
         ${checkbox('confirmSpeed', s.confirmSpeed !== false, t('settings.confirmSpeed'))}
         ${checkbox('questions', s.questions !== false, t('settings.questions'))}
-        <label>${escapeHtml(t('settings.watchStops'))} ${select('watchStops', s.watchStops || 'decision', presets.choices.watchStops, 'settings.watchStopsChoices')}</label>
-        <p class="hint">${escapeHtml(t('settings.watchStopsHint'))}</p>
+        <label>${named(t('settings.watchStops'), 'setWatchStops')} ${select('watchStops', s.watchStops || 'decision', presets.choices.watchStops, 'settings.watchStopsChoices')}</label>
       </fieldset>
-      <p class="hint">${escapeHtml(t('settings.alertSpeedsHint'))}</p>
+      <div class="sub">${named(t('settings.alertSpeedsTitle'), 'setAlertSpeeds')}</div>
       <table class="alert-speeds">${alertSpeedTable(app)}</table>`)}
       ${pane('map', `
       <fieldset>
@@ -103,14 +102,10 @@ export function openSettings(app, { scope = 'game' } = {}) {
         ${checkbox('patrolZones', s.patrolZones !== false, t('settings.patrolZones'))}
         ${checkbox('autoZoom', s.autoZoom, t('settings.autoZoom'))}
         ${checkbox('lowRes', s.lowRes, t('settings.lowRes'))}
-        <label>${escapeHtml(t('settings.sheetPos'))} ${select('sheetPos', s.sheetPos || 'right', presets.choices.sheetPos, 'settings.sheetPosChoices')}</label>
-        <p class="hint">${escapeHtml(t('settings.sheetHint'))}</p>
-        <label>${escapeHtml(t('settings.sheetHelp'))} ${select('sheetHelp', s.sheetHelp === 'shown' ? 'shown' : 'folded', presets.choices.sheetHelp, 'settings.sheetHelpChoices')}</label>
-        <p class="hint">${escapeHtml(t('settings.sheetHelpHint'))}</p>
-        <div class="settings-line"><button type="button" data-tips="review">${escapeHtml(t('firstTips.review'))}</button> <span class="settings-done" role="status"></span></div>
-        <p class="hint">${escapeHtml(t('firstTips.reviewHint'))}</p>
-        <label>${escapeHtml(t('settings.viewZones'))} ${select('viewZones', s.viewZones || 'selected', presets.choices.viewZones, 'settings.viewZonesChoices')}</label>
-        <p class="hint">${escapeHtml(t('settings.viewZonesHint'))}</p>
+        <label>${named(t('settings.sheetPos'), 'setSheetPos')} ${select('sheetPos', s.sheetPos || 'right', presets.choices.sheetPos, 'settings.sheetPosChoices')}</label>
+        <label>${named(t('settings.sheetHelp'), 'setSheetHelp')} ${select('sheetHelp', s.sheetHelp === 'shown' ? 'shown' : 'folded', presets.choices.sheetHelp, 'settings.sheetHelpChoices')}</label>
+        <div class="settings-line"><button type="button" data-tips="review">${escapeHtml(t('firstTips.review'))}</button>${helpMark('setTips')} <span class="settings-done" role="status"></span></div>
+        <label>${named(t('settings.viewZones'), 'setViewZones')} ${select('viewZones', s.viewZones || 'selected', presets.choices.viewZones, 'settings.viewZonesChoices')}</label>
       </fieldset>`)}
       ${pane('sound', `
       <fieldset>
@@ -119,14 +114,13 @@ export function openSettings(app, { scope = 'game' } = {}) {
       </fieldset>`)}
       ${pane('dev', `
       <fieldset class="dev-settings">
-        <label class="check"><input type="checkbox" data-dev="toggle"${app.dev ? ' checked' : ''}> ${escapeHtml(t('settings.devMode'))}</label>
+        <label class="check"><input type="checkbox" data-dev="toggle"${app.dev ? ' checked' : ''}> ${named(t('settings.devMode'), 'setDev')}</label>
         <div class="dev-password" hidden>
           <input type="password" data-dev="password" autocomplete="off" spellcheck="false" placeholder="${escapeHtml(t('settings.devPassword'))}" aria-label="${escapeHtml(t('settings.devPassword'))}">
           <button type="button" data-dev="ok">${escapeHtml(t('settings.devOk'))}</button>
           <button type="button" data-dev="cancel" class="secondary">${escapeHtml(t('settings.devCancel'))}</button>
           <span class="dev-error" role="alert" hidden></span>
         </div>
-        <p class="hint">${escapeHtml(t('settings.devHint'))}</p>
       </fieldset>`)}
       <p class="hint">${escapeHtml(t('settings.note'))}</p>
       <div class="dialog-buttons"><button value="close">${escapeHtml(t('settings.close'))}</button></div>
@@ -136,7 +130,7 @@ export function openSettings(app, { scope = 'game' } = {}) {
   // « Revoir les astuces »: the tips of a first time come back, each at its next occasion.
   form.querySelector('[data-tips="review"]').addEventListener('click', (e) => {
     resetTips(app);
-    e.currentTarget.nextElementSibling.textContent = t('firstTips.reviewDone');
+    e.currentTarget.parentElement.querySelector('.settings-done').textContent = t('firstTips.reviewDone');
   });
   // The tabs: one pane at a time; the one last opened comes back next time.
   form.querySelector('.settings-tabs').addEventListener('click', (e) => {

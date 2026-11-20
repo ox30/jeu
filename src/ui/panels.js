@@ -43,6 +43,7 @@ import {
 } from './format.js';
 import { applySheetHelp } from './sheetHelp.js';
 import { bubbleFollows } from './helpBubble.js';
+import { panelHintDue, sheetOpened } from './tips.js';
 import { activeMember, memberSelection, stackOfSelection } from './stacks.js';
 import { siteTabs, tabSelection, unitsIn } from './siteUnits.js';
 import { toolOffered } from './offered.js';
@@ -448,8 +449,8 @@ function planList(app, u) {
   return parts.join('');
 }
 
-/** A refused order or a typing mistake, shown for a few seconds. */
-function messageBlock(app) {
+/** A refused order or a typing mistake, shown for a few seconds (in the sheet, and in the page open over it). */
+export function messageBlock(app) {
   if (!app.sheetMessage || performance.now() >= app.sheetMessage.until) return '';
   return `<p class="message ${app.sheetMessage.level}">${escapeHtml(app.sheetMessage.text)}</p>`;
 }
@@ -1729,10 +1730,12 @@ export function renderPanels(app) {
   renderObjectives(app);
   renderTote(app);
   renderUnitPanel(app);
-  // With nothing selected, a word on how to open a sheet.
+  // With nothing selected, a word on how to open a sheet: until a first sheet has been
+  // opened in this browser, and never again after (tips.js).
   const hint = app.el.panelHint;
   if (hint) {
-    hint.hidden = Boolean(app.selection);
+    if (app.selection) sheetOpened(app);
+    hint.hidden = Boolean(app.selection) || !panelHintDue(app);
     const text = app.world.settings.orders === 'headings' ? t('panel.hintHeadings') : t('panel.hint');
     if (hint.textContent !== text) hint.textContent = text;
   }

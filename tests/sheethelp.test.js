@@ -7,7 +7,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { data } from './helpers.js';
 import { setDictionary, t } from '../src/core/i18n.js';
 import { HELP_TOPICS, hasHelp, helpLink, helpText } from '../src/ui/helpTopics.js';
-import { helpMark, helpInline, section, subTitle } from '../src/ui/commands.js';
+import { helpMark, helpInline, pageTitle, section, subTitle } from '../src/ui/commands.js';
 import { HELP_TABS } from '../src/ui/dialogs.js';
 import { defaultSettings, loadSettings } from '../src/save/settings.js';
 
@@ -101,7 +101,7 @@ test('every « ? » the pages write names a bubble that exists, and every bubble
   const used = new Map();
   const files = readdirSync(new URL('src/ui/', root)).filter((f) => f.endsWith('.js') && f !== 'commands.js' && f !== 'helpTopics.js');
   // Where each helper takes the key of its bubble.
-  const where = { section: 5, subTitle: 2, helpMark: 0, helpInline: 1, pageTitle: 1 };
+  const where = { section: 5, subTitle: 2, helpMark: 0, helpInline: 1, pageTitle: 2, named: 1 };
   for (const file of files) {
     const text = readFileSync(new URL(`src/ui/${file}`, root), 'utf8');
     for (const [name, index] of Object.entries(where)) {
@@ -117,7 +117,7 @@ test('every « ? » the pages write names a bubble that exists, and every bubble
       }
     }
   }
-  assert.ok(used.size >= 15, `the « ? » were found (${used.size})`);
+  assert.ok(used.size >= 30, `the « ? » were found (${used.size})`);
   for (const key of Object.keys(HELP_TOPICS)) assert.ok(used.has(key), `the bubble « ${key} » has no « ? » anywhere`);
 });
 
@@ -135,9 +135,24 @@ test('the « ? » of a section stands in its title; « affichées » writes its 
   assert.ok(shown.includes('help-mark'), 'the « ? » stays, for the link to the help');
   assert.match(subTitle(app, 'Envoyer un train', 'train', { wagons: 20, fuel: 5, materiel: 4, min: 10 }), /^<div class="sub">Envoyer un train<button[^>]*data-help="train" data-help-args="[^"]*"[^>]*>\?<\/button><\/div><p class="hint help-inline">Un train compte au plus 20 wagons/);
   assert.equal(helpInline({ settings: { sheetHelp: 'folded' }, world: app.world }, 'train'), '');
+  // A page: the « ? » in its title; no world in hand on the main menu, and no harm.
+  assert.match(pageTitle({ settings: { sheetHelp: 'folded' } }, 'Charger', 'load'), /^<h2>Charger<button[^>]*data-help="load"[^>]*>\?<\/button><\/h2>$/);
+  assert.match(pageTitle({ settings: { sheetHelp: 'shown' } }, 'Charger', 'load'), /<\/h2><p class="hint help-inline">La partie en cours/);
+  assert.equal(pageTitle(app, 'Rapports'), '<h2>Rapports</h2>');
   // The first sentence of a route's bubble follows the way orders are given.
   assert.match(helpText('routeAir', { orders: 'draw' }), /^Glissez depuis l'unité pour tracer sa route/);
   assert.match(helpText('routeAir', { orders: 'headings' }), /^En ordres par caps/);
+});
+
+test('the sheets write no help sentence of their own any more', () => {
+  // (2.11.0, lot 3.) What a sheet says is a state, an order or an alert; help is a « ? »
+  // bubble, a tooltip or the help. The only help paragraph is the text of a bubble, written
+  // under its title when the player asked for « Aides des fiches : affichées ».
+  for (const file of ['panels.js', 'logisticsPanels.js', 'rosterPage.js', 'formationsPage.js', 'watchPanel.js', 'pages.js']) {
+    const text = readFileSync(new URL(`src/ui/${file}`, root), 'utf8');
+    const hints = [...text.matchAll(/class="hint[^"]*"[^`]*?t\(`?'?([\w.${}]+)/g)].map((m) => m[1]);
+    assert.deepEqual(hints, [], `${file}: a help paragraph is still written`);
+  }
 });
 
 test('every tooltip of the tidied sheets is used, in one line', () => {

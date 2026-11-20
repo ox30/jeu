@@ -253,6 +253,10 @@ button {
 }
 .tip[hidden] { display: none; }
 .settings-line { margin: 6px 0 2px; }
+/* The answer to an order given in the Effectifs page, in the page (it stays in view). */
+.rp-message { position: sticky; top: 28px; z-index: 1; }
+.rp-message:empty { display: none; }
+.rp-message .message { margin: 0 0 6px; }
 .settings-done { margin-left: 8px; font-size: 12px; font-style: italic; color: var(--ink-soft); }
 .tip p { margin: 3px 0 6px; }
 .tip-buttons { display: flex; justify-content: space-between; align-items: center; gap: 8px; }

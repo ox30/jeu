@@ -14,7 +14,7 @@ import { WATCH_S, clockHour } from '../sim/watch.js';
 import { capacityFactor, isOperational } from '../sim/sites.js';
 import { lineCost, offerArrival, offerCost, offerInCargo, offers, tonnageForecast } from '../sim/shipping.js';
 import { button, options, row, tip } from './html.js';
-import { subTitle } from './commands.js';
+import { helpInline, helpMark, subTitle } from './commands.js';
 import { cargoText, dateTimeText, escortStateText, positionText, resourceName, shortDateText, tonnesText } from './format.js';
 
 function isSel(app, kind, id) {
@@ -59,16 +59,15 @@ function currencyBlock(app) {
   if (!cur) return '';
   const lend = Boolean(w.flags.lendLease);
   const n = (v) => formatNumber(Math.round(v));
-  const parts = [`<div class="tote-group">${escapeHtml(t('offers.title'))}</div><div class="currency">`];
+  // How the dollars work is help: behind the « ? » of the title. Lend-lease voted is the
+  // state of things, and what Congress is doing is news.
+  const parts = [`<div class="tote-group">${escapeHtml(t('offers.title'))}${helpMark('offers')}</div><div class="currency">${helpInline(app, 'offers')}`];
   parts.push(`<p>${escapeHtml(t('offers.stock', { n: n(cur.stock), m: formatNumber(cur.start) }))}</p>`);
-  // Lend-lease voted is the state of things; before it, how the dollars work is help, and
-  // what Congress is doing is news.
-  parts.push(lend ? `<p class="state-line">${escapeHtml(t('offers.lendLease'))}</p>` : `<p class="hint">${escapeHtml(t('offers.intro'))}</p>`);
-  if (!lend) parts.push(`<p class="warn-line">${escapeHtml(t('offers.congress'))}</p>`);
+  if (lend) parts.push(`<p class="state-line">${escapeHtml(t('offers.lendLease'))}</p>`);
+  else parts.push(`<p class="warn-line">${escapeHtml(t('offers.congress'))}</p>`);
   const forecast = tonnageForecast(w);
-  parts.push(`<div class="sub">${escapeHtml(t('offers.forecast'))}</div><ul class="forecast">
-    ${forecastLine(t('offers.fuel'), forecast.fuel)}${forecastLine(t('offers.materiel'), forecast.materiel)}</ul>
-    <p class="hint">${escapeHtml(t(lend ? 'offers.forecastHintLend' : 'offers.forecastHint'))}</p>`);
+  parts.push(`<div class="sub"${tip(t(lend ? 'tips.forecastLend' : 'tips.forecast'))}>${escapeHtml(t('offers.forecast'))}</div><ul class="forecast">
+    ${forecastLine(t('offers.fuel'), forecast.fuel)}${forecastLine(t('offers.materiel'), forecast.materiel)}</ul>`);
   const next = w.shipping.lines
     .filter((l) => l.sent < l.count)
     .map((l) => ({ name: `${l.prefix} ${l.firstNumber + l.sent}`, at: l.nextS, cost: lend ? 0 : Math.min(lineCost(w, l), cur.stock), full: lineCost(w, l) }))

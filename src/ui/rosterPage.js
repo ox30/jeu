@@ -7,8 +7,9 @@
 import { tutorialFlag } from './tutorial.js';
 import { escapeHtml, t } from '../core/i18n.js';
 import { fatigueLevel, fatigueOn } from '../sim/crews.js';
-import { ALERTS, alertButtons, alertStatus, confirmBox, rosterBlock, timelineHtml } from './panels.js';
+import { ALERTS, alertButtons, alertStatus, confirmBox, messageBlock, rosterBlock, timelineHtml } from './panels.js';
 import { button, options } from './html.js';
+import { pageTitle } from './commands.js';
 import { showPage } from './pages.js';
 import { toolOffered } from './offered.js';
 
@@ -39,9 +40,9 @@ export function openRoster(app, { fieldId = null, squadronId = null } = {}) {
   app.rosterPage = { fieldId: field, squadronId: s ? s.id : null };
   const dlg = app.el.dlgRoster;
   dlg.innerHTML = `<form method="dialog" class="page roster-page">
-    <h2>${escapeHtml(t('roster.title'))}</h2>
-    <p class="hint">${escapeHtml(t('roster.intro', { n: Number(app.settings.rosterHours) || 24 }))}</p>
+    ${pageTitle(app, t('roster.title'), 'roster', { n: Number(app.settings.rosterHours) || 24 })}
     ${fatigueOn(w) ? '' : `<p class="message warning">${escapeHtml(t('roster.noFatigue'))}</p>`}
+    <div class="rp-message" role="status" aria-live="polite"></div>
     <div class="rp-columns"><div class="rp-col rp-fields"></div><div class="rp-col rp-squadrons"></div></div>
     <div class="dialog-buttons"><button value="close">${escapeHtml(t('reports.close'))}</button></div>
   </form>`;
@@ -73,6 +74,14 @@ export function renderRosterPage(app, force = false) {
   const left = dlg.querySelector('.rp-fields');
   const right = dlg.querySelector('.rp-squadrons');
   if (!left || !right) return;
+  // What an order of this page answers (« Heure non comprise », « Plan copié vers… ») is said
+  // in the page itself: the sheet it used to be written in is under it.
+  const said = dlg.querySelector('.rp-message');
+  const message = messageBlock(app);
+  if (said && said.__html !== message) {
+    said.innerHTML = message;
+    said.__html = message;
+  }
   const fieldHtml = `<h3>${escapeHtml(t('roster.fields'))}</h3><ul class="rp-list">${fields.map((f) => {
     const list = rosterSquadrons(w, f.id);
     const ready = list.filter((s) => s.state === 'ready').length;

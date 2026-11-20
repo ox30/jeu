@@ -2291,13 +2291,153 @@ async function interfaceChecks(page, errors) {
     await closeDialogs(page);
     await sleep(500);
     const again = await read();
-    note(/reviendront/.test(said) && again.kept.length === 0 && again.shown === 'exit' && again.title === 'Au port : la sortie', 'tips: « Revoir les astuces » brings them back (here the way out of a group in port)', JSON.stringify({ said, shown: again.shown }));
+    note(/reviendront/.test(said) && !again.kept.some((x) => x !== 'panel') && again.shown === 'exit' && again.title === 'Au port : la sortie', 'tips: « Revoir les astuces » brings them back (here the way out of a group in port)', JSON.stringify({ said, shown: again.shown }));
     await shot(page, 'tip-exit');
     await fresh(['sheet', 'point', 'exit', 'silence', 'schedule']);
     await game(page, async () => {
       const T = await import('./src/ui/tutorial.js');
       T.stopTutorial(window.__game);
     });
+  });
+  // (2.11.0, lot 6) Outside the sheets: the word of the right panel only until a first sheet
+  // is opened; the answers of the Effectifs page in the page; a « ? » in the title of the
+  // pages, of the purchases block, and one by setting.
+  await step('interface: the right panel, the pages and the settings', async () => {
+    const reload = (seen) => game(page, async (list) => {
+      const tips = await import('./src/ui/tips.js');
+      if (list) localStorage.setItem('jeu-1940.tips.v1', JSON.stringify(list));
+      window.__game.tips = tips.loadTips();
+      window.__game.dirtyPanels = true;
+    }, seen);
+    const hint = () => game(page, () => {
+      const el = document.getElementById('panel-hint');
+      return { shown: !el.hidden, text: el.textContent };
+    });
+    const pick = (kind) => game(page, async (k) => {
+      const a = window.__game;
+      const actions = await import('./src/ui/actions.js');
+      if (k) actions.select(a, k, (k === 'squadron' ? a.world.squadrons : a.world.escorts)[0].id);
+      else actions.select(a, null, null);
+      a.dirtyPanels = true;
+    }, kind);
+    await start('kanalkampf');
+    await pick(null);
+    await reload(['sheet', 'point', 'exit', 'silence', 'schedule']);
+    await sleep(400);
+    const before = await hint();
+    note(before.shown && /^Cliquez sur une unité ou une installation pour ouvrir sa fiche\./.test(before.text) && !/à droite/.test(before.text), 'right panel: before any sheet was opened, a word on how to open one (and not « à droite »)', before.text);
+    await pick('squadron');
+    await sleep(400);
+    await pick(null);
+    await sleep(400);
+    const after = await hint();
+    await reload(null);
+    await sleep(400);
+    note(!after.shown && !(await hint()).shown, 'right panel: a first sheet opened, the word is not shown again, in this visit or the next');
+
+    // The Effectifs page: its « ? », and the answer to an order written in the page.
+    const bubbleOf = async (mark) => {
+      await page.click(mark);
+      await sleep(250);
+      return game(page, () => {
+        const b = document.getElementById('help-bubble');
+        if (!b) return null;
+        const r = b.getBoundingClientRect();
+        const front = document.elementFromPoint(r.left + r.width / 2, r.top + 12);
+        return { key: b.dataset.key, text: b.querySelector('p').textContent, link: b.querySelector('[data-help-link]')?.dataset.helpLink || '', front: b.contains(front), host: b.parentElement.id || b.parentElement.tagName };
+      });
+    };
+    await page.click('#btn-roster');
+    await sleep(300);
+    const roster = await game(page, () => {
+      const dlg = document.getElementById('dlg-roster');
+      return { open: dlg.open, marks: dlg.querySelectorAll('h2 .help-mark').length, hints: dlg.querySelectorAll('p.hint').length };
+    });
+    const rb = await bubbleOf('#dlg-roster h2 .help-mark');
+    note(roster.open && roster.marks === 1 && roster.hints === 0 && rb && rb.key === 'roster' && rb.front && rb.host === 'dlg-roster' && /^Choisissez un aérodrome/.test(rb.text) && rb.link === 'air:effectifs',
+      'pages: the Effectifs page has its « ? » in its title; the bubble opens in front of the page', JSON.stringify({ roster, rb }).slice(0, 220));
+    await page.keyboard.press('Escape');
+    await sleep(200);
+    note(await game(page, () => document.getElementById('dlg-roster').open && !document.getElementById('help-bubble')), 'pages: Escape closes the bubble, not the page under it');
+    const sid = await game(page, () => {
+      const dlg = document.getElementById('dlg-roster');
+      const input = dlg.querySelector('input[id^="roster-time-"]');
+      input.value = 'bientôt';
+      return input.id.slice('roster-time-'.length);
+    });
+    await page.click(`#dlg-roster [data-action="roster-add"][data-id="${sid}"]`);
+    await sleep(400);
+    const said = await game(page, () => {
+      const m = document.querySelector('#dlg-roster .rp-message .message');
+      const r = m ? m.getBoundingClientRect() : null;
+      const d = document.getElementById('dlg-roster').getBoundingClientRect();
+      return { text: m ? m.textContent : '', inPage: Boolean(r && r.top >= d.top && r.bottom <= d.bottom && r.height > 0) };
+    });
+    note(/^Heure non comprise/.test(said.text) && said.inPage, 'pages: the answer to an order of the Effectifs page is written in the page', JSON.stringify(said));
+    await shot(page, 'roster-message');
+    await closeDialogs(page);
+
+    // Formations and Fiches techniques.
+    await page.click('#btn-formations');
+    await sleep(300);
+    const fb = await bubbleOf('#dlg-formations h2 .help-mark');
+    note(fb && fb.key === 'formationsAir' && fb.front && /^Une big wing est une seule unité/.test(fb.text) && await game(page, () => document.querySelectorAll('#dlg-formations p.hint').length === 0),
+      'pages: the Formations page has its « ? », and no sentence of help under its title', JSON.stringify(fb).slice(0, 140));
+    await closeDialogs(page);
+
+    // The settings: a « ? » by setting that had a sentence under it.
+    await game(page, async () => {
+      const D = await import('./src/ui/dialogs.js');
+      window.__game.settingsTab = 'map';
+      D.openSettings(window.__game);
+    });
+    await sleep(300);
+    const set = await game(page, () => {
+      const dlg = document.getElementById('dlg-settings');
+      return { marks: [...dlg.querySelectorAll('.help-mark')].map((m) => m.dataset.help), hints: [...dlg.querySelectorAll('p.hint')].map((p) => p.textContent.slice(0, 24)) };
+    });
+    note(['setSeaComms', 'setWatchStops', 'setAlertSpeeds', 'setSheetPos', 'setSheetHelp', 'setTips', 'setViewZones', 'setDev'].every((k) => set.marks.includes(k)) && set.marks.length === 8 && set.hints.length === 2,
+      'settings: one « ? » by setting; only the scope of the page and its note are written out', JSON.stringify(set));
+    const sb = await bubbleOf('#dlg-settings .help-mark[data-help="setSheetHelp"]');
+    const value = await game(page, () => document.querySelector('#dlg-settings select[name="sheetHelp"]').value);
+    note(sb && sb.front && sb.host === 'dlg-settings' && /^Masquées, les aides d'une fiche/.test(sb.text) && sb.link === 'sheet:lire' && value === 'folded', 'settings: the « ? » of a setting opens its bubble, and changes nothing', JSON.stringify(sb).slice(0, 160));
+    await shot(page, 'settings-help');
+    await page.click('#help-bubble [data-help-link]');
+    await sleep(400);
+    const linked = await game(page, () => ({ help: document.getElementById('dlg-help').open, target: document.querySelector('#dlg-help .help-target')?.dataset.anchor || '' }));
+    note(linked.help && linked.target === 'lire', 'settings: the link of the bubble opens the help on « Lire une fiche »', JSON.stringify(linked));
+    await closeDialogs(page);
+
+    // The purchases block of the Atlantic; the watch report.
+    await start('hiver-atlantique');
+    await game(page, () => {
+      window.__game.toteTab = 'logistics';
+      window.__game.dirtyPanels = true;
+    });
+    await sleep(400);
+    const block = await game(page, () => {
+      const cur = document.querySelector('#panel .currency') || document.querySelector('.currency');
+      const group = cur ? cur.previousElementSibling : null;
+      return { mark: group ? group.querySelectorAll('.help-mark[data-help="offers"]').length : 0, hints: cur ? cur.querySelectorAll('p.hint').length : -1, forecast: [...(cur ? cur.querySelectorAll('.sub') : [])].map((x) => x.title).join(' | ') };
+    });
+    note(block.mark === 1 && block.hints === 0 && /Sans compter les pertes à venir/.test(block.forecast), 'right panel: « Achats en Amérique » has its « ? »; the forecast says its limits in a tooltip', JSON.stringify(block).slice(0, 200));
+    await game(page, () => {
+      window.__game.toteTab = 'units';
+      window.__game.dirtyPanels = true;
+    });
+
+    // « Charger », on the main menu: the « ? » of its title, with no game in hand.
+    await game(page, async () => {
+      const M = await import('./src/ui/menu.js');
+      M.showMainMenu(window.__game, 'load');
+    });
+    await sleep(300);
+    const lb = await bubbleOf('#menu h2 .help-mark');
+    note(lb && lb.key === 'load' && lb.front && /^La partie en cours, ses cinq dernières sauvegardes/.test(lb.text) && lb.link === 'games:sauvegardes' && await game(page, () => !/La partie en cours, ses cinq dernières/.test(document.querySelector('#menu').textContent.replace(document.getElementById('help-bubble').textContent, ''))),
+      'menu: « Charger » has its « ? »; its long sentence is in the bubble, not on the page', JSON.stringify(lb).slice(0, 140));
+    await page.keyboard.press('Escape');
+    await sleep(150);
+    await start('kanalkampf');
   });
   await step('interface: stacks and tabs (C9)', async () => {
     await start('hiver-atlantique', { seaComms: 'direct' });

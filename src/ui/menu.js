@@ -12,6 +12,7 @@ import { autosave, exportGame, gameInProgress, loadEntry, manualSave, newGame, r
 import { openEnd, openHelp, openSettings } from './dialogs.js';
 import { dateTimeText, realDurationText } from './format.js';
 import { CURRENT } from '../save/store.js';
+import { pageTitle } from './commands.js';
 import { saveSettings } from '../save/settings.js';
 import { matchingPreset } from '../sim/gameSettings.js';
 
@@ -419,8 +420,7 @@ function loadPage(app, message) {
       </li>`;
   }).join('');
   return `
-    <h2>${esc(t('menu.load'))}</h2>
-    <p class="hint">${esc(t('menu.loadIntro'))}</p>
+    ${pageTitle(app, t('menu.load'), 'load')}
     ${entries.length ? `<ul class="mm-saves">${rows}</ul>` : `<p class="hint">${esc(t('menu.noSaves'))}</p>`}
     <div class="mm-row">
       <label class="file-button">${esc(t('save.import'))}<input type="file" accept=".json,application/json" data-import hidden></label>

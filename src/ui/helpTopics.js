@@ -32,6 +32,22 @@ export const HELP_TOPICS = {
   // ---- an installation ----
   minStock: { tab: 'air', anchor: 'trains' },
   train: { tab: 'air', anchor: 'trains' },
+  // ---- the right panel and the pages ----
+  offers: { tab: 'sea', anchor: 'achats' },
+  roster: { tab: 'air', anchor: 'effectifs' },
+  formationsAir: { tab: 'air', anchor: 'formations' },
+  formationsNaval: { tab: 'air', anchor: 'formations' },
+  cards: { tab: 'air', anchor: 'formations' },
+  load: { tab: 'games', anchor: 'sauvegardes' },
+  // ---- the settings: one « ? » each ----
+  setSeaComms: { tab: 'sea', anchor: 'silence' },
+  setWatchStops: { tab: 'time', anchor: 'quarts' },
+  setAlertSpeeds: { tab: 'time', anchor: 'alertes' },
+  setSheetPos: { tab: 'sheet', anchor: 'place' },
+  setSheetHelp: { tab: 'sheet', anchor: 'lire' },
+  setTips: { tab: 'games', anchor: 'astuces' },
+  setViewZones: { tab: 'sea', anchor: 'reperes' },
+  setDev: { tab: 'games', anchor: 'reglages' },
 };
 
 /** Is there a bubble of that name? */
