@@ -24,6 +24,7 @@ import * as alertRulesMod from '../../src/ui/alertRules.js';
 import * as campaignMod from '../../src/ui/campaign.js';
 import * as i18nMod from '../../src/core/i18n.js';
 import * as searouteMod from '../../src/sim/searoute.js';
+import * as convoyMod from '../../src/sim/convoy.js';
 
 // Modules that came after 2.7: absent when the player runs on an earlier checkout.
 const daylightMod = await import('../../src/sim/daylight.js').catch(() => null);
@@ -70,6 +71,7 @@ export const sim = {
   alertRules: alertRulesMod,
   campaign: campaignMod,
   searoute: searouteMod,
+  convoy: convoyMod,
   daylight: daylightMod,
   comms: commsMod,
   watch: watchMod,

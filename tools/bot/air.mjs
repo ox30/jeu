@@ -108,33 +108,43 @@ export function runAir(cfg = {}) {
     return ok;
   }
 
+  // What the table shows of a ship (an estimate on the high seas under radio silence), and an
+  // order sent by the way that reaches it (at once, by lamp, or by radio at the next relief).
+  const shown = (u) => (sim.comms ? sim.comms.shownPosition(w, u) : u);
+  const order = (u, name, direct, ...args) => {
+    if (!sim.comms) return direct(w, u, ...args);
+    const sent = sim.comms.sendOrder(w, u, name, ...args);
+    return sent.via === 'radio' ? { ok: sent.ok } : sent.result;
+  };
+
   function shipOrders() {
     for (const cv of w.convoys) {
       if (cv.type === 'coastal' && cv.state === 'inPort' && !sailed.has(cv.id) && cv.admiraltyRoute.length) {
         sailed.add(cv.id);
-        const r = O.routeConvoy(w, cv, cv.admiraltyRoute.slice(1));
+        const r = order(cv, 'route', O.routeConvoy, cv.admiraltyRoute.slice(1));
         if (!r.ok) log.push(`${gameClock(w)} coastal convoy route refused: ${r.reason}`);
       }
       if (cv.state !== 'atSea' || cv.type === 'coastal' || cv.straggler) continue;
+      const at = shown(cv);
       // The « Amirauté » button: the charted route from the nearest point ahead.
       if (!sailed.has(cv.id) && !cv.route.length && cv.admiraltyRoute.length) {
         sailed.add(cv.id);
         let from = 1;
         let best = Infinity;
         cv.admiraltyRoute.forEach(([x, y], i) => {
-          const d = distance(cv.x, cv.y, x, y);
+          const d = distance(at.x, at.y, x, y);
           if (d < best) {
             best = d;
             from = Math.min(cv.admiraltyRoute.length - 1, i + 1);
           }
         });
-        const r = O.routeConvoy(w, cv, cv.admiraltyRoute.slice(from));
+        const r = order(cv, 'route', O.routeConvoy, cv.admiraltyRoute.slice(from));
         if (!r.ok) log.push(`${gameClock(w)} ocean convoy route refused: ${r.reason}`);
       }
       if (w.escorts.some((e) => e.escorting === cv.id || e.joinTarget === cv.id)) continue;
       const free = w.escorts.filter((e) => e.state === 'inPort')
-        .sort((a, b) => distance(a.x, a.y, cv.x, cv.y) - distance(b.x, b.y, cv.x, cv.y))[0];
-      if (free && distance(free.x, free.y, cv.x, cv.y) < 1800) O.joinConvoy(w, free, cv.id);
+        .sort((a, b) => distance(a.x, a.y, at.x, at.y) - distance(b.x, b.y, at.x, at.y))[0];
+      if (free && distance(free.x, free.y, at.x, at.y) < 1800) order(free, 'join', O.joinConvoy, cv.id);
     }
   }
 
@@ -248,6 +258,13 @@ export function runAir(cfg = {}) {
     intercepted: w.stats.raidsIntercepted,
     bombed: w.stats.targetsHit,
     shipsSunk: w.stats.shipsSunk,
+    // What each convoy with a delivery objective brought in: its state, the share of its
+    // cargo kept, the bar of the objective.
+    convoys: w.objectives.filter((o) => o.type === 'convoyDelivered').map((o) => {
+      const cv = w.convoys.find((x) => x.id === o.convoy);
+      return { id: o.convoy, state: cv ? cv.state : 'none', share: cv ? +sim.convoy.cargoShare(cv, w).toFixed(3) : 0, bar: o.share, done: Boolean(o.done) };
+    }),
+    reports: w.watch ? w.watch.reports.length : 0,
     tired,
     exhausted,
     maxFatigue: Math.round(maxFatigue),
@@ -257,6 +274,7 @@ export function runAir(cfg = {}) {
     busyH: +(busyS / 3600).toFixed(1),
     alerts: tally.alerts,
     stops: tally.stops,
+    stopKinds: tally.times.reduce((acc, [, kind]) => ({ ...acc, [kind]: (acc[kind] || 0) + 1 }), {}),
     questions,
     steps: timer.result(),
     log: log.slice(0, 30),

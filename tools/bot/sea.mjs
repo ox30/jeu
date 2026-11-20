@@ -165,6 +165,8 @@ export function runSea(cfg = {}) {
     alerts: tally.alerts,
     totalAlerts: tally.total,
     stops: tally.stops,
+    stopKinds: tally.times.reduce((acc, [, kind]) => ({ ...acc, [kind]: (acc[kind] || 0) + 1 }), {}),
+    reports: w.watch ? w.watch.reports.length : 0,
     stopTimes: tally.times,
     steps: timer.result(),
     log,
