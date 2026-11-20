@@ -10,6 +10,9 @@ Rien n'est touché dans `src/sim` : ni singe à 10 000 ordres, ni mesure du joue
 Chaque lot s'est fermé sur les tests (`npm test`), le lint, la construction de
 `dist/index.html`, l'essai de fumée entier et la mesure des dix fiches.
 
+La **version 2.11.1** (les réponses de Florian après sa partie d'essai, et deux corrections)
+a sa section plus bas : « Version 2.11.1 ».
+
 ## La mesure des dix fiches
 
 `tools/smoke/sheets.mjs` refait les dix fiches du graphique de « En bref » : il ouvre
@@ -306,6 +309,107 @@ Laissé tel quel, et dit ici :
    « Rejoindre » n'est pas offert, elle n'apparaît que pour quitter un convoi. Préfères-tu
    une section toujours là, avec une ligne d'état « Aucun convoi en mer » ?
 
+## Version 2.11.1
+
+20 novembre 2026, après-midi. Florian a joué la 2.11.0 (« c'est vraiment plus lisible ») et
+répondu aux sept questions ci-dessus. La demande de fusion nº 10 était déjà fusionnée dans
+`main` (`ecd1416`) et sa branche supprimée sur GitHub : la branche `aide-en-jeu` repart donc
+de `main`, et la 2.11.1 a sa propre demande de fusion.
+
+### Les sept réponses
+
+| nº | Question | Réponse de Florian | Ce qui change |
+| --- | --- | --- | --- |
+| 1 | Longueur des bulles | Correctes | Rien |
+| 2 | Réglage « Aides des fiches » d'avant la 2.11.0 | Oui, tous passent à « Masquées » | Rien |
+| 3 | Le point sur le bouton « Aide » | Gardé | Rien |
+| 4 | La pose de la station radar mobile | Reste sous « Déployer », sans astuce | Rien |
+| 5 | « Bulle d'un port » | « Abords », partout où le joueur lit ce mot | Quatre phrases (voir plus bas) |
+| 6 | « À transmettre à la relève » | Ma version reste | Rien |
+| 7 | Section « Convois » | Reste absente quand elle est vide | Rien |
+
+Le reste de la liste « laissé tel quel » ne change pas, sauf la touche Espace (plus bas).
+
+### « Abords » au lieu de « bulle »
+
+« Bulle » ne désigne plus que celle d'un « ? ». Les quatre phrases où le joueur lisait
+« la bulle d'un port » ou « d'un aérodrome », toutes dans `data/i18n/fr.json` :
+
+| Où | Avant | Après |
+| --- | --- | --- |
+| Bulle « Convois » d'un groupe d'escorte (`sheetHelp.convoys`) | Une route qui finit dans la bulle d'un port y entre. | Une route qui finit aux abords d'un port y entre. |
+| Aide, « Tracés et ordres sur la carte », 1re phrase | … celui d'un groupe d'escorte qui finit dans la bulle d'un port y entre. | … qui finit aux abords d'un port y entre. |
+| Aide, « Tracés et ordres sur la carte », « La fin du tracé » | … se poser si le tracé finit dans la bulle d'un aérodrome | … si le tracé finit aux abords d'un aérodrome |
+| Aide, « Chasse aux U-Boote » | … un tracé qui finit dans la bulle d'un port y entre. | … qui finit aux abords d'un port y entre. |
+
+Aucun autre fichier de données ne porte ce mot. Dans le code, les noms anglais ne changent
+pas.
+
+### Une astuce ne survit pas à son occasion
+
+Vu en jouant : « Au port : la sortie » restait affichée une fois le groupe en mer, et
+retenait « Silence radio ». Une astuce restait en effet sur la carte jusqu'à « Compris »,
+quoi qu'il arrive.
+
+- À chaque image, l'astuce affichée revérifie son occasion (`src/ui/tips.js`,
+  `updateTips`). Si elle n'est plus là, l'astuce quitte la carte **sans compter comme
+  vue** : rien n'est écrit dans le navigateur, elle reviendra avec son occasion.
+- La carte est libre aussitôt : la première astuce pas encore vue dont l'occasion est là la
+  prend, sans le silence de vingt secondes, qui ne suit que « Compris ».
+- Les occasions, inchangées : une unité qui se déplace en main (« Tracer et corriger »), un
+  point de route choisi, un groupe d'escorte en main au port, un navire en main sous silence
+  radio en haute mer.
+- « Programmer un départ » naît d'un ordre et non d'un état : son occasion dure tant que
+  l'unité qui était en main à l'ordre le reste. Lâchée, l'astuce s'en va ; le prochain
+  départ programmé la ramène.
+- Le texte de l'astuce suit ce qui est en main (le point d'un navire après celui d'une
+  escadrille).
+
+Ce que je n'ai pas changé : une astuce affichée dont l'occasion tient toujours garde la
+carte, même si une autre, mieux placée dans la liste, devient possible. Une seule à la fois,
+et pas de carte qui change sous les yeux.
+
+Tests ajoutés (`tests/tips.test.js`) : le groupe au port prend la mer, « Au port : la
+sortie » s'en va sans être notée et « Silence radio » prend la carte ; l'unité lâchée, la
+carte se range ; reprise, l'astuce revient tout de suite ; « Compris » compte toujours et
+demande toujours vingt secondes ; le point qui n'est plus choisi ; le départ programmé et son
+unité. À l'essai de fumée : le même groupe, sorti du port jusqu'à la haute mer (capture
+`tip-silence`), puis lâché et repris.
+
+### Espace sur un bouton qui a le clavier
+
+Espace est la touche de pause. Sur un bouton qui a le clavier, elle actionne maintenant le
+bouton, sans toucher à l'horloge : « Compris », un « ? », une vitesse, le titre d'une section
+repliée, tous les boutons (`spacePressesControl`, dans `src/ui/keys.js`, lue par le
+gestionnaire de touches de `src/ui/input.js`). Le cas particulier du « ? », ajouté à la
+2.11.0 dans `src/ui/helpBubble.js`, est retiré : la règle générale le couvre.
+
+**« Avoir le clavier »** : avoir été atteint au clavier, avec Tab. Un bouton cliqué à la
+souris garde le focus du navigateur, mais Espace y reste la pause : sinon, cliquer « ×10 »
+puis appuyer sur Espace n'arrêterait plus le jeu. Le jeu note donc lui-même comment le focus
+a bougé (Tab, ou un clic). Je n'ai pas pu m'appuyer sur `:focus-visible` du navigateur :
+mesuré dans Chrome, il passe à « clavier » dès la première touche pressée après un clic,
+Espace comprise.
+
+Ce qui ne change pas : dans un message ou une page (une fenêtre ouverte) et au menu
+principal, les touches du jeu ne répondaient déjà pas, et Espace y actionnait déjà le
+bouton ; dans un champ de saisie, Espace écrit un espace.
+
+Tests ajoutés (`tests/keys.test.js`, trois) : un bouton ou un titre de section atteint au
+clavier ; partout ailleurs la pause (bouton cliqué, bouton désactivé, carte, lien) ; Tab
+donne le clavier, un clic le reprend. À l'essai de fumée : Tab jusqu'à « Compris » puis
+Espace (l'astuce est notée, l'horloge n'a pas bougé) ; Tab jusqu'à un « ? » puis Espace (sa
+bulle s'ouvre) ; « ×10 » cliqué à la souris puis Espace deux fois (pause, puis reprise).
+
+### Vérifications
+
+- `npm test` : 479 tests, tous verts (474 à la 2.11.0). Aucun test existant n'est modifié.
+- `npm run lint` : propre. `npm run build` : `dist/index.html` à jour.
+- Essai de fumée entier : 348 vérifications, toutes vertes (343 à la 2.11.0).
+- `src/sim` n'est pas touché : ni singe, ni joueur automatique.
+- Vérifié dans Chrome sans écran seulement. Pas dans Firefox : la règle ne dépend pas du
+  navigateur, mais je ne l'y ai pas essayée.
+
 ## Table « ancienne clé → nouvelle place »
 
 Toutes les clés de `data/i18n/fr.json` retirées ou récrites par ce chantier. Les textes des
@@ -431,7 +535,7 @@ réglage du jeu), puis vient son lien « Plus dans l'aide : « rubrique » ».
 | `port` | Groupe d'escorte au port, section « Au port : sortie et appareillage » | **Tracé :** Choisir une sortie en fait la première étape du groupe : en rade, ou par un chenal jusqu'au large. Elle attend « Appareiller » ou l'heure programmée ; sans sortie choisie, un tracé tiré depuis le port part tout de suite. À l'heure dite, le groupe appareille avec ce qui est préparé, ou sort en rade et y attend vos ordres s'il n'y a rien.<br>**Ordres par caps :** Choisir une sortie en fait la première étape du groupe : en rade, ou par un chenal jusqu'au large. Elle attend « Appareiller » ou l'heure programmée, avec les étapes au cap qui la suivent. À l'heure dite, le groupe appareille avec ce qui est préparé, ou sort en rade et y attend vos ordres s'il n'y a rien. | Mer · « Appareiller » |
 | `portPlain` | Groupe d'escorte dans un port sans chenal, section « Au port : appareillage » | **Tracé :** « Appareiller » fait sortir le groupe au large du port, où il attend vos ordres. Un tracé tiré depuis le port part tout de suite. Avec un appareillage programmé, tracé et étapes attendent l'heure dite.<br>**Ordres par caps :** « Appareiller » fait sortir le groupe au large du port, où il attend vos ordres ou prend les étapes préparées. Avec un appareillage programmé, les étapes attendent l'heure dite. | Mer · « Appareiller » |
 | `comms` | Navire en mer, section « Communications (silence radio) » | En haute mer, sous silence radio, la position d'un navire est une estimation et vos ordres partent par radio à la relève suivante. D'ici là ils restent sur la carte, en ocre, et se modifient encore. Une route envoyée par radio peut être lue par le B-Dienst ; au projecteur d'un avion en vue, ou portée par un groupe d'escorte, elle ne l'est pas. « Demander la position » fait répondre le navire à la relève : un point sûr pour vous, un relèvement pour les U-Boote. | Mer · « Silence radio » |
-| `convoys` | Groupe d'escorte, section « Convois » | Le groupe prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » calcule lui-même la route d'interception (sauf en Réaliste) et contourne la terre ; « Rentrer au port » aussi. Une route qui finit dans la bulle d'un port y entre. | Mer · « Rejoindre un convoi » |
+| `convoys` | Groupe d'escorte, section « Convois » | Le groupe prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » calcule lui-même la route d'interception (sauf en Réaliste) et contourne la terre ; « Rentrer au port » aussi. Une route qui finit aux abords d'un port y entre. | Mer · « Rejoindre un convoi » |
 | `uboats` | Groupe d'escorte, section « Chasse aux U-Boote » | Rester : le groupe garde son poste et n'attaque qu'un U-Boot qu'il peut rejoindre sans lâcher son convoi (30 min et 15 km au plus). Chasser : il quitte le convoi pour un contact frais et revient seul, U-Boot coulé, contact perdu ou grenades tombées au tiers gardé pour le convoi ; le convoi reste sans escorte pendant ce temps. Grenadage plein : dix grenades par passe ; économe : cinq, avec moins de chances mais deux fois plus de passes. À vide, le groupe passe encore, à blanc : le U-Boot reste en plongée et perd le convoi. | Mer · « Chasse aux U-Boote » |
 | `rallyAir` | Big wing, onglet Rassemblement, « Lieu du rassemblement » | **Tracé :** Sur le chef : les membres décollent à leur heure et rejoignent le chef, qui les attend au-dessus de sa base (15 min au plus). Sur un point : avec une heure de rendez-vous, la formation part à cette heure et les premiers arrivés l'attendent ; pour la route d'après, glissez depuis le point RV sur la carte. S'il manque une escadrille à l'heure, la question vous est posée : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans elle ; sans réponse, le choix fait ici s'applique.<br>**Ordres par caps :** Sur le chef : les membres décollent à leur heure et rejoignent le chef, qui les attend au-dessus de sa base (15 min au plus). Sur un point : avec une heure de rendez-vous, la formation part à cette heure et les premiers arrivés l'attendent sur place. S'il manque une escadrille à l'heure, la question vous est posée : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans elle ; sans réponse, le choix fait ici s'applique. *(suivi de la phrase de l'aide au rassemblement, ci-dessous)* | Air · « Rassemblement » |
 | `rallySea` | Groupe de soutien, onglet Rassemblement, « Lieu du rassemblement » | **Tracé :** Sur le chef : le chef appareille à son heure avec ses propres ordres ; chaque groupe appareille à la sienne, le rejoint en mer et prend son poste. Sur un point : avec une heure de rendez-vous, le groupe de soutien part à cette heure et les premiers arrivés l'attendent ; pour la route d'après, glissez depuis le point RV sur la carte. S'il manque un groupe à l'heure, le choix fait ici s'applique : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans lui.<br>**Ordres par caps :** Sur le chef : le chef appareille à son heure avec ses propres ordres ; chaque groupe appareille à la sienne, le rejoint en mer et prend son poste. Sur un point : avec une heure de rendez-vous, le groupe de soutien part à cette heure et les premiers arrivés l'attendent sur place. S'il manque un groupe à l'heure, le choix fait ici s'applique : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans lui. *(suivi de la phrase de l'aide au rassemblement, ci-dessous)* | Mer · « Groupes de soutien » |

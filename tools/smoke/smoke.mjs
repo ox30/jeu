@@ -2316,6 +2316,104 @@ async function interfaceChecks(page, errors) {
     const again = await read();
     note(/reviendront/.test(said) && !again.kept.some((x) => x !== 'panel') && again.shown === 'exit' && again.title === 'Au port : la sortie', 'tips: « Revoir les astuces » brings them back (here the way out of a group in port)', JSON.stringify({ said, shown: again.shown }));
     await shot(page, 'tip-exit');
+    // (2.11.1, seen in play.) The group sails: « Au port : la sortie » has nothing left to
+    // say. It leaves the card, not counted as seen, and « Silence radio » takes its place on
+    // the high seas.
+    await fresh(['sheet', 'point', 'schedule']);
+    const gid = await take('escort', null);
+    await sleep(400);
+    const inPort = await read();
+    const sailed = await game(page, async (id) => {
+      const a = window.__game;
+      const O = await import('./src/sim/orders.js');
+      const C = await import('./src/sim/comms.js');
+      const e = a.world.escorts.find((x) => x.id === id);
+      a.stepWorld(10 * 3600);
+      const c = a.world.convoys.find((x) => x.state === 'atSea');
+      const joined = O.joinConvoy(a.world, e, c.id);
+      for (let i = 0; i < 60 && !(e.state !== 'inPort' && C.orderChannel(a.world, e) === 'radio'); i++) a.stepWorld(1800);
+      a.dirtyPanels = true;
+      return { joined, state: e.state, channel: C.orderChannel(a.world, e), silent: C.isSilent(a.world) };
+    }, gid);
+    await closeDialogs(page);
+    await sleep(500);
+    const atSea = await read();
+    note(inPort.shown === 'exit' && sailed.joined && sailed.channel === 'radio' && atSea.shown === 'silence' && atSea.title === 'Silence radio' && !atSea.kept.includes('exit'),
+      'tips: the group gone to sea, « Au port : la sortie » leaves the card unseen, and « Silence radio » takes it', JSON.stringify({ inPort: inPort.shown, sailed, atSea: atSea.shown, kept: atSea.kept }));
+    await shot(page, 'tip-silence');
+    // The unit let go: the card is put away, nothing is counted; taken again, the tip is back.
+    await game(page, async () => {
+      const actions = await import('./src/ui/actions.js');
+      actions.select(window.__game, null, null);
+      window.__game.dirtyPanels = true;
+    });
+    await sleep(400);
+    const letGo = await read();
+    await game(page, async (id) => {
+      const actions = await import('./src/ui/actions.js');
+      actions.select(window.__game, 'escort', id);
+      window.__game.dirtyPanels = true;
+    }, gid);
+    await sleep(400);
+    const back = await read();
+    note(letGo.shown === null && !letGo.kept.includes('silence') && back.shown === 'silence', 'tips: the unit let go, its tip leaves unseen; taken in hand again, the tip comes back', JSON.stringify({ letGo: letGo.shown, kept: letGo.kept, back: back.shown }));
+    // (2.11.1) Space on a button that has the keyboard presses the button: « Compris »,
+    // reached with Tab. The game is not stopped, nor set going.
+    // (The clock stopped and every message closed first: a message has its own keys.)
+    for (let i = 0; i < 8; i++) {
+      await game(page, () => {
+        window.__game.paused = true;
+      });
+      if (!(await closeDialogs(page)).length) break;
+      await sleep(300);
+    }
+    await game(page, () => {
+      window.__game.paused = true;
+      if (document.activeElement) document.activeElement.blur();
+    });
+    await sleep(200);
+    const clock = () => game(page, () => {
+      const el = document.activeElement;
+      return { paused: window.__game.paused, active: el ? `${el.tagName}:${(el.textContent || '').trim().slice(0, 12)}` : '', inTip: Boolean(el && el.closest('#tip')) };
+    });
+    const before = await clock();
+    for (let i = 0; i < 120 && !(await clock()).inTip; i++) await page.keyboard.press('Tab');
+    for (let i = 0; i < 3 && !/Compris/.test((await clock()).active); i++) await page.keyboard.press('Tab');
+    const onButton = await clock();
+    await page.keyboard.press(' ');
+    await sleep(300);
+    const pressed = await read();
+    const after = await clock();
+    note(/^BUTTON:Compris/.test(onButton.active) && onButton.inTip && pressed.shown === null && pressed.kept.includes('silence') && after.paused === before.paused,
+      'keys: Space on « Compris », reached with Tab, presses the button and leaves the clock alone', JSON.stringify({ onButton, kept: pressed.kept, before: before.paused, after: after.paused }));
+    // … on a « ? » too: its bubble opens.
+    for (let i = 0; i < 80 && !(await game(page, () => Boolean(document.activeElement && document.activeElement.matches('#unit-panel .help-mark')))); i++) await page.keyboard.press('Tab');
+    const onMark = await game(page, () => Boolean(document.activeElement && document.activeElement.matches('#unit-panel .help-mark')) && !document.getElementById('help-bubble'));
+    await page.keyboard.press(' ');
+    await sleep(250);
+    const mark = await game(page, (on) => ({ on, bubble: Boolean(document.getElementById('help-bubble')), paused: window.__game.paused }), onMark);
+    note(mark.on && mark.bubble && mark.paused === before.paused, 'keys: Space on a « ? » reached with Tab opens its bubble, the clock left alone', JSON.stringify(mark));
+    await page.keyboard.press('Escape');
+    await sleep(150);
+    // A button the mouse has clicked keeps the focus, not the keyboard: Space is the pause.
+    const speed = await game(page, () => {
+      const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === '×10');
+      const r = b.getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2];
+    });
+    await page.mouse.click(speed[0], speed[1]);
+    await sleep(150);
+    const running = await clock();
+    await page.keyboard.press(' ');
+    await sleep(150);
+    const stopped = await clock();
+    await page.keyboard.press(' ');
+    await sleep(150);
+    const resumed = await clock();
+    note(/^BUTTON:×10/.test(running.active) && !running.paused && stopped.paused && !resumed.paused, 'keys: a speed clicked with the mouse, then Space: the pause, as ever', JSON.stringify({ running, stopped: stopped.paused, resumed: resumed.paused }));
+    await game(page, () => {
+      window.__game.paused = true;
+    });
     await fresh(['sheet', 'point', 'exit', 'silence', 'schedule']);
     await game(page, async () => {
       const T = await import('./src/ui/tutorial.js');

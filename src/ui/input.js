@@ -24,7 +24,7 @@ import { openWatch } from './watchPanel.js';
 import { handsOff, nudgeCoach, tutorialFlag } from './tutorial.js';
 import { membersOf } from '../sim/formations.js';
 import { answerShown } from './questions.js';
-import { speedIndexOfKey } from './keys.js';
+import { spacePressesControl, speedIndexOfKey, watchFocus } from './keys.js';
 import { pickHit, unitsUnder } from './hit.js';
 import { memberSelection, stackChoice } from './stacks.js';
 import { closeDropChoice, dropTargets, openDropChoice } from './dropChoice.js';
@@ -376,6 +376,7 @@ export function attachInput(app) {
     zoomAt(app.camera, p[0], p[1], e.shiftKey ? 0.5 : 2);
   });
 
+  watchFocus(window);
   window.addEventListener('keydown', (e) => {
     app.unlockAudio();
     // On the main menu the keys of the game do nothing: no order, no speed, no answer given
@@ -402,6 +403,8 @@ export function attachInput(app) {
       return;
     }
     const speedIndex = speedIndexOfKey(e, SPEEDS.length);
+    // (Space on a button that has the keyboard is the button's: no pause, and no hand in it.)
+    if (key === ' ' && spacePressesControl(target)) return;
     if (key === ' ') {
       togglePause(app);
     } else if (speedIndex >= 0) {

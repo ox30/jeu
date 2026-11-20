@@ -8,12 +8,32 @@ avec un menu principal, un tutoriel en cinq leçons et une aide illustrée.
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.11.0** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit,
+**Version 2.11.1** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit,
 les retours des premières parties d'essai en quatre tours, et le rangement des textes d'aide).
 Les décisions qui guident les lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md`
 (fichier du projet) ; le journal des travaux est dans `docs/journal-m2.7-m2.10.md`. Le
 rangement de l'aide suit `claude/textes-aide-plan-rangement.md` ; son journal, avec la table
 « ancienne clé → nouvelle place », est dans `docs/journal-aide-en-jeu.md`.
+
+## Nouveautés de la 2.11.1 : trois retouches de l'aide
+
+Les réponses de Florian après sa partie d'essai de la 2.11.0. Rien ne change dans les règles
+du jeu : `src/sim` n'est pas touché.
+
+- **« Abords » d'un port ou d'un aérodrome**, et non plus « bulle » : ce mot ne désigne plus
+  que la bulle d'un « ? ». Quatre phrases changent : la bulle « Convois » d'un groupe
+  d'escorte et deux rubriques de l'aide (« Tracés et ordres sur la carte », deux phrases, et
+  « Chasse aux U-Boote »).
+- **Une astuce ne survit pas à son occasion.** Quand ce dont elle parle n'est plus là (l'unité
+  lâchée, le groupe parti en mer, le point de route qui n'est plus choisi), l'astuce quitte
+  la carte sans compter comme vue : elle reviendra avec son occasion. La carte est alors
+  libre pour une astuce qui tombe juste. Avant, « Au port : la sortie » restait affichée une
+  fois le groupe en mer et retenait « Silence radio ». Seul « Compris » note une astuce comme
+  vue. L'astuce « Programmer un départ » vaut tant que l'unité du départ reste en main.
+- **Espace sur un bouton qui a le clavier actionne le bouton**, sans mettre le jeu en pause
+  ni le relancer : « Compris », un « ? », une vitesse, tous les boutons. « Avoir le clavier »,
+  c'est avoir été atteint avec Tab. Un bouton cliqué à la souris garde Espace pour la
+  pause : cliquer « ×10 » puis appuyer sur Espace arrête le jeu, comme avant.
 
 ## Nouveautés de la 2.11.0 : l'aide rangée, des fiches épurées
 
@@ -800,7 +820,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 474 tests, environ quatre minutes
+npm test          # les 479 tests, environ quatre minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : leçons, pages, fiches, corrections, quarts, menu, interface
@@ -836,6 +856,11 @@ Le filet du M2.7 :
   chaque page et chaque sorte de fiche s'ouvre dans chaque scénario, et les corrections du
   M2.7 sont rejouées (plaques empilées, touches d'un clavier AZERTY, bilan de fin, briefing
   de campagne, garde-fou sur une erreur provoquée).
+- Les tests de la 2.11.1 : une astuce dont l'occasion disparaît quitte la carte sans être
+  notée, et celle qui tombe juste prend sa place (`tests/tips.test.js`) ; Espace actionne le
+  bouton atteint au clavier et reste la pause partout ailleurs (`tests/keys.test.js`).
+  L'essai de fumée fait sortir un groupe du port jusqu'à la haute mer, puis va avec Tab
+  jusqu'à « Compris » et jusqu'à un « ? ».
 - Les tests de la 2.11.0 : chaque « ? » écrit par les pages nomme une bulle qui existe, de
   deux à quatre phrases quels que soient les réglages, et chaque bulle a son « ? » ; les
   fiches n'écrivent plus de phrase d'aide ; chaque infobulle tient en une ligne ; le réglage

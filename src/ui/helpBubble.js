@@ -140,8 +140,6 @@ export function installHelpBubble(app, openHelp) {
     }
   }, true);
   document.addEventListener('keydown', (e) => {
-    // (Space on a « ? » presses it: the game must not take it for its pause key.)
-    if (e.key === ' ' && e.target instanceof Element && e.target.closest('.help-mark, .help-bubble')) e.stopPropagation();
     if (e.key !== 'Escape' || !shown) return;
     // A page opened over the bubble (a report of the watch that comes by itself): the bubble
     // leaves, and Escape is the page's.
