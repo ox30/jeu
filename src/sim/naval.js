@@ -6,11 +6,13 @@ import { KNOT_KMH, bearing, distance, headingVector, polylineLength, project, un
 import { clearAtSea, fieldJoin, seaKmToPort, seaPath } from './searoute.js';
 import { emit } from './events.js';
 import { solveIntercept } from './intercept.js';
-import { acceptingPorts, currentSpeed, stepShip } from './convoy.js';
-import { dive, endHunt, engage, isSubmerged, spotAttacker, startHunt, stepHunt } from './asw.js';
+import { acceptingPorts, adoptWayOut, currentSpeed, setConvoyEndAction, stepShip } from './convoy.js';
+import { canHunt, dive, endHunt, engage, isSubmerged, rearm, spotAttacker, startHunt, stepHunt, willCounter } from './asw.js';
 import { callBoats, noteConvoy } from './bdu.js';
 import { inClosedWaters, moveTo, openForUboat, steerUboat, uboatSpot } from './uboatnav.js';
-import { declareFields } from './entities.js';
+import { completeEntity, declareFields } from './entities.js';
+import { parseGameDate } from '../core/time.js';
+import { isNight } from './daylight.js';
 
 // Whether the player was told that the convoy came within reach of the escorts.
 declareFields('convoy', (c) => {
@@ -70,9 +72,40 @@ export function attackConvoyFromAir(world, c, raid, accuracy) {
 
 // ---- escort groups ----------------------------------------------------------------
 
+// The first radar sets: a dated datum of the scenario, group by group (`radarFrom`), in place
+// of a switch for the whole scenario. A game saved before gets it from the scenario too.
+declareFields('escort', (e, world) => {
+  const def = (world.scenario.escorts || []).find((d) => d.id === e.id);
+  e.radar = Boolean(def && def.radar); // a set on board (rules.asw.radar)
+  e.radarFrom = def && def.radarFrom ? (parseGameDate(def.radarFrom) - world.startMs) / 1000 : null; // fitted in port from then on
+});
+
+// What the life of a group at sea keeps on it, beyond what the scenario describes.
+declareFields('escort', (e) => {
+  e.berthed = e.state === 'inPort' || e.state === 'refit'; // alongside: leaving takes escortGroups.sailDelayH to cast off
+  e.leftConvoy = null; // convoy it was ordered to leave: it does not take station again by itself
+  // Its exit step, given in port (convoy.js, planExit): the channel it goes out by (null: the
+  // roads), and whether a step was given at all. `routeHead`: the first points of its route
+  // that are its charted way out of port, which the player cannot move.
+  e.exitChannel = null;
+  e.exitPlanned = false;
+  e.routeHead = 0;
+  e.boost = false; // sprinting above its sea speed (endurance burnt faster)
+  e.boostKn = null;
+  e.dry = false; // out of fuel: into port at a crawl (dryKn)
+  e.dryKn = null;
+  e.endAction = { kind: 'stop' }; // at the end of its route: stop | hold | escort | hunt | port
+  e.routeEnded = false;
+});
+
+/**
+ * An escort group as the scenario describes it. What the subsystems keep on it (depth
+ * charges and hunts, radar, formation, timetable, last sure point…) is declared by each of
+ * them (entities.js) and added by completeEntity().
+ */
 export function createEscortGroup(world, def) {
   const port = world.byId.port.get(def.from);
-  return {
+  return completeEntity('escort', {
     kind: 'escort',
     id: def.id,
     name: def.name,
@@ -93,38 +126,18 @@ export function createEscortGroup(world, def) {
     plan: [],
     legState: null,
     state: 'inPort', // inPort | atSea | waiting | escorting | hunting | refit
-    berthed: true, // alongside: leaving takes escortGroups.sailDelayH to cast off
     portId: port.id,
     destination: null,
     joinTarget: null, // convoy the group is ordered to meet
     escorting: null, // convoy the group is with
-    leftConvoy: null, // convoy it was ordered to leave: it does not take station again by itself
-    schedule: null, // a sailing ordered for later (timetable.js)
-    exitChannel: null, // how it goes out of port: null (the roads) or a channel's name
-    boost: false, // sprinting above its sea speed (endurance burnt faster)
-    boostKn: null,
-    lateFor: null, // a support group it is catching up with (rally.js)
     enduranceMax: def.enduranceDays * 86400,
     endurance: def.enduranceDays * 86400,
     timer: 0,
     lowWarned: false,
-    dry: false, // out of fuel: into port at a crawl (dryKn)
-    dryKn: null,
     homeward: false,
     behaviour: def.behaviour || 'stay', // stay with the convoy, or hunt the contacts
     huntFor: null,
-    huntHours: null, // length of its hunts, set by the player (rules.asw.huntHours by default)
-    huntPath: null, // a hunt's way around the land (searoute.js)
-    huntGoal: null, // the point that way leads to
-    huntStay: false, // a short counter-attack near its convoy, not a hunt
-    engage: null, // the U-boat it is attacking: { uboatId, since, nextPass, reportId }
-    endAction: { kind: 'stop' }, // at the end of its route: stop | hold | escort | hunt | port
-    routeEnded: false,
-    formation: null, // id of the support group (formation) it belongs to
-    followEscort: null, // a support group's member: the leader it sails with
-    followSlot: 0,
-    waitForGroup: false, // a support group's leader slows down until its groups close up
-  };
+  }, world);
 }
 
 /** Number of escort ships with a convoy (a group away hunting does not count). */
@@ -142,6 +155,10 @@ function enterPort(world, e, port) {
   e.x = port.x;
   e.y = port.y;
   e.route = [];
+  e.routeHead = 0;
+  // The exit step was this sortie's: the next one is prepared afresh.
+  e.exitChannel = null;
+  e.exitPlanned = false;
   e.plan = [];
   e.legState = null;
   e.destination = null;
@@ -156,6 +173,7 @@ function join(world, e, c) {
   e.escorting = c.id;
   e.joinTarget = null;
   e.route = [];
+  e.routeHead = 0;
   e.plan = [];
   e.legState = null;
   emit(world, 'escortJoined', { escort: e.name, escortId: e.id, convoy: c.name, convoyId: c.id });
@@ -247,8 +265,11 @@ export function sendEscortHome(world, e, portId = null) {
   e.homeward = true;
   if (way) {
     e.route = way.route;
+    e.routeHead = 0;
     e.routeLocked = way.locked;
     e.destination = port.id;
+    // (The same order given to a convoy: its route ends in the port, nothing comes after.)
+    if (e.kind === 'convoy') e.endAction = null;
   }
 }
 
@@ -260,142 +281,137 @@ export function clearHunt(e) {
   e.engage = null;
 }
 
-export function updateEscort(world, e, dt) {
-  e.px = e.x;
-  e.py = e.y;
-  const R = world.rules.escortGroups;
-  if (e.state === 'refit') {
-    e.berthed = true;
-    e.timer -= dt;
-    if (e.timer <= 0) {
-      e.state = 'inPort';
-      e.endurance = e.enduranceMax;
-      e.lowWarned = false;
-      e.dry = false;
-      e.dryKn = null;
-      emit(world, 'escortReady', { escort: e.name, escortId: e.id, port: world.byId.port.get(e.portId).name });
-    }
-    return;
+/** In port: the refit runs its time, then the group is ready, bunkers and racks full. */
+function stayInPort(world, e, dt) {
+  e.berthed = true;
+  // The dockyard fits its first radar set, from the date the scenario gives for this group.
+  if (!e.radar && e.radarFrom !== null && world.t >= e.radarFrom) {
+    e.radar = true;
+    emit(world, 'escortRadar', { escort: e.name, escortId: e.id, port: world.byId.port.get(e.portId).name });
   }
-  if (e.state === 'inPort') {
-    e.berthed = true;
-    return;
-  }
-  // Raising steam and casting off: a group that leaves its berth stays alongside a while
-  // (rules: escortGroups.sailDelayH), then follows its way out of the harbour.
+  if (e.state !== 'refit') return;
+  e.timer -= dt;
+  if (e.timer > 0) return;
+  e.state = 'inPort';
+  e.endurance = e.enduranceMax;
+  rearm(e); // depth charges come aboard with the fuel, at no extra delay
+  e.lowWarned = false;
+  e.dry = false;
+  e.dryKn = null;
+  emit(world, 'escortReady', { escort: e.name, escortId: e.id, port: world.byId.port.get(e.portId).name });
+}
+
+/**
+ * Raising steam and casting off: a group that leaves its berth stays alongside a while
+ * (rules: escortGroups.sailDelayH). Returns true while it is still alongside.
+ */
+function castingOff(world, e) {
   if (e.berthed) {
     e.berthed = false;
     const berth = world.byId.port.get(e.portId);
-    if (e.state !== 'escorting' && berth && distance(e.x, e.y, berth.x, berth.y) < 1) e.underwayAt = world.t + (R.sailDelayH ?? 0) * 3600;
+    const delay = world.rules.escortGroups.sailDelayH ?? 0;
+    if (e.state !== 'escorting' && berth && distance(e.x, e.y, berth.x, berth.y) < 1) e.underwayAt = world.t + delay * 3600;
   }
-  if (e.underwayAt && world.t < e.underwayAt) return;
-  e.endurance = Math.max(0, e.endurance - dt * (e.boost ? R.boostEndurance : 1));
-  // Bunkers empty: the group drops whatever it was doing and crawls into the nearest port.
-  if (e.endurance <= 0 && !e.dry) {
-    becomeDry(world, e);
+  return Boolean(e.underwayAt && world.t < e.underwayAt);
+}
+
+/**
+ * Fuel for the way home: the group turns back while it still can (the way into the nearest
+ * port at its speed, and a day to spare), looked at every ten minutes. Returns true when it
+ * has just turned for home.
+ */
+function turnsHomeForFuel(world, e) {
+  if (e.lowWarned || e.dry || world.t % 600 !== 0 || e.endurance >= homeReserve(world, e)) return false;
+  e.lowWarned = true;
+  const left = e.state === 'escorting' ? world.convoys.find((c) => c.id === e.escorting) : null;
+  emit(world, 'escortLowFuel', {
+    escort: e.name, escortId: e.id, convoy: left ? left.name : null, convoyId: left ? left.id : null, x: e.x, y: e.y,
+  });
+  sendEscortHome(world, e);
+  return true;
+}
+
+/** With its convoy: in station ahead of it; the convoy in port (or lost), the group goes in too. */
+function keepStation(world, e) {
+  const c = world.convoys.find((x) => x.id === e.escorting);
+  if (!c || c.state !== 'atSea') {
+    if (c && c.state === 'arrived') enterPort(world, e, world.byId.port.get(c.portId));
+    else sendEscortHome(world, e);
     return;
   }
-  if (e.state === 'hunting') {
-    stepHunt(world, e, dt);
+  const [dx, dy] = headingVector(c.heading);
+  e.x = c.x + dx * 4;
+  e.y = c.y + dy * 4;
+  e.heading = c.heading;
+  e.course = c.heading;
+}
+
+/** Ordered to meet a convoy: steer for the meeting point, round the land if it is in the way. */
+function steerForConvoy(world, e) {
+  const c = world.convoys.find((x) => x.id === e.joinTarget);
+  if (!c || c.state !== 'atSea') {
+    e.joinTarget = null;
     return;
   }
-  // Fuel for the way home: the group turns back while it still can (the way into the nearest
-  // port at its speed, and a day to spare), looked at every ten minutes.
-  if (!e.lowWarned && !e.dry && world.t % 600 === 0 && e.endurance < homeReserve(world, e)) {
-    e.lowWarned = true;
-    const left = e.state === 'escorting' ? world.convoys.find((c) => c.id === e.escorting) : null;
-    emit(world, 'escortLowFuel', {
-      escort: e.name, escortId: e.id, convoy: left ? left.name : null, convoyId: left ? left.id : null, x: e.x, y: e.y,
+  const v = currentSpeed(c);
+  const [hx, hy] = headingVector(c.heading);
+  const sol = solveIntercept(e.x, e.y, e.speed, c.x, c.y, hx * v, hy * v);
+  e.course = sol ? sol.heading : bearing(e.x, e.y, c.x, c.y);
+  // Land ahead on the way (a headland, an island): round it by sea. Looked at every 5
+  // minutes, over the next 60 km.
+  const d = distance(e.x, e.y, c.x, c.y);
+  const k = Math.min(1, 60 / Math.max(d, 1e-6));
+  if (world.t % 300 === 0 && !clearAtSea(world, [e.x, e.y], [e.x + (c.x - e.x) * k, e.y + (c.y - e.y) * k])) {
+    const path = seaPath(world, [e.x, e.y], [c.x, c.y]);
+    if (path && path.length > 1) {
+      e.route = path.slice(0, -1);
+      e.routeHead = 0;
+      e.routeLocked = 0;
+    }
+  }
+}
+
+/**
+ * A support group's member sails in station astern of its leader (formations.js). Returns
+ * true when it is in station (nothing more to do this step).
+ */
+function followLeader(world, e, dt) {
+  const leader = world.escorts.find((x) => x.id === e.followEscort);
+  if (!leader || leader.state !== 'atSea') return false;
+  const [hx, hy] = headingVector(leader.heading);
+  const tx = leader.x - hx * 2 * e.followSlot;
+  const ty = leader.y - hy * 2 * e.followSlot;
+  if (distance(e.x, e.y, tx, ty) < Math.max(0.5, e.speed * dt * 1.5)) {
+    e.x = tx;
+    e.y = ty;
+    e.heading = leader.heading;
+    e.course = leader.heading;
+    return true;
+  }
+  e.course = bearing(e.x, e.y, tx, ty);
+  return false;
+}
+
+/** Its legs are flown out: into the port whose bubble it is in, or what it was told to do then. */
+function afterLegs(world, e) {
+  const bubble = world.rules.navigation.portBubbleKm;
+  const port = acceptingPorts(world, e).find((p) => distance(e.x, e.y, p.x, p.y) <= bubble);
+  if (port) sendEscortHome(world, e, port.id);
+  else if (!e.route.length && !e.joinTarget && !e.homeward) shipEndAction(world, e);
+  // What it does now (a stop or a hunt says so itself).
+  const c = e.joinTarget ? world.convoys.find((x) => x.id === e.joinTarget) : null;
+  const into = e.homeward && e.destination ? world.byId.port.get(e.destination) : null;
+  const action = c ? 'escort' : into ? 'port' : e.state === 'atSea' && !e.route.length ? 'hold' : null;
+  if (action) {
+    emit(world, 'legsEnded', {
+      escort: e.name, escortId: e.id, action, convoy: c ? c.name : '', port: into ? into.name : '', heading: Math.round(e.course),
     });
-    sendEscortHome(world, e);
-    return;
   }
+}
 
-  if (e.state === 'escorting') {
-    const c = world.convoys.find((x) => x.id === e.escorting);
-    if (!c || c.state !== 'atSea') {
-      // The convoy is in port (or lost): the group goes into the same port, or home.
-      if (c && c.state === 'arrived') enterPort(world, e, world.byId.port.get(c.portId));
-      else sendEscortHome(world, e);
-      return;
-    }
-    const [dx, dy] = headingVector(c.heading);
-    e.x = c.x + dx * 4;
-    e.y = c.y + dy * 4;
-    e.heading = c.heading;
-    e.course = c.heading;
-    return;
-  }
-  if (e.state !== 'atSea') return;
-
-  // Ordered to meet a convoy: steer for the meeting point (with an interception aid only).
-  if (e.joinTarget && !e.route.length && !e.plan.length) {
-    const c = world.convoys.find((x) => x.id === e.joinTarget);
-    if (!c || c.state !== 'atSea') e.joinTarget = null;
-    else {
-      const v = currentSpeed(c);
-      const [hx, hy] = headingVector(c.heading);
-      const sol = solveIntercept(e.x, e.y, e.speed, c.x, c.y, hx * v, hy * v);
-      e.course = sol ? sol.heading : bearing(e.x, e.y, c.x, c.y);
-      // Land ahead on the way (a headland, an island): round it by sea. Looked at every 5
-      // minutes, over the next 60 km.
-      const d = distance(e.x, e.y, c.x, c.y);
-      const k = Math.min(1, 60 / Math.max(d, 1e-6));
-      if (world.t % 300 === 0 && !clearAtSea(world, [e.x, e.y], [e.x + (c.x - e.x) * k, e.y + (c.y - e.y) * k])) {
-        const path = seaPath(world, [e.x, e.y], [c.x, c.y]);
-        if (path && path.length > 1) {
-          e.route = path.slice(0, -1);
-          e.routeLocked = 0;
-        }
-      }
-    }
-  }
-  // A support group's member sails in station astern of its leader (formations.js).
-  if (e.followEscort && !e.joinTarget && !e.route.length && !e.plan.length) {
-    const leader = world.escorts.find((x) => x.id === e.followEscort);
-    if (leader && leader.state === 'atSea') {
-      const [hx, hy] = headingVector(leader.heading);
-      const tx = leader.x - hx * 2 * e.followSlot;
-      const ty = leader.y - hy * 2 * e.followSlot;
-      if (distance(e.x, e.y, tx, ty) < Math.max(0.5, e.speed * dt * 1.5)) {
-        e.x = tx;
-        e.y = ty;
-        e.heading = leader.heading;
-        e.course = leader.heading;
-        return;
-      }
-      e.course = bearing(e.x, e.y, tx, ty);
-    }
-  }
-  // A support group's leader eases off while its groups close up.
-  const ordered = e.orderedKn;
-  if (e.waitForGroup) e.orderedKn = e.speedKn * world.rules.formations.waitSpeed;
-  stepShip(world, e, dt, (port) => enterPort(world, e, port));
-  e.orderedKn = ordered;
-  if (e.routeEnded) {
-    e.routeEnded = false;
-    shipEndAction(world, e);
-  }
-  if (e.planJustEnded) {
-    // The end of its legs is the end of its route: legs that end in the bubble of a port go
-    // into that port, as a route drawn there would; otherwise what it was told to do then.
-    e.planJustEnded = false;
-    const bubble = world.rules.navigation.portBubbleKm;
-    const port = acceptingPorts(world, e).find((p) => distance(e.x, e.y, p.x, p.y) <= bubble);
-    if (port) sendEscortHome(world, e, port.id);
-    else if (!e.route.length && !e.joinTarget && !e.homeward) shipEndAction(world, e);
-    // What it does now (a stop or a hunt says so itself).
-    const c = e.joinTarget ? world.convoys.find((x) => x.id === e.joinTarget) : null;
-    const into = e.homeward && e.destination ? world.byId.port.get(e.destination) : null;
-    const action = c ? 'escort' : into ? 'port' : e.state === 'atSea' && !e.route.length ? 'hold' : null;
-    if (action) {
-      emit(world, 'legsEnded', {
-        escort: e.name, escortId: e.id, action, convoy: c ? c.name : '', port: into ? into.name : '', heading: Math.round(e.course),
-      });
-    }
-  }
-  if (e.state !== 'atSea' || e.homeward || e.dry) return; // ordered home: it goes home
-  // Meeting: within sight of an ocean convoy, the group takes station.
+/** Meeting: within sight of an ocean convoy, the group takes station. */
+function meetConvoys(world, e) {
+  const R = world.rules.escortGroups;
   for (const c of world.convoys) {
     if (c.state !== 'atSea' || c.type === 'coastal') continue;
     if (e.joinTarget && e.joinTarget !== c.id) continue;
@@ -409,6 +425,54 @@ export function updateEscort(world, e, dt) {
       return;
     }
   }
+}
+
+export function updateEscort(world, e, dt) {
+  e.px = e.x;
+  e.py = e.y;
+  const R = world.rules.escortGroups;
+  // (A way out of port written by a game saved before 2.10.3 is read as it is now kept.)
+  adoptWayOut(world, e);
+  if (e.state === 'refit' || e.state === 'inPort') {
+    stayInPort(world, e, dt);
+    return;
+  }
+  if (castingOff(world, e)) return;
+  e.endurance = Math.max(0, e.endurance - dt * (e.boost ? R.boostEndurance : 1));
+  // Bunkers empty: the group drops whatever it was doing and crawls into the nearest port.
+  if (e.endurance <= 0 && !e.dry) {
+    becomeDry(world, e);
+    return;
+  }
+  if (e.state === 'hunting') {
+    stepHunt(world, e, dt);
+    return;
+  }
+  if (turnsHomeForFuel(world, e)) return;
+  if (e.state === 'escorting') {
+    keepStation(world, e);
+    return;
+  }
+  if (e.state !== 'atSea') return;
+
+  if (e.joinTarget && !e.route.length && !e.plan.length) steerForConvoy(world, e);
+  if (e.followEscort && !e.joinTarget && !e.route.length && !e.plan.length && followLeader(world, e, dt)) return;
+  // A support group's leader eases off while its groups close up.
+  const ordered = e.orderedKn;
+  if (e.waitForGroup) e.orderedKn = e.speedKn * world.rules.formations.waitSpeed;
+  stepShip(world, e, dt, (port) => enterPort(world, e, port));
+  e.orderedKn = ordered;
+  if (e.routeEnded) {
+    e.routeEnded = false;
+    shipEndAction(world, e);
+  }
+  if (e.planJustEnded) {
+    // The end of its legs is the end of its route.
+    e.planJustEnded = false;
+    afterLegs(world, e);
+  }
+  if (e.state !== 'atSea' || e.homeward || e.dry) return; // ordered home: it goes home
+  meetConvoys(world, e);
 }
 
 /** Endurance (s) the group needs to get home: the way into the nearest port, and a margin. */
@@ -450,8 +514,9 @@ function shipEndAction(world, e) {
       return;
     }
   }
-  if (a.kind === 'hunt') {
-    startHunt(world, e, e.x, e.y, a.hours ? { hours: a.hours } : {});
+  if (a.kind === 'hunt' && canHunt(world, e)) {
+    // A search on the spot; with its depth charges down to the reserve, it just stops there.
+    startHunt(world, e, e.x, e.y);
     return;
   }
   if (a.kind === 'port') {
@@ -471,6 +536,8 @@ export function shipEndChoices(world, e) {
 }
 
 export function setShipEndAction(world, e, action) {
+  // (A convoy has its own: into a port by one of its channels, the Admiralty's route again.)
+  if (e.kind === 'convoy') return setConvoyEndAction(world, e, action);
   const choice = shipEndChoices(world, e).find((c) => c.kind === action.kind && (c.id || null) === (action.id || null));
   if (!choice) return false;
   e.endAction = { ...choice };
@@ -479,9 +546,22 @@ export function setShipEndAction(world, e, action) {
 
 // ---- U-boats ----------------------------------------------------------------------
 
+/**
+ * "Never yet", as a game time, for the hour of a boat's last attack or last report: a number
+ * a save can keep (JSON has no infinity: it came back as 0, the first second of the game).
+ */
+export const LONG_AGO = -1e9;
+
+// A boat sunk is replaced by another (uboats.replaceDays): when it went down, and which boat
+// of the station this one is.
+declareFields('uboat', (u) => {
+  u.sunkAt = null;
+  u.boat = 1;
+});
+
 export function createUboat(world, def) {
   const [x, y] = project(def.lon, def.lat);
-  return {
+  return completeEntity('uboat', {
     kind: 'uboat',
     id: def.id,
     hx: x,
@@ -497,25 +577,10 @@ export function createUboat(world, def) {
     torpedoes: def.torpedoes ?? 3,
     torpedoesFull: def.torpedoes ?? 3,
     goneAt: null,
-    lastAttack: -Infinity,
-    lastReport: -Infinity,
+    lastAttack: LONG_AGO,
+    lastReport: LONG_AGO,
     known: Boolean(def.known),
-    way: null, // its way round the land to where it is going (uboatnav.js)
-    wanderAt: 0,
-  };
-}
-
-function hourOf(world) {
-  return new Date(world.startMs + world.t * 1000).getUTCHours();
-}
-
-export function isNight(world) {
-  const U = world.rules.uboats;
-  const h = hourOf(world);
-  const day = world.scenario.daylightH;
-  // A winter scenario: night from the end of the day until an hour before dawn.
-  if (day) return h >= day[1] || h < day[0] - 1;
-  return h >= U.nightFromH || h < U.nightToH;
+  }, world);
 }
 
 /** A radio message from a U-boat gives a direction-finding fix, with an error. */
@@ -540,15 +605,17 @@ function attack(world, u, c) {
   emit(world, 'uboatAttack', { convoy: c.name, convoyId: c.id, sunk: n, escorts, x: c.x, y: c.y });
   if (n) sinkShips(world, c, n, 'uboat');
   if (escorts > 0) {
-    // Seen (the flash, the torpedo tracks): the nearest group goes for it with depth charges.
+    // Seen (the flash, the torpedo tracks): the nearest group that can get at it goes for it
+    // with depth charges. Out of reach of groups told to stay, it is only made to dive.
     if (spotAttacker(world, u, c)) {
       const group = world.escorts
-        .filter((e) => e.state === 'escorting' && e.escorting === c.id && !e.engage)
+        .filter((e) => e.state === 'escorting' && e.escorting === c.id && !e.engage && willCounter(world, e, u, c))
         .sort((a, b) => distance(a.x, a.y, u.x, u.y) - distance(b.x, b.y, u.x, u.y))[0];
       if (group) {
         engage(world, group, u, 'flash');
         return;
       }
+      dive(world, u, A.diveHours);
     }
     // Unseen, it may still be driven off by the escort's sweep.
     if (rng.next() < U.pDriveOffPerEscort * escorts * A.unseenFactor) {
@@ -564,7 +631,10 @@ function attack(world, u, c) {
 export function updateUboat(world, u, dt) {
   const U = world.rules.uboats;
   const A = world.rules.asw;
-  if (u.state === 'sunk') return;
+  if (u.state === 'sunk') {
+    if (world.scenario.uboatRotation && world.t % 60 === 0) replaceSunk(world, u);
+    return;
+  }
   if (u.state === 'gone') {
     if (world.scenario.uboatRotation && world.t % 60 === 0) returnFromBase(world, u);
     return;
@@ -590,7 +660,8 @@ export function updateUboat(world, u, dt) {
     const went = steerUboat(world, u, u.wx, u.wy, patrolV, dt);
     if (went !== 'moving' && world.t >= (u.wanderAt || 0)) pickWander(world, u, went === 'blocked');
     if (world.t % 60 !== 0) return;
-    const sight = down ? (isNight(world) ? 0 : A.periscopeSightKm) : isNight(world) ? U.sightKmNight : U.sightKmDay;
+    const night = isNight(world, u.x, u.y);
+    const sight = down ? (night ? 0 : A.periscopeSightKm) : night ? U.sightKmNight : U.sightKmDay;
     for (const c of world.convoys) {
       if (c.state !== 'atSea' || c.type === 'coastal') continue;
       if (distance(u.x, u.y, c.x, c.y) > sight) continue;
@@ -628,7 +699,7 @@ export function updateUboat(world, u, dt) {
     }
     if (world.t % 60 === 0) {
       const d = distance(u.x, u.y, c.x, c.y);
-      if (!down && d <= (isNight(world) ? U.sightKmNight : U.sightKmDay)) u.state = 'shadow';
+      if (!down && d <= (isNight(world, u.x, u.y) ? U.sightKmNight : U.sightKmDay)) u.state = 'shadow';
       else if (d > (u.closeLimitKm ?? U.callKm * 1.5)) breakOff(u);
     }
     return;
@@ -650,7 +721,12 @@ export function updateUboat(world, u, dt) {
     u.lastReport = world.t;
     dfFix(world, u);
   }
-  if (isNight(world) && d < U.shadowDistanceKm + 8 && world.t - u.lastAttack >= U.attackGapH * 3600) attack(world, u, c);
+  if (d >= U.shadowDistanceKm + 8 || world.t - u.lastAttack < U.attackGapH * 3600) return;
+  // In place and ready: each boat picks its own moment, any time of the night. By day it
+  // hardly ever attacks a convoy; a straggler or a ship alone tempts it more.
+  const alone = c.straggler || c.ships <= U.aloneShips;
+  const perHour = isNight(world, c.x, c.y) ? U.attackPerHourNight : alone ? U.attackPerHourDayAlone : U.attackPerHourDay;
+  if (world.rng.next() < perHour / 60) attack(world, u, c);
 }
 
 /** The next point of a patrol: somewhere open around the station (or, if none, wait an hour). */
@@ -687,6 +763,31 @@ function breakOff(u) {
 function returnFromBase(world, u) {
   const U = world.rules.uboats;
   if (u.goneAt === null || world.t - u.goneAt < U.refitDays * 86400) return;
+  sailFromBase(world, u);
+}
+
+/**
+ * A long scenario: the U-boat command fills the gap left by a boat that was sunk. Another
+ * one sails from the Biscay bases, replaceDays later, for the same patrol area. The player
+ * is told nothing: a new boat is one more unknown on the table.
+ */
+function replaceSunk(world, u) {
+  const U = world.rules.uboats;
+  if (!U.replaceDays) return;
+  // A game saved before the hour of the sinking was kept: counted from now.
+  if (u.sunkAt === null || u.sunkAt === undefined) u.sunkAt = world.t;
+  if (world.t - u.sunkAt < U.replaceDays * 86400) return;
+  u.sunkAt = null;
+  u.known = false;
+  u.boat = (u.boat || 1) + 1; // the second, third... boat to hold this patrol area
+  u.lastAttack = LONG_AGO;
+  u.lastReport = LONG_AGO;
+  sailFromBase(world, u);
+}
+
+/** The boat (back from its refit, or a new one) leaves the Biscay bases for its patrol area. */
+function sailFromBase(world, u) {
+  const U = world.rules.uboats;
   const [x, y] = project(U.reentry.lon, U.reentry.lat);
   u.x = x;
   u.y = y;
@@ -701,6 +802,8 @@ function returnFromBase(world, u) {
   u.torpedoes = u.torpedoesFull;
   u.goneAt = null;
   u.submergedUntil = 0;
+  u.deepUntil = 0;
+  u.damaged = false; // repaired during its refit
 }
 
 /**

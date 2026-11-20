@@ -12,9 +12,19 @@
 import { bearing, distance, headingVector, project } from './geo.js';
 import { emit } from './events.js';
 import { isActive } from './raid.js';
-import { isDaylight } from './patrols.js';
+import { isDaylight } from './daylight.js';
 import { solveIntercept } from './intercept.js';
 import { rallyAnswer } from './rally.js';
+import { declareFields } from './entities.js';
+
+declareFields('squadron', (s) => {
+  s.roe = 'attack'; // on meeting the enemy: defend | attack | pursue; attack, as in M2.2
+  s.cleared = new Set(); // raids it has leave to attack whatever its order
+  s.letGo = new Set(); // raids the player called it off: left alone until sent back
+  s.clearedBeyond = new Set(); // raids it has leave to follow beyond mid-Channel
+  s.attackRaid = null; // a raid it goes after while it can see it
+  s.breakOff = null; // a raid it must leave (refused leave beyond mid-Channel)
+});
 
 export const ROES = ['defend', 'attack', 'pursue'];
 const ROE_RANK = { defend: 0, attack: 1, pursue: 2 };
@@ -60,7 +70,7 @@ export function authorize(s, raidId) {
 /** Does squadron `s` see raid `r` (visual range by day or night, halved for a big height gap)? */
 export function seesRaid(world, s, r, factor = 1) {
   const V = world.rules.visual;
-  let range = (isDaylight(world) ? V.airDayKm : V.airNightKm) * factor;
+  let range = (isDaylight(world, s.x, s.y) ? V.airDayKm : V.airNightKm) * factor;
   if (Math.abs(s.alt - r.alt) > world.rules.patrolRules.heightGapM) range /= 2;
   return distance(s.x, s.y, r.x, r.y) <= range;
 }

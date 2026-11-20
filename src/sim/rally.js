@@ -16,6 +16,15 @@ import { scrambleSeconds } from './crews.js';
 import { departConvoy, leaveConvoy, leavePort, scramble } from './orders.js';
 import { askRallyQuestion, questionsOn } from './engagement.js';
 import { formationById, leaderOf, linkToLeader, membersOf } from './formations.js';
+import { declareFields } from './entities.js';
+
+declareFields('squadron', (s) => {
+  s.lateFor = null; // a formation it is catching up with, late at the rendezvous
+  s.rallySlow = null; // a wing's leader slowing for its latecomers: speed factor
+});
+declareFields('escort', (e) => {
+  e.lateFor = null; // a support group it is catching up with
+});
 
 const RALLY_KM = 8; // within this of the point, a squadron is at the rendezvous
 const SEA_RALLY_KM = 12;
@@ -283,6 +292,7 @@ function sailMember(world, f, e) {
   } else {
     e.state = 'atSea';
     e.route = [[p.x, p.y]];
+    e.routeHead = 0;
     e.routeLocked = 0;
   }
   e.plan = [];
@@ -341,6 +351,7 @@ function depart(world, f, p, slow) {
     if (leader.state === 'waiting') leader.state = 'atSea';
     if (r.route.length) {
       leader.route = r.route.map(([x, y]) => [x, y]);
+      leader.routeHead = 0;
       leader.routeLocked = 0;
     }
     for (const e of membersOf(world, f).slice(1)) {
@@ -447,6 +458,7 @@ function updateOne(world, f) {
       } else if (u.state === 'atSea' && distance(u.x, u.y, leader.x, leader.y) <= SEA_RALLY_KM) {
         u.lateFor = null;
         u.route = [];
+        u.routeHead = 0;
       } else if (u.state === 'atSea' || u.state === 'waiting') behind++;
       else u.lateFor = null;
     }

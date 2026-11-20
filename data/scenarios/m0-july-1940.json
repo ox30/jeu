@@ -4,6 +4,31 @@
   "note": "Scénario d'entraînement, inspiré des 10-18 juillet 1940. Positions, unités et effectifs approximatifs. Chaque port britannique a des chenaux d'approche : une route qui passe près de leur entrée les suit automatiquement, et un convoi mené au cap y prend un pilote.",
   "start": "1940-07-10T06:00",
   "end": "1940-07-24T18:00",
+  "seaRhythm": "direct",
+  "map": {
+    "zone": "atlantic",
+    "view": "atlantic",
+    "views": [
+      "atlantic",
+      "britain",
+      "england"
+    ],
+    "layers": [
+      "grid",
+      "radars",
+      "routes",
+      "closedWaters",
+      "night"
+    ],
+    "tools": [
+      "ruler",
+      "radarCover",
+      "reports",
+      "formations",
+      "roster",
+      "cards"
+    ]
+  },
   "seed": 1940,
   "grid": {
     "origin": [

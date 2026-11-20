@@ -57,6 +57,34 @@ function landGrid(terrain) {
   return (terrain.landGrid = { ix0, iy0, cols, rows, data });
 }
 
+/**
+ * A raster cell for cell like the land raster: 1 where `inside(x, y)` holds at the centre of
+ * the cell, looked at only within `boxes` ([[x0, y0, x1, y1], ...] in km). Waters closed to
+ * some ships are given to the path search this way, worked out once.
+ */
+export function seaRaster(terrain, inside, boxes) {
+  const g = landGrid(terrain);
+  if (!g) return null;
+  const out = new Uint8Array(g.cols * g.rows);
+  for (const [x0, y0, x1, y1] of boxes) {
+    const c0 = Math.max(0, Math.floor(x0 / CELL_KM) - g.ix0);
+    const c1 = Math.min(g.cols - 1, Math.ceil(x1 / CELL_KM) - g.ix0);
+    const r0 = Math.max(0, Math.floor(y0 / CELL_KM) - g.iy0);
+    const r1 = Math.min(g.rows - 1, Math.ceil(y1 / CELL_KM) - g.iy0);
+    for (let r = r0; r <= r1; r++) {
+      for (let c = c0; c <= c1; c++) {
+        if (inside((g.ix0 + c + 0.5) * CELL_KM, (g.iy0 + r + 0.5) * CELL_KM)) out[r * g.cols + c] = 1;
+      }
+    }
+  }
+  return out;
+}
+
+/** Builds the rasters of the sea routes now, at loading time, rather than in the middle of a game. */
+export function prepareSeaRoutes(world) {
+  landGrid(world.terrain);
+}
+
 /** Land of a 5 km cell, from its centre. */
 function landCell(terrain, ix, iy) {
   const g = landGrid(terrain);
@@ -96,48 +124,9 @@ export function clearAtSea(world, a, b, endKm = 0, stepKm = 1.5) {
 // The ways the game works out itself are looked at closely (a rock, a narrow headland).
 const FINE_KM = 0.5;
 
-// A small binary heap of [priority, value].
-function heap() {
-  const items = [];
-  return {
-    get size() {
-      return items.length;
-    },
-    push(p, v) {
-      items.push([p, v]);
-      let i = items.length - 1;
-      while (i > 0) {
-        const parent = (i - 1) >> 1;
-        if (items[parent][0] <= items[i][0]) break;
-        [items[parent], items[i]] = [items[i], items[parent]];
-        i = parent;
-      }
-    },
-    pop() {
-      const top = items[0];
-      const last = items.pop();
-      if (items.length) {
-        items[0] = last;
-        let i = 0;
-        for (;;) {
-          const l = 2 * i + 1;
-          const r = l + 1;
-          let m = i;
-          if (l < items.length && items[l][0] < items[m][0]) m = l;
-          if (r < items.length && items[r][0] < items[m][0]) m = r;
-          if (m === i) break;
-          [items[m], items[i]] = [items[i], items[m]];
-          i = m;
-        }
-      }
-      return top[1];
-    },
-  };
-}
-
-// A binary heap of (float priority, integer value) in typed arrays, for the big fields.
+// A binary heap of (priority, integer value) in typed arrays: for the path search and the fields.
 function floatHeap() {
-  let pri = new Float32Array(1 << 16);
+  let pri = new Float64Array(1 << 16);
   let val = new Int32Array(1 << 16);
   let size = 0;
   return {
@@ -147,9 +136,12 @@ function floatHeap() {
     topPriority() {
       return pri[0];
     },
+    clear() {
+      size = 0;
+    },
     push(p, v) {
       if (size === pri.length) {
-        const np = new Float32Array(size * 2);
+        const np = new Float64Array(size * 2);
         np.set(pri);
         pri = np;
         const nv = new Int32Array(size * 2);
@@ -191,78 +183,178 @@ function floatHeap() {
   };
 }
 
-function gridPath(world, from, to, marginKm, avoid = null) {
-  const terrain = world.terrain;
-  const minX = Math.floor((Math.min(from[0], to[0]) - marginKm) / CELL_KM);
-  const maxX = Math.ceil((Math.max(from[0], to[0]) + marginKm) / CELL_KM);
-  const minY = Math.floor((Math.min(from[1], to[1]) - marginKm) / CELL_KM);
-  const maxY = Math.ceil((Math.max(from[1], to[1]) + marginKm) / CELL_KM);
-  const w = maxX - minX + 1;
-  const sx = Math.floor(from[0] / CELL_KM);
-  const sy = Math.floor(from[1] / CELL_KM);
-  const gx = Math.floor(to[0] / CELL_KM);
-  const gy = Math.floor(to[1] / CELL_KM);
-  // The cells of the start and of the end are open even on a coast (a harbour, a beach).
-  // `avoid`: waters closed to this ship besides the land (a U-boat's: avoidance.js).
-  const open = (ix, iy) => (ix === sx && iy === sy) || (ix === gx && iy === gy)
-    || (!landCell(terrain, ix, iy) && !(avoid && avoid.cell((ix + 0.5) * CELL_KM, (iy + 0.5) * CELL_KM)));
-  const id = (ix, iy) => (iy - minY) * w + (ix - minX);
-  const g = new Map();
-  const came = new Map();
-  const h = (ix, iy) => Math.hypot(ix - gx, iy - gy);
-  const queue = heap();
-  const start = id(sx, sy);
-  g.set(start, 0);
-  queue.push(h(sx, sy), [sx, sy]);
+// Working arrays of the search, kept from one search to the next (a search never runs inside
+// another): cost so far, where each cell was reached from, and a stamp that says whether the
+// two belong to this search (and whether the cell is settled), so that nothing has to be cleared.
+const scratch = { size: 0, cost: null, from: null, stamp: null, run: 0, queue: floatHeap() };
+
+function workingArrays(cells) {
+  if (scratch.size < cells) {
+    const size = Math.max(cells, 1 << 16);
+    Object.assign(scratch, { size, cost: new Int32Array(size), from: new Int32Array(size), stamp: new Uint32Array(size), run: 0 });
+  }
+  // Two stamps a search: seen (run) and settled (run + 1).
+  scratch.run += 2;
+  if (scratch.run >= 0xfffffff0) {
+    scratch.stamp.fill(0);
+    scratch.run = 2;
+  }
+  scratch.queue.clear();
+  return scratch;
+}
+
+// Whole numbers for the costs: a step is 70, a diagonal step 99 (√2 to five parts in a hundred
+// thousand). Ways of the same length then have exactly the same cost, whatever their order, and
+// no cell is ever looked at twice.
+const STRAIGHT = 70;
+const DIAGONAL = 99;
+// The eight neighbours: dx, dy, cost.
+const STEPS = new Int32Array([1, 0, STRAIGHT, -1, 0, STRAIGHT, 0, 1, STRAIGHT, 0, -1, STRAIGHT,
+  1, 1, DIAGONAL, 1, -1, DIAGONAL, -1, 1, DIAGONAL, -1, -1, DIAGONAL]);
+
+/**
+ * Shortest way from `from` to `to` over the sea cells of the raster (A*), inside the box of the
+ * two points widened by `marginKm`: the centres of its cells, or null. `closed`: a raster of
+ * other waters to keep out of, cell for cell like the land raster (a U-boat's closed waters).
+ */
+function gridPath(world, from, to, marginKm, closed = null) {
+  const land = landGrid(world.terrain);
+  if (!land) return null;
+  const { ix0, iy0, cols, rows, data } = land;
+  const clampX = (ix) => Math.max(0, Math.min(cols - 1, ix - ix0));
+  const clampY = (iy) => Math.max(0, Math.min(rows - 1, iy - iy0));
+  // The window, in cells of the raster.
+  const c0 = clampX(Math.floor((Math.min(from[0], to[0]) - marginKm) / CELL_KM));
+  const c1 = clampX(Math.ceil((Math.max(from[0], to[0]) + marginKm) / CELL_KM));
+  const r0 = clampY(Math.floor((Math.min(from[1], to[1]) - marginKm) / CELL_KM));
+  const r1 = clampY(Math.ceil((Math.max(from[1], to[1]) + marginKm) / CELL_KM));
+  const w = c1 - c0 + 1;
+  const sc = Math.floor(from[0] / CELL_KM) - ix0;
+  const sr = Math.floor(from[1] / CELL_KM) - iy0;
+  const gc = Math.floor(to[0] / CELL_KM) - ix0;
+  const gr = Math.floor(to[1] / CELL_KM) - iy0;
+  if (sc < c0 || sc > c1 || sr < r0 || sr > r1 || gc < c0 || gc > c1 || gr < r0 || gr > r1) return null; // off the map
+  const { cost, from: cameFrom, stamp, run, queue } = workingArrays(w * (r1 - r0 + 1));
+  const settled = run + 1;
+  const startId = (sr - r0) * w + (sc - c0);
+  const goalId = (gr - r0) * w + (gc - c0);
+  // The raster index of the cell with window index 0, and what closes a cell: land, or the
+  // closed waters. The cells of the start and of the end are open even on a coast (a harbour).
+  const base = r0 * cols + c0;
+  const startK = sr * cols + sc;
+  const goalK = gr * cols + gc;
+  const shut = closed === null
+    ? (k) => data[k] === 1 && k !== startK && k !== goalK
+    : (k) => (data[k] === 1 || closed[k] === 1) && k !== startK && k !== goalK;
+  cost[startId] = 0;
+  cameFrom[startId] = -1;
+  stamp[startId] = run;
+  queue.push(0, startId);
   let expanded = 0;
   while (queue.size) {
-    const [ix, iy] = queue.pop();
-    if (ix === gx && iy === gy) {
+    const id = queue.pop();
+    if (stamp[id] === settled) continue; // an older, longer entry of a cell already settled
+    stamp[id] = settled;
+    const lc = id % w;
+    const lr = (id - lc) / w;
+    if (id === goalId) {
       const cells = [];
-      let k = id(ix, iy);
-      while (k !== undefined) {
-        cells.push(k);
-        k = came.get(k);
-      }
-      return cells.reverse().map((c) => [((c % w) + minX + 0.5) * CELL_KM, (Math.floor(c / w) + minY + 0.5) * CELL_KM]);
+      for (let k = id; k !== -1; k = cameFrom[k]) cells.push([((k % w) + c0 + ix0 + 0.5) * CELL_KM, (Math.floor(k / w) + r0 + iy0 + 0.5) * CELL_KM]);
+      return cells.reverse();
     }
     if (++expanded > MAX_EXPANDED) return null;
-    const here = g.get(id(ix, iy));
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        if (!dx && !dy) continue;
-        const nx = ix + dx;
-        const ny = iy + dy;
-        if (nx < minX || nx > maxX || ny < minY || ny > maxY) continue;
-        if (!open(nx, ny)) continue;
-        // No cutting across a corner of land.
-        if (dx && dy && (!open(ix + dx, iy) || !open(ix, iy + dy))) continue;
-        const cost = here + (dx && dy ? Math.SQRT2 : 1);
-        const k = id(nx, ny);
-        if (cost >= (g.get(k) ?? Infinity)) continue;
-        g.set(k, cost);
-        came.set(k, id(ix, iy));
-        queue.push(cost + h(nx, ny), [nx, ny]);
-      }
+    const c = lc + c0;
+    const r = lr + r0;
+    const here = cost[id];
+    const k = base + lr * cols + lc;
+    for (let n = 0; n < 24; n += 3) {
+      const dx = STEPS[n];
+      const dy = STEPS[n + 1];
+      const nc = c + dx;
+      const nr = r + dy;
+      if (nc < c0 || nc > c1 || nr < r0 || nr > r1) continue;
+      const nid = id + dy * w + dx;
+      if (stamp[nid] === settled) continue;
+      const nk = k + dy * cols + dx;
+      if (shut(nk)) continue;
+      // No cutting across a corner of land.
+      if (dx !== 0 && dy !== 0 && (shut(k + dx) || shut(k + dy * cols))) continue;
+      const g = here + STEPS[n + 2];
+      if (stamp[nid] === run && g >= cost[nid]) continue;
+      stamp[nid] = run;
+      cost[nid] = g;
+      cameFrom[nid] = id;
+      // What is left at least: straight and diagonal steps over open water. A hair more than
+      // that (far less than one step), so that among ways of the same length the search makes
+      // for the goal instead of spreading.
+      const ax = nc > gc ? nc - gc : gc - nc;
+      const ay = nr > gr ? nr - gr : gr - nr;
+      const left = ax > ay ? STRAIGHT * ax + (DIAGONAL - STRAIGHT) * ay : STRAIGHT * ay + (DIAGONAL - STRAIGHT) * ax;
+      queue.push(g + left * 1.000001, nid);
     }
   }
   return null;
 }
 
+// For the tests: the search itself, the raster it runs on and the size of its cells.
+export { gridPath as shortestCells, landGrid as landRaster, CELL_KM };
+
 /**
- * Straightens a path: from each point, on to the farthest one in a straight line at sea. Two
- * neighbouring cells of the grid may still have a sliver of land between their centres (a rock,
- * the tip of a headland): the step goes round it, a little to one side.
+ * Straightens a path of grid cells: from each point, on to the farthest one in a straight line
+ * at sea. Only the points where the path turns are tried as far ends (and its last point): a
+ * way across open water is a few straight runs, and trying every cell of them costs a long
+ * line each. Two neighbouring cells of the grid may still have a sliver of land between their
+ * centres (a rock, the tip of a headland): the step goes round it, a little to one side.
  */
 function straighten(pts, clear) {
+  const last = pts.length - 1;
+  // The turning points, in order.
+  const turns = [];
+  for (let k = 1; k < last; k++) {
+    const ax = Math.sign(pts[k][0] - pts[k - 1][0]);
+    const ay = Math.sign(pts[k][1] - pts[k - 1][1]);
+    const bx = Math.sign(pts[k + 1][0] - pts[k][0]);
+    const by = Math.sign(pts[k + 1][1] - pts[k][1]);
+    if (ax !== bx || ay !== by) turns.push(k);
+  }
+  turns.push(last);
   const out = [pts[0]];
   let i = 0;
-  while (i < pts.length - 1) {
-    let j = pts.length - 1;
-    while (j > i + 1 && !clear(pts[i], pts[j])) j--;
-    if (j === i + 1 && !clear(pts[i], pts[j])) {
-      const via = aside(pts[i], pts[j], clear);
-      if (via) out.push(via);
+  while (i < last) {
+    // The farthest turning point in sight; failing that, the end of the run it is on (always a
+    // straight run of open cells); failing that, the next cell.
+    let j = -1;
+    for (let t = turns.length - 1; t >= 0 && turns[t] > i + 1; t--) {
+      if (!clear(pts[i], pts[turns[t]])) continue;
+      j = turns[t];
+      // And as far as can be seen along the run that follows it (a few tries, by halves).
+      let hidden = t + 1 < turns.length ? turns[t + 1] : j;
+      while (hidden - j > 1) {
+        const mid = (j + hidden) >> 1;
+        if (clear(pts[i], pts[mid])) j = mid;
+        else hidden = mid;
+      }
+      break;
+    }
+    if (j < 0) {
+      // No turning point in sight: as far as can be seen along the run the point is on.
+      const end = turns.find((k) => k > i);
+      let seen = i;
+      let hidden = end;
+      if (end > i + 1 && clear(pts[i], pts[end])) seen = end;
+      while (hidden - seen > 1 && seen !== end) {
+        const mid = (seen + hidden) >> 1;
+        if (clear(pts[i], pts[mid])) seen = mid;
+        else hidden = mid;
+      }
+      if (seen > i + 1) j = seen;
+    }
+    if (j < 0) {
+      j = i + 1;
+      if (!clear(pts[i], pts[j])) {
+        const via = aside(pts[i], pts[j], clear);
+        if (via) out.push(via);
+      }
     }
     out.push(pts[j]);
     i = j;
@@ -287,13 +379,14 @@ function aside(a, b, clear) {
 /**
  * Points of a route by sea from `from` to `to` (both [x, y]), the start left out; null if
  * there is none (a lake, or too far around). `endKm`: the last km may touch the coast (a
- * harbour mouth). `avoid`: other waters to keep out of ({ cell(x, y), clear(a, b) }).
+ * harbour mouth). `avoid`: other waters to keep out of: { clear(a, b), raster }, the raster
+ * made by seaRaster().
  */
 export function seaPath(world, from, to, endKm = 0, avoid = null) {
   const open = (a, b) => !avoid || avoid.clear(a, b);
   if (open(from, to) && clearAtSea(world, from, to, endKm, FINE_KM)) return [[to[0], to[1]]];
   for (const margin of [250, 900]) {
-    const cells = gridPath(world, from, to, margin, avoid);
+    const cells = gridPath(world, from, to, margin, avoid ? avoid.raster : null);
     if (!cells) continue;
     cells[0] = [from[0], from[1]];
     cells[cells.length - 1] = [to[0], to[1]];

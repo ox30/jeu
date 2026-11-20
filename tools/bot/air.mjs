@@ -35,6 +35,7 @@ export const AIR_DEFAULTS = {
   nightRest: false, // stand the squadrons down from 21:00 to 05:00
   carry: null, // what the campaign hands over from the battle before
   days: null, // stop after so many days
+  probe: null, // a function called every game minute with the world, for a closer look
 };
 
 export function runAir(cfg = {}) {
@@ -146,6 +147,7 @@ export function runAir(cfg = {}) {
   const stopT = c.days ? c.days * 86400 : Infinity;
   while (!w.ended && w.t < stopT) {
     step(w, 1);
+    if (c.probe && w.t % 60 === 0) c.probe(w);
     if (w.events.length) {
       noteInterruptions(w, w.events, tally);
       for (const e of w.events) {
@@ -282,6 +284,8 @@ export function runChain(cfg = {}) {
       start: carry ? +carry.fighterShare.toFixed(3) : 1,
       outcome: w.outcome,
       down: sim.objectives.enemyDown(w),
+      // What the battle asked: the scenario's count, cut to the fighters carried over (2.10.2).
+      asked: w.objectives.find((o) => o.type === 'enemyDown')?.count ?? null,
       fighterShare: +share.toFixed(3),
       failed: w.objectives.filter((o) => !o.done).map((o) => o.type),
     });

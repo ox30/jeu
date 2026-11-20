@@ -204,3 +204,17 @@ test('every aircraft type of the scenarios is described in the rules, with its n
   }
   assert.deepEqual(wrong, []);
 });
+
+test('every module of the game loads on its own: no import of a name that is not exported', async () => {
+  // The linter does not follow imports; a wrong name only shows when the page starts.
+  const failed = [];
+  for (const { file, rel } of sources) {
+    if (rel === 'src/main.js') continue; // the page itself: it starts the game when loaded
+    try {
+      await import(file);
+    } catch (e) {
+      failed.push(`${rel}: ${String(e.message).slice(0, 200)}`);
+    }
+  }
+  assert.deepEqual(failed, []);
+});

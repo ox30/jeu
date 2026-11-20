@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { project } from '../src/sim/geo.js';
 import { engage } from '../src/sim/asw.js';
 import { escortHome, huntPlot } from '../src/sim/orders.js';
-import { isDaylight } from '../src/sim/patrols.js';
+import { isDaylight } from '../src/sim/daylight.js';
 import { allViewZones, viewZones } from '../src/sim/sight.js';
 import { ALERT_GROUPS, ALERT_TYPES, alertSpeed } from '../src/ui/alertRules.js';
 import { data, makeKanalkampf, run } from './helpers.js';
@@ -17,10 +17,14 @@ function groupAt(world, id, lon, lat, state = 'atSea') {
   return e;
 }
 
-/** Moves the clock to the next hour of day (or of night). */
+// Over Kent and out in the north-western approaches: the two places the units of these tests are.
+const PLACES = [project(0.5, 51.3), project(-10, 56)];
+
+/** Moves the clock to the next hour of day (or of night) at both places. */
 function toLight(world, day) {
-  for (let i = 0; i < 48 && isDaylight(world) !== day; i++) world.t += H;
-  assert.equal(isDaylight(world), day);
+  const everywhere = () => PLACES.every(([x, y]) => isDaylight(world, x, y) === day);
+  for (let i = 0; i < 48 && !everywhere(); i++) world.t += H;
+  assert.ok(everywhere());
 }
 
 const km = (zones, kind) => zones.find((z) => z.kind === kind)?.km;
@@ -40,8 +44,10 @@ test('what a fighter and an escort group see, by day and by night', () => {
   toLight(w, false);
   assert.equal(km(viewZones(w, s, 'squadron'), 'air'), V.airNightKm);
   assert.equal(km(viewZones(w, e, 'escort'), 'surface'), A.lookoutNightKm);
-  w.scenario.escortRadar = true;
+  e.radar = true; // a group fitted with one of the first sets (C13: by group, no more by scenario)
   assert.equal(km(viewZones(w, e, 'escort'), 'surface'), A.radar.surfaceKm, 'radar by night');
+  assert.ok(A.radar.surfaceKm > A.lookoutNightKm && A.radar.surfaceKm <= 2, 'short range, but better than lookouts at night');
+  assert.equal(km(viewZones(w, e, 'escort'), 'submerged'), A.asdicKm, 'it does not see a periscope');
   e.state = 'inPort';
   assert.deepEqual(viewZones(w, e, 'escort'), [], 'in port, no watch');
 });

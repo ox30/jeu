@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { project, unproject } from '../src/sim/geo.js';
+import { distance, project, unproject } from '../src/sim/geo.js';
 import { engage, startHunt, stopHunt } from '../src/sim/asw.js';
 import {
-  escortHome, huntPlot, joinConvoy, routeConvoy, setEscortBehaviour, setHuntHours,
+  escortHome, huntPlot, joinConvoy, routeConvoy, setEscortBehaviour,
 } from '../src/sim/orders.js';
 import { homeRoute, portChoices, setShipEndAction, shipEndChoices } from '../src/sim/naval.js';
 import { seaPath } from '../src/sim/searoute.js';
@@ -57,7 +57,9 @@ test('home from the North Channel: up the Clyde channel from where it is, not ba
   assert.equal(e.portId, 'liverpool');
 });
 
-test('a hunt lasts the hours set, any order ends it, and "stop" sends the group back to its convoy', () => {
+// Until 2.7 the player set how many hours a hunt lasted. Since the depth charges (2.8, I3) a
+// hunt ends by itself: the way to the plot and a search there, unless a contact is held.
+test('a hunt lasts the way to the plot and a search there, any order ends it, and "stop" sends the group back to its convoy', () => {
   const w = makeKanalkampf();
   const hx = w.convoys.find((c) => c.id === 'hx55');
   const e = groupAt(w, 'eg1', 0, 0);
@@ -65,10 +67,11 @@ test('a hunt lasts the hours set, any order ends it, and "stop" sends the group 
   e.y = hx.y;
   e.state = 'escorting';
   e.escorting = hx.id;
-  assert.ok(setHuntHours(w, e, 1));
   startHunt(w, e, hx.x + 30, hx.y);
   assert.equal(e.state, 'hunting');
-  assert.equal(e.huntUntil - w.t, H);
+  const wayS = distance(e.x, e.y, hx.x + 30, hx.y) / e.speed;
+  assert.ok(Math.abs(e.huntUntil - w.t - (wayS * 1.5 + w.rules.asw.engagement.searchS)) < 1, 'the way there with a margin, then the search');
+  assert.ok(e.huntUntil - w.t < 3 * H, 'no more the three hours of a hunt by the clock');
   assert.ok(stopHunt(w, e));
   assert.equal(e.state, 'atSea');
   assert.equal(e.joinTarget, hx.id, 'back to its convoy');
@@ -139,8 +142,14 @@ test('the end of a route: meet a convoy, hunt, or go into a port; a route ending
   const g = groupAt(w, 'eg1', -12, 57);
   routeConvoy(w, g, [project(-12.5, 57.1)]);
   setShipEndAction(w, g, { kind: 'hunt' });
-  run(w, 3 * H);
+  const started = run(w, 3 * H, (ev) => ev.type === 'escortHunting');
+  assert.ok(started.some((ev) => ev.type === 'escortHunting' && ev.escortId === g.id), 'the search begins where the route ends');
   assert.equal(g.state, 'hunting');
+  // Since the depth charges (2.8) a search on the spot lasts its time, then the group waits.
+  const S = w.rules.asw.engagement.searchS;
+  const ended = run(w, S + 120, (ev) => ev.type === 'escortHuntOver');
+  assert.ok(ended.some((ev) => ev.type === 'escortHuntOver' && ev.why === 'lost'));
+  assert.equal(g.state, 'waiting');
   // The Clyde's bubble: the route goes into port.
   const k = groupAt(w, 'eg1', -5.0, 55.6);
   const clyde = w.byId.port.get('clyde');

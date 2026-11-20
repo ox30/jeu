@@ -43,14 +43,121 @@ export function pointInRings(rings, x, y) {
   return inside;
 }
 
+const CLASS_KM = 5; // size of the cells of the land-or-sea raster
+
 export function createTerrain(coarseData, fineData) {
   const coarse = decodeMap(coarseData);
   const fine = decodeMap(fineData);
   const fb = fine.box;
   const inFine = (x, y) => x >= fb[0] && x <= fb[2] && y >= fb[1] && y <= fb[3];
 
-  function isLand(x, y) {
+  /** Land or sea at a point, from the coastlines themselves. */
+  function isLandExact(x, y) {
     return inFine(x, y) ? pointInRings(fine.rings, x, y) : pointInRings(coarse.rings, x, y);
+  }
+
+  // The map cut into cells of 5 km, each one all sea (0), all land (1) or crossed by a
+  // coastline (2). Built on the first question; the ocean and the inland then answer at once,
+  // and only the cells of the coast go back to the coastlines. The answers are the same.
+  let classes = null;
+  function classGrid() {
+    const cb = coarse.box;
+    const S = CLASS_KM;
+    const c0 = Math.floor(cb[0] / S);
+    const r0 = Math.floor(cb[1] / S);
+    const cols = Math.ceil(cb[2] / S) - c0;
+    const rows = Math.ceil(cb[3] / S) - r0;
+    const data = new Uint8Array(cols * rows);
+    const mark = (c, r, v) => {
+      if (c >= 0 && r >= 0 && c < cols && r < rows) data[r * cols + c] = v;
+    };
+    // Land where the centre of the cell is on land (a scanline fill of the rings that count
+    // there: the detailed coastlines inside their box, the coarse ones elsewhere).
+    const fill = (rings, y, row, keep) => {
+      const xs = [];
+      for (const ring of rings) {
+        if (y < ring.box[1] || y > ring.box[3]) continue;
+        const p = ring.pts;
+        const n = p.length / 2;
+        for (let i = 0, j = n - 1; i < n; j = i++) {
+          const yi = p[2 * i + 1];
+          const yj = p[2 * j + 1];
+          if ((yi > y) !== (yj > y)) xs.push(p[2 * i] + ((p[2 * j] - p[2 * i]) * (y - yi)) / (yj - yi));
+        }
+      }
+      xs.sort((a, b) => a - b);
+      for (let k = 0; k + 1 < xs.length; k += 2) {
+        const from = Math.max(0, Math.ceil(xs[k] / S - 0.5) - c0);
+        const to = Math.min(cols - 1, Math.floor(xs[k + 1] / S - 0.5) - c0);
+        for (let c = from; c <= to; c++) if (keep((c0 + c + 0.5) * S)) data[row * cols + c] = 1;
+      }
+    };
+    const inFineX = (x) => x >= fb[0] && x <= fb[2];
+    for (let row = 0; row < rows; row++) {
+      const y = (r0 + row + 0.5) * S;
+      const fineRow = y >= fb[1] && y <= fb[3];
+      fill(coarse.rings, y, row, (x) => !fineRow || !inFineX(x));
+      if (fineRow) fill(fine.rings, y, row, inFineX);
+    }
+    // Every cell a coastline passes through (a walk along each segment, cell by cell).
+    const walk = (ax, ay, bx, by) => {
+      let c = Math.floor(ax / S) - c0;
+      let r = Math.floor(ay / S) - r0;
+      const ec = Math.floor(bx / S) - c0;
+      const er = Math.floor(by / S) - r0;
+      const dx = bx - ax;
+      const dy = by - ay;
+      const sc = dx > 0 ? 1 : -1;
+      const sr = dy > 0 ? 1 : -1;
+      let tx = dx !== 0 ? ((c0 + c + (dx > 0 ? 1 : 0)) * S - ax) / dx : Infinity;
+      let ty = dy !== 0 ? ((r0 + r + (dy > 0 ? 1 : 0)) * S - ay) / dy : Infinity;
+      const ux = dx !== 0 ? S / Math.abs(dx) : Infinity;
+      const uy = dy !== 0 ? S / Math.abs(dy) : Infinity;
+      mark(c, r, 2);
+      for (let guard = 0; (c !== ec || r !== er) && guard < 100000; guard++) {
+        if (tx < ty) {
+          c += sc;
+          tx += ux;
+        } else if (ty < tx) {
+          r += sr;
+          ty += uy;
+        } else {
+          // Right through a corner: the two cells beside it are touched too.
+          mark(c + sc, r, 2);
+          mark(c, r + sr, 2);
+          c += sc;
+          r += sr;
+          tx += ux;
+          ty += uy;
+        }
+        mark(c, r, 2);
+      }
+    };
+    for (const set of [coarse.rings, fine.rings]) {
+      for (const ring of set) {
+        const p = ring.pts;
+        const n = p.length / 2;
+        for (let i = 0, j = n - 1; i < n; j = i++) walk(p[2 * j], p[2 * j + 1], p[2 * i], p[2 * i + 1]);
+      }
+    }
+    // The edge of the detailed map: the coastline changes there.
+    walk(fb[0], fb[1], fb[2], fb[1]);
+    walk(fb[2], fb[1], fb[2], fb[3]);
+    walk(fb[2], fb[3], fb[0], fb[3]);
+    walk(fb[0], fb[3], fb[0], fb[1]);
+    classes = { c0, r0, cols, rows, data };
+    return classes;
+  }
+
+  function isLand(x, y) {
+    const g = classes || classGrid();
+    const c = Math.floor(x / CLASS_KM) - g.c0;
+    const r = Math.floor(y / CLASS_KM) - g.r0;
+    if (c >= 0 && r >= 0 && c < g.cols && r < g.rows) {
+      const kind = g.data[r * g.cols + c];
+      if (kind !== 2) return kind === 1;
+    }
+    return isLandExact(x, y);
   }
 
   // Great Britain is the detailed ring that contains London.
@@ -185,5 +292,6 @@ export function createTerrain(coarseData, fineData) {
     return null;
   }
 
-  return { coarse, fine, isLand, isOverBritain, getBritishRings, observerMask, isObserved, findLandOnRoute };
+  classGrid(); // now, at loading time, rather than in the middle of a game
+  return { coarse, fine, isLand, isLandExact, isOverBritain, getBritishRings, observerMask, isObserved, findLandOnRoute };
 }

@@ -277,15 +277,20 @@
     "dfRadiusKm": 70,
     "dfLifetimeH": 30,
     "attackGapH": 4,
+    "attackNote": "Un U-Boot en place attaque à son heure : de nuit, en moyenne une heure après être prêt (attackPerHourNight) ; de jour presque jamais contre un convoi (attackPerHourDay), plus volontiers contre un traînard ou un convoi réduit à aloneShips navires (attackPerHourDayAlone). attackGapH reste l'écart minimal entre deux attaques d'un même bateau.",
+    "attackPerHourNight": 1,
+    "attackPerHourDay": 0.01,
+    "attackPerHourDayAlone": 0.12,
+    "aloneShips": 2,
     "pHit": 0.85,
     "escortFactor": 0.6,
     "secondShipP": 0.5,
     "pDriveOffPerEscort": 0.22,
-    "nightFromH": 21,
-    "nightToH": 4,
     "lostKm": 60,
     "callKm": 250,
     "refitDays": 14,
+    "replaceDays": 21,
+    "replaceNote": "Dans un long scénario (uboatRotation), le BdU comble le vide laissé par un U-Boot coulé : un autre appareille des bases de Gascogne replaceDays jours plus tard pour la même zone de patrouille. Début 1941, les bateaux neufs arrivaient chaque mois en opérations. Couler un U-Boot soulage donc le joueur trois semaines (plus le transit), contre deux pour un bateau endommagé ou chassé (refitDays) ; cela ne vide plus la mer pour le reste de la partie.",
     "reentry": {
       "lon": -3.4,
       "lat": 47.6
@@ -298,6 +303,22 @@
       { "name": "Manche", "area": [[-5.25, 50.0], [-5.1, 48.5], [-3.0, 48.6], [-1.6, 48.6], [-1.3, 49.7], [0.2, 49.4], [1.5, 50.0], [1.6, 50.9], [1.9, 51.05], [1.45, 51.2], [0.0, 50.85], [-1.3, 50.75], [-3.0, 50.75], [-4.2, 50.4], [-5.1, 50.1]] },
       { "name": "Canal de Bristol", "area": [[-4.53, 51.02], [-4.95, 51.58], [-4.0, 51.75], [-2.6, 51.6], [-3.0, 51.05]] }
     ]
+  },
+  "seaComms": {
+    "note": "Silence radio (réglage « Communications en mer ») : hors des eaux suivies (eaux fermées aux U-Boote, approches des ports à moins de portKm, couverture de surface des radars côtiers), la position d'un convoi ou d'un groupe est une estimation. Son incertitude vaut driftKm fois la racine du nombre d'heures depuis le dernier point sûr ; le cercle dessiné fait deux fois cela, plus le chemin parcouru depuis la dernière relève. Un avion du joueur voit un navire à aircraftDayKm de jour, aircraftAsvKm de nuit au radar ASV, aircraftNightKm sinon. Une position demandée par radio donne un relèvement à l'ennemi : les U-Boote en patrouille à moins de bearingCallKm se rapprochent.",
+    "portKm": 80,
+    "aircraftDayKm": 25,
+    "aircraftAsvKm": 25,
+    "aircraftNightKm": 4,
+    "driftKm": 5,
+    "bearingCallKm": 150,
+    "companyKm": 20,
+    "companyNote": "Dans un groupe de soutien, un groupe à moins de companyKm de son chef reçoit ses ordres au projecteur ; plus loin et en haute mer, il ne les reçoit que par radio, à la relève. Ce qu'un groupe signale au QG (U-Boot vu ou attaqué, fin de chasse, grenades ou mazout épuisés) donne un point sûr : il a émis."
+  },
+  "watches": {
+    "note": "La mer au rythme des quarts (scénario : seaRhythm « watches ») : six relèves par jour, à 0, 4, 8, 12, 16 et 20 h. Un repère U-Boot compte comme une décision quand il est à moins de plotKm de la route d'un convoi dans les routeAheadH heures ; un relèvement radio, quand sa zone coupe cette route.",
+    "routeAheadH": 24,
+    "plotKm": 50
   },
   "escortGroups": {
     "joinKm": 15,
@@ -327,28 +348,28 @@
     "giveUpS": 600
   },
   "crews": {
-    "note": "Pilotes, fatigue et alerte au sol. Réglage « fatigue » : off (Arcade), on (Standard), losses (Réaliste, pilotes tués). États d'alerte : délai pour être en l'air (repos 2 h, disponible 30 min, alerte 5 min, cockpit 2 min) et fatigue par heure ; monter d'un cran prend la différence des délais.",
+    "note": "Pilotes, fatigue et alerte au sol. Réglage « fatigue » : off (Arcade), on (Standard), losses (Réaliste, pilotes tués). États d'alerte : délai pour être en l'air (repos 2 h, disponible 30 min, alerte 5 min, cockpit 2 min) et fatigue par heure ; monter d'un cran prend la différence des délais. Depuis le 2.10 (I6), seul le repos repose vraiment : l'alerte à 5 minutes fatigue un peu, la disponibilité à 30 minutes repose peu. Le vol fatigue moins qu'avant, pour qu'une escadrille laissée une semaine en alerte à 5 minutes finisse fatiguée, pas épuisée dès le troisième jour.",
     "alert": {
       "rest": {
         "scrambleS": 7200,
         "fatiguePerHour": -8
       },
-      "thirty": {
+      "min30": {
         "scrambleS": 1800,
-        "fatiguePerHour": -5
+        "fatiguePerHour": -1
       },
-      "available": {
+      "min5": {
         "scrambleS": 300,
-        "fatiguePerHour": -2
+        "fatiguePerHour": 0.1
       },
       "cockpit": {
         "scrambleS": 120,
         "fatiguePerHour": 3
       }
     },
-    "fatiguePerFlightHour": 7,
-    "fatiguePerCombatRound": 2.5,
-    "fatiguePerScramble": 2,
+    "fatiguePerFlightHour": 4,
+    "fatiguePerCombatRound": 1.5,
+    "fatiguePerScramble": 1,
     "tiredAt": 60,
     "exhaustedAt": 85,
     "effectAtMax": 0.45,
@@ -473,8 +494,6 @@
   },
   "patrolRules": {
     "note": "Patrouilles de guet et Coastal Command : vue, risque d'être surpris par l'escorte allemande.",
-    "dayFromH": 5,
-    "dayToH": 21,
     "heightGapM": 3000,
     "bounceKm": 10,
     "bounceHeightM": 2500,
@@ -484,7 +503,7 @@
     "plotCount": 0.2
   },
   "asw": {
-    "note": "Chasse aux U-Boote en 1940 : vigies, périscope, ASDIC ; le radar des escorteurs vient en 1941 (option du scénario).",
+    "note": "Chasse aux U-Boote en 1940 : vigies, périscope, ASDIC. Le premier radar des escorteurs n'arrive qu'en mars 1941, sur quelques groupes (donnée datée du scénario, radarFrom par groupe).",
     "surfaceKn": 17,
     "submergedKn": 5,
     "batteryNm": 70,
@@ -497,16 +516,18 @@
     "pPeriscope": 0.15,
     "periscopeSightKm": 8,
     "radar": {
-      "surfaceKm": 4.8,
-      "periscopeKm": 0.8,
-      "p": 0.5
+      "note": "Premier radar des escorteurs (Type 286, début 1941) : portée courte contre un U-Boot en surface (le 17 mars 1941, le Vanoc détecte l'U-100 à 1 000 m environ), mais de nuit comme de jour, là où les vigies ne voient presque rien. Il ne voit pas un périscope. Un groupe équipé repère plus sûrement l'U-Boot qui vient d'attaquer en surface (pSpotAttacker, au lieu de celui des vigies).",
+      "surfaceKm": 2,
+      "p": 0.6,
+      "pSpotAttacker": 0.6
     },
     "pAircraft": 0.35,
     "pAsv": 0.3,
     "aircraftAttackKm": 4,
+    "aircraftNote": "Un avion de patrouille qui voit un U-Boot à moins de aircraftAttackKm l'attaque, une fois par sortie (attackKill de son type : la bombe et la grenade d'avion de 1941 coulent rarement) ; ensuite il le fait encore plonger. Le repère d'un avion à moins de aircraftHuntKm d'un convoi lance la chasse du groupe en « Chasser » le plus proche.",
+    "aircraftHuntKm": 30,
     "diveHours": 2,
     "counterKm": 3,
-    "huntHours": 3,
     "plotEveryS": 600,
     "plotLifetimeH": 12,
     "counterWindowS": 1800,
@@ -520,11 +541,20 @@
     "stragglerMax": 3,
     "stragglerKn": 6,
     "engagement": {
-      "note": "Attaque d'un U-Boot tenu (ASDIC, ou vu tout près) : une passe de grenades toutes les 10 minutes ; chaque passe peut le couler, l'endommager (il rentre) ou le perdre. Un groupe qui reste avec son convoi n'attaque que ce qui s'approche, 30 minutes et 15 km au plus.",
+      "note": "Attaque d'un U-Boot tenu (ASDIC, ou vu tout près) : une passe de grenades toutes les 10 minutes ; chaque passe peut le couler, l'endommager (il rentre) ou le perdre. Un groupe qui reste avec son convoi n'attaque que ce qui s'approche, 30 minutes et 15 km au plus. Un groupe qui chasse quitte son convoi tant qu'il tient le contact ; il revient quand le U-Boot est coulé ou endommagé, quand le contact est perdu ou quand ses grenades tombent à la réserve gardée pour le convoi (huntReserve, un tiers du stock). Contact perdu : le U-Boot est descendu profond et s'est dérobé ; le groupe cherche searchS secondes sur place et ne le retrouve qu'une fois sur trois environ (pRegain), après regainS secondes ; sinon aucun ASDIC ne le tient pendant la recherche, et le groupe rentre vers son convoi.",
+      "chargesNote": "Grenades : chargesPerShip par navire (40 sur une corvette Flower d'origine), refaites au port avec le mazout. Une passe pleine en lance patternFull (le motif de dix grenades de 1941), une passe économe patternLight, avec lightKillFactor et lightDamageFactor fois les chances de couler et d'endommager. À vide, les passes sont à blanc : le U-Boot reste en plongée mais ne risque rien.",
+      "chargesPerShip": 40,
+      "patternFull": 10,
+      "patternLight": 5,
+      "lightKillFactor": 0.6,
+      "lightDamageFactor": 0.75,
+      "huntReserve": 0.3334,
+      "searchS": 2700,
+      "pRegain": 0.35,
+      "regainS": 900,
       "passEveryS": 600,
-      "pKillPerShip": 0.03,
-      "pDamagePerShip": 0.04,
-      "damagedKillFactor": 2,
+      "pKillPerShip": 0.012,
+      "pDamagePerShip": 0.02,
       "pLoseBase": 0.4,
       "pLosePerShip": 0.05,
       "pLoseMin": 0.12,
@@ -542,7 +572,7 @@
     "escort": {
       "name": "Groupe d'escorte",
       "speedKn": 16,
-      "note": "destroyers, corvettes, avisos ; ASDIC, grenades sous-marines ; radar à partir de 1941"
+      "note": "destroyers, corvettes, avisos ; ASDIC, grenades sous-marines ; premier radar en mars 1941 sur quelques groupes"
     },
     "uboat": {
       "name": "U-Boot type VII",

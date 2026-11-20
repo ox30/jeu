@@ -11,7 +11,7 @@ test('alert states: two hours from rest; raising the readiness takes the differe
   setAlert(world, sq, 'rest');
   assert.equal(sq.alertAt, null, 'standing down is immediate');
   assert.equal(scrambleSeconds(world, sq), 7200, 'two hours to the air from rest');
-  setAlert(world, sq, 'available');
+  setAlert(world, sq, 'min5');
   assert.equal(sq.alertAt, world.t + 6900, 'the recall takes 1 h 55');
   assert.equal(effectiveAlert(world, sq), 'rest');
   assert.equal(scrambleSeconds(world, sq), 7200, 'still two hours to the air');
@@ -19,11 +19,11 @@ test('alert states: two hours from rest; raising the readiness takes the differe
   assert.equal(scrambleSeconds(world, sq), 3600);
   const ev = run(world, 3360);
   assert.ok(ev.some((e) => e.type === 'alertReached'), 'the player is told the recall is over');
-  assert.equal(effectiveAlert(world, sq), 'available');
+  assert.equal(effectiveAlert(world, sq), 'min5');
   assert.equal(scramble(world, sq, { vector: 90 }), true);
   assert.ok(sq.timer >= 300, 'five minutes at readiness');
   const other = world.squadrons.find((s) => s.id === '74');
-  setAlert(world, other, 'thirty');
+  setAlert(world, other, 'min30');
   assert.equal(scrambleSeconds(world, other), 1800, 'thirty minutes when available');
   setAlert(world, other, 'cockpit');
   assert.equal(scrambleSeconds(world, other), 1800, 'into the cockpits: not faster than the thirty minutes');
@@ -38,7 +38,11 @@ test('fatigue grows in the air and falls at rest; a tired squadron fights less w
   const f0 = sq.fatigue;
   scramble(world, sq, { orbit: true });
   run(world, 3600);
-  assert.ok(sq.fatigue > f0 + 5, `tired by an hour in the air (${sq.fatigue})`);
+  // An hour in the air and its take-off cost five points: 4 + 1 since 2.10 (I6 of the audit
+  // moved the weight of fatigue from the sorties to the hours spent at readiness); 7 + 2
+  // before, when this bound was « more than 5 ». Figures, not the rule read back: a change
+  // of the rule must show here.
+  assert.ok(sq.fatigue > f0 + 4.5 && sq.fatigue < f0 + 5.5, `tired by an hour in the air (${sq.fatigue - f0})`);
   sq.fatigue = 90;
   assert.ok(formFactor(world, sq) < 0.7);
   const rest = world.squadrons.find((s) => s.id === '74');
@@ -46,6 +50,25 @@ test('fatigue grows in the air and falls at rest; a tired squadron fights less w
   setAlert(world, rest, 'rest');
   run(world, 3 * 3600);
   assert.ok(rest.fatigue < 30, `rested (${rest.fatigue})`);
+});
+
+test('I6: on the ground only rest really rests; five-minute readiness tires a little', () => {
+  const world = makeKanalkampf('standard', { fatigue: 'on' });
+  const [rest, min30, min5, cockpit] = world.squadrons.filter((s) => s.role === 'fighter');
+  setAlert(world, rest, 'rest');
+  setAlert(world, min30, 'min30');
+  setAlert(world, min5, 'min5');
+  setAlert(world, cockpit, 'cockpit');
+  for (const s of [rest, min30, min5, cockpit]) s.fatigue = 50;
+  run(world, 10 * 3600);
+  assert.ok(rest.fatigue === 0, `ten hours of rest clear the fatigue (${rest.fatigue})`);
+  assert.ok(min30.fatigue < 50 && min30.fatigue >= 35, `thirty-minute readiness rests a little (${min30.fatigue})`);
+  assert.ok(min5.fatigue > 50 && min5.fatigue <= 55, `five-minute readiness tires a little (${min5.fatigue})`);
+  assert.ok(cockpit.fatigue > min5.fatigue + 10, `the cockpit tires more (${cockpit.fatigue})`);
+  // The order of the states is the order of what they cost.
+  const A = world.rules.crews.alert;
+  assert.ok(A.rest.fatiguePerHour < A.min30.fatiguePerHour && A.min30.fatiguePerHour < 0);
+  assert.ok(A.min5.fatiguePerHour > 0 && A.min5.fatiguePerHour < A.cockpit.fatiguePerHour);
 });
 
 test('Réaliste: pilots are killed with their aircraft; replacements arrive later', () => {

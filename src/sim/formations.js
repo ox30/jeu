@@ -8,9 +8,25 @@
 //    shortest of them runs low, the whole group goes home with it.
 
 import { emit } from './events.js';
+import { distance } from './geo.js';
+import { orderChannel } from './comms.js';
+import { isRelief } from './watch.js';
 import { aircraftSpec, isFlying } from './squadron.js';
 import { interceptRaid, joinConvoy, leavePort, scramble } from './orders.js';
 import { sendEscortHome } from './naval.js';
+import { declareFields } from './entities.js';
+
+declareFields('squadron', (s) => {
+  s.formation = null; // id of the formation (big wing) it belongs to
+  s.holdForWing = false; // a wing's leader circles while its squadrons gather
+  s.wingSlowest = null; // a wing's leader: speeds of its slowest squadron in formation
+});
+declareFields('escort', (e) => {
+  e.formation = null; // id of the support group (formation) it belongs to
+  e.followEscort = null; // a support group's member: the leader it sails with
+  e.followSlot = 0;
+  e.waitForGroup = false; // a support group's leader slows down until its groups close up
+});
 
 export function createFormations(world) {
   world.formations = [];
@@ -49,12 +65,26 @@ export function joinProblem(world, kind, u) {
   }
   if (u.kind !== 'escort') return 'notEscort';
   if (u.state === 'lost') return 'lost';
+  // Under radio silence a group on the high seas cannot be told at once that it sails with
+  // others: it is put in a support group in port, or in tracked waters.
+  if (orderChannel(world, u) === 'radio') return 'silence';
   return null;
+}
+
+/**
+ * Does a member hear now what its leader does? In company with it (by lamp), or where the
+ * headquarters reach it at once; on its own on the high seas, only by radio, at a relief.
+ */
+function hearsLeader(world, e, leader) {
+  if (orderChannel(world, e) !== 'radio') return true;
+  if (distance(e.x, e.y, leader.x, leader.y) <= world.rules.seaComms.companyKm) return true;
+  return isRelief(world);
 }
 
 /** A follower flies to its leader and keeps station (the big wing mechanics, silently). */
 export function linkToLeader(s, leader) {
   s.route = [];
+  if (s.kind === 'escort') s.routeHead = 0;
   s.plan = [];
   s.legState = null;
   s.vector = null;
@@ -458,6 +488,8 @@ function updateNaval(world, f) {
     e.followEscort = null;
     // Busy on its own: a hunt goes on, a refit ends, a group already going home goes on.
     if (e.state === 'hunting' || e.state === 'refit' || e.state === 'lost' || e.homeward) return;
+    // Out of touch under radio silence: it goes on as it was until the next relief.
+    if (!hearsLeader(world, e, leader)) return;
     const atSea = e.state === 'atSea' || e.state === 'escorting' || e.state === 'waiting';
     if (leader.homeward) {
       // The leader is going into port: the whole group goes in.
@@ -487,9 +519,11 @@ function updateNaval(world, f) {
       if (e.state === 'inPort') leavePort(world, e, goal[0], goal[1]);
       if (e.state === 'waiting') e.state = 'atSea';
       // Its own route (one it had before joining) gives way to the leader's; the channel out
-      // of port is kept.
-      if (e.state === 'atSea' && e.route.length > (e.routeLocked || 0)) {
-        e.route = [];
+      // of port is kept (its `routeHead` points; in a game saved before 2.10.3, a route that
+      // was all way out was all « locked »).
+      const wayOut = Math.max(Math.min(e.routeHead || 0, e.route.length), e.destination ? 0 : Math.min(e.routeLocked || 0, e.route.length));
+      if (e.state === 'atSea' && e.route.length > wayOut) {
+        e.route = e.route.slice(0, Math.min(e.routeHead || 0, e.route.length));
         e.routeLocked = 0;
       }
       e.plan = [];

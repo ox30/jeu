@@ -11,6 +11,7 @@ import {
 import { isFlying } from '../sim/squadron.js';
 import { altitudeText, escortStateText, formationDefaultName } from './format.js';
 import { showPage } from './pages.js';
+import { toolOffered } from './offered.js';
 
 function unitsOfKind(world, kind) {
   return kind === 'air' ? world.squadrons.filter((s) => s.role === 'fighter') : world.escorts;
@@ -201,6 +202,7 @@ function onClick(app, e) {
 
 /** Opens the page, on a formation (`focus`) or on a new one of `kind`. */
 export function openFormations(app, { focus = null, kind = null } = {}) {
+  if (!toolOffered(app, 'formations')) return; // not a tool of this scenario
   const w = app.world;
   const f = focus ? formationById(w, focus) : null;
   app.formationsPage = {

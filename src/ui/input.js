@@ -11,6 +11,7 @@
 //    the map itself keeps the selection, which the cross of the unit panel or Escape clears;
 //  - ruler tool: measures a heading and a distance.
 
+import { t } from '../core/i18n.js';
 import { panBy, toWorld, zoomAt } from '../render/camera.js';
 import {
   SPEEDS, activePoint, addRulerLeg, cancelSpeed, changeAltitude, changePointAltitude, confirmSpeed, deletePoint, extendRoute, findUnit,
@@ -18,18 +19,34 @@ import {
   scrambleSquadron, select,
   revealSelection, selectedFormation, selectedSquadron, selectedUnit, setActivePoint, orderBoost, togglePause,
 } from './actions.js';
+import { toolOffered, viewOffered } from './offered.js';
+import { openWatch } from './watchPanel.js';
+import { handsOff, nudgeCoach } from './tutorial.js';
 import { membersOf } from '../sim/formations.js';
 import { answerShown } from './questions.js';
 import { speedIndexOfKey } from './keys.js';
 import { pickHit, unitsUnder } from './hit.js';
+import { memberSelection, stackChoice } from './stacks.js';
+import { closeDropChoice, dropTargets, openDropChoice } from './dropChoice.js';
 import { isFlying } from '../sim/squadron.js';
+import { shownPosition } from '../sim/comms.js';
+import { openJournal } from './alerts.js';
+import { openHelp } from './dialogs.js';
 
 const UNIT_KINDS = new Set(['squadron', 'convoy', 'airfield', 'escort', 'rally']);
 const HANDLE_KINDS = new Set(['routePoint', 'routeMid', 'routeExtend']);
+// The keys that give an order to the unit in hand (the others look, measure or set the clock).
+const ORDER_KEYS = new Set(['arrowup', 'arrowdown', 'delete', 'backspace', 'enter', 's', 'b', 'o', 'p', 'd']);
 
 /** World position a measurement starts from when the player drags from a unit. */
 function unitOrigin(app, hit) {
   const u = hit.kind === 'rally' ? null : findUnit(app, hit.kind, hit.id);
+  if (u && (u.kind === 'convoy' || u.kind === 'escort')) {
+    // A ship is measured from where the table holds it (radio silence: an estimate), where
+    // its mark is — not from where it really is.
+    const p = shownPosition(app.world, u);
+    return [p.x, p.y];
+  }
   return u && Number.isFinite(u.x) ? [u.x, u.y] : toWorld(app.camera, hit.x, hit.y);
 }
 
@@ -50,9 +67,25 @@ function selectFromAirfield(app, fieldId) {
   else select(app, 'airfield', fieldId);
 }
 
+/** A line was drawn from a closed stack: for a few seconds a word on the map says to choose a unit first. */
+function noteByStack(app, hit) {
+  const [x, y] = toWorld(app.camera, hit.x, hit.y);
+  app.mapNote = { x, y, text: t('map.stackAsk', { n: hit.members.length }), until: performance.now() + 4500 };
+}
+
+/**
+ * A click on a stack: the sheet opens with a tab a unit. The unit already in hand stays in
+ * hand if it is one of them; otherwise the first of the stack, never a neighbour by chance.
+ */
+function openStack(app, hit) {
+  const choice = memberSelection(stackChoice(hit, app.selection));
+  select(app, choice.kind, choice.id);
+}
+
 /** What a click on a symbol selects: the formation of a squadron or a group in one. */
 function selectClicked(app, hit) {
-  if (hit.formation) select(app, 'formation', hit.formation);
+  if (hit.kind === 'stack') openStack(app, hit);
+  else if (hit.formation) select(app, 'formation', hit.formation);
   else if (hit.kind === 'rally') select(app, 'formation', hit.id);
   else select(app, hit.kind, hit.id);
 }
@@ -90,6 +123,16 @@ function hitTest(app, x, y, pad, proxy = true) {
   return pickHit(app.hits, x, y, pad, (h) => isSelectedHit(app, h, proxy));
 }
 
+/**
+ * The view a key calls (A, L, G…: each view tells its key in data/campaign.json), among those
+ * the scenario offers (offered.js).
+ */
+function viewOfKey(app, key) {
+  if (key.length !== 1) return null;
+  const views = app.data.campaign.views;
+  return Object.keys(views).find((name) => views[name].key && views[name].key.toLowerCase() === key.toLowerCase() && viewOffered(app, name)) || null;
+}
+
 export function attachInput(app) {
   const canvas = app.canvas;
   const pointers = new Map();
@@ -102,6 +145,7 @@ export function attachInput(app) {
 
   canvas.addEventListener('pointerdown', (e) => {
     app.unlockAudio();
+    if (app.dropChoice) closeDropChoice(app); // a choice left open: the line is given up
     canvas.setPointerCapture(e.pointerId);
     const p = pos(e);
     pointers.set(e.pointerId, p);
@@ -151,6 +195,12 @@ export function attachInput(app) {
       gesture = { type: 'ruler' };
       return;
     }
+    if (handsOff(app) && hit && (HANDLE_KINDS.has(hit.kind) || UNIT_KINDS.has(hit.kind)) && !headingsMode(app)) {
+      // A demonstration of the tutorial: the pupil gives no order. A click still takes the
+      // unit in hand to look at it; a drag moves the map, and the lesson says why.
+      gesture = { type: 'pan', last: p, start: p, hit: hitTest(app, p[0], p[1], pad, false), moved: false, refused: true };
+      return;
+    }
     if (hit && HANDLE_KINDS.has(hit.kind)) {
       if (hit.kind === 'routeExtend') {
         gesture = { type: 'extend', hit, start: p, moved: false };
@@ -158,6 +208,12 @@ export function attachInput(app) {
       } else {
         gesture = { type: 'edit', hit, start: p, moved: false };
       }
+      return;
+    }
+    if (hit && hit.kind === 'stack') {
+      // A stack with none of its units in hand: nothing is drawn from it (whose route would
+      // it be?). A click opens its tabs; the drag then starts from the unit chosen.
+      gesture = { type: 'stack', hit, start: p, moved: false };
       return;
     }
     // What the gesture selects if it turns out to be a plain click.
@@ -217,8 +273,14 @@ export function attachInput(app) {
     } else if (gesture.type === 'pan') {
       panBy(app.camera, p[0] - gesture.last[0], p[1] - gesture.last[1]);
       gesture.last = p;
-      if (far(5)) gesture.moved = true;
+      if (far(5)) {
+        // (A drag that would have been an order, during a demonstration: the lesson says so.)
+        if (gesture.refused && !gesture.moved) nudgeCoach(app);
+        gesture.moved = true;
+      }
       canvas.style.cursor = 'grabbing';
+    } else if (gesture.type === 'stack') {
+      if (far(10)) gesture.moved = true;
     } else if (gesture.type === 'ruler' || gesture.type === 'mru') {
       app.ruler.b = toWorld(app.camera, p[0], p[1]);
     } else if (gesture.type === 'measure') {
@@ -243,7 +305,10 @@ export function attachInput(app) {
         const q = pos(e);
         const points = [...app.drawing.points, q];
         const endHit = hitTest(app, q[0], q[1], 8);
-        finishDrawing(app, gesture.hit, points, endHit);
+        // Several targets where the line ends: a small choice says which one it means.
+        const targets = dropTargets(app, gesture.hit, q[0], q[1], e.pointerType === 'touch' ? 14 : 8);
+        if (targets.length > 1) openDropChoice(app, gesture.hit, points, targets, q[0], q[1]);
+        else finishDrawing(app, gesture.hit, points, endHit);
       } else if (!gesture.moved) {
         clickSelect(app, gesture.clickHit || gesture.hit);
       }
@@ -267,6 +332,12 @@ export function attachInput(app) {
         }
       }
       app.routeDrag = null;
+    } else if (gesture.type === 'stack') {
+      // A click opens the tabs of the stack. A drag draws nothing and takes nothing in hand
+      // (whose route would it be?) — but it is not left without an answer: a word by the
+      // stack says to choose a unit first.
+      if (up && !gesture.moved) clickSelect(app, gesture.hit);
+      else if (up) noteByStack(app, gesture.hit);
     } else if (gesture.type === 'measure') {
       if (!gesture.moved) clickSelect(app, gesture.clickHit || gesture.hit);
     } else if (gesture.type === 'mru') {
@@ -302,6 +373,9 @@ export function attachInput(app) {
 
   window.addEventListener('keydown', (e) => {
     app.unlockAudio();
+    // On the main menu the keys of the game do nothing: no order, no speed, no answer given
+    // unseen to a question (the menu has its own Escape).
+    if (app.onMenu) return;
     const target = e.target;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) return;
     if (document.querySelector('dialog[open]')) return;
@@ -327,16 +401,22 @@ export function attachInput(app) {
       togglePause(app);
     } else if (speedIndex >= 0) {
       requestSpeed(app, speedIndex);
-    } else if (key === 'a' || key === 'A') {
-      goView(app, 'atlantic');
-    } else if (key === 'g' || key === 'G') {
-      goView(app, 'england');
-    } else if (key === 'l' || key === 'L') {
-      goView(app, 'britain');
+    } else if (viewOfKey(app, key)) {
+      goView(app, viewOfKey(app, key));
     } else if (key === 'r' || key === 'R') {
       app.setTool(app.tool === 'ruler' ? null : 'ruler');
     } else if (key === 'c' || key === 'C') {
       app.toggleRadarCover();
+    } else if (key === 'j' || key === 'J') {
+      openJournal(app);
+    } else if ((key === 'q' || key === 'Q') && toolOffered(app, 'watch')) {
+      openWatch(app); // the last report of the watch, as it opened at the relief
+    } else if (key === '?') {
+      openHelp(app);
+    } else if (key === 'Escape' && app.dropChoice) {
+      closeDropChoice(app);
+    } else if (key === 'Escape' && !app.el.viewMenu.hidden) {
+      app.el.viewMenu.hidden = true; // the list of the views closes first
     } else if (key === 'Escape') {
       app.drawing = null;
       app.ruler = null;
@@ -344,6 +424,10 @@ export function attachInput(app) {
       app.setTool(null);
       if (point) setActivePoint(app, null, null);
       else select(app, null, null);
+    } else if (handsOff(app) && (sq || unit || point) && ORDER_KEYS.has(key.toLowerCase())) {
+      // A demonstration of the tutorial: the keys that give an order to what is in hand do
+      // nothing, and the lesson says why.
+      nudgeCoach(app);
     } else if ((key === 'ArrowUp' || key === 'ArrowDown') && point && point.u.kind === 'squadron') {
       changePointAltitude(app, point.u, point.index, key === 'ArrowUp' ? 1000 : -1000);
     } else if ((key === 'ArrowUp' || key === 'ArrowDown') && sq) {

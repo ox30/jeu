@@ -13,12 +13,16 @@ import { checkEngagements, checkMisses, updateCombat } from './combat.js';
 import { checkAlerts, updateDetection } from './detection.js';
 import { updateContacts } from './contact.js';
 import { createFormations, updateFormations } from './formations.js';
+import { prepareSeaRoutes } from './searoute.js';
+import { closedRaster } from './uboatnav.js';
+import { createWatch, isRelief, updateWatch } from './watch.js';
+import { createComms, updateComms } from './comms.js';
 import { createQuestions, updateQuestions } from './engagement.js';
 import { createTimetable, updateTimetable } from './timetable.js';
 import { updateRallies } from './rally.js';
 import { createGrid } from './grid.js';
 import { createSite, repairSites } from './sites.js';
-import { checkDefeat, checkObjectives, createObjectives, fighterCount, finalize } from './objectives.js';
+import { checkDefeat, checkObjectives, createObjectives, fighterCount, finalize, tallyObjectives } from './objectives.js';
 import { createLogistics, updateLogistics, updateTrains } from './logistics.js';
 import {
   ageDfZones, checkEscortRange, createEscortGroup, createUboat, initialIntelligence, updateEscort, updateUboat,
@@ -32,6 +36,7 @@ import { createBdu, updateBdu } from './bdu.js';
 import { createMru, updateMru } from './mru.js';
 import { createSchedule, updateSchedule } from './schedule.js';
 import { createShipping, updateShipping } from './shipping.js';
+import { copyGameSettings } from './gameSettings.js';
 
 function placed(item) {
   const [x, y] = project(item.lon, item.lat);
@@ -42,7 +47,7 @@ function placedPath(path) {
   return path.map(([lon, lat]) => project(lon, lat));
 }
 
-export function createWorld({ scenario, rules, settings, terrain, carry = null }) {
+export function createWorld({ scenario, rules, settings, terrain, carry = null, presets = null }) {
   const startMs = parseGameDate(scenario.start);
   const ports = scenario.ports.map((p) => ({
     ...placed(p),
@@ -53,13 +58,18 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
   const factories = (scenario.factories || []).map(placed);
   const depots = (scenario.depots || []).map(placed);
   const sites = new Map();
+  // (`presets`: the table of the presets, so that the game is named by its own rule from the start.)
+  const gameSettings = copyGameSettings(settings || {}, presets);
 
   const world = {
     t: 0,
     startMs,
     endS: (parseGameDate(scenario.end) - startMs) / 1000,
     rules,
-    settings,
+    // The game's own copy: the player's settings can change afterwards without touching it
+    // (gameSettings.js). The preset it begins with is kept for the end of the game.
+    settings: gameSettings,
+    presetStart: gameSettings.preset,
     terrain,
     rng: createRandom(scenario.seed ?? 1),
     scenario,
@@ -87,6 +97,7 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
     uboatPlots: [],
     nextPlotId: 1,
     squadrons: [],
+    clockOffsetH: scenario.clockOffsetH ?? 1, // the game's clock ahead of GMT (British summer time)
     carry: null, // campaign: the losses carried over from the battle before ({ fighterShare, from })
     fightersAtStart: 0, // fighter aircraft present as the scenario begins
     raids: [],
@@ -139,8 +150,20 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
   createSchedule(world);
   createShipping(world);
   createFormations(world);
+  // The rasters of the sea routes are built now rather than at the first route of the game.
+  prepareSeaRoutes(world);
+  if (world.uboats.length || (scenario.events || []).some((e) => (e.effects || []).some((fx) => fx.type === 'uboats'))) closedRaster(world);
+  // And the grids of what the Observer Corps sees (with the strip of sea off the coast for the
+  // raids, without it for the mobile radars): the first raid over land does not wait for them.
+  const D = rules.detection;
+  if (D && scenario.raids && scenario.raids.length) {
+    world.terrain.observerMask(D.observerCellKm, D.observerOffshoreKm);
+    world.terrain.observerMask(D.observerCellKm, 0);
+  }
   createQuestions(world);
   createTimetable(world);
+  createWatch(world);
+  createComms(world);
   world.navalReports = []; // depth-charge attacks, one report each (asw.js)
   world.nextNavalReportId = 1;
   world.raids = [
@@ -157,9 +180,11 @@ export function createWorld({ scenario, rules, settings, terrain, carry = null }
   });
   if (world.carry) {
     const total = fighterCount(world).establishment;
+    // (The count of enemy aircraft asked follows the fighters of the morning: objectives.js.)
+    const asked = world.objectives.find((o) => o.type === 'enemyDown' && o.full);
     emit(world, 'carryApplied', {
       share: total ? Math.round((100 * world.fightersAtStart) / total) : 100, from: world.carry.from,
-      n: world.fightersAtStart, total,
+      n: world.fightersAtStart, total, down: asked ? asked.count : null, downFull: asked ? asked.full : null,
     });
   }
   return world;
@@ -210,6 +235,7 @@ export function step(world, dt = 1) {
   if (world.t % minute === 0) {
     updateDetection(world);
     repairSites(world, minute);
+    tallyObjectives(world, minute);
     updateLogistics(world, minute);
     updateCrews(world, minute);
     updatePatrols(world);
@@ -226,6 +252,10 @@ export function step(world, dt = 1) {
   checkAlerts(world);
   checkObjectives(world);
   recordReports(world, first);
+  // The sea at the rhythm of the watches: what happened was noted as it happened (watch.js);
+  // the relief writes its report.
+  if (world.watch) updateComms(world, first, isRelief(world)); // sure points, estimates, orders on their way
+  updateWatch(world);
   if (world.t % minute === 0) {
     const reason = checkDefeat(world);
     if (reason) {

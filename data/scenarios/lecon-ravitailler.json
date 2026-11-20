@@ -1,0 +1,200 @@
+{
+  "id": "lecon-ravitailler",
+  "base": "kanalkampf",
+  "title": "Leçon 2 : ravitailler",
+  "note": "Leçon du tutoriel (I10). Biggin Hill n'a presque plus de carburant : un train depuis Southampton, puis un stock minimum.",
+  "start": "1940-07-10T06:00",
+  "end": "1940-07-14T18:00",
+  "seed": 12,
+  "map": {
+    "zone": "britain",
+    "view": "england",
+    "views": [
+      "britain",
+      "england"
+    ],
+    "layers": [
+      "radars",
+      "night"
+    ],
+    "tools": [
+      "ruler",
+      "reports",
+      "cards"
+    ]
+  },
+  "airfields": [
+    {
+      "id": "biggin_hill",
+      "name": "Biggin Hill",
+      "lon": 0.033,
+      "lat": 51.331,
+      "sector": true,
+      "stocks": {
+        "fuel": 4,
+        "ammo": 10
+      }
+    },
+    {
+      "id": "hornchurch",
+      "name": "Hornchurch",
+      "lon": 0.205,
+      "lat": 51.538,
+      "sector": true,
+      "stocks": {
+        "fuel": 50,
+        "ammo": 10
+      }
+    },
+    {
+      "id": "kenley",
+      "name": "Kenley",
+      "lon": -0.095,
+      "lat": 51.305,
+      "sector": true,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "croydon",
+      "name": "Croydon",
+      "lon": -0.117,
+      "lat": 51.356,
+      "stocks": {
+        "fuel": 50,
+        "ammo": 10
+      }
+    },
+    {
+      "id": "northolt",
+      "name": "Northolt",
+      "lon": -0.418,
+      "lat": 51.553,
+      "sector": true,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "north_weald",
+      "name": "North Weald",
+      "lon": 0.154,
+      "lat": 51.721,
+      "sector": true,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "debden",
+      "name": "Debden",
+      "lon": 0.27,
+      "lat": 52.0,
+      "sector": true,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "tangmere",
+      "name": "Tangmere",
+      "lon": -0.706,
+      "lat": 50.846,
+      "sector": true,
+      "stocks": {
+        "fuel": 50,
+        "ammo": 10
+      }
+    },
+    {
+      "id": "middle_wallop",
+      "name": "Middle Wallop",
+      "lon": -1.57,
+      "lat": 51.139,
+      "sector": true,
+      "stocks": {
+        "fuel": 50,
+        "ammo": 10
+      }
+    },
+    {
+      "id": "warmwell",
+      "name": "Warmwell",
+      "lon": -2.34,
+      "lat": 50.69,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "manston",
+      "name": "Manston",
+      "lon": 1.346,
+      "lat": 51.346,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "hawkinge",
+      "name": "Hawkinge",
+      "lon": 1.153,
+      "lat": 51.112,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "detling",
+      "name": "Detling",
+      "lon": 0.597,
+      "lat": 51.303,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    },
+    {
+      "id": "aldergrove",
+      "name": "Aldergrove",
+      "lon": -6.216,
+      "lat": 54.658,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
+    }
+  ],
+  "convoys": [],
+  "escorts": [],
+  "uboats": [],
+  "raids": [],
+  "phantoms": [],
+  "squadrons": [
+    {
+      "id": "32",
+      "name": "32 Sqn",
+      "type": "Hurricane",
+      "airfield": "biggin_hill",
+      "aircraft": 12
+    },
+    {
+      "id": "74",
+      "name": "74 Sqn",
+      "type": "Spitfire",
+      "airfield": "hornchurch",
+      "aircraft": 12
+    }
+  ],
+  "objectives": [],
+  "defeat": null,
+  "convoyRaids": null
+}

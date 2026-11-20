@@ -1,0 +1,24 @@
+{
+  "note": "Ce que le menu principal et la campagne savent des scénarios : leur ordre, la chaîne de l'Âge I (une victoire ouvre le suivant), les batailles aériennes entre lesquelles les pertes se reportent, le scénario d'entraînement, les vues de la carte et la durée estimée d'une partie. Les textes sont dans data/i18n/fr.json (scenarios.<id>.title, .stake, .text).",
+  "scenarios": ["kanalkampf", "adlertag", "quinze-septembre", "hiver-atlantique"],
+  "training": "m0-july-1940",
+  "chain": ["kanalkampf", "adlertag", "quinze-septembre", "hiver-atlantique"],
+  "airBattles": ["kanalkampf", "adlertag", "quinze-septembre"],
+  "viewsNote": "Vues de la carte, en degrés : longitudes puis latitudes. Chaque scénario dit lesquelles il propose (map.views), sa vue de départ (map.view) et sa zone (map.zone).",
+  "views": {
+    "atlantic": { "key": "A", "lon": [-67, 13], "lat": [38.5, 64] },
+    "britain": { "key": "L", "lon": [-6.8, 2.4], "lat": [49.9, 56.4] },
+    "england": { "key": "G", "lon": [-3.9, 3.0], "lat": [49.45, 52.75] }
+  },
+  "cardsNote": "Durée estimée d'une partie, en minutes de jeu réel (de… à…). Ce sont des estimations, à corriger avec le chrono de fin de partie.",
+  "cards": {
+    "m0-july-1940": { "minutes": [15, 25] },
+    "kanalkampf": { "minutes": [90, 180] },
+    "adlertag": { "minutes": [180, 300] },
+    "quinze-septembre": { "minutes": [45, 90] },
+    "hiver-atlantique": { "minutes": [150, 240] }
+  },
+  "mapNote": "Ce qu'un scénario peut déclarer dans son bloc « map » : couches (layers) et outils (tools) connus du jeu.",
+  "layers": ["grid", "radars", "routes", "closedWaters", "night"],
+  "tools": ["ruler", "radarCover", "reports", "formations", "roster", "cards"]
+}

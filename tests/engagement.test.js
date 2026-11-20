@@ -5,6 +5,7 @@ import { project } from '../src/sim/geo.js';
 import { answerQuestion, setRoe } from '../src/sim/engagement.js';
 import { addMember, newFormation } from '../src/sim/formations.js';
 import { restore, snapshot } from '../src/save/game.js';
+import { isDaylight } from '../src/sim/daylight.js';
 
 /** A raid of the 15 September put where the test wants it, coming in or going home. */
 function placeRaid(w, [lon, lat], phase, [hLon, hLat]) {
@@ -29,8 +30,20 @@ function placeSquadron(w, id, r, km = 15) {
 const kanalLondon = [0.3, 51.35]; // over Kent, east of London
 const france = [2.4, 50.6];
 
+/**
+ * The 15 September, once the sun is up over Kent: the scenario opens at 06:00 by the clock
+ * (05:00 GMT), half an hour before sunrise, and these tests are about what is seen by day.
+ */
+function dayWorld(preset, settings) {
+  const w = makeWorld(preset, settings, 'quinze-septembre');
+  const [x, y] = project(...kanalLondon);
+  while (!isDaylight(w, x, y)) w.t += 600;
+  assert.ok(w.t <= 3600, 'the sun is up within the hour');
+  return w;
+}
+
 test('a squadron at "attack" leaves a raid going home and asks leave to pursue; no answer is a no', () => {
-  const w = makeWorld('standard', {}, 'quinze-septembre');
+  const w = dayWorld('standard', {});
   const r = placeRaid(w, kanalLondon, 'outbound', france);
   const s = placeSquadron(w, '19', r);
   assert.equal(s.roe, 'attack', 'attack is the standing order, as before');
@@ -47,7 +60,7 @@ test('a squadron at "attack" leaves a raid going home and asks leave to pursue; 
 });
 
 test('leave to pursue: the squadron goes after the raid going home and attacks it', () => {
-  const w = makeWorld('standard', {}, 'quinze-septembre');
+  const w = dayWorld('standard', {});
   const r = placeRaid(w, kanalLondon, 'outbound', france);
   const s = placeSquadron(w, '19', r);
   setRoe(w, s, 'attack');
@@ -61,7 +74,7 @@ test('leave to pursue: the squadron goes after the raid going home and attacks i
 });
 
 test('a squadron at "defend" asks before engaging a raid coming in', () => {
-  const w = makeWorld('standard', {}, 'quinze-septembre');
+  const w = dayWorld('standard', {});
   const r = placeRaid(w, kanalLondon, 'inbound', [-0.1, 51.5]);
   const s = placeSquadron(w, '19', r, 20);
   setRoe(w, s, 'defend');
@@ -77,7 +90,7 @@ test('a squadron at "defend" asks before engaging a raid coming in', () => {
 });
 
 test('a squadron at "pursue" follows the raid home and asks again at mid-Channel; refused, it goes home', () => {
-  const w = makeWorld('standard', {}, 'quinze-septembre');
+  const w = dayWorld('standard', {});
   const r = placeRaid(w, [1.4, 51.03], 'outbound', france);
   const s = placeSquadron(w, '19', r, 3);
   setRoe(w, s, 'pursue');
@@ -93,7 +106,7 @@ test('a squadron at "pursue" follows the raid home and asks again at mid-Channel
 });
 
 test('without questions, the standing order applies on its own', () => {
-  const w = makeWorld('standard', { questions: false }, 'quinze-septembre');
+  const w = dayWorld('standard', { questions: false });
   const r = placeRaid(w, kanalLondon, 'outbound', france);
   const s = placeSquadron(w, '19', r, 2);
   setRoe(w, s, 'attack');
@@ -103,7 +116,7 @@ test('without questions, the standing order applies on its own', () => {
 });
 
 test('a big wing is asked once, for all its squadrons; the question is saved with the game', () => {
-  const w = makeWorld('standard', {}, 'quinze-septembre');
+  const w = dayWorld('standard', {});
   const f = newFormation(w, 'air', '19', 'Duxford Wing');
   addMember(w, f, '242');
   const r = placeRaid(w, kanalLondon, 'outbound', france);
@@ -121,7 +134,7 @@ test('a big wing is asked once, for all its squadrons; the question is saved wit
 });
 
 test('leave to pursue, then "defend": the squadron breaks off at its next round and does not attack again', () => {
-  const w = makeWorld('standard', {}, 'quinze-septembre');
+  const w = dayWorld('standard', {});
   const r = placeRaid(w, kanalLondon, 'outbound', france);
   const s = placeSquadron(w, '19', r);
   run(w, 5);
@@ -139,7 +152,7 @@ test('leave to pursue, then "defend": the squadron breaks off at its next round 
 test('« Désengager H05 »: out of the fight at once, it circles and leaves that raid alone, until sent back', async () => {
   const { breakOffRaid } = await import('../src/sim/combat.js');
   const { authorize } = await import('../src/sim/engagement.js');
-  const w = makeWorld('standard', {}, 'quinze-septembre');
+  const w = dayWorld('standard', {});
   const r = placeRaid(w, kanalLondon, 'inbound', [-0.1, 51.5]);
   const s = placeSquadron(w, '19', r, 3);
   run(w, 120, (e) => e.type === 'tallyHo');
@@ -162,7 +175,7 @@ test('« Désengager H05 »: out of the fight at once, it circles and leaves tha
 
 test('a big wing called off a raid: every squadron leaves the fight and the wing gathers on its leader', async () => {
   const { breakOffRaid } = await import('../src/sim/combat.js');
-  const w = makeWorld('standard', {}, 'quinze-septembre');
+  const w = dayWorld('standard', {});
   const f = newFormation(w, 'air', '19', 'Duxford Wing');
   addMember(w, f, '242');
   const r = placeRaid(w, kanalLondon, 'inbound', [-0.1, 51.5]);

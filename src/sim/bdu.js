@@ -14,7 +14,7 @@
 
 import { distance, project, sphereKm, unproject } from './geo.js';
 import { emit } from './events.js';
-import { isNight } from './naval.js';
+import { isNight } from './daylight.js';
 import { escortStrength, sinkShips } from './naval.js';
 import { currentSpeed } from './convoy.js';
 import { inClosedWaters, openForUboat, uboatSpot } from './uboatnav.js';
@@ -237,6 +237,9 @@ export function updateBdu(world) {
     if (!c.bdienst.read) continue;
     // Each routing signal sent to it is read, some time after (decrypting takes a while).
     const key = routeKey(c);
+    // A routing handed over by lamp or by a ship went on no air: nothing to read. And a
+    // signal still being deciphered tells of a route the convoy has left: it is worth nothing.
+    if (c.bdienst.key !== key && c.quietRoute === key) Object.assign(c.bdienst, { key, done: true });
     if (c.bdienst.key !== key) Object.assign(c.bdienst, { key, at: world.t + B.readDelayH * 3600, done: false });
     if (!c.bdienst.done && world.t >= c.bdienst.at) {
       c.bdienst.done = true;
@@ -271,11 +274,12 @@ export function inCondorReach(world, x, y) {
 
 function updateCondors(world) {
   const K = world.rules.condors;
-  if (!world.scenario.condors || isNight(world)) return;
+  if (!world.scenario.condors) return;
   const base = condorBase(world);
   const range = world.scenario.condors.rangeKm ?? K.rangeKm;
   for (const c of world.convoys) {
     if (c.state !== 'atSea' || c.type === 'coastal' || c.straggler) continue;
+    if (isNight(world, c.x, c.y)) continue; // the Condors look for ships by day
     const d = sphereKm(base[0], base[1], c.x, c.y);
     if (d > range) continue;
     // Few aircraft: all over the Bay of Biscay and the south-western approaches, then the

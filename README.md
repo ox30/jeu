@@ -3,14 +3,276 @@
 Prototype du jeu navigateur sur la Seconde Guerre mondiale : le joueur commande le soutien
 allié (aviation, escortes, logistique), jamais les armées. Le M2 réunit l'Âge I en une
 campagne de quatre scénarios, de la bataille de la Manche à l'hiver 1941 dans l'Atlantique,
-avec un menu principal, un tutoriel guidé et une aide illustrée.
+avec un menu principal, un tutoriel en quatre leçons et une aide illustrée.
 
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.7.0** (lot M2.7, corrections et filet de sécurité). Les décisions qui guident les
-lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md` (fichier du projet) ; le journal des
-travaux est dans `docs/journal-m2.7-m2.10.md`.
+**Version 2.10.5** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit et
+les retours des premières parties d'essai, en quatre tours). Les décisions qui guident les lots M2.7 à M2.10
+sont dans `claude/decisions-audit-m2.md` (fichier du projet) ; le journal des travaux est dans
+`docs/journal-m2.7-m2.10.md`.
+
+## Nouveautés de la 2.10.5 : la fin de route d'un convoi se choisit
+
+- **Un ordre pour la fin du tracé ou des étapes d'un convoi**, comme pour un groupe
+  d'escorte : dans sa fiche, section « Route et étapes », la liste « En fin de tracé » (ou
+  « À la fin des étapes ») propose de **s'arrêter et attendre**, de **garder le cap**,
+  d'**entrer dans un port par le chenal de votre choix**, ou de **reprendre la route de
+  l'Amirauté**. Les ports sont ceux du scénario et du convoi : Liverpool par le Nord de
+  l'Irlande ou par le canal Saint-Georges et la Clyde pour un convoi de l'océan ; Southampton
+  par Spithead pour le convoi côtier de Kanalkampf.
+- **La liste montre d'abord ce que le convoi fait de lui-même.** Sans ordre, rien ne change :
+  un tracé qui passe à moins de 160 km de l'entrée d'un chenal et finit à moins de 450 km de
+  son port est prolongé jusqu'au port, et la liste affiche alors ce port et ce chenal ; un
+  autre tracé finit par un arrêt ; après ses étapes, le convoi garde le cap. Choisir autre
+  chose rend le tracé au joueur : le convoi le suit jusqu'au bout, puis fait ce qui est dit.
+  Tant qu'un ordre de fin attend, le jeu ne prend plus le convoi de lui-même (ni
+  prolongement du tracé, ni pilote en passant dans un cercle).
+- **Le chemin prévu se dessine** en pointillé après le bout du tracé : par le large jusqu'à
+  l'entrée du chenal choisi, puis le chenal ; ou la route de l'Amirauté reprise au prochain
+  point devant le convoi, en contournant la terre s'il le faut. Le convoi gagne l'entrée
+  sans traverser les eaux qu'elle ferme : au nord de l'Irlande, « Liverpool par le canal
+  Saint-Georges » lui fait contourner l'île par l'ouest, et non descendre la mer d'Irlande
+  pour ressortir au sud. Déjà dans ces eaux, il rejoint le chenal là où il est. Au bout, le
+  journal dit ce que fait le convoi, avec l'heure d'arrivée prévue.
+- **Sous silence radio**, l'ordre de fin part à la relève comme les autres, en ocre sur la
+  carte en attendant ; donné dans le même quart qu'un tracé, il vaut pour ce tracé, suivi tel
+  qu'il est dessiné. Un convoi arrêté en mer, ou qui garde son cap sans rien à suivre,
+  exécute l'ordre tout de suite (« Et maintenant »).
+- **Un défaut corrigé en chemin.** Un tracé du convoi côtier qui s'arrêtait avant Beachy Head
+  (devant Douvres, par exemple) était refusé pour « la côte » sans la toucher : le jeu le
+  coupait pour l'envoyer tout droit à Spithead, à moins de 160 km à vol d'oiseau, par-dessus
+  le Kent. Le jeu ne prolonge plus un tracé que si le trajet jusqu'à l'entrée du chenal passe
+  par la mer ; sinon le tracé reste comme il est dessiné.
+- Sauvegardes : deux champs de plus sur un convoi, lus avec leur valeur par défaut ; le
+  format reste le 2.
+
+## Nouveautés de la 2.10.4 : les ordres en attente restent sur la carte, le rapport de quart se rouvre
+
+- **Sous silence radio, un ordre de route en attente reste sur la carte.** Un tracé tiré
+  pour un navire en haute mer, ou des étapes au cap, attendent la relève pour partir par
+  radio. Jusque-là ils ne se voyaient presque plus (un pointillé pâle pour le tracé, rien
+  pour les étapes), et on ne pouvait pas travailler dessus. Ils restent maintenant tracés
+  **en ocre** pour tous les navires, avec « part par radio à 16 h » pour celui qui est en
+  main, et sa fiche les liste (« à transmettre »).
+- **On continue de travailler dessus.** Le tracé en attente garde ses points, ses « + » et
+  l'anneau à son bout : on le prolonge d'un deuxième puis d'un troisième trait, on déplace
+  un point, on en retire un. Les étapes en attente se modifient et se retirent dans la
+  liste, et l'on en ajoute d'autres à la suite. Chaque changement remplace l'ordre qui
+  attendait : **un seul ordre part**, et ce que la carte montrait est ce que le navire
+  reçoit. Un tracé tiré depuis le navire remplace les étapes en attente, une étape ajoutée
+  remplace le tracé, comme à l'exécution.
+- **Deux défauts corrigés en chemin.** Deux modifications de la route d'un navire avant la
+  même relève : la seconde effaçait la première. Et un ordre passé tout de suite (eaux
+  suivies, projecteur d'un avion) était défait à la relève par le même ordre resté en
+  attente.
+- **Prévenu avant le départ.** Si le trajet en attente touche terre, vu de la position
+  estimée du navire, la fiche le dit et la carte cercle l'endroit : l'ordre serait refusé à
+  l'arrivée. Les étapes d'un navire dont la position est estimée partent de son repère, et
+  non plus de sa position vraie.
+- **Le rapport de quart se rouvre.** Fermé sans réponse pour regarder la carte, il revient
+  tel quel, avec ses boutons : bouton **« Quart »** de la barre du haut (touche Q), qui
+  porte le nombre de décisions en attente ; « Rouvrir le rapport de la relève » et
+  « Ouvrir » sur chaque ligne, dans l'onglet « Signaux » du journal.
+- Rien ne change dans la simulation ni dans les sauvegardes.
+
+## Nouveautés de la 2.10.3 : appareillages programmés, la sortie du port devient une étape
+
+- **Un appareillage programmé part à son heure.** Un groupe d'escorte dont on avait choisi
+  la sortie (« chenal Nord de l'Irlande », par exemple) puis programmé l'appareillage ne
+  partait jamais : l'ordre attendait un tracé ou des étapes (« ni route ni étapes »), alors
+  que le bouton « Appareiller » faisait partir le même groupe. À l'heure dite, le groupe
+  appareille maintenant comme sur le bouton : avec ce qui est préparé, ou en rade s'il n'y a
+  rien, où il attend vos ordres.
+- **La sortie du port est la première étape du groupe.** Choisir « en rade » ou un chenal
+  dans la section Au port en fait une étape, comme un tracé : elle se dessine sur la carte
+  et s'inscrit sous « Route et étapes ». On la **retire** d'une croix ; on la **prolonge**
+  par un tracé tiré depuis l'anneau à son bout, ou par des étapes au cap ; on choisit **ce
+  que le groupe fait au bout** (attendre, garder le cap, chercher un U-Boot, rejoindre un
+  convoi, entrer dans un port). Tout cela attend au port l'ordre d'appareiller : le bouton,
+  ou l'heure programmée. Changer de sortie garde le tracé qui la suit (rejoint par la mer) ;
+  retirer la sortie retire aussi ce tracé, qui partait de son bout. Sans sortie choisie,
+  rien ne change : « Appareiller » mène en rade, un tracé tiré depuis le port part tout de
+  suite. « Rejoindre » un convoi depuis le port reste un ordre de partir maintenant, par le
+  chenal qui y mène : il remplace ce qui était préparé.
+- **Un tracé tiré depuis le port se modifie de nouveau en mer.** Tant que le groupe
+  descendait son chenal de sortie, aucun point de son tracé ne se déplaçait et le tracé ne
+  se prolongeait pas : le chenal de sortie était compté avec le chenal d'entrée au port, au
+  mauvais bout de la route. Seuls les points du chenal restent fixes.
+- Une partie enregistrée par la 2.10.2 se reprend telle quelle : un groupe qui attendait au
+  port avec son chenal choisi appareille, un groupe en train de descendre son chenal retrouve
+  son tracé modifiable.
+
+## Nouveautés de la 2.10.2 : retours des parties d'essai
+
+- **États d'alerte et planning pour tout ce qui vole.** Les patrouilles de Coastal Command
+  et les sections de guet se fatiguent en vol comme la chasse, mais seule la chasse avait
+  ses états d'alerte : dans « Hiver dans l'Atlantique », une patrouille rentrait fatiguée
+  d'une sortie et ne pouvait plus être mise au repos. Toute escadrille au sol a maintenant
+  ses quatre états dans sa fiche (Repos, Disponible, Alerte, Cockpit), son planning dans la
+  page **Effectifs** (qui revient dans l'Atlantique) et dans l'onglet Effectifs de son
+  aérodrome ; un plan se copie d'une patrouille à l'autre. La page montre le type d'avion
+  et la fatigue de chaque escadrille. Une longue patrouille coûte cher : 4 points par heure
+  de vol, soit 37 pour une sortie de Whitley, 53 pour un Sunderland, 73 pour un Catalina ;
+  une nuit de huit heures au Repos en rend 64, et depuis le Repos il faut deux heures pour
+  décoller. **À savoir : la fatigue ne pèse que sur le combat ; une patrouille fatiguée voit
+  aussi loin qu'une autre.** Rien n'a changé dans la simulation : les règles de fatigue et
+  les mesures d'équilibre sont celles de la 2.10.
+- **Onglets d'une installation qui abrite des unités.** Les onglets des unités superposées
+  valent aussi pour un aérodrome ou un port : sa fiche porte son propre onglet, puis un par
+  escadrille au sol ou par navire au port (les groupes d'un groupe de soutien n'en font
+  qu'un). On clique l'aérodrome ou le port, puis l'onglet de l'unité voulue ; l'onglet de
+  l'installation ramène à sa fiche, qui pour un port liste désormais les navires présents.
+  Une escadrille qui décolle ou un groupe qui prend la mer quitte les onglets.
+- **Campagne : les avions à abattre suivent la chasse reportée.** Comme l'objectif de
+  chasse depuis le M2.7, le nombre d'avions à abattre d'une bataille jouée en campagne est
+  ramené à la part des chasseurs présents au matin : avec 58 % de sa chasse, le 15 septembre
+  demande 19 avions au lieu de 32. Le briefing, le journal et l'objectif disent les deux
+  nombres. Hors campagne, rien ne change.
+- L'**idée B** (ci-dessous) est du lot, et se coupe dans Réglages, onglet Carte et fiche :
+  « Patrouilles en mer ».
+
+## Nouveauté de la 2.10.1 : la zone de patrouille plutôt que l'avion (idée B)
+
+À ×3 600, un avion de patrouille traverse 250 km de carte par seconde quand un convoi en
+parcourt 17 : l'avion clignotait. **À partir de ×600, une patrouille de Coastal Command en vol
+est dessinée par ce qu'elle fait** : son repère se tient près du convoi qu'elle couvre, au bout
+de sa route ou là où elle orbite ; sa plaque dit « couvre HX 102 », « en route », « en
+patrouille » ou « rentre » ; son cercle est tracé en bleu, hachuré là où elle voit (tout le
+cercle de jour, la courte portée de son radar ASV la nuit, rien la nuit sans radar). Rien
+d'autre ne change : la simulation fait voler l'avion comme avant, le
+repère se clique et se glisse comme l'avion, l'unité en main retrouve son avion et sa route,
+et à ×60 ou moins l'avion lui-même est dessiné. Une case des Réglages (Carte et fiche) rend
+l'ancien affichage.
+
+## Nouveautés du M2.10
+
+- **Tutoriel en quatre leçons** de trois à cinq minutes (menu principal, Entraînement) :
+  *intercepter* (un raid perdu en démonstration, l'instructeur faisant décoller trop tard,
+  avec le bilan des heures ; puis un raid à gagner, une douzaine de bombardiers sans
+  escorte), *ravitailler* (un train de carburant et un stock minimum), *escorter* (un
+  rapport de quart, un groupe envoyé au-devant d'un convoi, les consignes) et *états d'alerte
+  et fatigue*. Chaque leçon a son petit scénario et ses réglages ; elle se joue d'une traite
+  et ne remplace pas la partie en cours. Pendant une démonstration, l'instructeur a la main :
+  la boîte de la leçon dit « Regardez… » et aucun ordre ne part.
+- **Équilibre**, mesuré au joueur automatique sur trente graines par conduite : ne rien faire
+  perd toujours ; jouer simple en Standard gagne 23, 22 et 25 fois sur 30 (Kanalkampf,
+  Adlertag, 15 septembre) ; jouer soigné en Réaliste gagne 20, 27 et 20 fois sur 30, donc pas
+  forcément du premier coup. Kanalkampf demande aussi des avions abattus (30), une chasse
+  gardée et des convois mieux livrés (80 % pour les HX, 70 % pour le convoi côtier) ; Adlertag
+  compte les heures où ses aérodromes et ses radars sont hors service sur toute la semaine,
+  et ses bases ont moins de carburant d'avance ; le 15 septembre demande 32 avions abattus.
+  Les seuils se rejugent sans rejouer avec `tools/bot/thresholds.mjs`. Deux limites connues,
+  dites au journal : en campagne, le 15 septembre est plus dur que seul ; dans l'Atlantique,
+  jouer soigné en Réaliste ne gagne qu'une fois sur deux.
+- **Fatigue** : l'Alerte 5 min fatigue un peu, Disponible 30 min repose peu, le Repos repose.
+  Des escadrilles laissées toute la semaine à cinq minutes finissent fatiguées : la relève de
+  nuit compte. En échange, voler fatigue moins qu'avant (4 points par heure de vol et 1 par
+  décollage, au lieu de 7 et 2). Une escadrille fatiguée le dit sous son nom, dans sa fiche.
+  Sans fatigue, le bouton Effectifs et le lien vers les plans disparaissent (depuis la
+  2.10.2 toute escadrille a ses états d'alerte : ils restent donc dans l'Atlantique).
+- **Alertes** : une alerte qui demande un ordre reste affichée (« À décider ») jusqu'à l'ordre
+  ou jusqu'à ce qu'on la ferme (« Voir » montre l'endroit sans la fermer) ; une information
+  s'efface seule. Au-delà de quatre alertes en attente, aucune n'est jetée : les plus
+  anciennes passent au journal comme non lues, le bouton Journal en porte le nombre et ouvre
+  le journal sur elles.
+- **Barre du haut** sur une ligne à 1 024 px : pictogrammes avec une bulle (« Règle (R) ») et un
+  mot dessous quand la place le permet, un seul bouton « Vue », le Journal (J), l'aide (?) et
+  le menu ☰.
+- **Aides des fiches** repliables (Réglages, Carte et fiche) : chaque section garde un « ? »
+  qui rouvre la sienne ; les avertissements restent visibles.
+- **Unités superposées** : un pion empilé porte le nombre d'unités ; un clic ouvre la pile en
+  onglets sur le bord gauche de la fiche, et le glisser part de l'unité en main, jamais d'une
+  autre. Depuis une pile fermée rien ne se trace, et la carte le dit. Un convoi avec son
+  escorte garde son repère et sa plaque (navires, nœuds), avec le nom du groupe dessous.
+  Un glisser lâché sur plusieurs cibles demande laquelle.
+
+## Nouveautés du M2.9
+
+- **Menu principal pleine page**, hors de la carte : Continuer (scénario, date de jeu et
+  temps joué de la dernière partie), Campagne (la chaîne de l'Âge I et ce qui est gagné),
+  Scénarios (une carte par bataille : dates, enjeu, durée estimée), Entraînement (mis en avant
+  tant que le tutoriel n'a pas été joué jusqu'au bout), Charger, Réglages, Aide. Le
+  préréglage se choisit là où l'on lance une partie.
+- **Bouton ☰ en jeu** : Reprendre, Sauvegarder, Exporter, Réglages de la partie, Aide,
+  Recommencer, Menu principal. Revenir au menu garde la partie. Recommencer demande
+  confirmation dès dix minutes de jeu ; lancer ou charger une autre partie aussi, et la
+  partie remplacée est gardée parmi les sauvegardes automatiques.
+- **Écran de fin** : Rejouer, Scénario suivant quand la campagne a une suite, Menu principal.
+- **Sauvegardes** : la partie en cours, une sauvegarde automatique par jour de jeu (toutes les
+  deux heures de jeu dans une bataille d'une journée ; les cinq dernières de la partie en
+  cours sont gardées, et la dernière de chacune des cinq parties d'avant), des sauvegardes
+  manuelles, l'export et l'import d'un fichier. Une sauvegarde contient la partie, ses
+  réglages et tout son journal, rapports de quart compris. Elle porte un numéro de format : une
+  migration par version, une validation avant chargement (chaque partie de la sauvegarde est
+  du bon genre, puis la sauvegarde est essayée dix minutes de jeu sur un monde à part) et un
+  message clair pour un fichier abîmé ou trop récent : rien n'est demandé ni remplacé avant
+  que le fichier soit vérifié. Les parties de la version 2.6.1 se chargent. Un enregistrement
+  qui échoue (stockage plein, navigation privée) s'affiche dans la barre du haut et au menu
+  principal ; une partie qui n'a pas pu être gardée le dit avant d'être remplacée, export à
+  portée de main. Les leçons du tutoriel ne s'enregistrent pas.
+- **Les réglages appartiennent à la partie** : copiés dans la partie à son lancement,
+  enregistrés avec elle, changés en cours de route par un ordre que le journal note. Le
+  préréglage peut changer en cours de partie : l'écran de fin et la campagne le disent
+  (« commencée en Réaliste, terminée en Standard »).
+- **Carte et outils par scénario** : chaque scénario déclare dans ses données sa zone, sa vue
+  de départ, ses couches (grille RAF, radars, routes, eaux fermées, ombre de la nuit), ses
+  outils et son rythme en mer. La chaîne de campagne, les vues et les étapes du tutoriel sont
+  dans `data/campaign.json` et `data/tutorial.json`.
+- **Sous le capot** : `main.js` découpé (le grand aiguillage des boutons devient une table
+  d'actions) ; fabrique d'entités étendue aux escadrilles, aux groupes, aux U-Boote et aux
+  raids ; états d'alerte renommés dans le code (`min30`, `min5`) avec migration des
+  sauvegardes ; une seule source pour le numéro de version.
+
+## Nouveautés du M2.8
+
+Tout se passe dans « Hiver dans l'Atlantique » ; Kanalkampf, Adlertag et le 15 septembre ne
+changent que par le jour et la nuit au soleil.
+
+- **Le rythme des quarts.** La mer n'appelle plus le joueur événement par événement. À chaque
+  relève (0, 4, 8, 12, 16 et 20 h) un rapport s'écrit, onglet « Signaux » du journal : convois,
+  groupes d'escorte, air, renseignement, signaux du quart et décisions en attente, chacune
+  avec le bouton qui y répond. Le jeu ne s'arrête que pour une décision nouvelle (réglable :
+  aussi matin et soir, ou à chaque relève) et, entre deux relèves, pour la première attaque
+  d'un convoi dans la nuit. Un arrêt est une pause : « Reprendre » repart à la vitesse d'avant.
+- **Silence radio** (Standard et Réaliste, réglable). En haute mer, convois et groupes ne
+  sont vus que par estimation : repère en tirets marqué « ? », cercle de doute qui grandit
+  depuis le dernier point sûr. Un ordre part par radio à la relève suivante, au projecteur
+  d'un avion en vue, ou confié à un groupe qui rejoint le convoi. Les eaux fermées, les
+  approches des ports et la couverture des radars de Downhill et de Glenarm (nouveaux, avec
+  Castlerock) restent suivies en direct.
+- **Grenades.** 40 par navire, refaites au port ; grenadage plein ou économe ; à vide, des
+  passes à blanc qui font encore plonger. La chasse s'arrête seule ; la durée de chasse
+  réglable disparaît.
+- **Rester ou Chasser, un vrai choix.** Une passe coule ou endommage moins souvent (environ
+  une chasse sur deux aboutit), et un U-Boot qui se dérobe en profondeur n'est retrouvé
+  qu'une fois sur trois : chasser coûte des grenades et laisse le convoi seul. Un groupe en
+  « Rester » ne quitte plus son convoi pour un U-Boot qu'il ne peut pas atteindre : il le
+  force à plonger. Le BdU remplace un U-Boot coulé trois semaines plus tard. Victoire sous
+  7,5 % de pertes (8 % avant). Au joueur automatique, aucune conduite ne gagne à coup sûr.
+- **Avions.** L'attaque d'une patrouille sur un U-Boot se voit, coulé ou non, une fois par
+  sortie ; son repère peut lancer la chasse d'un groupe. Le 502 Sqn a son radar ASV.
+- **Radar d'escorte** : daté et par groupe (EG 1 le 1er mars 1941, EG 3 le 15), à courte portée.
+- **Achats en Amérique** : chaque offre d'avions dit son prix en dollars et en tonnes de
+  cargaison, son délai et sa date d'arrivée ; prévision de tonnage face à l'objectif ; les
+  convois partent chargés à plein tant que la réserve paie (plus de part achetée à régler).
+- **Jour et nuit au soleil**, à la date, à l'heure et à la position de chaque unité (seize
+  heures de nuit en janvier à 56° N, onze fin mars), et **ombre de la nuit** sur la carte
+  (réglage d'affichage). Les U-Boote attaquent à leur heure dans la nuit, plus tous ensemble
+  à heure fixe.
+- **Sous le capot** : calcul de route sans à-coups (plus aucun pas de simulation de plus de
+  20 ms dans l'Atlantique), grilles construites à la création du monde.
+
+Mesures au joueur automatique (10 graines par conduite) : 42 à 59 arrêts par partie
+d'Atlantique avec les réglages par défaut, contre 50 à 147 avant ; Rester et Chasser gagnent
+9 fois sur 10 en Standard, 5 et 2 fois sur 10 en Réaliste (Chasser gagnait 10 fois sur 10).
+Le détail est au journal, section « Porte du M2.8 ».
+
+Vérifié au M2.10 sur dix graines neuves (11 à 20) : 44 à 66 arrêts par partie (moyenne 54, dix
+parties sur cent au-delà de 60) ; sur les vingt graines, Rester et Chasser gagnent 17 fois sur
+20 en Standard, 9 et 7 fois sur 20 en Réaliste, et le jeu soigné 19 et 10 fois sur 20. Le
+détail est au journal, « L'Atlantique sur dix graines neuves ».
 
 ## Nouveautés du M2.7
 
@@ -58,11 +320,13 @@ d'entrée.
 
 ## Scénarios et campagne
 
-Le jeu s'ouvre sur le **menu principal** : Continuer (la partie en cours), Campagne,
-Entraînement (avec le tutoriel), Charger une partie, Réglages et Aide. Le bouton « Menu » du
-bandeau le rouvre ; le jeu est arrêté tant qu'il est ouvert, Échap ou « Continuer » le
-reprend. « Campagne » ouvre la campagne de l'acte I. Une victoire ouvre le scénario suivant ;
-la case « Débloquer tous les scénarios » les ouvre tous d'un coup.
+Le jeu s'ouvre sur le **menu principal**, une page à part : Continuer (la partie en cours),
+Campagne, Scénarios, Entraînement (les quatre leçons du tutoriel), Charger, Réglages et Aide. En jeu, le
+bouton ☰ du bandeau ouvre le menu de la partie (Reprendre, Sauvegarder, Exporter, Réglages de
+la partie, Aide, Recommencer, Menu principal) ; le jeu est en pause tant qu'il est ouvert.
+« Campagne » montre la chaîne de l'acte I : une victoire ouvre le scénario suivant, et la
+case « Débloquer tous les scénarios » les ouvre tous d'un coup. Le préréglage (Arcade,
+Standard, Réaliste) se choisit sur les pages Campagne et Scénarios.
 
 | Scénario | Période | L'essentiel |
 | --- | --- | --- |
@@ -70,7 +334,7 @@ la case « Débloquer tous les scénarios » les ouvre tous d'un coup.
 | Adlertag | 12-18 août 1940 | raids sur les radars et les aérodromes, chasses libres, station radar mobile, relève |
 | 15 septembre | une journée | deux grandes vagues sur les docks de Londres, Big Wing de Duxford |
 | Hiver dans l'Atlantique | 10 janvier - 31 mars 1941 | convois réguliers HX et SC, meutes de U-Boote, dollars, prêt-bail |
-| Entraînement | juillet 1940 | un convoi, quelques raids, et le **tutoriel guidé** |
+| Entraînement | juillet 1940 | les quatre leçons du **tutoriel**, puis un scénario d'essai : un convoi, quelques raids |
 
 Entre les batailles aériennes, le réglage « Campagne » reporte une partie des pertes : en
 Standard, la chasse commence la bataille suivante avec la moitié des avions perdus en moins
@@ -78,15 +342,29 @@ Standard, la chasse commence la bataille suivante avec la moitié des avions per
 convoyeurs comblent ensuite les vides. Le briefing du scénario dit avec combien d'avions la
 chasse commence, et l'objectif « garder la chasse » se mesure sur ces avions-là.
 
-La partie en cours est enregistrée toute seule dans le navigateur et reprend où on l'a
-laissée. La page Campagne permet aussi de l'exporter dans un fichier `.json`, et « Charger
-une partie » du menu de la réimporter.
+La partie en cours est enregistrée toute seule dans le navigateur : « Continuer » la reprend
+où on l'a laissée. « Charger » liste aussi les cinq dernières sauvegardes automatiques (une
+par jour de jeu, toutes les deux heures de jeu dans une bataille d'une journée) et les
+sauvegardes manuelles (☰, Sauvegarder), et importe un fichier `.json` exporté par ☰,
+Exporter. En Réaliste, ces points de reprise permettent de rejouer une journée sans tout
+refaire.
 
 ## Comment jouer
 
-Trois cartes : Atlantique (touche A), Grande-Bretagne (L) et Angleterre (G). L'**aide**
-(bouton « Aide ») tient en onglets — Ce scénario, La fiche, Air, Mer, Temps et alertes,
-Touches — avec quelques images prises sur le banc d'essai (`data/help/images.json`).
+Trois cartes, par le bouton « Vue » de la barre du haut ou au clavier : Atlantique (touche
+A), Grande-Bretagne (L) et Angleterre (G) ; chaque scénario ne propose que les siennes. Les
+outils de la barre sont des pictogrammes, avec leur nom et leur touche en bulle (« Règle
+(R) ») et un mot dessous quand la place le permet : Vue, Règle, Radar, Formations, Effectifs
+(seulement quand les pilotes fatiguent), Rapports, Fiches, Journal (J, avec le compte des
+alertes non lues), Aide (?) et le menu ☰. L'**aide** tient en onglets — Ce scénario, La
+fiche, Air, Mer, Temps et alertes, Parties et réglages, Touches — avec quelques images prises
+sur le banc d'essai (`data/help/images.json`).
+
+Quand plusieurs unités sont au même endroit (deux groupes dans le même port), leur pion porte
+le nombre d'unités : un clic ouvre la pile en onglets sur le bord gauche de la fiche ; l'unité
+de l'onglet choisi est mise en avant sur la carte, les autres s'estompent, et les ordres vont
+à elle seule. Un aérodrome ou un port qui abrite des unités a les mêmes onglets : le sien
+d'abord, puis un par escadrille au sol ou par navire au port.
 
 **La fiche d'une unité** s'ouvre quand on clique une unité ou une installation, sur la carte
 ou dans le tableau d'état : à droite de la carte, ou à gauche, ou en bas (Réglages, onglet
@@ -119,34 +397,51 @@ autonomie 1,6 fois plus vite.
    nord de l'Irlande ou au canal Saint-Georges : un pilote les conduit au port. La vitesse
    ordonnée garde le convoi groupé ; plus près de sa vitesse maximale, des navires lents
    décrochent et deviennent des traînards. Le zigzag gêne les U-Boote mais ralentit.
-   **Appareiller** : un groupe d'escorte met une heure à quitter son quai, puis sort en rade,
-   juste au large de son port, ou suit jusqu'au bout le chenal choisi (« Sortie », section Au
-   port) ; il y attend vos ordres, ou prend votre tracé ou vos étapes. Un tracé tiré depuis le
-   port part de la rade et contourne la terre par la mer.
+   **Fin de route** : la fiche du convoi dit ce qu'il fait au bout de son tracé ou de ses
+   étapes (« En fin de tracé ») et vous laisse en décider : s'arrêter, garder le cap, entrer
+   dans un port par le chenal de votre choix, reprendre la route de l'Amirauté. Sans ordre,
+   un tracé qui passe près de l'entrée d'un chenal et finit vers son port est prolongé
+   jusqu'au port ; un autre tracé finit par un arrêt, des étapes par le cap gardé (et le
+   pilote monte à bord si le convoi passe dans le cercle « Pilote » d'un chenal).
+   **Appareiller** : un groupe d'escorte met une heure à quitter son quai. Sa sortie est la
+   première étape de ses ordres : « Sortie », section Au port, propose la rade (juste au
+   large du port) ou un chenal suivi jusqu'au bout. L'étape se dessine sur la carte et
+   s'inscrit sous « Route et étapes » ; une croix la retire, un tracé tiré depuis l'anneau à
+   son bout ou des étapes au cap la prolongent, et « Au bout de la sortie » dit ce que le
+   groupe fait ensuite. Le tout attend « Appareiller » ou l'heure programmée. Sans sortie
+   choisie, « Appareiller » mène le groupe en rade, où il attend vos ordres, et un tracé tiré
+   depuis le port le fait partir tout de suite ; il contourne la terre par la mer.
    **Le globe** : la carte est plate, mais les distances sont celles du globe (un kilomètre
    est-ouest de la carte vaut cos(latitude)/cos(50°) km réels) ; une route infléchie vers le
    nord, vers l'orthodromie, est donc plus courte qu'il n'y paraît, une route par le sud plus
    longue. Un convoi choisi montre en pointillé le plus court chemin sur le globe jusqu'aux
    entrées des chenaux, et la longueur de la route suivie.
-2. **U-Boote.** Ils attaquent de nuit, en surface. Les zones hachurées viennent de la
+2. **U-Boote.** Ils attaquent de nuit, en surface, chacun à son heure (de jour presque
+   jamais, sauf contre un traînard). Le jour et la nuit suivent le soleil, à la date, à l'heure
+   et à la position de chaque unité ; l'ombre de la nuit se voit sur la carte. Les zones hachurées viennent de la
    radiogoniométrie ; un repère U-Boot (vu par une vigie, un avion, l'ASDIC ou le radar)
    porte deux cercles : où il peut être en surface, et en plongée. La table garde un seul
    repère par U-Boot : un nouveau relèvement le déplace (au lieu d'empiler des cercles toutes
    les dix minutes d'une chasse), et un U-Boot coulé la quitte. Un groupe d'escorte
    « Rejoint » un convoi et, « Face aux U-Boote », « Reste » avec lui (il n'attaque que ce
-   qui s'approche, 30 min et 15 km au plus) ou « Chasse » un contact frais pendant la durée
-   choisie (3 h par défaut, de 1 à 12 h) ; « Stop » ou tout autre ordre l'arrête, et un
-   repère frais à moins de 80 km peut être chassé d'un clic. Un U-Boot vu par un avion ou
-   par une escorte, où qu'il soit, lève l'alerte « U-Boot en vue » et ramène le jeu à ×1
-   (une fois par heure et par U-Boot ; une attaque a sa propre alerte). Un U-Boot tenu
+   qui s'approche, 30 min et 15 km au plus) ou « Chasse » un contact frais : la chasse
+   s'arrête seule (U-Boot coulé ou touché, contact perdu après 45 minutes de recherche, ou
+   grenades tombées au tiers gardé pour le convoi) ; « Stop » ou tout autre ordre l'arrête, et un
+   repère frais à moins de 80 km peut être chassé d'un clic. **Grenades** : 40 par navire
+   (120 ou 160 par groupe), refaites au port avec le mazout ; grenadage plein (dix par passe)
+   ou économe (cinq, moins de chances de couler) ; à vide, les passes sont à blanc : le
+   U-Boot reste en plongée, sans rien risquer. Hors de l'Atlantique (alertes en direct), un U-Boot vu par un avion ou
+   par une escorte lève l'alerte « U-Boot en vue » et ramène le jeu à ×1
+   (une fois par heure et par U-Boot ; une attaque a sa propre alerte) ; dans l'Atlantique,
+   la mer vit au rythme des quarts (voir plus bas). Un U-Boot tenu
    (ASDIC, ou vu tout près) reçoit une passe de grenades toutes les 10 minutes : coulé,
-   touché (il rentre), perdu ou rien de visible ; chaque attaque a son rapport. « Au port »
+   touché (il rentre et n'est plus attaqué), perdu ou rien de visible ; chaque attaque a son rapport, avec les grenades lancées. « Au port »
    rentre au port choisi dans la section « Retour au port », du plus proche par mer au plus
    loin, avec distance et durée (tirées d'un champ de distances par mer calculé une fois par
    port : la fiche ne coûte plus rien, même à ×14 400) ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un
    port (15 km, montrée quand un navire est choisi) y entre. Comme pour les avions, la section
-   « Route et étapes » dit que faire à la fin du tracé ou des étapes : s'arrêter et attendre, garder le cap, chasser
-   sur place, rejoindre un convoi ou entrer au port. Un groupe qui attend ses ordres garde
+   « Route et étapes » dit que faire à la fin du tracé ou des étapes : s'arrêter et attendre, garder le cap, chercher
+   un U-Boot sur place, rejoindre un convoi ou entrer au port. Un groupe qui attend ses ordres garde
    la veille ; un groupe attaqué en rentrant reprend ensuite sa route vers le port, sans
    s'arrêter auprès des convois qu'il croise. Un U-Boot tenu à l'ASDIC est annoncé avec sa
    profondeur et son cap estimés.
@@ -227,15 +522,18 @@ autonomie 1,6 fois plus vite.
      temps maximum), ralentit vers la cible ou part sans lui ; une big wing pose la question
      (Entrée : le choix du plan). Les retardataires suivent le plan en retard, à pleine
      vitesse, et reprennent leur place en la rattrapant.
-7. **Pilotes.** La fatigue monte en vol et en combat, baisse au sol. L'état d'alerte règle le
+7. **Pilotes.** La fatigue monte en vol et en combat ; au sol elle baisse au Repos, baisse
+   peu en Disponible, monte un peu en Alerte et davantage en Cockpit : une escadrille tenue
+   toute la semaine à cinq minutes finit fatiguée. L'état d'alerte règle le
    délai pour être en l'air après l'ordre de décoller : *Repos* 2 h (le personnel peut être
    n'importe où ; on le confirme, récupération rapide), *Disponible* 30 min, *Alerte* 5 min,
    *Cockpit* 2 min (fatigue). Monter d'un état prend la différence (du repos à l'alerte :
    1 h 55, la fiche montre le rappel en cours) ; descendre est immédiat. Un état choisi à la
    main dans la fiche garde la main sur le planning jusqu'à **« Retour au planning »**. La
    page **Effectifs** (bouton du bandeau, ou « Programmation des effectifs… » dans la fiche
-   d'une escadrille ou d'un aérodrome) montre les aérodromes à gauche et, à droite, les
-   escadrilles de celui qu'on choisit : leur état, la frise des 24 heures à venir et le plan
+   d'une escadrille ou d'un aérodrome ; tous deux absents d'une partie sans fatigue) montre les aérodromes à gauche et, à droite, les
+   escadrilles de celui qu'on choisit, chasse, guet et Coastal Command : leur type, leur
+   état, leur fatigue, la frise des 24 heures à venir et le plan
    de chaque jour (heures de 00:00 à 24:00, il se répète), qu'on peut copier vers les autres
    escadrilles de l'aérodrome ou vers une autre. Pour un jour de mission, la case
    « Seulement les prochaines 24 h » ouvre un plan vierge en heures H depuis maintenant
@@ -249,8 +547,10 @@ autonomie 1,6 fois plus vite.
    d'où un rappel la première fois qu'on programme. « Chaque jour » répète l'ordre (une
    patrouille côtière à l'aube, par exemple). « Rejoindre une formation » (ou « Rejoindre un
    groupe de soutien ») fait partir l'unité à son heure pour rejoindre une big wing en vol
-   (heure calculée à la règle). Un ordre qui ne peut pas partir (plein en cours, carénage,
-   ni route ni étapes) attend et lève une alerte.
+   (heure calculée à la règle). Un groupe d'escorte appareille à son heure avec ce qui est
+   préparé (sa sortie, puis le tracé ou les étapes) ; sans rien de préparé, il sort en rade
+   et y attend vos ordres. Un ordre qui ne peut pas partir (plein en cours, carénage, convoi
+   sans route ni étapes) attend et lève une alerte.
 9. **Logistique.** Les convois déchargent carburant et matériel dans les ports ; le dépôt de
    Chilmark fournit les munitions. Envoyez des trains (jusqu'à 100 t, chargement mélangé) ou
    fixez des stocks minimum : les trains partent seuls. Sans carburant, une escadrille ne
@@ -260,8 +560,28 @@ autonomie 1,6 fois plus vite.
    hors service ouvre un trou dans la couverture ; à partir d'Adlertag, une station radar
    mobile peut le boucher (onglet Installations, « Déployer »).
 11. **Dollars (hiver 1941).** Avant le prêt-bail, la cargaison des convois se paie comptant :
-   l'onglet Logistique règle la part achetée de chaque convoi, ou commande des Hudson et des
-   Catalina en Amérique.
+   ils partent chargés à plein tant que la réserve le permet, puis sur lest. L'onglet
+   Logistique donne la prévision de tonnage face à l'objectif et les offres d'avions (Hudson,
+   Catalina), chacune avec son prix en dollars et en tonnes de cargaison, son délai et sa date
+   d'arrivée : chaque dollar dépensé là manquera aux cargaisons.
+12. **Quarts (hiver 1941).** Dans l'Atlantique vous commandez depuis un QG à terre. À chaque
+   relève (0, 4, 8, 12, 16 et 20 h) un rapport s'écrit, onglet « Signaux » du journal :
+   convois, groupes d'escorte (mazout, grenades, consigne), air, renseignement, signaux du
+   quart, et « À décider » avec le bouton qui répond. Le jeu s'arrête à une relève quand une
+   décision nouvelle attend (réglage « Arrêt aux relèves » : aussi à 8 h et 20 h, ou à chaque
+   relève) et, entre deux relèves, seulement pour la première attaque d'un convoi dans la
+   nuit. Un arrêt est une pause : « Reprendre » repart à la vitesse d'avant. Un rapport
+   fermé sans réponse se rouvre tel quel : bouton « Quart » de la barre du haut (touche Q),
+   ou « Ouvrir » dans l'onglet « Signaux ».
+13. **Silence radio (hiver 1941, Standard et Réaliste).** Hors des eaux suivies (eaux fermées
+   aux U-Boote, approches des ports, couverture des radars de Downhill et de Glenarm), un
+   convoi ou un groupe est dessiné à sa position estimée : contour en tirets, « ? » sur la
+   plaque, cercle de doute qui grandit depuis le dernier point sûr. Un point sûr vient d'un
+   avion en vue, d'une attaque, ou de « Demander la position » (qui donne un relèvement à
+   l'ennemi). Un ordre part par radio à la relève suivante, au projecteur si un avion est en
+   vue, ou confié à un groupe qui part rejoindre le convoi. En attendant, un tracé ou des
+   étapes restent sur la carte en ocre et sur la fiche (« à transmettre ») : on les
+   prolonge, on les corrige, et un seul ordre part.
 
 Chaque raid se termine par un rapport, rangé dans « Rapports », qui ne dit que ce que la RAF
 sait : le premier plot (« 15+ à 8 500 ft »), la composition une fois le raid vu (« vu par
@@ -318,8 +638,11 @@ mesurée. Une étape déjà posée se corrige avec ✎.
 ## Réglages
 
 Les « Réglages » tiennent en onglets : **Partie** (préréglage et réglages ci-dessous),
-**Temps et alertes**, **Carte et fiche**, **Sons**, **Développeur**. Trois préréglages, modifiables un
-par un :
+**Temps et alertes**, **Carte et fiche**, **Sons**, **Développeur**. Au menu principal, ce
+sont les réglages des prochaines parties. En jeu (☰, Réglages de la partie), l'onglet Partie
+montre ceux de la partie en cours : ils sont enregistrés avec elle, chaque changement est un
+ordre noté au journal, et le report de campagne, fixé au départ, ne se change plus. Trois
+préréglages, modifiables un par un :
 
 | Réglage | Arcade | Standard | Réaliste |
 | --- | --- | --- | --- |
@@ -331,10 +654,15 @@ par un :
 | Logistique | répartition automatique | manuelle | manuelle |
 | Fatigue des pilotes | non | oui | oui, avec pilotes tués |
 | Campagne : pertes reportées | aucune | la moitié | toutes |
+| B-Dienst : routes lues | jamais | 25 % | 50 % |
+| Communications en mer | directes | silence radio | silence radio |
 
 Le réglage **B-Dienst** (Partie) dit quelle part des messages de routage des convois la
 marine allemande lit : 0 % en Arcade, 25 % en Standard, 50 % en Réaliste (0, 10, 25, 50, 75
-ou 100 %).
+ou 100 %). **Communications en mer** (Partie) : directes en Arcade, silence radio en Standard
+et en Réaliste (il ne joue que dans l'Atlantique). **Arrêt aux relèves** (Temps et alertes) :
+sur décision seulement, matin et soir aussi, ou à chaque relève. **Ombre de la nuit** et
+**Aides des fiches** (affichées, ou repliées derrière un « ? » par section) : Carte et fiche.
 
 Options : pause pendant les pages et durée du plan d'exception des Effectifs (Partie) ;
 ralenti à l'alerte avec une vitesse pour chaque alerte, confirmation des vitesses élevées
@@ -353,25 +681,32 @@ ou en bas de la carte) et l'affichage économe, un peu moins net mais plus fluid
 ├── README.md
 ├── index.html, style.css      page et styles
 ├── src/
-│   ├── main.js                démarrage et boucle de jeu
-│   ├── core/                  temps, aléatoire à graine, traductions, chargement des données
+│   ├── main.js                démarrage : données, montage de la page, barre du haut
+│   ├── core/                  temps, aléatoire à graine, traductions, chargement des données,
+│   │                          numéro de version
 │   ├── sim/                   simulation (aucun accès à la page) : convois et navires,
 │   │                          escadrilles, formations et rassemblements, raids, détection,
 │   │                          contact direct, guidage, attitude face à l'ennemi et
 │   │                          questions, combat, départs programmés et effectifs, patrouilles,
 │   │                          lutte anti-sous-marine, pilotes, installations, logistique,
 │   │                          radars mobiles, événements datés, convois réguliers et dollars,
-│   │                          rapports, objectifs
+│   │                          rapports, objectifs, réglages de la partie, fabrique d'entités
 │   ├── render/                caméra, carte, symboles, animations, vue de profil
 │   ├── ui/                    souris, clavier, panneaux, fiche d'unité et sa barre de
 │   │                          commandes, pages (rapports, fiches techniques, formations,
-│   │                          effectifs), menu principal, alertes, questions, campagne,
+│   │                          effectifs), menu principal et vie d'une partie (menu.js,
+│   │                          game.js), boucle de jeu (loop.js), table d'actions des
+│   │                          panneaux (panelActions.js), alertes, questions, campagne,
 │   │                          tutoriel, aide, mode développeur, sons
-│   └── save/                  réglages et parties gardés dans le navigateur
+│   └── save/                  réglages du joueur ; parties : instantané, formats et
+│                              migrations, validation, emplacements dans le navigateur
 ├── data/
 │   ├── maps/                  côtes Natural Earth projetées, noms de lieux
 │   ├── scenarios/             kanalkampf, adlertag, quinze-septembre, hiver-atlantique,
-│   │                          m0-july-1940 (entraînement)
+│   │                          m0-july-1940 (entraînement), lecon-* (les leçons, écrites
+│   │                          comme une bataille avec des changements : « base »)
+│   ├── campaign.json          chaîne de campagne, vues, cartes de scénario, couches et outils
+│   ├── tutorial.json          les quatre leçons du tutoriel : scénario, réglages, étapes
 │   ├── rules.json             équilibrage (avions, combat, détection, logistique, U-Boote)
 │   ├── presets.json           préréglages Arcade, Standard, Réaliste
 │   ├── help/images.json       images de l'aide, prises sur le banc d'essai
@@ -396,10 +731,10 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 205 tests, environ deux minutes
+npm test          # les 406 tests, environ quatre minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
-npm run smoke     # le jeu dans Chrome sans écran : tutoriel, pages, fiches, corrections
+npm run smoke     # le jeu dans Chrome sans écran : leçons, pages, fiches, corrections, quarts, menu, interface
 npm run build     # reconstruit dist/index.html
 ```
 
@@ -421,10 +756,44 @@ Le filet du M2.7 :
   aucun texte français dans le code, chaque clé de texte citée existe, aucune règle morte
   dans `data/rules.json`.
 - **Test de fumée** (`tools/smoke/smoke.mjs`) : la version de développement et le fichier
-  unique démarrent, le tutoriel est joué à la souris et au clavier jusqu'à sa dernière étape,
+  unique démarrent, les quatre leçons du tutoriel sont jouées à la souris et au clavier
+  jusqu'à leur dernière étape, la barre du haut tient sur une ligne à 1 024 px, les alertes,
+  les aides des fiches et les piles d'unités sont essayées, comme les états d'alerte d'une
+  patrouille et les onglets d'un port et d'un aérodrome (2.10.2), la sortie du port posée
+  en étape, prolongée à la souris puis retirée, et deux appareillages programmés (2.10.3),
+  un tracé en attente de la relève prolongé depuis son anneau et un rapport de quart fermé
+  puis rouvert (2.10.4), la fin de route d'un convoi choisie dans sa fiche, par radio puis
+  tout de suite, jusqu'à son exécution, et celle du convoi côtier de Kanalkampf (2.10.5),
   chaque page et chaque sorte de fiche s'ouvre dans chaque scénario, et les corrections du
   M2.7 sont rejouées (plaques empilées, touches d'un clavier AZERTY, bilan de fin, briefing
   de campagne, garde-fou sur une erreur provoquée).
+- Les tests de la 2.10.5 (`tests/convoyend.test.js`) : sans ordre, rien ne change ; les
+  choix de chaque scénario ; garder le cap, s'arrêter, entrer à Liverpool par chacun de ses
+  chenaux et à la Clyde, jusqu'à l'arrivée ; la route de l'Amirauté reprise en contournant
+  la terre ; l'ordre exécuté tout de suite quand il n'y a plus rien à suivre, donné une fois,
+  retiré avec les étapes effacées ; un tracé que le jeu prolongeait, rendu au joueur ; ni
+  prolongement ni pilote tant qu'un ordre attend ; l'entrée d'un chenal gagnée par le large ;
+  l'attente quand aucun passage par la mer n'existe ; le traînard, la sauvegarde, une partie de la 2.9.0 ; par radio, dans les deux
+  ordres d'envoi ; le B-Dienst (lu par radio, pas par projecteur) ; la fiche, la carte et le
+  journal ; les tracés du convoi côtier qui s'arrêtent avant Beachy Head. Le singe donne
+  aussi cet ordre, et vérifie après chaque heure de jeu qu'un convoi en route vers un port
+  n'a pas d'ordre de fin en attente.
+- Les tests de la 2.10.4 : les ordres en attente sous silence radio
+  (`tests/awaited.test.js` : le tracé prolongé deux fois puis reçu tel que montré, les
+  étapes ajoutées, modifiées et retirées avant la relève, l'ordre remplacé et non empilé,
+  la terre signalée avant le départ) et le rapport de quart rouvert
+  (`tests/watchpanel.test.js`).
+- Les tests de la 2.10.3 (`tests/exitstep.test.js`) : appareillage programmé sans rien de
+  préparé, la sortie en étape (posée, changée, retirée, prolongée par un tracé ou des
+  étapes, sa fin), le tracé d'un groupe en mer de nouveau modifiable, les parties
+  enregistrées par la 2.10.2, le groupe de soutien. Une vraie partie enregistrée par la
+  2.10.2 (`tests/fixtures/`, faite par `make-save-2.10.2.mjs` depuis cette version) est
+  reprise dans `tests/oldsaves.test.js` : le groupe qui attendait appareille. Le singe
+  vérifie en plus, après chaque ordre, que le début de route compté comme sortie suit bien
+  un chenal d'un port.
+- Les tests de la 2.10.2 : repos et planning d'une patrouille (`tests/patrolrest.test.js`),
+  onglets des installations (`tests/siteunits.test.js`), avions à abattre en campagne
+  (`tests/campaign.test.js`).
 - Les tests du M2.7 lui-même : campagne en Réaliste (`tests/campaign.test.js`), bilan de fin
   et chrono (`tests/summary.test.js`), touches (`tests/keys.test.js`), test de clic
   (`tests/hit.test.js`), station mobile sur un jour de jeu (`tests/sites.test.js`), champs

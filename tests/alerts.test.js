@@ -48,11 +48,14 @@ test('a U-boat seen by an aircraft or an escort calls the player anywhere, once 
     'a group that attacks at once calls with « Escorte au combat »');
 });
 
-test('Atlantic: a coastal patrol that sees a U-boat brings the game down to x1', async () => {
+// Until 2.7 a sighting brought the Atlantic down to ×1. Since the watches (2.8, I2) the
+// Coastal Command follows their rhythm there: the sighting goes to the report of the watch.
+// Where the alerts stay live (Kanalkampf), the same sighting still calls the player at ×1.
+test('a coastal patrol that sees a U-boat: in the Atlantic it goes to the watch report; with live alerts it brings the game down to x1', async () => {
   const { alertSpeed } = await import('../src/ui/alertRules.js');
+  const { watchReport } = await import('../src/sim/watch.js');
   const w = makeWorld('standard', { fuel: 'unlimited' }, 'hiver-atlantique');
-  const memory = new Map();
-  runTo(w, 4 * 3600); // 10:00, broad daylight
+  runTo(w, 7 * 3600); // 13:00, broad daylight in January
   const u = w.uboats.find((x) => x.state !== 'gone' && x.state !== 'sunk');
   u.state = 'patrol';
   u.submergedUntil = 0;
@@ -61,7 +64,15 @@ test('Atlantic: a coastal patrol that sees a U-boat brings the game down to x1',
   const events = run(w, 3600, (e) => e.type === 'uboatSighted' && e.unitKind === 'squadron');
   const seen = events.find((e) => e.type === 'uboatSighted' && e.unitKind === 'squadron');
   assert.ok(seen, 'the patrol sees the U-boat');
-  const a = alertFor(w, seen, memory);
+  assert.equal(alertFor(w, seen, new Map()), null, 'no alert at sea in the Atlantic');
+  run(w, 4 * 3600, (e) => e.type === 'watchReport');
+  const report = watchReport(w);
+  assert.ok(report.notes.some((n) => n.type === 'uboatSighted' && n.byId === s.id), 'the sighting is in the report of the watch');
+  // (The patrol circles on: it may see the boat again when it comes back up.)
+  assert.ok(report.air.sightings >= 1 && report.intel.plots >= report.air.sightings);
+  // The same sighting where the sea keeps its live alerts.
+  const k = makeKanalkampf();
+  const a = alertFor(k, seen, new Map());
   assert.ok(a);
   assert.equal(alertSpeed({}, a.type, a.level), 1);
   assert.ok(data.fr.alerts.uboatSighted[a.variant].length > 10);

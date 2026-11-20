@@ -5,14 +5,16 @@
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatTime } from '../core/time.js';
 import { distance, unproject } from '../sim/geo.js';
-import { cargoShare } from '../sim/convoy.js';
+import { cargoShare, plannedExit } from '../sim/convoy.js';
 import { RESOURCES, fuelDays, fullTrain, inbound, trainHours } from '../sim/logistics.js';
 import { escortStrength, portChoices } from '../sim/naval.js';
-import { huntHours } from '../sim/asw.js';
+import { canHunt } from '../sim/asw.js';
+import { carriersFor, isSilent, orderChannel, pendingOrders, shownPosition } from '../sim/comms.js';
+import { WATCH_S, clockHour } from '../sim/watch.js';
 import { capacityFactor, isOperational } from '../sim/sites.js';
-import { lineCost, offerCost, offers } from '../sim/shipping.js';
+import { lineCost, offerArrival, offerCost, offerInCargo, offers, tonnageForecast } from '../sim/shipping.js';
 import { button, options, row } from './html.js';
-import { cargoText, dateTimeText, escortStateText, positionText, resourceName, tonnesText } from './format.js';
+import { cargoText, dateTimeText, escortStateText, positionText, resourceName, shortDateText, tonnesText } from './format.js';
 
 function isSel(app, kind, id) {
   return app.selection && app.selection.kind === kind && app.selection.id === id;
@@ -38,46 +40,54 @@ function fuelLevel(days) {
   return 'ok';
 }
 
-const SHARES = [1, 0.75, 0.5, 0.25, 0];
+/** One line of the tonnage forecast: "Carburant : 1 200 t déchargées + 640 t en mer + 4 100 t achetables = 5 940 t (objectif 6 800 t)". */
+function forecastLine(label, f) {
+  const n = (v) => formatNumber(Math.round(v));
+  return `<li class="${f.total + 0.5 < f.target ? 'short' : 'ok'}"><b>${escapeHtml(label)}</b> ${escapeHtml(t('offers.forecastLine', {
+    unloaded: n(f.unloaded), atSea: n(f.atSea), buyable: n(f.buyable), total: n(f.total), target: n(f.target),
+  }))}</li>`;
+}
 
-/** Atlantic 1941: the dollar reserve, the share of the cargo bought, aircraft to order. */
+/**
+ * Atlantic 1941: the dollar reserve, what it still buys against the objective, the next
+ * sailings, and the aircraft to order with what each costs in cargo.
+ */
 function currencyBlock(app) {
   const w = app.world;
   const cur = w.currency;
   if (!cur) return '';
   const lend = Boolean(w.flags.lendLease);
+  const n = (v) => formatNumber(Math.round(v));
   const parts = [`<div class="tote-group">${escapeHtml(t('offers.title'))}</div><div class="currency">`];
-  parts.push(`<p>${escapeHtml(t('offers.stock', { n: formatNumber(Math.round(cur.stock)), m: formatNumber(cur.start) }))}</p>`);
-  if (lend) {
-    parts.push(`<p class="hint">${escapeHtml(t('offers.lendLease'))}</p>`);
-  } else {
-    parts.push(`<p class="hint">${escapeHtml(t('offers.intro'))}</p>`);
-    parts.push(`<div class="order-line"><span>${escapeHtml(t('offers.purchase'))}</span></div><div class="order-line">`);
-    for (const k of SHARES) parts.push(button('purchase', `${Math.round(k * 100)} %`, { active: Math.abs(cur.purchase - k) < 0.01, extra: ` data-share="${k}"` }));
-    parts.push('</div>');
-    const cost = (prefix) => {
-      const line = w.shipping.lines.find((l) => l.prefix === prefix);
-      return line ? formatNumber(Math.round(lineCost(w, line))) : '—';
-    };
-    parts.push(`<p class="hint">${escapeHtml(t('offers.purchaseHint', { hx: cost('HX'), sc: cost('SC') }))}</p>`);
-  }
+  parts.push(`<p>${escapeHtml(t('offers.stock', { n: n(cur.stock), m: formatNumber(cur.start) }))}</p>`);
+  parts.push(`<p class="hint">${escapeHtml(t(lend ? 'offers.lendLease' : 'offers.intro'))}</p>`);
+  if (!lend) parts.push(`<p class="hint warn">${escapeHtml(t('offers.congress'))}</p>`);
+  const forecast = tonnageForecast(w);
+  parts.push(`<div class="sub">${escapeHtml(t('offers.forecast'))}</div><ul class="forecast">
+    ${forecastLine(t('offers.fuel'), forecast.fuel)}${forecastLine(t('offers.materiel'), forecast.materiel)}</ul>
+    <p class="hint">${escapeHtml(t(lend ? 'offers.forecastHintLend' : 'offers.forecastHint'))}</p>`);
   const next = w.shipping.lines
     .filter((l) => l.sent < l.count)
-    .map((l) => ({ name: `${l.prefix} ${l.firstNumber + l.sent}`, at: l.nextS, cost: lend ? 0 : Math.min(lineCost(w, l) * cur.purchase, cur.stock) }))
+    .map((l) => ({ name: `${l.prefix} ${l.firstNumber + l.sent}`, at: l.nextS, cost: lend ? 0 : Math.min(lineCost(w, l), cur.stock), full: lineCost(w, l) }))
     .sort((a, b) => a.at - b.at)
     .slice(0, 3);
   if (next.length) {
     parts.push(`<div class="sub">${escapeHtml(t('offers.next'))}</div><ul class="next-sailings">`);
-    for (const n of next) {
-      parts.push(`<li>${escapeHtml(t('offers.nextLine', { convoy: n.name, date: dateTimeText(w.startMs + n.at * 1000), cost: formatNumber(Math.round(n.cost)) }))}</li>`);
+    for (const x of next) {
+      const key = lend ? 'offers.nextLineFree' : x.cost + 0.5 < x.full ? 'offers.nextLineShort' : 'offers.nextLine';
+      parts.push(`<li>${escapeHtml(t(key, { convoy: x.name, date: dateTimeText(w.startMs + x.at * 1000), cost: n(x.cost), share: Math.round((x.full > 0 ? x.cost / x.full : 0) * 100) }))}</li>`);
     }
     parts.push('</ul>');
   }
+  parts.push(`<div class="sub">${escapeHtml(t('offers.aircraft'))}</div>`);
   for (const o of offers(w)) {
     const bought = cur.bought.includes(o.id);
     const c = offerCost(w, o);
-    parts.push(`<div class="order-line offer"><span class="grow">${escapeHtml(t(`offers.${o.id}`))} <small>(${escapeHtml(t('offers.arrives', { days: o.days }))})</small></span>
-      ${button('offer', bought ? t('offers.bought') : t('offers.buy', { cost: formatNumber(c) }), { disabled: bought || cur.stock < c, extra: ` data-offer="${escapeHtml(o.id)}"` })}</div>`);
+    const cargo = offerInCargo(w, o);
+    const price = lend ? t('offers.priceFree') : t('offers.price', { cost: formatNumber(c), fuel: n(cargo.fuel), materiel: n(cargo.materiel) });
+    const delivery = bought ? t('offers.ordered') : t('offers.delivery', { days: o.days, date: shortDateText(w.startMs + offerArrival(w, o) * 1000) });
+    parts.push(`<div class="order-line offer"><span class="grow"><b>${escapeHtml(t(`offers.${o.id}`))}</b><br><small>${escapeHtml(price)}<br>${escapeHtml(delivery)}</small></span>
+      ${button('offer', bought ? t('offers.bought') : lend ? t('offers.buyFree') : t('offers.buy', { cost: formatNumber(c) }), { disabled: bought || cur.stock < c, extra: ` data-offer="${escapeHtml(o.id)}"` })}</div>`);
   }
   parts.push('</div>');
   return parts.join('');
@@ -278,8 +288,9 @@ export function convoyCargoRows(app, c) {
 /** Fresh U-boat plots within reach of a group at sea (2 hours, 80 km), newest first. */
 function freshPlots(w, e) {
   const atSea = ['atSea', 'waiting', 'escorting', 'hunting'].includes(e.state);
+  const at = shownPosition(w, e); // where the table puts the group
   return atSea ? w.uboatPlots
-    .filter((p) => w.t - p.t < 2 * 3600 && distance(p.x, p.y, e.x, e.y) < 80)
+    .filter((p) => w.t - p.t < 2 * 3600 && distance(p.x, p.y, at.x, at.y) < 80)
     .sort((a, b) => b.t - a.t)
     .slice(0, 3) : [];
 }
@@ -289,24 +300,83 @@ export function behaviourButtons(e) {
   return `${button('escort-behaviour', t('orders.behaviours.stay'), { id: e.id, kind: 'escort', active: e.behaviour !== 'hunt', extra: ' data-behaviour="stay"' })}${button('escort-behaviour', t('orders.behaviours.hunt'), { id: e.id, kind: 'escort', active: e.behaviour === 'hunt', extra: ' data-behaviour="hunt"' })}`;
 }
 
+/** The hour of the next relief of the watch, by the clock. */
+export function nextReliefHour(w) {
+  return (clockHour(w) - (clockHour(w) % 4) + 4) % 24;
+}
+
+/** "Position" of a ship on its sheet: where the table shows it, and since when it is an estimate. */
+export function positionRows(app, u) {
+  const w = app.world;
+  const p = shownPosition(w, u);
+  const [lon, lat] = unproject(p.x, p.y);
+  if (!p.est) return row(t('sheet.position'), escapeHtml(positionText(lat, lon)));
+  const by = p.fix.by ? t('comms.fixBy', { by: p.fix.by }) : t(`comms.fix.${p.fix.how}`);
+  return [
+    row(t('comms.estimated'), escapeHtml(t('comms.estimatedText', { pos: positionText(lat, lon), km: Math.round(p.radiusKm) }))),
+    row(t('comms.lastFix'), escapeHtml(t('comms.lastFixText', { time: dateTimeText(w.startMs + p.fix.t * 1000), by }))),
+  ].join('');
+}
+
 /**
- * Hunting U-boats: how long a hunt lasts, the hunt under way with « Interrompre la chasse », the
- * fresh plots to hunt now. With `behaviour`, the Rester / Chasser buttons too.
+ * Radio silence: how an order would reach this ship now, the orders on their way (each can
+ * be cancelled, or given to a group bound for the convoy), and « Demander la position ».
+ */
+export function commsLines(app, u) {
+  const w = app.world;
+  if (!isSilent(w) || !['atSea', 'waiting', 'escorting', 'hunting'].includes(u.state)) return '';
+  const via = orderChannel(w, u);
+  const hour = nextReliefHour(w);
+  const pending = pendingOrders(w, u);
+  const carriers = u.kind === 'convoy' ? carriersFor(w, u.id) : [];
+  const lines = pending.map((s) => {
+    const how = s.via === 'ship' ? t('comms.byShip', { group: (w.escorts.find((e) => e.id === s.carrier) || {}).short || '' }) : t('comms.byRadio', { hour });
+    const hand = s.via === 'radio' ? carriers.map((e) => button('comms-carry', t('comms.carry', { group: e.short }), { id: u.id, kind: u.kind, extra: ` data-signal="${escapeHtml(s.id)}" data-group="${escapeHtml(e.id)}"` })).join('') : '';
+    return `<li><span class="grow">${escapeHtml(t(`comms.orders.${s.name}`))} <small>${escapeHtml(how)}</small></span>${hand}${button('comms-cancel', t('comms.cancel'), { id: u.id, kind: u.kind, extra: ` data-signal="${escapeHtml(s.id)}"` })}</li>`;
+  });
+  const asked = pending.some((s) => s.name === 'position');
+  return [
+    `<div class="comms">`,
+    `<p class="hint${via === 'radio' ? ' warn' : ''}">${escapeHtml(t(`comms.channel.${via}`, { hour }))}</p>`,
+    lines.length ? `<div class="sub">${escapeHtml(t('comms.pending'))}</div><ul class="pending-orders">${lines.join('')}</ul>` : '',
+    via === 'radio' && !asked ? `<div class="order-line">${button('comms-position', t('comms.askPosition'), { id: u.id, kind: u.kind })}</div><p class="hint">${escapeHtml(t('comms.askPositionHint', { hour }))}</p>` : '',
+    `</div>`,
+  ].join('');
+}
+
+/** "Grenades 96/160" (the same words on the sheet, in the unit bar and in the watch reports). */
+export function chargesText(e) {
+  return t('sheet.chargesGauge', { n: e.charges, max: e.chargesMax });
+}
+
+/** « Plein » or « Économe »: how the group spends its depth charges. */
+export function patternButtons(e) {
+  return ['full', 'light'].map((x) => button('escort-pattern', t(`orders.patterns.${x}`), {
+    id: e.id, kind: 'escort', active: (e.pattern || 'full') === x, extra: ` data-pattern="${x}" title="${escapeHtml(t(`orders.patternTitles.${x}`))}"`,
+  })).join('');
+}
+
+/**
+ * Facing the U-boats: the depth charges left and how to spend them, the hunt under way with
+ * « Interrompre la chasse », the fresh plots to hunt now. With `behaviour`, the Rester /
+ * Chasser buttons too.
  */
 export function huntLines(app, e, { behaviour = true } = {}) {
   const w = app.world;
-  const hours = huntHours(w, e);
-  const hourList = [1, 2, 3, 4, 6, 8, 12].map((h) => ({ value: String(h), label: t('orders.hours', { n: h }) }));
   const fresh = freshPlots(w, e);
+  const at = shownPosition(w, e);
   const hunting = e.state === 'hunting';
+  const spare = canHunt(w, e);
+  const state = e.charges <= 0 ? 'orders.chargesEmpty' : spare ? 'orders.chargesSpare' : 'orders.chargesReserve';
   return [
-    `<div class="order-line">${behaviour ? behaviourButtons(e) : ''}`,
-    `<label class="small">${escapeHtml(t('orders.huntFor'))} <select id="hunt-hours-${escapeHtml(e.id)}" data-change="hunt-hours" data-id="${escapeHtml(e.id)}">${options(hourList, String(hours))}</select></label></div>`,
+    behaviour ? `<div class="order-line">${behaviourButtons(e)}</div>` : '',
     `<p class="hint">${escapeHtml(t('orders.behaviourHint'))}</p>`,
+    `<div class="order-line"><span class="grow${e.charges <= 0 ? ' warn' : ''}">${escapeHtml(chargesText(e))} · ${escapeHtml(t(state))}</span>${patternButtons(e)}</div>`,
+    `<p class="hint">${escapeHtml(t('orders.patternHint'))}</p>`,
     hunting ? `<div class="order-line hunting"><span class="grow">${escapeHtml(huntText(w, e))}</span>${button('hunt-stop', t('orders.huntStop'), { id: e.id, kind: 'escort' })}</div>` : '',
     fresh.length ? `<div class="order-line">${fresh.map((p) => button('hunt-plot', t('orders.huntPlot', {
-      time: formatTime(w.startMs + p.t * 1000), km: Math.round(distance(p.x, p.y, e.x, e.y)),
-    }), { id: e.id, kind: 'escort', extra: ` data-plot="${escapeHtml(p.id)}"` })).join('')}</div>` : '',
+      time: formatTime(w.startMs + p.t * 1000), km: Math.round(distance(p.x, p.y, at.x, at.y)),
+    }), { id: e.id, kind: 'escort', disabled: !spare, extra: ` data-plot="${escapeHtml(p.id)}"${spare ? '' : ` title="${escapeHtml(t('orders.errors.chargesReserve'))}"`}` })).join('')}</div>` : '',
   ].join('');
 }
 
@@ -354,20 +424,27 @@ export function joinLines(app, e) {
   ].join('');
 }
 
-/** In port: the way out (roads or a channel); `sail`: the « Appareiller » button with it. */
+/**
+ * In port: the way out as the first step of the group's orders (none, the roads, a channel).
+ * Chosen here, it stands under « Route et étapes », where it is taken away, drawn longer and
+ * given its end. `sail`: the « Appareiller » button with it.
+ */
 export function exitLines(app, e, { sail = true } = {}) {
   const w = app.world;
   const port = w.byId.port.get(e.portId);
   const channels = (port && port.approaches) || [];
-  const list = [{ value: '', label: t('orders.exitRoads') }, ...channels.map((a) => ({ value: a.name, label: t('orders.exitChannel', { name: a.name }) }))];
+  const list = [
+    { value: '', label: t('orders.exitNone') },
+    { value: 'roads', label: t('orders.exitRoads') },
+    ...channels.map((a) => ({ value: a.name, label: t('orders.exitChannel', { name: a.name }) })),
+  ];
   return `<div class="order-line">${sail ? button('sail', t('orders.escortSail'), { id: e.id, kind: 'escort' }) : ''}
-    ${channels.length ? `<label class="small">${escapeHtml(t('orders.exitBy'))} <select id="exit-channel-${escapeHtml(e.id)}" data-change="exit-channel" data-id="${escapeHtml(e.id)}">${options(list, e.exitChannel || '')}</select></label>` : ''}</div>
-    <p class="hint">${escapeHtml(t('orders.exitHint'))}</p>`;
+    ${channels.length ? `<label class="small">${escapeHtml(t('orders.exitBy'))} <select id="exit-channel-${escapeHtml(e.id)}" data-change="exit-channel" data-id="${escapeHtml(e.id)}">${options(list, plannedExit(e) || '')}</select></label>` : ''}</div>
+    <p class="hint">${escapeHtml(t(channels.length ? 'orders.exitHint' : 'orders.exitHintNoChannel'))}</p>`;
 }
 
 export function escortSheet(app, e) {
   const w = app.world;
-  const [lon, lat] = unproject(e.x, e.y);
   let state = escortStateText(w, e);
   if (e.state === 'escorting') {
     const c = w.convoys.find((x) => x.id === e.escorting);
@@ -378,16 +455,17 @@ export function escortSheet(app, e) {
     if (c) state += ` · ${t('sheet.joining', { convoy: c.name })}`;
   }
   if (e.state === 'refit') state += ` · ${t('sheet.readyIn', { n: Math.ceil(e.timer / 60) })}`;
-  if (e.state === 'hunting') state += ` · ${t('sheet.huntingUntil', { time: formatTime(w.startMs + e.huntUntil * 1000) })}`;
+  if (e.state === 'hunting') state += ` · ${t(e.engage ? 'sheet.huntingHeld' : 'sheet.huntingUntil', { time: formatTime(w.startMs + e.huntUntil * 1000) })}`;
   const info = [
     `<h3>${escapeHtml(e.name)} <small>${escapeHtml(e.short)}</small></h3>`,
     row(t('sheet.state'), escapeHtml(state)),
-    row(t('sheet.composition2'), escapeHtml(e.composition)),
+    row(t('sheet.composition2'), escapeHtml(e.radar ? `${e.composition} · ${t('sheet.radarFitted')}` : e.composition)),
     row(t('sheet.speed'), escapeHtml(t('sheet.speedKn', { n: e.speedKn }))),
     row(t('sheet.endurance'), escapeHtml(t('sheet.enduranceDays', { n: formatNumber(Math.max(0, e.endurance) / 86400, 1) }))),
+    row(t('sheet.charges'), escapeHtml(`${e.charges}/${e.chargesMax} · ${t(`orders.patterns.${e.pattern || 'full'}`)}`)),
     e.state === 'inPort' || e.state === 'refit'
       ? row(t('sheet.airfield'), escapeHtml(w.byId.port.get(e.portId).name))
-      : row(t('sheet.position'), escapeHtml(positionText(lat, lon))),
+      : positionRows(app, e),
   ].join('');
   const canMove = e.state === 'inPort' || e.state === 'atSea' || e.state === 'waiting' || e.state === 'hunting';
   const aid = w.settings.interceptAid !== 'none';
@@ -395,6 +473,7 @@ export function escortSheet(app, e) {
   const orders = [
     `<div class="orders">`,
     e.state === 'inPort' ? exitLines(app, e) : '',
+    commsLines(app, e),
     joinLines(app, e),
     huntAndPortLines(app, e),
     `</div>`,
@@ -404,16 +483,23 @@ export function escortSheet(app, e) {
     planUnit: canMove ? e : null,
     orders,
     legForm: canMove,
-    key: `eg:${e.id}:${e.state}:${e.plan.length > 0}:${e.route.length > 0}:${joinable.map((c) => c.id).join(',')}:${app.settings.orders}:${aid}:${app.editingLeg ? app.editingLeg.index : ''}:${e.behaviour}`,
+    key: `eg:${e.id}:${e.state}:${e.plan.length > 0}:${e.route.length > 0}:${joinable.map((c) => c.id).join(',')}:${app.world.settings.orders}:${aid}:${app.editingLeg ? app.editingLeg.index : ''}:${e.behaviour}:${e.pattern}:${e.charges}:${commsKey(w, e)}`,
   };
 }
 
-/** "En chasse jusqu'à 18:40 · attaque un U-Boot (passe 2)" */
+/** What changes in the comms block of a ship (for the keys that tell when to redraw a sheet). */
+export function commsKey(w, u) {
+  if (!isSilent(w)) return '';
+  return `${orderChannel(w, u)}:${pendingOrders(w, u).map((s) => `${s.id}${s.via}`).join(',')}:${u.est ? Math.round(u.est.t / WATCH_S) : 'live'}:${u.fix ? u.fix.t - (u.fix.t % 600) : ''}`;
+}
+
+/** "En chasse : attaque un U-Boot (passe 2)", or the search and the hour it ends. */
 function huntText(w, e) {
   const until = formatTime(w.startMs + e.huntUntil * 1000);
   if (e.engage) {
     const rep = w.navalReports.find((r) => r.id === e.engage.reportId);
-    return t('orders.huntEngaged', { time: until, n: (rep ? rep.passes.length : 0) + 1 });
+    const n = (rep ? rep.passes.length : 0) + 1;
+    return e.huntStay ? t('orders.huntCounterEngaged', { time: until, n }) : t('orders.huntEngaged', { n });
   }
   return t(e.huntStay ? 'orders.huntCounter' : 'orders.huntSearching', { time: until });
 }

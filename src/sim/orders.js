@@ -7,17 +7,17 @@ import { disengage } from './combat.js';
 import {
   aircraftSpec, airfieldsAround, applyEndAction, applyPointAltitude, isFlying, squadronSpeed, startReturn,
 } from './squadron.js';
-import { channelOut, currentSpeed as currentSpeedOf, editShipRoute, editablePoints, fullKnots, harbourWayOut, legSpeed, routeConvoy } from './convoy.js';
+import { channelOut, currentSpeed as currentSpeedOf, editShipRoute, editablePoints, fullKnots, harbourWayOut, legSpeed, planExit, routeConvoy } from './convoy.js';
 import { projectPlan, resolveClock } from './navigation.js';
 import { airfieldDelayFactor, isOperational } from './sites.js';
 import { distance } from './geo.js';
 import { sendEscortHome } from './naval.js';
-import { endHunt, startHunt } from './asw.js';
+import { canHunt, endHunt, startHunt } from './asw.js';
 import { interceptChance } from './control.js';
 import { ALERT_STATES, changeAlert, scrambleSeconds, strength, tire } from './crews.js';
 import { dispatchTrain } from './logistics.js';
 
-export { editShipRoute, routeConvoy };
+export { editShipRoute, planExit, routeConvoy };
 
 function copyLegs(legs) {
   return (legs || []).map((leg) => ({ ...leg, end: leg.end ? { ...leg.end } : null }));
@@ -184,17 +184,38 @@ export function editableRoute(u) {
     const moving = u.state === 'airborne' || u.state === 'scrambling';
     return moving && u.route.length ? u.route : null;
   }
-  if ((u.kind === 'convoy' || u.kind === 'escort') && u.state === 'atSea' && u.route.length) {
+  if (shipRouteOpen(u)) {
     const pts = editablePoints(u);
     return pts.length ? pts : null;
   }
   return null;
 }
 
+/**
+ * A ship's route the player can work on: at sea, or the route of an escort group that waits
+ * in port (its exit step and the line after it, until the order to sail).
+ */
+function shipRouteOpen(u) {
+  if (u.kind !== 'convoy' && u.kind !== 'escort') return false;
+  return u.route.length > 0 && (u.state === 'atSea' || (u.kind === 'escort' && u.state === 'inPort'));
+}
+
 /** Ships whose route goes into port keep their channel: no point can be added beyond it. */
 export function routeCanExtend(u) {
   if (u.kind === 'squadron') return true;
   return !(u.destination && (u.routeLocked || 0) > 0);
+}
+
+/**
+ * Where a ship's route can be drawn longer from, when none of its points is the player's to
+ * move: the end of the way out of port an escort group is given (its exit step, or the
+ * channel it is going down). [x, y], or null.
+ */
+export function wayOutEnd(u) {
+  if (!shipRouteOpen(u) || u.kind !== 'escort' || !routeCanExtend(u)) return null;
+  if (editablePoints(u).length) return null;
+  const p = u.route[u.route.length - 1];
+  return [p[0], p[1]];
 }
 
 /** Where the current route or legs of a squadron end, or null (no end, or open leg). */
@@ -344,13 +365,18 @@ function speedFn(world, u) {
   return (leg) => legSpeed(u, leg);
 }
 
-/** Dead-reckoned track of a unit's plan, for drawing and checks. */
-export function planTrack(world, u, legs = u.plan) {
+/**
+ * Dead-reckoned track of a unit's plan, for drawing and checks. `from` ({ x, y, t }): where
+ * the table holds a ship whose place is an estimate, to draw from there and not from where
+ * it really is.
+ */
+export function planTrack(world, u, legs = u.plan, from = null) {
   const N = world.rules.navigation;
-  let start = null;
-  if (u.kind === 'escort' && u.state === 'inPort' && legs.length) {
-    // An escort group goes out to the roads (or down the channel chosen); its legs start there.
-    const out = harbourWayOut(world, u);
+  let start = from;
+  if (!from && u.kind === 'escort' && legs.length && (u.state === 'inPort' || u.route.length)) {
+    // An escort group goes out to the roads, or by the way out it was given (its exit step:
+    // the route that waits in port, or the one it is following out); its legs start there.
+    const out = u.route.length ? u.route : harbourWayOut(world, u);
     if (out.length) {
       let km = 0;
       let prev = [u.x, u.y];
@@ -407,10 +433,18 @@ function takePlan(world, u, legs) {
     u.route = [];
     u.vector = null;
   } else {
-    u.route = [];
+    // An escort group in port keeps the way out it was given (its exit step): the legs start
+    // at its end. The line drawn after it gives way to the legs, as any route does.
+    const inPort = u.kind === 'escort' && u.state === 'inPort';
+    u.route = inPort ? u.route.slice(0, Math.min(u.routeHead || 0, u.route.length)) : [];
     if (u.kind === 'escort') {
       u.joinTarget = null;
       u.homeward = false;
+      u.routeHead = u.route.length; // what is left is its way out, or nothing
+      if (inPort) {
+        u.routeLocked = 0;
+        u.destination = null;
+      }
     }
     if (u.state === 'atSea' || u.state === 'waiting') {
       if (!u.plan.length) u.legState = null;
@@ -420,6 +454,33 @@ function takePlan(world, u, legs) {
   }
   u.plan = legs;
   if (u.kind === 'squadron') checkEndAction(world, u);
+}
+
+/**
+ * The legs a unit would have after a list of leg orders ([{ name, args }], as a signal keeps
+ * them: addLeg, updateLeg, removeLeg, clearPlan), starting from `base`. Nothing is touched:
+ * this is for the table, to show what is on its way to a ship. An order that would be
+ * refused for its shape is skipped; the coast is only looked at when the order is carried out.
+ */
+export function plannedLegs(world, u, changes, base = u.plan) {
+  let legs = [...base];
+  for (const { name, args } of changes) {
+    if (name === 'clearPlan') legs = [];
+    else if (name === 'removeLeg') legs = legs.filter((_, i) => i !== args[0]);
+    else if (name === 'addLeg') {
+      const last = legs[legs.length - 1];
+      if (last && !last.end) continue;
+      const track = planTrack(world, u, legs);
+      const leg = buildLeg(world, u, args[0], track[track.length - 1].t);
+      if (leg) legs = [...legs, leg];
+    } else if (name === 'updateLeg') {
+      const [index, raw] = args;
+      if (!(index >= 0 && index < legs.length) || (!raw.end && index < legs.length - 1)) continue;
+      const leg = buildLeg(world, u, raw, planTrack(world, u, legs)[index].t);
+      if (leg) legs = legs.map((l, i) => (i === index ? leg : l));
+    }
+  }
+  return legs;
 }
 
 /**
@@ -492,21 +553,26 @@ export function clearPlan(world, u) {
  */
 export function sailEscort(world, e) {
   if (e.kind !== 'escort' || e.state !== 'inPort') return false;
-  e.route = harbourWayOut(world, e);
-  e.routeLocked = e.route.length;
+  if (!e.route.length) {
+    // Nothing waiting in port (no exit step, no line): out to the roads, the way out all its route.
+    e.route = harbourWayOut(world, e);
+    e.routeHead = e.route.length;
+    e.routeLocked = 0;
+    e.destination = null;
+    e.homeward = false;
+  }
   e.state = 'atSea';
   e.legState = null;
-  e.destination = null;
-  e.homeward = false;
   emit(world, 'convoySailed', { convoy: e.name, convoyId: e.id, unitKind: e.kind });
   return true;
 }
 
-/** The way out of port for a group: null (the roads) or the name of a channel. */
+/**
+ * The way out of port for a group, as its exit step (planExit, convoy.js): the name of a
+ * channel, or null to take the step away. Returns the channel kept, or null.
+ */
 export function setExitChannel(world, e, name) {
-  const port = e.portId ? world.byId.port.get(e.portId) : null;
-  e.exitChannel = name && port && (port.approaches || []).some((a) => a.name === name) ? name : null;
-  return e.exitChannel;
+  return planExit(world, e, name || null).ok ? e.exitChannel : null;
 }
 
 /** A convoy (or an escort group) in port sails on its plan. */
@@ -569,9 +635,13 @@ export function leavePort(world, e, x, y) {
   e.state = 'atSea';
   e.destination = null;
   e.legState = null;
-  // Down the charted channel until the open sea leads to (x, y).
+  // An order to go now (a convoy to meet, a leader to follow) takes the place of what was
+  // prepared in port: down the charted channel until the open sea leads to (x, y).
+  e.exitChannel = null;
+  e.exitPlanned = false;
   e.route = channelOut(world, port, x, y);
-  e.routeLocked = e.route.length;
+  e.routeHead = e.route.length;
+  e.routeLocked = 0;
 }
 
 /** The group sails (or turns) to meet a convoy and take station with it. */
@@ -590,6 +660,7 @@ export function joinConvoy(world, e, convoyId) {
   else {
     e.state = 'atSea';
     e.route = [];
+    e.routeHead = 0;
   }
   e.joinTarget = convoyId;
   e.leftConvoy = null;
@@ -617,19 +688,23 @@ export function setEscortBehaviour(world, e, behaviour) {
   return true;
 }
 
-/** How long its hunts last (hours), set when the player sends it hunting. */
-export function setHuntHours(world, e, hours) {
-  const h = Number(hours);
-  if (!Number.isFinite(h) || h <= 0 || h > 48) return false;
-  e.huntHours = h;
-  if (e.state === 'hunting' && !e.huntStay && e.huntUntil !== null) e.huntUntil = world.t + h * 3600;
+/**
+ * How it spends its depth charges: 'full' patterns, or 'light' ones (half the charges a pass,
+ * less chance of a kill). A standing order, like « Rester » and « Chasser ».
+ */
+export function setEscortPattern(world, e, pattern) {
+  if (pattern !== 'full' && pattern !== 'light') return false;
+  e.pattern = pattern;
   return true;
 }
 
-/** Sends the group to hunt a U-boat plot, for the hours set. */
+/**
+ * Sends the group to hunt a U-boat plot. It needs more depth charges than the third it keeps
+ * for its convoy.
+ */
 export function huntPlot(world, e, plotId) {
   const p = world.uboatPlots.find((x) => x.id === plotId);
-  if (!p || e.dry) return false;
+  if (!p || e.dry || !canHunt(world, e)) return false;
   if (e.state !== 'atSea' && e.state !== 'escorting' && e.state !== 'waiting' && e.state !== 'hunting') return false;
   // A new hunt: the one going on stops (its report is closed), the way into port too.
   if (e.state === 'hunting') endHunt(world, e, false, 'order');
@@ -643,6 +718,20 @@ export function escortHome(world, e, portId = null) {
   if (!['atSea', 'escorting', 'waiting', 'hunting'].includes(e.state)) return false;
   if (e.state === 'hunting') endHunt(world, e, false, 'order');
   sendEscortHome(world, e, portId);
+  return true;
+}
+
+// ---- training -------------------------------------------------------------------------
+
+/**
+ * Order of the instructor (the lessons of the tutorial): a raid the scenario holds back
+ * leaves in `inS` seconds. Returns false for a raid that is not held.
+ */
+export function releaseRaid(world, raidId, inS = 0) {
+  const r = world.raids.find((x) => x.id === raidId);
+  if (!r || !r.held || r.phase !== 'pending') return false;
+  r.held = false;
+  r.departure = world.t + Math.max(0, Math.round(inS));
   return true;
 }
 

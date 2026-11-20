@@ -8,22 +8,25 @@
 import { distance, unproject } from './geo.js';
 import { emit } from './events.js';
 import { isActive } from './raid.js';
-import { isDaylight, isPatrol, sightKm } from './patrols.js';
-import { isSubmerged } from './asw.js';
+import { isPatrol, sightKm } from './patrols.js';
+import { isDaylight } from './daylight.js';
+import { isDeep, isSubmerged } from './asw.js';
+import { WATCHING } from './sight.js';
 
 function flying(s) {
   return (s.state === 'airborne' || s.state === 'returning' || s.state === 'combat') && s.aircraft > 0;
 }
 
+/** A group that looks around: the same states as for sighting (waiting for orders included). */
 function atSea(e) {
-  return e.state === 'escorting' || e.state === 'atSea' || e.state === 'hunting' || e.state === 'returning';
+  return WATCHING.includes(e.state);
 }
 
 /** The player's unit that sees raid `r` now, or null (the one already watching is kept a little longer). */
 export function raidObserver(world, r) {
   const V = world.rules.visual;
   const gap = world.rules.patrolRules.heightGapM;
-  const day = isDaylight(world);
+  const day = isDaylight(world, r.x, r.y); // the light where the raid is
   const keep = (id) => (r.seen && r.seen.byId === id ? V.keepFactor : 1);
   let best = null;
   for (const s of world.squadrons) {
@@ -76,16 +79,17 @@ function loseRaid(world, r) {
 function uboatHeld(world, u, obs) {
   const A = world.rules.asw;
   const k = world.rules.visual.keepFactor;
-  const day = isDaylight(world);
+  const day = isDaylight(world, u.x, u.y);
   const under = isSubmerged(world, u);
   if (obs.kind === 'escort') {
     const e = world.escorts.find((x) => x.id === obs.byId);
     if (!e || !atSea(e)) return false;
     const d = distance(e.x, e.y, u.x, u.y);
-    if (d <= A.asdicKm * k) return true;
+    // The ASDIC holds what is under it, except a boat gone deep and silent to shake it off.
+    if (d <= A.asdicKm * k && !isDeep(world, u)) return true;
     if (under) return false;
     if (d <= (day ? A.lookoutDayKm : A.lookoutNightKm) * k) return true;
-    const radar = world.scenario.escortRadar ? A.radar : null;
+    const radar = e.radar ? A.radar : null;
     return Boolean(radar && d <= radar.surfaceKm * k);
   }
   if (obs.kind === 'squadron') {
@@ -105,7 +109,7 @@ function uboatHandover(world, u) {
   const A = world.rules.asw;
   for (const e of world.escorts) {
     if (!atSea(e)) continue;
-    if (distance(e.x, e.y, u.x, u.y) <= A.asdicKm) return { by: e.name, byId: e.id, kind: 'escort', how: 'asdic' };
+    if (!isDeep(world, u) && distance(e.x, e.y, u.x, u.y) <= A.asdicKm) return { by: e.name, byId: e.id, kind: 'escort', how: 'asdic' };
   }
   return null;
 }

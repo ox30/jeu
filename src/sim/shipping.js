@@ -1,11 +1,14 @@
 // Convoys that sail on a schedule from the other side of the Atlantic, and the dollars
 // their cargo costs before Lend-Lease: Britain pays cash for what it buys in America
-// ("cash and carry"), and its reserves melt away. The player chooses how much of each
-// convoy's capacity to buy; what is not bought sails in ballast.
+// ("cash and carry"), and its reserves melt away. The convoys sail fully laden as long as
+// the reserve can pay; what it cannot pay sails in ballast. The same dollars buy patrol
+// aircraft: every dollar spent on them is cargo that will not sail.
 
 import { parseGameDate } from '../core/time.js';
 import { emit } from './events.js';
-import { createConvoy, routeConvoy } from './convoy.js';
+import { createConvoy, routeConvoy, safeKnots } from './convoy.js';
+import { KNOT_KMH, polylineLength, project } from './geo.js';
+import { tonnesDelivered } from './objectives.js';
 import { createUboat } from './naval.js';
 
 export function createShipping(world) {
@@ -15,7 +18,7 @@ export function createShipping(world) {
   };
   const cur = world.scenario.currency;
   world.currency = cur
-    ? { stock: cur.stock, start: cur.stock, costFuel: cur.costFuel, costMateriel: cur.costMateriel, purchase: 1, spent: 0, bought: [] }
+    ? { stock: cur.stock, start: cur.stock, costFuel: cur.costFuel, costMateriel: cur.costMateriel, spent: 0, bought: [] }
     : null;
 }
 
@@ -26,6 +29,18 @@ export function offers(world) {
 
 export function offerCost(world, offer) {
   return world.flags.lendLease ? 0 : offer.cost;
+}
+
+/** What an offer costs in cargo, at the prices of the day: { fuel, materiel } tonnes (either one, not both). */
+export function offerInCargo(world, offer) {
+  const cur = world.currency;
+  const cost = offerCost(world, offer);
+  return { fuel: cost / cur.costFuel, materiel: cost / cur.costMateriel };
+}
+
+/** When the aircraft of an offer would reach their base if ordered now (seconds of game time). */
+export function offerArrival(world, offer) {
+  return world.t + offer.days * 86400;
 }
 
 /**
@@ -41,7 +56,7 @@ export function buyOffer(world, offerId) {
   cur.stock -= cost;
   cur.spent += cost;
   cur.bought.push(offer.id);
-  const atS = world.t + offer.days * 86400;
+  const atS = offerArrival(world, offer);
   world.scheduled.push({ key: offer.event || offer.id, index: world.scheduled.length, atS, important: true, effects: [{ type: 'squadron', def: offer.squadron }] });
   emit(world, 'offerBought', { offerId: offer.id, cost: Math.round(cost), readyAt: atS });
   return true;
@@ -54,11 +69,58 @@ export function lineCost(world, line) {
   return line.tankers * line.fuelPerTanker * c.costFuel + line.freighters * line.materielPerFreighter * c.costMateriel;
 }
 
-/** Share of the capacity bought for the next convoys (1, 0.75, 0.5...). */
-export function setPurchase(world, share) {
-  if (!world.currency) return false;
-  world.currency.purchase = Math.max(0, Math.min(1, share));
-  return true;
+/**
+ * Hours a convoy of this line takes along the Admiralty route, at the speed convoys sail at
+ * by themselves (the one that leaves no straggler), with no detour and no zigzag.
+ */
+export function crossingHours(world, line) {
+  const route = line.admiraltyRoute.map(([lon, lat]) => project(lon, lat));
+  return polylineLength(route) / (safeKnots(line.speedKn, world.rules.asw?.stragglerFrom) * KNOT_KMH);
+}
+
+/**
+ * Where the tonnage stands against the objective, with the dollars left: what is unloaded,
+ * what is at sea (paid for), and what the reserve can still buy for the convoys that can be
+ * in port before the end. Losses to come are not counted, nor a Lend-Lease to come: it is
+ * the forecast of a quartermaster, not a promise.
+ * { fuel: { unloaded, atSea, buyable, total, target }, materiel: { ... }, lendLease }
+ */
+export function tonnageForecast(world) {
+  const cur = world.currency;
+  if (!cur) return null;
+  const goal = (world.scenario.objectives || []).find((o) => o.type === 'tonnageDelivered') || {};
+  const done = tonnesDelivered(world);
+  const sea = { fuel: 0, materiel: 0 };
+  for (const c of world.convoys) {
+    if (c.state !== 'atSea' || c.type !== 'ocean') continue;
+    sea.fuel += c.cargo.fuel;
+    sea.materiel += c.cargo.materiel;
+  }
+  // The sailings to come, in order, each bought as far as the reserve goes (free once
+  // Lend-Lease is voted); those that would reach port after the end are left out.
+  const lend = Boolean(world.flags.lendLease);
+  const sailings = [];
+  for (const line of world.shipping.lines) {
+    const crossS = crossingHours(world, line) * 3600;
+    for (let k = line.sent; k < line.count; k++) {
+      const atS = line.nextS + (k - line.sent) * line.everyHours * 3600;
+      sailings.push({ line, atS, inTime: atS + crossS <= world.endS });
+    }
+  }
+  sailings.sort((a, b) => a.atS - b.atS);
+  let stock = cur.stock;
+  const buy = { fuel: 0, materiel: 0 };
+  for (const s of sailings) {
+    const full = lineCost(world, s.line);
+    const cost = lend ? 0 : Math.min(full, stock);
+    const share = lend ? 1 : full > 0 ? cost / full : 0;
+    stock -= cost;
+    if (!s.inTime) continue;
+    buy.fuel += s.line.tankers * s.line.fuelPerTanker * share;
+    buy.materiel += s.line.freighters * s.line.materielPerFreighter * share;
+  }
+  const row = (k) => ({ unloaded: done[k], atSea: sea[k], buyable: buy[k], total: done[k] + sea[k] + buy[k], target: goal[k] || 0 });
+  return { fuel: row('fuel'), materiel: row('materiel'), lendLease: lend };
 }
 
 function sail(world, line) {
@@ -66,8 +128,9 @@ function sail(world, line) {
   let k = 1;
   let cost = 0;
   if (world.currency && !world.flags.lendLease) {
+    // Fully laden as long as the reserve can pay; the rest of the holds sails in ballast.
     const full = lineCost(world, line);
-    cost = Math.min(full * world.currency.purchase, world.currency.stock);
+    cost = Math.min(full, world.currency.stock);
     k = full > 0 ? cost / full : 0;
     world.currency.stock -= cost;
     world.currency.spent += cost;

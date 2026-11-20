@@ -7,10 +7,11 @@ import { FOOT_M } from '../sim/geo.js';
 import { knownOutcome, reportTotals } from '../sim/reports.js';
 import { aircraftSpec } from '../sim/squadron.js';
 import { countText, ftText } from './format.js';
+import { toolOffered } from './offered.js';
 
 /** Opens a dialog as a page; the game pauses while it is open when the setting asks. */
 export function showPage(app, dlg) {
-  if (app.settings.pagesPause && !app.paused && !app.world.ended && !dlg.open) {
+  if (app.world.settings.pagesPause && !app.paused && !app.world.ended && !dlg.open) {
     app.paused = true;
     app.pausedByPage = true;
     app.dirtyHud = true;
@@ -136,16 +137,21 @@ function navalCard(app, rep) {
   const from = formatTime(ms(rep.start));
   const to = rep.end !== null ? formatTime(ms(rep.end)) : t('reports.ongoing');
   const outcome = rep.end === null ? 'ongoing' : rep.result || 'brokenOff';
-  const passes = rep.passes.map((p, i) => `<li><span class="when">${escapeHtml(formatTime(ms(p.t)))}</span> ${escapeHtml(t('reports.naval.pass', { n: i + 1 }))} : ${escapeHtml(t(`reports.naval.passResult.${p.result}`))}</li>`);
+  // A pass of an earlier version has no count of charges; a dry pass used none.
+  const charges = (p) => (p.used === undefined ? '' : p.used === 0 ? ` (${t('reports.naval.dry')})` : ` (${t('reports.naval.charges', { n: p.used })})`);
+  const passes = rep.passes.map((p, i) => `<li><span class="when">${escapeHtml(formatTime(ms(p.t)))}</span> ${escapeHtml(t('reports.naval.pass', { n: i + 1 }))} : ${escapeHtml(t(`reports.naval.passResult.${p.result}`))}${escapeHtml(charges(p))}</li>`);
+  const used = rep.passes.reduce((n, p) => n + (p.used || 0), 0);
   return `<article class="report naval outcome-${outcome}" id="report-${escapeHtml(rep.id)}">
     <header><b>${escapeHtml(t('reports.naval.title', { escort: rep.escort }))}</b> <span class="when">${escapeHtml(from)} – ${escapeHtml(to)}</span>
     <span class="tag">${escapeHtml(t(`reports.naval.outcome.${outcome}`))}</span></header>
     <p class="comp">${escapeHtml(t(rep.convoy ? 'reports.naval.context' : 'reports.naval.contextAlone', { ships: rep.ships, convoy: rep.convoy, how: t(`log.engageHow.${rep.how}`) }))}</p>
     ${passes.length ? `<ol class="passes">${passes.join('')}</ol>` : `<p class="hint">${escapeHtml(t('reports.naval.noPass'))}</p>`}
+    ${used ? `<p class="comp">${escapeHtml(t('reports.naval.chargesTotal', { n: used }))}</p>` : ''}
   </article>`;
 }
 
 export function openReports(app, focus = null) {
+  if (!toolOffered(app, 'reports')) return; // not a tool of this scenario
   const dlg = app.el.dlgReports;
   app.reportsOpened = true;
   const w = app.world;
@@ -263,6 +269,8 @@ function shipCards(world) {
       [t('cards.speedSea'), t('cards.knots', { n: S.escort.speedKn })],
       [t('cards.asdic'), t('cards.km', { n: A.asdicKm })],
       [t('cards.lookouts'), t('cards.lookoutsText', { day: A.lookoutDayKm, night: A.lookoutNightKm })],
+      [t('cards.escortRadar'), t('cards.escortRadarText', { km: A.radar.surfaceKm })],
+      [t('cards.charges'), t('cards.chargesText', { n: A.engagement.chargesPerShip, full: A.engagement.patternFull, light: A.engagement.patternLight })],
     ])}</article>`,
     `<article class="card"><h4>${escapeHtml(S.uboat.name)}</h4><p class="hint">${escapeHtml(t('cards.notes.uboat'))}</p>${cardRows([
       [t('cards.surface'), t('cards.knots', { n: A.surfaceKn })],
@@ -291,6 +299,7 @@ export function unitCardHtml(world, u) {
 
 /** Cards of the aircraft and ships, with the numbers the game uses. */
 export function openCards(app, focus = null) {
+  if (!toolOffered(app, 'cards')) return; // not a tool of this scenario
   const dlg = app.el.dlgCards;
   const R = app.world.rules;
   const section = (title, html) => `<section class="card-section"><h3>${escapeHtml(title)}</h3><div class="cards">${html}</div></section>`;

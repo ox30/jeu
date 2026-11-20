@@ -9,6 +9,12 @@
 
 import { emit } from './events.js';
 import { ALERT_STATES, changeAlert, fatigueOn } from './crews.js';
+import { declareFields } from './entities.js';
+
+declareFields('squadron', (s) => {
+  s.roster = { daily: [], override: null }; // duty roster: alert states by the hour
+  s.alertManual = false; // a state set by hand holds until the player goes back to the plan
+});
 
 const DAY = 86400;
 
@@ -137,7 +143,7 @@ export function plannedChanges(world, s, end) {
 }
 
 function apply(world, s, alert, resumed = false) {
-  if ((s.alert || 'available') === alert) return;
+  if ((s.alert || 'min5') === alert) return;
   changeAlert(world, s, alert);
   emit(world, resumed ? 'rosterResumed' : 'rosterApplied', { squadron: s.name, squadronId: s.id, alert });
 }

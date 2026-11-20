@@ -4,16 +4,20 @@ import { t } from '../core/i18n.js';
 import { bearing, distance, simplifyPolyline } from '../sim/geo.js';
 import { contactEstimate } from '../sim/query.js';
 import {
-  addLeg, clearPlan, departConvoy, setExitChannel, setShipBoost, setShipSpeedPct, setSpeedPct, editShipRoute, editableRoute, escortHome, joinConvoy, leaveConvoy, removeLeg, removeRoutePoint, returnToBase, routeCanExtend, routeConvoy, scramble, sendTrain, setAltitude, setCover, setEndAction, setMinStock, setOrbit, setPointAltitude, setRoute, setSpeed, setVector, updateLeg, interceptRaid, setAlert, setConvoySpeed, setEscortBehaviour, setZigzag, followSquadron, leaveFormation, planGroundRoute, huntPlot, setHuntHours,
+  addLeg, clearPlan, departConvoy, setSpeedPct, editableRoute, removeLeg, removeRoutePoint, returnToBase, scramble,
+  sendTrain, setAltitude, setCover, setEndAction, setMinStock, setOrbit, setPointAltitude, setRoute, setSpeed, setVector, updateLeg, interceptRaid,
+  setAlert, followSquadron, leaveFormation, planGroundRoute,
 } from '../sim/orders.js';
-import { stopHunt } from '../sim/asw.js';
-import { setShipEndAction } from '../sim/naval.js';
-import { buyOffer, setPurchase } from '../sim/shipping.js';
+import { canHunt } from '../sim/asw.js';
+import { cancelOrder, carryByShip, pendingOrders, requestPosition, sendOrder, shownPosition } from '../sim/comms.js';
+import { plannedPlan, supersede, workingRoute } from './awaited.js';
+import { clockHour } from '../sim/watch.js';
+import { buyOffer } from '../sim/shipping.js';
 import { feetOf, squadronSpeed } from '../sim/squadron.js';
-import { currentSpeed, legSpeed, shipThrottle } from '../sim/convoy.js';
+import { admiraltyAhead, currentSpeed, legSpeed, planExit, shipThrottle } from '../sim/convoy.js';
 import { parseLegEnd } from '../sim/navigation.js';
 import { deployMru } from '../sim/mru.js';
-import { VIEWS, animateTo, toScreen, toWorld, viewFrame } from '../render/camera.js';
+import { animateTo, toScreen, toWorld, viewFrame } from '../render/camera.js';
 import {
   addMember, dissolveFormation, formationById, formationOf, interceptFormation, launchWaiting, leaderOf, membersOf, mergeFormations, newFormation,
   removeMember, scrambleFormation,
@@ -95,7 +99,7 @@ export function selectUnit(app, u) {
 }
 
 export function headingsMode(app) {
-  return app.settings.orders === 'headings';
+  return app.world.settings.orders === 'headings';
 }
 
 /** A short message shown in the unit sheet (refused orders, typing mistakes). */
@@ -185,7 +189,8 @@ export function sheetInset(app) {
 
 /** The three views (keys A, L, G) are framed in the part of the map the sheet leaves free. */
 export function goView(app, name) {
-  animateTo(app.camera, viewFrame(app.camera, VIEWS[name], 30, sheetInset(app)));
+  const view = app.data.campaign.views[name];
+  if (view) animateTo(app.camera, viewFrame(app.camera, view, 30, sheetInset(app)));
 }
 
 /** Width of the map hidden by the unit panel (open when something is selected). */
@@ -223,6 +228,11 @@ function selectionPosition(app) {
   if (u.kind === 'squadron' && !isFlying(u)) {
     const f = w.byId.airfield.get(u.airfield);
     if (f) return [f.x, f.y];
+  }
+  // A ship is where the table shows it (an estimate on the high seas under radio silence).
+  if (u.kind === 'convoy' || u.kind === 'escort') {
+    const p = shownPosition(w, u);
+    return [p.x, p.y];
   }
   return Number.isFinite(u.x) && Number.isFinite(u.y) ? [u.x, u.y] : null;
 }
@@ -309,12 +319,6 @@ export function orderLaunchWaiting(app, f) {
   app.dirtyPanels = true;
 }
 
-/** Readiness of every squadron of the wing on the ground. */
-export function orderFormationAlert(app, f, state) {
-  for (const s of membersOf(app.world, f)) if (s.state === 'ready' || s.state === 'refuelling') setAlert(app.world, s, state);
-  app.dirtyPanels = true;
-}
-
 export function orderNewFormation(app, u) {
   const kind = u.kind === 'squadron' ? 'air' : 'naval';
   const f = newFormation(app.world, kind, u.id, formationDefaultName(app.world, kind, u));
@@ -354,7 +358,7 @@ export function toggleBuster(app, sq) {
 /** Speed slider of a unit's command bar: a share of its « 100 % ». */
 export function orderSpeedPct(app, u, pct) {
   if (u.kind === 'squadron') setSpeedPct(app.world, u, pct);
-  else for (const x of u.kind === 'escort' ? groupsOf(app, u) : [u]) setShipSpeedPct(app.world, x, pct);
+  else for (const x of u.kind === 'escort' ? groupsOf(app, u) : [u]) shipOrder(app, x, 'speedPct', pct);
   app.dirtyPanels = true;
 }
 
@@ -363,7 +367,7 @@ export function orderBoost(app, u) {
   if (u.kind === 'squadron') toggleBuster(app, u);
   else {
     const on = !shipThrottle(app.world, u).boost;
-    for (const x of u.kind === 'escort' ? groupsOf(app, u) : [u]) setShipBoost(app.world, x, on);
+    for (const x of u.kind === 'escort' ? groupsOf(app, u) : [u]) shipOrder(app, x, 'boost', on);
   }
   app.dirtyPanels = true;
 }
@@ -394,12 +398,6 @@ export function orderLeaveFormation(app, sq) {
   app.dirtyPanels = true;
 }
 
-/** Atlantic 1941: share of each convoy's cargo bought with dollars. */
-export function orderPurchase(app, share) {
-  setPurchase(app.world, share);
-  app.dirtyPanels = true;
-}
-
 export function orderOffer(app, offerId) {
   if (!buyOffer(app.world, offerId)) sheetMessage(app, t('offers.refused'));
   app.dirtyPanels = true;
@@ -414,21 +412,56 @@ export function orderHome(app, sq) {
   app.dirtyPanels = true;
 }
 
+/**
+ * An order to a ship, by the way that reaches it now (comms.js): at once in port, in tracked
+ * waters or by the lamp of an aircraft in sight; by radio at the next relief otherwise, and
+ * the sheet then says so. Returns what sendOrder returns.
+ */
+export function shipOrder(app, u, name, ...args) {
+  const sent = sendOrder(app.world, u, name, ...args);
+  if (sent.via === 'radio') {
+    // (What it would overwrite when carried out no longer waits: one order, not two.)
+    supersede(app.world, u, name, sent.signalId);
+    const hour = (clockHour(app.world) - (clockHour(app.world) % 4) + 4) % 24;
+    sheetMessage(app, t('comms.sentByRadio', { unit: u.short || u.name, hour }));
+  } else if (sent.ok) {
+    // Carried out at once (tracked waters, the lamp of an aircraft): the same order still
+    // waiting for the relief would undo it there, and what it overwrites has no object left.
+    if (app.world.signals && app.world.signals.length) {
+      for (const s of pendingOrders(app.world, u)) if (s.name === name && s.via === 'radio') cancelOrder(app.world, s.id);
+      supersede(app.world, u, name, null);
+    }
+    if (sent.via === 'lamp') sheetMessage(app, t('comms.sentByLamp', { unit: u.short || u.name }));
+  } else if (sent.via === 'lamp') {
+    sheetMessage(app, t('comms.sentByLamp', { unit: u.short || u.name }));
+  }
+  app.dirtyPanels = true;
+  return sent;
+}
+
+/** A waiting order is cancelled, handed to a group bound for the convoy, or the position asked for. */
+export function orderCommsCancel(app, signalId) {
+  cancelOrder(app.world, signalId);
+  app.dirtyPanels = true;
+}
+
+export function orderCommsCarry(app, signalId, groupId) {
+  if (!carryByShip(app.world, signalId, groupId)) sheetMessage(app, t('comms.carryRefused'));
+  app.dirtyPanels = true;
+}
+
+export function orderAskPosition(app, u) {
+  const sent = requestPosition(app.world, u);
+  if (sent.via === 'radio') sheetMessage(app, t('comms.positionAsked', { unit: u.short || u.name }));
+  app.dirtyPanels = true;
+}
+
 export function orderAdmiraltyRoute(app, convoy) {
   const route = convoy.admiraltyRoute;
   // From a convoy at sea, the route starts at the nearest point ahead.
-  let from = 1;
-  if (convoy.state !== 'inPort') {
-    let best = Infinity;
-    route.forEach(([x, y], i) => {
-      const d = distance(convoy.x, convoy.y, x, y);
-      if (d < best) {
-        best = d;
-        from = Math.min(route.length - 1, i + 1);
-      }
-    });
-  }
-  const result = routeConvoy(app.world, convoy, route.slice(from));
+  const from = convoy.state !== 'inPort' ? admiraltyAhead(convoy, route) : 1;
+  const sent = shipOrder(app, convoy, 'route', route.slice(from));
+  const result = sent.result || { ok: sent.ok };
   if (!result.ok && result.at) app.flash = { x: result.at[0], y: result.at[1], until: performance.now() + 2500 };
   if (!result.ok && result.reason === 'dry') sheetMessage(app, t('orders.errors.dry'));
   app.dirtyPanels = true;
@@ -439,10 +472,26 @@ export function orderSail(app, convoy) {
   app.dirtyPanels = true;
 }
 
-/** How a group (its support group) goes out of port: the roads, or a channel. */
-export function orderExitChannel(app, escort, name) {
-  for (const e of groupsOf(app, escort)) setExitChannel(app.world, e, name || null);
+/**
+ * The way out of port as the first step of a group's orders (of every group of its support
+ * group): 'roads', the name of a channel, or nothing to take the step away.
+ */
+export function orderExitChannel(app, escort, choice) {
+  let dropped = false;
+  for (const e of groupsOf(app, escort)) {
+    const done = planExit(app.world, e, choice || null);
+    if (e === escort && done.ok && done.dropped && choice) dropped = true;
+  }
+  // The line drawn after the old way out could not be joined to the new one by sea.
+  if (dropped) sheetMessage(app, t('orders.exitLineDropped'));
   app.dirtyPanels = true;
+}
+
+/** The line drawn after the way out of port is taken away; the way out (the exit step) stays. */
+export function orderDropLine(app, escort) {
+  const sent = shipOrder(app, escort, 'editRoute', []);
+  app.dirtyPanels = true;
+  return sent.ok;
 }
 
 /** The groups an order goes to: the support group of `escort`, or the group alone. */
@@ -454,45 +503,59 @@ function groupsOf(app, escort) {
 export function orderJoin(app, escort, convoyId) {
   const groups = groupsOf(app, escort);
   if (groups.some((e) => e.dry)) sheetMessage(app, t('orders.errors.dry'));
-  for (const e of groups) joinConvoy(app.world, e, convoyId);
+  for (const e of groups) shipOrder(app, e, 'join', convoyId);
   app.dirtyPanels = true;
 }
 
 export function orderLeave(app, escort) {
-  for (const e of groupsOf(app, escort)) leaveConvoy(app.world, e);
+  for (const e of groupsOf(app, escort)) shipOrder(app, e, 'leave');
   app.dirtyPanels = true;
 }
 
 /** Back to the port chosen (or the nearest by sea), a hunt ended on the way. */
 export function orderEscortHome(app, escort, portId = null) {
-  for (const e of groupsOf(app, escort)) escortHome(app.world, e, portId || null);
+  for (const e of groupsOf(app, escort)) shipOrder(app, e, 'home', portId || null);
   app.dirtyPanels = true;
 }
 
 /** The hunt stops: back to the convoy, or waiting for orders. */
 export function orderHuntStop(app, escort) {
-  for (const e of groupsOf(app, escort)) stopHunt(app.world, e);
+  for (const e of groupsOf(app, escort)) shipOrder(app, e, 'huntStop');
   app.dirtyPanels = true;
 }
 
-/** Off to hunt a fresh U-boat plot, for the hours set. */
+/** Off to hunt a fresh U-boat plot (not with the depth charges down to the convoy's reserve). */
 export function orderHuntPlot(app, escort, plotId) {
   const groups = groupsOf(app, escort);
   if (groups.some((e) => e.dry)) sheetMessage(app, t('orders.errors.dry'));
-  for (const e of groups) huntPlot(app.world, e, plotId);
+  else if (groups.some((e) => !canHunt(app.world, e))) sheetMessage(app, t('orders.errors.chargesReserve'));
+  for (const e of groups) shipOrder(app, e, 'huntPlot', plotId);
   app.dirtyPanels = true;
 }
 
-/** How long the group's hunts last; a hunt under way is timed again from now. */
-export function orderHuntHours(app, escort, hours) {
-  for (const e of groupsOf(app, escort)) setHuntHours(app.world, e, Number(hours));
+/** Full or light depth-charge patterns, a standing order of the group (and of its support group). */
+export function orderEscortPattern(app, escort, pattern) {
+  for (const e of groupsOf(app, escort)) shipOrder(app, e, 'pattern', pattern);
   app.dirtyPanels = true;
 }
 
 /** What a group does at the end of its route ("escort:hx55", "port:clyde", "hunt"...). */
 export function orderShipEnd(app, escort, value) {
   const [kind, id] = String(value).split(':');
-  for (const e of groupsOf(app, escort)) setShipEndAction(app.world, e, { kind, id: id || null });
+  for (const e of groupsOf(app, escort)) shipOrder(app, e, 'endAction', { kind, id: id || null });
+  app.dirtyPanels = true;
+}
+
+/**
+ * What a convoy does at the end of its line or of its legs, chosen in its sheet: "stop",
+ * "hold", "admiralty", "port:liverpool:Canal Saint-Georges" (a port, by one of its channels).
+ * A convoy with nothing left to follow does it at once.
+ */
+export function orderConvoyEnd(app, convoy, value) {
+  const [kind, id, ...via] = String(value).split(':');
+  if (!kind) return;
+  const sent = shipOrder(app, convoy, 'endAction', { kind, ...(id ? { id } : {}), ...(via.length ? { via: via.join(':') } : {}) });
+  if (sent.via !== 'radio' && !sent.ok) sheetMessage(app, t('orders.errors.endAction'));
   app.dirtyPanels = true;
 }
 
@@ -521,12 +584,12 @@ function legError(app, result) {
 /** The leg being changed in the sheet of this unit, or null. */
 export function editingLegIndex(app, u) {
   const e = app.editingLeg;
-  if (!e || !u || e.kind !== u.kind || e.id !== u.id || e.index >= u.plan.length) return null;
+  if (!e || !u || e.kind !== u.kind || e.id !== u.id || e.index >= plannedPlan(app.world, u).length) return null;
   return e.index;
 }
 
 export function startEditLeg(app, u, index) {
-  app.editingLeg = index >= 0 && index < u.plan.length ? { kind: u.kind, id: u.id, index } : null;
+  app.editingLeg = index >= 0 && index < plannedPlan(app.world, u).length ? { kind: u.kind, id: u.id, index } : null;
   app.dirtyPanels = true;
 }
 
@@ -557,7 +620,7 @@ export function addTypedLeg(app, u, headingText, endText, speedText = '', altTex
   const altFt = altText !== '' && Number(altText) > 0 ? Number(altText) : null;
   const leg = { heading: heading % 360, end: parsed.end, speedKn, altFt };
   const editing = editingLegIndex(app, u);
-  const result = editing === null ? addLeg(app.world, u, leg) : updateLeg(app.world, u, editing, leg);
+  const result = editing === null ? legOrder(app, u, 'addLeg', leg) : legOrder(app, u, 'updateLeg', editing, leg);
   legError(app, result);
   if (result.ok) app.editingLeg = null;
   app.dirtyPanels = true;
@@ -575,7 +638,7 @@ export function addRulerLeg(app, u) {
   const v = unitSpeed(app, u);
   const step = u.kind === 'squadron' ? 10 : 60;
   const s = Math.max(step, Math.round(km / v / step) * step);
-  const result = addLeg(app.world, u, { heading: bearing(r.a[0], r.a[1], r.b[0], r.b[1]), end: { kind: 'duration', s } });
+  const result = legOrder(app, u, 'addLeg', { heading: bearing(r.a[0], r.a[1], r.b[0], r.b[1]), end: { kind: 'duration', s } });
   legError(app, result);
   if (result.ok) app.ruler = null;
   app.dirtyPanels = true;
@@ -583,13 +646,22 @@ export function addRulerLeg(app, u) {
 }
 
 export function orderRemoveLeg(app, u, index) {
-  removeLeg(app.world, u, index);
+  legOrder(app, u, 'removeLeg', index);
   app.dirtyPanels = true;
 }
 
 export function orderClearPlan(app, u) {
-  clearPlan(app.world, u);
+  legOrder(app, u, 'clearPlan');
   app.dirtyPanels = true;
+}
+
+const LEG_ORDERS = { addLeg, updateLeg, removeLeg, clearPlan };
+
+/** A change to the legs of a unit: at once for a squadron; for a ship, by the way that reaches it. */
+function legOrder(app, u, name, ...args) {
+  if (u.kind !== 'convoy' && u.kind !== 'escort') return LEG_ORDERS[name](app.world, u, ...args);
+  const sent = shipOrder(app, u, name, ...args);
+  return sent.result !== undefined && sent.result !== null && typeof sent.result === 'object' ? sent.result : { ok: sent.ok };
 }
 
 /** A line drawn on the map from a unit becomes its route. */
@@ -682,7 +754,8 @@ export function finishDrawing(app, hit, screenPoints, endHit = null) {
     }
   } else if (hit.kind === 'convoy' || hit.kind === 'escort') {
     const ship = findUnit(app, hit.kind, hit.id);
-    const result = routeConvoy(world, ship, points);
+    const sent = shipOrder(app, ship, 'route', points);
+    const result = sent.result || { ok: sent.ok };
     if (!result.ok && result.at) app.flash = { x: result.at[0], y: result.at[1], until: performance.now() + 2500 };
     selectUnit(app, ship);
     if (!result.ok && result.reason === 'dry') sheetMessage(app, t('orders.errors.dry'));
@@ -697,7 +770,7 @@ export function activePoint(app) {
   const a = app.activePoint;
   const u = selectedUnit(app);
   if (!a || !u || a.kind !== u.kind || a.id !== u.id) return null;
-  const pts = editableRoute(u);
+  const pts = workingRoute(app.world, u).points;
   if (!pts || a.index >= pts.length) return null;
   return { u, index: a.index, point: pts[a.index] };
 }
@@ -707,12 +780,17 @@ export function setActivePoint(app, u, index) {
   app.dirtyPanels = true;
 }
 
-/** Gives the unit its edited route; ships are checked against the coast. */
+/**
+ * Gives the unit its edited route; ships are checked against the coast. A route still on its
+ * way to a ship (radio silence) is the one worked on: the order that waits is sent again
+ * with the new points, and takes its place.
+ */
 function applyRouteEdit(app, u, points) {
   let ok;
   if (u.kind === 'squadron') ok = setRoute(app.world, u, points);
   else {
-    const result = editShipRoute(app.world, u, points);
+    const sent = shipOrder(app, u, workingRoute(app.world, u).pending || 'editRoute', points);
+    const result = sent.result || { ok: sent.ok };
     if (!result.ok && result.at) app.flash = { x: result.at[0], y: result.at[1], until: performance.now() + 2500 };
     ok = result.ok;
   }
@@ -720,12 +798,12 @@ function applyRouteEdit(app, u, points) {
   return ok;
 }
 
-function routeCopy(u) {
-  return (editableRoute(u) || []).map((p) => [p[0], p[1], p[2] ?? null]);
+function routeCopy(app, u) {
+  return (workingRoute(app.world, u).points || []).map((p) => [p[0], p[1], p[2] ?? null]);
 }
 
 export function movePoint(app, u, index, x, y) {
-  const pts = routeCopy(u);
+  const pts = routeCopy(app, u);
   if (index < 0 || index >= pts.length) return false;
   pts[index][0] = x;
   pts[index][1] = y;
@@ -733,7 +811,7 @@ export function movePoint(app, u, index, x, y) {
 }
 
 export function insertPoint(app, u, index, x, y) {
-  const pts = routeCopy(u);
+  const pts = routeCopy(app, u);
   if (index < 0 || index > pts.length) return false;
   pts.splice(index, 0, [x, y, null]);
   const ok = applyRouteEdit(app, u, pts);
@@ -745,14 +823,21 @@ export function deletePoint(app, u, index) {
   if (u.kind === 'squadron') {
     removeRoutePoint(app.world, u, index);
   } else {
-    const pts = routeCopy(u);
+    const work = workingRoute(app.world, u);
+    const pts = routeCopy(app, u);
     if (index < 0 || index >= pts.length) return false;
-    if (pts.length === 1 && !u.destination) {
-      sheetMessage(app, t('orders.errors.lastPoint'));
-      return false;
+    if (pts.length === 1 && work.pending === 'route') {
+      // The last point of a line that has not left yet: the order itself is taken back.
+      cancelOrder(app.world, work.id);
+      app.dirtyPanels = true;
+    } else {
+      if (pts.length === 1 && !u.destination && !(u.routeHead > 0)) {
+        sheetMessage(app, t('orders.errors.lastPoint'));
+        return false;
+      }
+      pts.splice(index, 1);
+      if (!applyRouteEdit(app, u, pts)) return false;
     }
-    pts.splice(index, 1);
-    if (!applyRouteEdit(app, u, pts)) return false;
   }
   setActivePoint(app, null, null);
   return true;
@@ -760,11 +845,12 @@ export function deletePoint(app, u, index) {
 
 /** A line drawn from the end of a route lengthens it. */
 export function extendRoute(app, u, screenPoints) {
-  if (!routeCanExtend(u)) return false;
+  if (!workingRoute(app.world, u).canExtend) return false;
+  // (From the ring at the end of an exit step: the route so far is all way out, and stays.)
   const simplified = simplifyPolyline(screenPoints, 3);
   const added = simplified.slice(1).map(([sx, sy]) => [...toWorld(app.camera, sx, sy), null]);
   if (!added.length) return false;
-  return applyRouteEdit(app, u, [...routeCopy(u), ...added]);
+  return applyRouteEdit(app, u, [...routeCopy(app, u), ...added]);
 }
 
 /** Altitude written on a point of a squadron's route, by steps of 1 000 ft. */
@@ -804,18 +890,13 @@ export function orderAlert(app, sq, state) {
   app.dirtyPanels = true;
 }
 
-export function orderConvoySpeed(app, c, kn) {
-  setConvoySpeed(app.world, c, kn >= c.speedKn ? null : kn);
-  app.dirtyPanels = true;
-}
-
 export function orderZigzag(app, c) {
-  setZigzag(app.world, c, !c.zigzag);
+  shipOrder(app, c, 'zigzag', !c.zigzag);
   app.dirtyPanels = true;
 }
 
 export function orderEscortBehaviour(app, e, behaviour) {
-  for (const g of groupsOf(app, e)) setEscortBehaviour(app.world, g, behaviour);
+  for (const g of groupsOf(app, e)) shipOrder(app, g, 'behaviour', behaviour);
   app.dirtyPanels = true;
 }
 
@@ -934,7 +1015,7 @@ export function orderRosterCopy(app, s, target) {
   const w = app.world;
   const field = s.home || s.airfield;
   const to = target === 'field'
-    ? w.squadrons.filter((x) => x !== s && x.role === 'fighter' && x.state !== 'lost' && (x.home || x.airfield) === field)
+    ? w.squadrons.filter((x) => x !== s && x.state !== 'lost' && (x.home || x.airfield) === field)
     : w.squadrons.filter((x) => x.id === target && x !== s);
   for (const x of to) copyDaily(w, s, x);
   sheetMessage(app, t('roster.copied', { n: to.length }), 'info');

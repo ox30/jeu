@@ -5,13 +5,16 @@
 
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatDate, formatShortDate, formatTime } from '../core/time.js';
-import { distance, unproject } from '../sim/geo.js';
+import { distance, polylineLength, unproject } from '../sim/geo.js';
 import { gridRef } from '../sim/grid.js';
 import { convoyRemainingKm, currentSpeed, fullKnots, shipThrottle } from '../sim/convoy.js';
-import { huntHours, isSubmerged, reachKm } from '../sim/asw.js';
+import { shownPosition } from '../sim/comms.js';
+import { isSubmerged, reachKm } from '../sim/asw.js';
 import { shipEndChoices } from '../sim/naval.js';
 import { legTarget } from '../sim/navigation.js';
-import { editableRoute, endChoices, planTrack } from '../sim/orders.js';
+import { endChoices, planTrack } from '../sim/orders.js';
+import { awaited, awaitedLand, workingRoute } from './awaited.js';
+import { convoyEnd, convoyEndText, endValue } from './convoyEnd.js';
 import { interceptChance } from '../sim/control.js';
 import { activePoint, editingLegIndex, raidsInHand } from './actions.js';
 import { formationById, formationOf, membersOf } from '../sim/formations.js';
@@ -21,15 +24,15 @@ import { aircraftSpec, feetOf, isFlying, squadronSpeed, throttle, typeKmh } from
 import { effectiveAlert, fatigueLevel, fatigueOn, pilotLossesOn, scrambleSeconds, strength } from '../sim/crews.js';
 import { arrivalOf, rallyPoint, tripKm } from '../sim/rally.js';
 import { overrideOf, plannedChanges } from '../sim/roster.js';
-import { isDaylight } from '../sim/patrols.js';
+import { isDaylight } from '../sim/daylight.js';
 
-const isDaylightSafe = (w) => isDaylight(w);
 import { radarRangeFactor, siteStatus } from '../sim/sites.js';
 import { drawProfile } from '../render/profile.js';
 import { button, options, row, setHtml } from './html.js';
 import { devRaids, isRaidActive, raidLine, uboatLine, uboatReturnText } from './dev.js';
 import {
-  convoyCargoRows, coverButtons, escortSheet, exitLines, homePortLine, huntLines, joinLines, renderLogistics, stockBlock, stockOrders, trainSheet,
+  chargesText, commsKey, commsLines, convoyCargoRows, coverButtons, escortSheet, exitLines, homePortLine, huntLines, joinLines, nextReliefHour, positionRows, renderLogistics, stockBlock,
+  stockOrders, trainSheet,
 } from './logisticsPanels.js';
 import { isActive } from '../sim/raid.js';
 import { altitudeControl, cmdButton, cmdGroup, kmhText, section, speedControl } from './commands.js';
@@ -38,8 +41,15 @@ import {
   altitudeText, countText, dateTimeText, durationText, endActionText, ftText, headingText, kmText, legEndInput, legText,
   objectiveText, positionText, reportText, siteEffectText, siteRepairText, siteStatusText, siteTitle,
 } from './format.js';
+import { applySheetHelp } from './sheetHelp.js';
+import { activeMember, memberSelection, stackOfSelection } from './stacks.js';
+import { siteTabs, tabSelection, unitsIn } from './siteUnits.js';
+import { toolOffered } from './offered.js';
 
-const MAX_LOG = 300;
+const MAX_LOG = 300; // lines shown on the page
+// Lines kept for the saved game: all of them (the longest game measured, a week of Adlertag
+// in Arcade with six squadrons a raid, writes about 2 400). The limit is only a guard.
+const MAX_KEPT = 20000;
 
 function isSel(app, kind, id) {
   return app.selection && app.selection.kind === kind && app.selection.id === id;
@@ -55,7 +65,7 @@ export function addLogEntry(app, text, level = 'info', gameT = app.world.t, opts
   if (!opts.replay) {
     app.logEntries = app.logEntries || [];
     app.logEntries.push({ text, level, t: gameT, report: opts.report || null });
-    if (app.logEntries.length > MAX_LOG) app.logEntries.shift();
+    if (app.logEntries.length > MAX_KEPT) app.logEntries.shift();
   }
   const ms = app.world.startMs + gameT * 1000;
   const time = formatTime(ms);
@@ -78,6 +88,9 @@ export function addLogEntry(app, text, level = 'info', gameT = app.world.t, opts
   }
   const li = document.createElement('li');
   li.className = `log-${level}`;
+  // A number for the line, so that an alert not read can point at it (alerts.js).
+  app.logSeq = (app.logSeq || 0) + 1;
+  li.dataset.logId = String(app.logSeq);
   li.innerHTML = `<time>${time}</time> ${escapeHtml(text)}`;
   if (opts.report) {
     li.dataset.report = opts.report;
@@ -99,6 +112,7 @@ export function addLogEntry(app, text, level = 'info', gameT = app.world.t, opts
     app.logTotal--;
     if (!entries.children.length && lastGroup !== app.logGroup) lastGroup.remove();
   }
+  return app.logSeq;
 }
 
 /** Clears the journal (new scenario). */
@@ -126,7 +140,7 @@ function convoyLabel(c) {
 function convoyExtra(app, c) {
   const w = app.world;
   if (c.state === 'atSea' && c.route.length) {
-    return t('tote.eta', { date: dateTimeText(w.startMs + (w.t + convoyRemainingKm(c) / currentSpeed(c)) * 1000) });
+    return t('tote.eta', { date: dateTimeText(w.startMs + (w.t + convoyRemainingKm(c, shownPosition(w, c)) / currentSpeed(c)) * 1000) });
   }
   if (c.state === 'atSea') return t('tote.steering', { heading: headingText(c.heading) });
   return '';
@@ -154,7 +168,7 @@ function renderUnits(app) {
     const where = isFlying(s) ? altitudeText(s.alt) : w.byId.airfield.get(s.airfield).name;
     const level = fatigueOn(w) && s.state !== 'lost' ? fatigueLevel(w, s) : 'fresh';
     const tired = level !== 'fresh' ? ` <span class="fatigue-${level}" title="${escapeHtml(t('sheet.fatigue'))}">${escapeHtml(t(`sheet.fatigueLevels.${level}`))}</span>` : '';
-    const stateText = s.state === 'ready' && fatigueOn(w) && s.alert !== 'available' ? t(`states.alert.${s.alert}`) : t(`states.squadron.${s.state}`);
+    const stateText = s.state === 'ready' && fatigueOn(w) && s.alert !== 'min5' ? t(`states.alert.${s.alert}`) : t(`states.squadron.${s.state}`);
     return `<div class="tote-row${member ? ' member' : ''}${isSel(app, 'squadron', s.id) ? ' sel' : ''}" data-action="select" data-kind="squadron" data-id="${escapeHtml(s.id)}">
       <span class="lamp sq-${s.state}${s.state === 'ready' ? ` alert-${s.alert}` : ''}"></span><span class="name">${escapeHtml(s.name)}</span>
       <span class="state">${escapeHtml(stateText)}</span>
@@ -263,7 +277,7 @@ function renderEnemies(app) {
   if (!devRaids(w).length) parts.push(`<div class="tote-empty">${escapeHtml(t('dev.noRaids'))}</div>`);
   for (const r of raids) {
     const active = isRaidActive(r);
-    const when = r.phase === 'pending' ? ` · ${t('dev.at', { time: dateTimeText(w.startMs + r.departure * 1000) })}` : '';
+    const when = r.phase !== 'pending' ? '' : r.held ? ` · ${t('dev.held')}` : ` · ${t('dev.at', { time: dateTimeText(w.startMs + r.departure * 1000) })}`;
     parts.push(`<div class="tote-row dev-row${active ? ' active' : ''}">
       <span class="name">${escapeHtml(raidLine(w, r) + when)}</span>
       ${active ? button('dev-show', t('dev.show'), { extra: ` data-x="${r.x}" data-y="${r.y}"` }) : ''}</div>`);
@@ -319,7 +333,7 @@ function legProgress(app, u, leg) {
 function pointBlock(app, u) {
   const ap = activePoint(app);
   if (!ap || ap.u !== u) return '';
-  const pts = editableRoute(u);
+  const pts = workingRoute(app.world, u).points;
   const parts = [`<div class="point-block"><div class="sub">${escapeHtml(t('orders.point', { n: ap.index + 1, of: pts.length }))}</div>`];
   if (u.kind === 'squadron') {
     const altM = ap.point[2];
@@ -357,24 +371,68 @@ function interceptBlock(app, s) {
   return `<div class="order-line intercepts">${buttons.join('')}</div><p class="hint">${escapeHtml(t('orders.interceptHint'))}</p>`;
 }
 
+/**
+ * The way out of port at the head of an escort group's orders (its exit step): what it is and
+ * how far it leads, with a cross to take it away while the group is in port; then the line
+ * drawn after it, with its own cross. What follows (legs, the end) is listed below as usual.
+ */
+function exitStepBlock(app, e) {
+  if (e.kind !== 'escort') return '';
+  const head = Math.min(e.routeHead || 0, e.route.length);
+  if (!head) return '';
+  const inPort = e.state === 'inPort';
+  // The exit it was given, in port or under way. None given: the way out its line or its
+  // order chose by itself (a line drawn from port, a convoy to meet).
+  const exit = e.exitChannel || (e.exitPlanned ? 'roads' : null);
+  const name = exit === 'roads' ? t('orders.exitStepRoads') : exit ? t('orders.exitStepChannel', { name: exit }) : t(inPort ? 'orders.exitAuto' : 'orders.exitUnderWay');
+  const wayOut = e.route.slice(0, head);
+  const line = e.route.slice(head);
+  const cross = (title) => ({ id: e.id, kind: 'escort', extra: ` title="${escapeHtml(title)}"`, cls: 'icon' });
+  const rows = [`<li class="exit-step"><span class="leg-text">${escapeHtml(name)}</span>
+    <span class="leg-status">${escapeHtml(kmText(polylineLength([[e.x, e.y], ...wayOut])))}</span>${inPort ? button('exit-remove', '×', cross(t('orders.exitRemove'))) : ''}</li>`];
+  if (line.length) {
+    rows.push(`<li><span class="leg-text">${escapeHtml(t('orders.lineStep', { n: line.length, s: line.length > 1 ? 's' : '' }))}</span>
+      <span class="leg-status">${escapeHtml(kmText(polylineLength([wayOut[head - 1], ...line])))}</span>${button('line-remove', '×', cross(t('orders.lineRemove')))}</li>`);
+  }
+  const headings = app.world.settings.orders === 'headings';
+  return `<div class="sub">${escapeHtml(t('orders.exitTitle'))}</div><ul class="legs steps">${rows.join('')}</ul>
+    ${inPort ? `<p class="hint">${escapeHtml(t(headings ? 'orders.exitStepHintHeadings' : 'orders.exitStepHint'))}</p>` : ''}`;
+}
+
 /** The list of legs (or the route being followed) of a unit. */
 function planList(app, u) {
   const w = app.world;
   const moving = u.kind === 'squadron' ? isFlying(u) : u.state === 'atSea';
-  const parts = [`<div class="sub">${escapeHtml(t('orders.plan'))}</div>`];
-  if (u.route && u.route.length && !u.plan.length) {
-    parts.push(`<p class="hint">${escapeHtml(t('orders.followingRoute', { n: u.route.length, s: u.route.length > 1 ? 's' : '' }))}</p>`);
-  } else if (!u.plan.length) {
+  // (An escort group's way out of port is its exit step, listed first: not a line of the player's.)
+  const head = u.kind === 'escort' ? Math.min(u.routeHead || 0, u.route.length) : 0;
+  const own = u.route ? u.route.length - head : 0;
+  // Radio silence: what is on its way to a ship is listed as it will be, and marked. The
+  // numbers of the legs are those the next orders count from.
+  const wait = u.kind === 'squadron' ? { route: null, legs: null } : awaited(w, u);
+  const plan = wait.legs || u.plan;
+  const hour = wait.route || wait.legs ? nextReliefHour(w) : 0;
+  const parts = [exitStepBlock(app, u), `<div class="sub">${escapeHtml(t('orders.plan'))}</div>`];
+  if (wait.route) {
+    const n = wait.route.points.length;
+    const group = wait.route.via === 'ship' ? w.escorts.find((e) => e.id === wait.route.carrier) : null;
+    parts.push(`<p class="hint awaited">${escapeHtml(group ? t('orders.awaitedRouteShip', { n, s: n > 1 ? 's' : '', group: group.short }) : t('orders.awaitedRoute', { n, s: n > 1 ? 's' : '', hour }))}</p>`);
+  }
+  if (own > 0 && !plan.length) {
+    // (With a line on its way, the handles of the map are that line's: the hint says only what the ship does meanwhile.)
+    parts.push(`<p class="hint">${escapeHtml(t(wait.route ? 'orders.followingUntilRelief' : moving ? 'orders.followingRoute' : 'orders.waitingRoute', { n: own, s: own > 1 ? 's' : '' }))}</p>`);
+  } else if (!plan.length) {
     parts.push(`<p class="hint">${escapeHtml(moving ? t('orders.noLeg') : t('orders.noLegReady'))}</p>`);
   } else {
-    const track = planTrack(w, u);
+    const track = planTrack(w, u, plan);
     const editing = editingLegIndex(app, u);
     parts.push('<ol class="legs">');
-    u.plan.forEach((leg, i) => {
+    plan.forEach((leg, i) => {
       const end = track[i + 1];
       const when = end && !end.open ? t('legs.eta', { time: formatTime(w.startMs + end.t * 1000) }) : '';
-      const status = i === 0 && moving ? legProgress(app, u, leg) : when;
-      const cls = [i === 0 && moving ? 'current' : '', i === editing ? 'editing' : ''].filter(Boolean).join(' ');
+      // (A leg the ship does not have yet: on its way.)
+      const known = u.plan.includes(leg);
+      const status = !known ? t('orders.awaitedLeg') : i === 0 && moving ? legProgress(app, u, leg) : when;
+      const cls = [i === 0 && moving && known ? 'current' : '', i === editing ? 'editing' : '', known ? '' : 'awaited'].filter(Boolean).join(' ');
       parts.push(`<li${cls ? ` class="${cls}"` : ''}><span class="leg-text">${escapeHtml(legText(w, leg))}</span>
         <span class="leg-status">${escapeHtml(status)}</span>
         ${button('edit-leg', '✎', { id: u.id, kind: u.kind, extra: ` data-index="${i}" title="${escapeHtml(t('orders.editLeg'))}"`, cls: 'icon' })}
@@ -382,6 +440,9 @@ function planList(app, u) {
     });
     parts.push('</ol>');
   }
+  if (wait.legs) parts.push(`<p class="hint awaited">${escapeHtml(t('orders.awaitedLegs', { hour }))}</p>`);
+  // (Checked for good when the order is carried out; the player is warned before it leaves.)
+  if ((wait.route || wait.legs) && awaitedLand(w, u)) parts.push(`<p class="message warning">${escapeHtml(t('orders.awaitedLand'))}</p>`);
   return parts.join('');
 }
 
@@ -394,7 +455,8 @@ function messageBlock(app) {
 function legForm(app, u) {
   const sea = u.kind !== 'squadron';
   const editing = editingLegIndex(app, u);
-  const leg = editing === null ? null : u.plan[editing];
+  // (Under radio silence the legs listed are those on their way: the one changed is among them.)
+  const leg = editing === null ? null : (u.kind === 'squadron' ? u.plan : awaited(app.world, u).legs || u.plan)[editing];
   const value = (v) => (v === null || v === undefined || v === '' ? '' : ` value="${escapeHtml(String(v))}"`);
   return [
     `<div class="leg-form${leg ? ' editing' : ''}"><div class="sub">${escapeHtml(leg ? t('orders.editingLeg', { n: editing + 1 }) : t('orders.newLeg'))}</div>`,
@@ -428,22 +490,48 @@ function climbArrow(s) {
 }
 
 /** End of route (or of legs) of an escort group: stop, hold on, meet a convoy, hunt there, into a port. */
+/**
+ * A convoy: what it does at the end of its line or of its legs — or at once, when it follows
+ * nothing. A route that already goes into a port says so, with the channel the pilot takes.
+ */
+function convoyEndLine(app, c) {
+  const w = app.world;
+  const e = convoyEnd(w, c);
+  if (!e) return '';
+  if (e.mode === 'port') {
+    return `<p class="hint">${escapeHtml(t(e.channel ? 'orders.convoyEnd.intoPortVia' : 'orders.convoyEnd.intoPort', { port: e.port, channel: e.channel }))}</p>`;
+  }
+  const list = e.choices.map((a) => ({ value: endValue(a), label: convoyEndText(w, a) }));
+  // (With nothing to follow the choice is an order to carry out now: it starts on no choice.)
+  if (e.after === 'now') list.unshift({ value: '', label: t('orders.convoyEnd.choose') });
+  // An order on its way is what the list shows: it is the last thing the player chose.
+  const shown = e.waiting || e.current;
+  const current = shown ? endValue(shown) : '';
+  const told = e.waiting ? `<p class="hint awaited">${escapeHtml(t('orders.convoyEnd.waiting', { what: convoyEndText(w, e.waiting), hour: nextReliefHour(w) }))}</p>` : '';
+  // Taken into port by the game, told nothing: said, with the way to have it otherwise.
+  const own = !e.waiting && e.auto && e.current && e.current.kind === 'port';
+  const hint = e.after === 'now' ? 'orders.convoyEnd.hintNow' : own ? 'orders.convoyEnd.autoPort' : 'orders.convoyEnd.hint';
+  return `<div class="order-line"><label class="grow">${escapeHtml(t(`orders.convoyEnd.after.${e.after}`))} <select id="convoy-end-${escapeHtml(c.id)}" data-change="convoy-end" data-id="${escapeHtml(c.id)}">${options(list, current)}</select></label></div>
+    ${told}<p class="hint">${escapeHtml(t(hint))}</p>`;
+}
+
 function shipEndLine(app, e) {
-  // Going to meet a convoy, or into a port: the route already says how it ends. A convoy
-  // keeps its course at the end of its legs (its route ends in a port).
+  if (e.kind === 'convoy') return convoyEndLine(app, e);
+  // Going to meet a convoy, or into a port: the route already says how it ends.
   if (e.kind !== 'escort') return '';
   if (!(e.route.length || e.plan.length) || e.homeward || e.joinTarget || e.state === 'escorting') return '';
   const w = app.world;
-  const list = shipEndChoices(w, e).map((a) => ({ value: a.id ? `${a.kind}:${a.id}` : a.kind, label: shipEndText(w, e, a) }));
+  const list = shipEndChoices(w, e).map((a) => ({ value: a.id ? `${a.kind}:${a.id}` : a.kind, label: shipEndText(w, a) }));
   const a = e.endAction || { kind: 'stop' };
   const current = a.id ? `${a.kind}:${a.id}` : a.kind;
-  return `<div class="order-line"><label class="grow">${escapeHtml(t('orders.endAction'))} <select id="ship-end-${escapeHtml(e.id)}" data-change="ship-end" data-id="${escapeHtml(e.id)}">${options(list, current)}</select></label></div>`;
+  // With nothing after its way out of port, the end is the end of that way out.
+  const bare = !e.plan.length && e.route.length > 0 && (e.routeHead || 0) >= e.route.length;
+  return `<div class="order-line"><label class="grow">${escapeHtml(t(bare ? 'orders.endActionExit' : 'orders.endAction'))} <select id="ship-end-${escapeHtml(e.id)}" data-change="ship-end" data-id="${escapeHtml(e.id)}">${options(list, current)}</select></label></div>`;
 }
 
-function shipEndText(w, e, a) {
+function shipEndText(w, a) {
   if (a.kind === 'escort') return t('orders.shipEnd.escort', { convoy: w.convoys.find((c) => c.id === a.id)?.name || '' });
   if (a.kind === 'port') return t('orders.shipEnd.port', { port: w.byId.port.get(a.id)?.name || '' });
-  if (a.kind === 'hunt') return t('orders.shipEnd.hunt', { n: huntHours(w, e) });
   return t(`orders.shipEnd.${a.kind}`);
 }
 
@@ -643,7 +731,7 @@ function squadronRows(app, s, state) {
       : t('sheet.speedPct', { p: throttle(s).pct, n: Math.round(typeKmh(type, throttle(s))) }))),
     row(t('sheet.fuel'), escapeHtml(fuel)),
     s.role === 'fighter' ? row(t('sheet.ammo'), escapeHtml(t('sheet.percent', { n: Math.round(s.ammo * 100) })))
-      : row(t('sheet.sight'), escapeHtml(t('sheet.sightText', { n: Math.round(w.rules.patrols[s.type][isDaylightSafe(w) ? 'sightDayKm' : 'sightNightKm']) }))),
+      : row(t('sheet.sight'), escapeHtml(t('sheet.sightText', { n: Math.round(w.rules.patrols[s.type][isDaylight(w, s.x, s.y) ? 'sightDayKm' : 'sightNightKm']) }))),
     s.lastReport ? `<p class="report-line">${escapeHtml(reportText(w, s.lastReport))}</p>` : '',
   ].join('');
 }
@@ -651,7 +739,7 @@ function squadronRows(app, s, state) {
 /** Altitude, speed, vector, orbit, home: the flying orders of a squadron (or a wing's leader). */
 // ---- shared blocks: time, standing orders, alert states, timetable ----
 
-export const ALERTS = ['rest', 'thirty', 'available', 'cockpit'];
+export const ALERTS = ['rest', 'min30', 'min5', 'cockpit'];
 const DAY_MS = 86400000;
 
 /** "09:30" today, "12 janv. 09:30" another day. */
@@ -747,7 +835,7 @@ export function rosterBlock(app, s, { title = true } = {}) {
   const list = ALERTS.map((a) => ({ value: a, label: t(`orders.alertNames.${a}`) }));
   const parts = [title ? `<div class="sub">${escapeHtml(t('orders.roster'))}</div>` : ''];
   parts.push(`<label class="check roster-mode"><input type="checkbox" id="roster-override-${escapeHtml(s.id)}" data-change="roster-override" data-id="${escapeHtml(s.id)}"${o ? ' checked' : ''}> ${escapeHtml(t('orders.rosterOverride', { n: hours }))}</label>`);
-  const stateSelect = `<select id="roster-alert-${escapeHtml(s.id)}">${options(list, 'available')}</select>`;
+  const stateSelect = `<select id="roster-alert-${escapeHtml(s.id)}">${options(list, 'min5')}</select>`;
   if (o) {
     // From H0, the moment the box was ticked: H0 to H+6 at rest, H+6 to H+9 on alert...
     const mark = (at) => (at === o.from ? 'H0' : `H+${hoursText((at - o.from) / 3600)}`);
@@ -799,12 +887,20 @@ function hoursText(h) {
 }
 
 /** Alert state of one squadron: buttons, what it means now, rest confirmation, roster. */
+/** For the line under the name of a sheet: « · fatiguée (72 %) » once the pilots are tired, else nothing. */
+function tiredText(w, s) {
+  if (!fatigueOn(w) || s.state === 'lost') return '';
+  const level = fatigueLevel(w, s);
+  return level === 'fresh' ? '' : ` · ${t('unit.tired', { level: t(`sheet.fatigueLevels.${level}`), n: Math.round(s.fatigue) })}`;
+}
+
 function alertBlock(app, s) {
   const w = app.world;
   // On the ground only: the state now (it holds until « Retour au planning »); the plan has its page.
-  if (!fatigueOn(w) || s.role !== 'fighter' || (s.state !== 'ready' && s.state !== 'refuelling')) return '';
+  // For every squadron: a patrol tires in the air like a fighter, and rests the same way.
+  if (!fatigueOn(w) || (s.state !== 'ready' && s.state !== 'refuelling')) return '';
   return [
-    alertButtons(app, s, 'squadron', s.alert || 'available'),
+    alertButtons(app, s, 'squadron', s.alert || 'min5'),
     `<p class="hint">${escapeHtml(alertStatus(w, s))}</p>`,
     confirmBox(app, 'squadron', s.id, s.name),
     rosterLinks(app, s),
@@ -813,9 +909,11 @@ function alertBlock(app, s) {
 
 /** « Retour au planning » when the state was set by hand, and the page of the plans. */
 export function rosterLinks(app, s, field = null) {
-  return `<div class="order-line">${s && s.alertManual ? button('roster-resume', t('orders.rosterResume'), { id: s.id, kind: 'squadron' }) : ''}${button('open-roster', t('orders.openRoster'), {
-    id: s ? s.id : '', kind: 'squadron', extra: field ? ` data-field="${escapeHtml(field)}"` : '',
-  })}</div>`;
+  // (The page of the plans only where the scenario offers it: offered.js.)
+  const page = toolOffered(app, 'roster')
+    ? button('open-roster', t('orders.openRoster'), { id: s ? s.id : '', kind: 'squadron', extra: field ? ` data-field="${escapeHtml(field)}"` : '' })
+    : '';
+  return `<div class="order-line">${s && s.alertManual ? button('roster-resume', t('orders.rosterResume'), { id: s.id, kind: 'squadron' }) : ''}${page}</div>`;
 }
 
 /** The first time the player schedules something: a word on the alert states. */
@@ -878,7 +976,7 @@ function letGoLine(app, s) {
 function squadronPanel(app, s) {
   const w = app.world;
   const state = squadronStateText(app, s);
-  const headings = app.settings.orders === 'headings';
+  const headings = app.world.settings.orders === 'headings';
   const member = formationOf(w, s);
   const grounded = s.state === 'ready' || s.state === 'refuelling';
   const up = isFlying(s) || s.state === 'scrambling';
@@ -907,7 +1005,7 @@ function squadronPanel(app, s) {
   return {
     group: 'squadron',
     title: `${escapeHtml(s.name)} <small><button type="button" class="link" data-action="cards" data-type="${escapeHtml(s.type)}" title="${escapeHtml(t('cards.open'))}">${escapeHtml(s.typeName)} ⓘ</button></small>`,
-    summary: escapeHtml(`${state} · ${t('unit.aircraftShort', { n: s.aircraft, total: s.aircraftStart })} · ${where}`),
+    summary: escapeHtml(`${state} · ${t('unit.aircraftShort', { n: s.aircraft, total: s.aircraftStart })} · ${where}${tiredText(w, s)}`),
     bar: member ? '' : airBar(app, s),
     tabs,
     profileUnit: s,
@@ -920,7 +1018,7 @@ function sailBlock(app, c) {
   if (c.schedule && !c.schedule.join) {
     return `<div class="order-line scheduled"><span class="grow">${escapeHtml(t('orders.sailScheduled', { time: clockText(w, c.schedule.at) }))}${c.schedule.delayed ? ` · ${escapeHtml(t('orders.waiting'))}` : ''}</span>
       ${button('schedule-cancel', t('orders.cancel'), { id: c.id, kind: c.kind })}</div>
-      <p class="hint">${escapeHtml(t('orders.sailScheduledHint'))}</p>`;
+      <p class="hint">${escapeHtml(t(c.kind === 'escort' ? 'orders.sailScheduledHintEscort' : 'orders.sailScheduledHint'))}</p>`;
   }
   if (c.schedule && c.schedule.join) {
     const f = formationById(w, c.schedule.join);
@@ -937,8 +1035,10 @@ function sailBlock(app, c) {
 function convoyPanel(app, c) {
   const w = app.world;
   const dest = c.destination ? w.byId.port.get(c.destination).name : t('sheet.none');
-  const [lon, lat] = unproject(c.x, c.y);
-  const remaining = convoyRemainingKm(c);
+  // On the high seas under radio silence: counted from where the table puts the convoy.
+  const shown = shownPosition(w, c);
+  const remaining = convoyRemainingKm(c, shown);
+  const about = (text) => (shown.est ? t('sheet.about', { v: text }) : text);
   const speedKn = Math.round((currentSpeed(c) * 3600) / 1.852);
   const stateText = t(`states.convoy.${c.state === 'arrived' && c.unloading ? 'unloading' : c.state}`);
   const rows = [
@@ -950,22 +1050,24 @@ function convoyPanel(app, c) {
       ? t('sheet.speedKnLeg', { n: speedKn, max: c.speedKn })
       : t('sheet.speedKn', { n: c.speedKn }))),
     c.state === 'atSea' ? row(t('sheet.heading'), headingText(c.heading)) : '',
-    row(t('sheet.position'), escapeHtml(positionText(lat, lon))),
+    positionRows(app, c),
     row(t('sheet.destination'), escapeHtml(c.state === 'arrived' ? w.byId.port.get(c.portId).name : dest)),
-    remaining !== null && c.state === 'atSea' ? row(t('sheet.remaining'), escapeHtml(kmText(remaining))) : '',
-    remaining !== null && c.state === 'atSea' ? row(t('sheet.eta'), escapeHtml(dateTimeText(w.startMs + (w.t + remaining / currentSpeed(c)) * 1000))) : '',
+    remaining !== null && c.state === 'atSea' ? row(t('sheet.remaining'), escapeHtml(about(kmText(remaining)))) : '',
+    remaining !== null && c.state === 'atSea' ? row(t('sheet.eta'), escapeHtml(about(dateTimeText(w.startMs + (w.t + remaining / currentSpeed(c)) * 1000)))) : '',
   ].join('');
   const canOrder = c.state === 'inPort' || c.state === 'waiting' || c.state === 'atSea';
-  const headings = app.settings.orders === 'headings';
+  const headings = app.world.settings.orders === 'headings';
   const cmd = canOrder ? [
     c.state === 'inPort' || c.state === 'refit' ? section(app, 'convoyPort', t('sec.port'), ordersBox(sailBlock(app, c),
       `<p class="hint">${escapeHtml(t('orders.sailHint'))}</p>`)) : '',
+    commsLines(app, c) ? section(app, 'comms', t('sec.comms'), ordersBox(commsLines(app, c))) : '',
     routeSection(app, c),
     c.type !== 'coastal' && !c.straggler ? `<p class="hint">${escapeHtml(t('orders.speedHint', { n: formatNumber(c.speedKn * w.rules.asw.stragglerFrom, 1) }))}</p>` : '',
     c.state !== 'inPort' ? `<p class="hint">${escapeHtml(headings ? t('orders.headingsHint') : t('orders.drawHint'))}</p>` : '',
   ].join('') : '';
   const tabs = [
-    canOrder ? tab('cmd', { keyed: cmd, key: editingLegIndex(app, c) }) : null,
+    // (The choice of the end of its route starts afresh when what it follows changes.)
+    canOrder ? tab('cmd', { keyed: cmd, key: `${editingLegIndex(app, c)}:${commsKey(w, c)}:${c.state}:${c.route.length > 0}:${c.plan.length}:${c.destination || ''}:${c.route.length > (c.routeLocked || 0)}:${c.endAction ? endValue(c.endAction) : ''}` }) : null,
     tab('state', { pre: rows }),
     tab('card', { keyed: unitCardHtml(w, c) }),
   ].filter(Boolean);
@@ -1005,24 +1107,30 @@ function escortPanel(app, e) {
       section(app, 'home', t('sec.home'), ordersBox(homePortLine(app, e))),
     ].join('');
   } else {
+    // In port the route comes right under the way out and the sailing: the exit step chosen
+    // there is listed here, to be drawn longer and given its end.
+    const route = es.planUnit ? routeSection(app, e) : '';
+    const inPort = e.state === 'inPort';
     cmd = [
-      e.state === 'inPort' || e.state === 'refit' ? section(app, 'port', t('sec.port'), ordersBox(e.state === 'inPort' ? exitLines(app, e, { sail: false }) : '', sailBlock(app, e))) : '',
+      inPort || e.state === 'refit' ? section(app, 'port', t('sec.port'), ordersBox(inPort ? exitLines(app, e, { sail: false }) : '', sailBlock(app, e))) : '',
+      inPort ? route : '',
+      commsLines(app, e) ? section(app, 'comms', t('sec.comms'), ordersBox(commsLines(app, e))) : '',
       section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, e))),
       e.state === 'refit' ? '' : section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, e, { behaviour: false }))),
       atSea ? section(app, 'home', t('sec.home'), ordersBox(homePortLine(app, e))) : '',
-      es.planUnit ? routeSection(app, e) : '',
+      inPort ? '' : route,
       section(app, 'group', t('sec.group'), ordersBox(joinGroupBlock(app, e), formationLine(app, e)), false),
     ].join('');
   }
   const tabs = [
-    tab('cmd', { keyed: cmd, key: editingLegIndex(app, e) }),
+    tab('cmd', { keyed: cmd, key: `${editingLegIndex(app, e)}:${commsKey(w, e)}` }),
     tab('state', { pre: body }),
     tab('card', { keyed: unitCardHtml(w, e) }),
   ].filter(Boolean);
   return {
     group: 'escort',
     title,
-    summary: escapeHtml(`${escortStateText(w, e)} · ${t('unit.shipsShort', { n: e.ships })} · ${t('sheet.enduranceDays', { n: formatNumber(Math.max(0, e.endurance) / 86400, 1) })}`),
+    summary: escapeHtml(`${escortStateText(w, e)} · ${t('unit.shipsShort', { n: e.ships })} · ${t('sheet.enduranceDays', { n: formatNumber(Math.max(0, e.endurance) / 86400, 1) })} · ${chargesText(e)}`),
     bar: member ? '' : seaBar(app, e),
     tabs,
   };
@@ -1068,7 +1176,7 @@ function memberRows(app, f) {
       extra = `${t('unit.aircraftShort', { n: u.aircraft, total: u.aircraftStart })} · ${t('unit.ammoShort', { n: Math.round(u.ammo * 100) })}${fuel}${level !== 'fresh' ? ` · ${t(`sheet.fatigueLevels.${level}`)}` : ''}`;
     } else {
       state = escortStateText(w, u);
-      extra = `${t('unit.shipsShort', { n: u.ships })} · ${t('sheet.enduranceDays', { n: formatNumber(Math.max(0, u.endurance) / 86400, 1) })}`;
+      extra = `${t('unit.shipsShort', { n: u.ships })} · ${t('sheet.enduranceDays', { n: formatNumber(Math.max(0, u.endurance) / 86400, 1) })} · ${chargesText(u)}`;
     }
     const kind = f.kind === 'air' ? 'squadron' : 'escort';
     return `<li class="member${i === 0 ? ' leader' : ''}"><span class="member-name">${i === 0 ? '★ ' : ''}${escapeHtml(u.name)}</span>
@@ -1175,8 +1283,8 @@ function formationPanel(app, f) {
   if (!leader) return null;
   const air = f.kind === 'air';
   const total = members.reduce((n, u) => n + (air ? u.aircraft : u.ships), 0);
-  const manage = `<div class="order-line">${button('formation-manage', t('unit.manage'), { id: f.id })}${button('formation-dissolve', t('unit.dissolve'), { id: f.id })}</div>`;
-  const headings = app.settings.orders === 'headings';
+  const manage = `<div class="order-line">${toolOffered(app, 'formations') ? button('formation-manage', t('unit.manage'), { id: f.id }) : ''}${button('formation-dissolve', t('unit.dissolve'), { id: f.id })}</div>`;
+  const headings = app.world.settings.orders === 'headings';
   const planned = f.rally && f.rally.phase !== 'plan' && f.rally.phase !== 'gone';
   let cmd;
   if (air) {
@@ -1211,10 +1319,11 @@ function formationPanel(app, f) {
     cmd = [
       planned ? `<p class="hint">${escapeHtml(t('rally.underWay'))}</p>` : '',
       !planned && leader.state === 'inPort' ? section(app, 'port', t('sec.port'), ordersBox(exitLines(app, leader, { sail: false }), sailBlock(app, leader))) : '',
+      canMove && leader.state === 'inPort' ? routeSection(app, leader) : '',
       section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, leader))),
       section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, leader, { behaviour: false }))),
       atSea ? section(app, 'home', t('sec.home'), ordersBox(homePortLine(app, leader))) : '',
-      canMove ? routeSection(app, leader) : '',
+      canMove && leader.state !== 'inPort' ? routeSection(app, leader) : '',
       section(app, 'manage', t('sec.manage'), ordersBox(manage, `<p class="hint">${escapeHtml(t('unit.groupHint'))}</p>`), false),
     ].join('');
   }
@@ -1239,10 +1348,10 @@ function formationPanel(app, f) {
  * (flights left aside): [{ from, to, state, recall }].
  */
 function alertSegments(w, s, hours = 24) {
-  const delay = (a) => w.rules.crews.alert[a || 'available'].scrambleS;
+  const delay = (a) => w.rules.crews.alert[a || 'min5'].scrambleS;
   const end = w.t + hours * 3600;
   let eff = effectiveAlert(w, s);
-  let target = s.alert || 'available';
+  let target = s.alert || 'min5';
   let readyAt = s.alertAt !== null && s.alertAt !== undefined && s.alertAt > w.t ? s.alertAt : null;
   const changes = plannedChanges(w, s, end);
   const segs = [];
@@ -1293,10 +1402,10 @@ export function timelineHtml(w, s) {
 /** The "Effectifs" tab of an aerodrome: its squadrons' readiness, now and over 24 hours. */
 function rosterTab(app, site) {
   const w = app.world;
-  const here = w.squadrons.filter((s) => s.role === 'fighter' && s.state !== 'lost' && (s.airfield === site.id || s.home === site.id));
+  const here = w.squadrons.filter((s) => s.state !== 'lost' && (s.airfield === site.id || s.home === site.id));
   if (!here.length) return null;
   const blocks = here.map((s) => `<div class="roster-squadron">
-    <div class="roster-head"><b>${escapeHtml(s.name)}</b> <span>${escapeHtml(t(`states.squadron.${s.state}`))} · ${escapeHtml(t(`orders.alertNames.${s.alert || 'available'}`))}${s.alertManual ? ` · ${escapeHtml(t('orders.manual'))}` : ''}</span></div>
+    <div class="roster-head"><b>${escapeHtml(s.name)}</b> <span>${escapeHtml(t(`states.squadron.${s.state}`))} · ${escapeHtml(t(`orders.alertNames.${s.alert || 'min5'}`))}${s.alertManual ? ` · ${escapeHtml(t('orders.manual'))}` : ''}</span></div>
     ${timelineHtml(w, s)}</div>`);
   const legend = ALERTS.map((a) => `<span class="legend"><span class="seg alert-${a}"></span>${escapeHtml(t(`orders.alertNames.${a}`))}</span>`).join('');
   return `<div class="orders roster-tab">${rosterLinks(app, null, site.id)}<div class="legend-line">${legend}</div>${blocks.join('')}</div>`;
@@ -1381,6 +1490,16 @@ function attacksBlock(app, site) {
   return `<div class="sub">${escapeHtml(t('sheet.attacks'))}</div>${lines.length ? `<ul class="attacks">${lines.join('')}</ul>` : `<p class="hint">${escapeHtml(t('sheet.noAttack'))}</p>`}`;
 }
 
+/** What a ship lying in a port is doing: a group at its quay or refitting, a convoy waiting or unloading. */
+function shipInPortText(w, m) {
+  if (m.kind === 'convoy') {
+    const c = w.convoys.find((x) => x.id === m.id);
+    return t(`states.convoy.${c.state === 'arrived' ? 'unloading' : c.state}`);
+  }
+  const state = escortStateText(w, w.escorts.find((x) => x.id === m.id));
+  return m.formation ? t('sheet.supportGroupHere', { state, n: formationById(w, m.formation).members.length }) : state;
+}
+
 function sitePanel(app, key) {
   const w = app.world;
   const site = w.sites.get(key);
@@ -1415,7 +1534,12 @@ function sitePanel(app, key) {
         to: String((site.azimuth + half) % 360).padStart(3, '0'),
       }))));
     }
-    if (site.kind === 'port') sub = site.naval ? t('sheet.navalBase') : site.convoys ? t('sheet.convoyPort') : sub;
+    if (site.kind === 'port') {
+      sub = site.naval ? t('sheet.navalBase') : site.convoys ? t('sheet.convoyPort') : sub;
+      // The ships lying there: each has its tab on the edge of the sheet.
+      const ships = unitsIn(w, site);
+      if (ships.length) extra = `<div class="sub">${escapeHtml(t('sheet.shipsInPort'))}</div>${ships.map((m) => row(m.label, escapeHtml(shipInPortText(w, m)))).join('')}`;
+    }
   }
   const logistics = stockOrders(app, site);
   const allOrders = (logistics || '') + orders;
@@ -1477,6 +1601,9 @@ function buildPanel(app, sel) {
 // The keyed part being pressed (mouse or finger down on one of its buttons): it is not
 // redrawn until the press ends, or the click would land on a button that no longer exists.
 let pressedKeyed = null;
+// A part left as it was under a press: the panels are drawn again on the next image, so that
+// what the click changed (a confirmation to give, a button now lit) shows as the press ends.
+let redrawOwed = false;
 if (typeof document !== 'undefined') {
   document.addEventListener('pointerdown', (e) => {
     pressedKeyed = e.target && e.target.closest ? e.target.closest('[data-keyed]') : null;
@@ -1500,6 +1627,7 @@ function setKeyed(el, html, key) {
   const sameKey = el.__key === key;
   el.dataset.keyed = '1';
   if (sameKey && (pressedKeyed === el || (busyField(document.activeElement) && el.contains(document.activeElement)))) {
+    if (pressedKeyed === el) redrawOwed = true;
     return; // redrawn on a later frame, once the player is done
   }
   const typed = new Map();
@@ -1560,6 +1688,22 @@ function renderUnitPanel(app) {
   }
   el.unitPanel.hidden = false;
   el.table.classList.add('with-unit');
+  // The unit in hand stands in a stack on the map: a tab for each unit of the stack, on the
+  // edge of the sheet. The orders and the routes drawn go to the unit of the active tab.
+  // An aerodrome or a port that holds units, or a unit standing in one: the same tabs, the
+  // installation first, then each unit there (and what else its stack on the map holds).
+  const stack = stackOfSelection(app.stackOf, sel);
+  const place = siteTabs(app.world, sel, stack);
+  const stackTab = (to, label, active, title, cls = '') => `<button type="button" role="tab" aria-selected="${active}" data-action="select" data-kind="${to.kind}" data-id="${escapeHtml(to.id)}" class="${`${cls}${active ? ' active' : ''}`.trim()}" title="${escapeHtml(title)}">${escapeHtml(label)}</button>`;
+  let stackHtml = '';
+  if (place) {
+    stackHtml = place.tabs.map((m) => stackTab(tabSelection(m), m.label, m.active, t(m.site ? 'unit.siteTab' : 'unit.siteUnitTab', { name: m.label, site: place.site.name }), m.site ? 'site' : '')).join('');
+  } else if (stack) {
+    const inHand = activeMember(stack, sel);
+    stackHtml = stack.members.map((m) => stackTab(memberSelection(m), m.label, m === inHand, t('unit.stackTab', { name: m.label }))).join('');
+  }
+  setHtml(el.unitStack, stackHtml);
+  el.unitStack.hidden = !stackHtml;
   setHtml(el.unitTitle, panel.title);
   setHtml(el.unitSummary, panel.summary);
   app.unitTabs = app.unitTabs || {};
@@ -1585,6 +1729,8 @@ function renderUnitPanel(app) {
   }
   el.unitProfile.hidden = !profile;
   if (profile) drawProfile(el.unitProfile, app, panel.profileUnit);
+  // The help sentences: shown, or folded behind a « ? » by section (setting « Aides des fiches »).
+  applySheetHelp(app, el.unitBody, t('sheet.helpToggle'));
 }
 
 export function renderPanels(app) {
@@ -1595,7 +1741,11 @@ export function renderPanels(app) {
   const hint = app.el.panelHint;
   if (hint) {
     hint.hidden = Boolean(app.selection);
-    const text = app.settings.orders === 'headings' ? t('panel.hintHeadings') : t('panel.hint');
+    const text = app.world.settings.orders === 'headings' ? t('panel.hintHeadings') : t('panel.hint');
     if (hint.textContent !== text) hint.textContent = text;
+  }
+  if (redrawOwed) {
+    redrawOwed = false;
+    app.dirtyPanels = true;
   }
 }

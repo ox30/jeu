@@ -77,3 +77,47 @@ test('a contact held at the ASDIC is reported now and then with a depth and a co
     assert.ok(r.depthM >= 40 && r.depthM <= 150, `depth ${r.depthM}`);
   }
 });
+
+test('a group waiting for orders holds its contact like the others: one sighting, not one a minute', () => {
+  const w = makeWorld('standard', {}, 'hiver-atlantique');
+  const u = w.uboats[0];
+  const e = w.escorts[0];
+  // A boat hit and going home (the groups let it go), under a group that has finished its orders.
+  Object.assign(u, { damaged: true, state: 'leaving', submergedUntil: w.t + 6 * 3600 });
+  Object.assign(e, { state: 'waiting', x: u.x + 1, y: u.y, route: [], plan: [], berthed: false });
+  const events = [];
+  for (let m = 0; m < 45; m++) {
+    events.push(...run(w, 60));
+    Object.assign(e, { x: u.x + 1, y: u.y });
+  }
+  const sightings = events.filter((x) => x.type === 'uboatSighted' && x.byId === e.id);
+  assert.equal(sightings.length, 1, `${sightings.length} sightings of the same contact`);
+  assert.equal(events.filter((x) => x.type === 'uboatContactLost').length, 0, 'held all along');
+  assert.ok(!events.some((x) => x.type === 'escortEngaged'), 'a boat going home is let go');
+});
+
+test('the ASDIC loses a boat that goes deep, and finds it again when it comes back up', () => {
+  const w = makeWorld('standard', {}, 'hiver-atlantique');
+  const u = w.uboats[0];
+  const e = w.escorts[0];
+  Object.assign(u, { damaged: true, state: 'leaving', submergedUntil: w.t + 6 * 3600 });
+  Object.assign(e, { state: 'waiting', x: u.x + 1, y: u.y, route: [], plan: [], berthed: false });
+  const hold = (minutes) => {
+    const out = [];
+    for (let m = 0; m < minutes; m++) {
+      out.push(...run(w, 60));
+      Object.assign(e, { x: u.x + 1, y: u.y });
+    }
+    return out;
+  };
+  const before = hold(20);
+  assert.equal(before.filter((x) => x.type === 'uboatSighted').length, 1);
+  assert.ok(u.seen, 'held');
+  u.deepUntil = w.t + 1800;
+  const deep = hold(25);
+  assert.equal(deep.filter((x) => x.type === 'uboatContactLost').length, 1, 'the contact is lost once');
+  assert.equal(deep.filter((x) => x.type === 'uboatSighted').length, 0, 'nothing heard while it is deep');
+  assert.ok(w.uboatPlots.some((p) => p.uboatId === u.id && p.lastSeen), 'its last position stays on the table');
+  const after = hold(40);
+  assert.ok(after.some((x) => x.type === 'uboatSighted' && x.byId === e.id), 'heard again once it is back up');
+});

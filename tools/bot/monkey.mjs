@@ -13,6 +13,8 @@ import * as timetable from '../../src/sim/timetable.js';
 import * as mru from '../../src/sim/mru.js';
 import * as combat from '../../src/sim/combat.js';
 import * as asw from '../../src/sim/asw.js';
+import * as settings from '../../src/sim/gameSettings.js';
+import * as convoyMod from '../../src/sim/convoy.js';
 
 const F = sim.formations;
 
@@ -37,6 +39,7 @@ function buildActions(rnd, world) {
   const air = () => w.formations.filter((f) => f.kind === 'air');
   const states = sim.crews.ALERT_STATES;
   const channels = () => [null, 'x', ...w.ports.flatMap((p) => (p.approaches || []).map((a) => a.name))];
+  const convoyEnds = (c) => (convoyMod.convoyEndChoices ? convoyMod.convoyEndChoices(w, c) : []);
   const legEnd = () => pick([
     null,
     { kind: 'duration', s: 600 + rnd() * 7200 },
@@ -75,19 +78,75 @@ function buildActions(rnd, world) {
     setShipBoost: () => { const c = pick(ships()); if (c) O.setShipBoost(w, c, rnd() < 0.5); },
     depart: () => { const c = pick(w.convoys); if (c) O.departConvoy(w, c); },
     sailEscort: () => { const e = pick(w.escorts); if (e) O.sailEscort(w, e); },
+    // The exit step of a group in port (2.10.3): none, the roads, a channel of its port, or a name that is none.
+    planExit: () => {
+      const e = pick(w.escorts);
+      if (!e || !O.planExit) return;
+      const port = w.byId.port.get(e.portId);
+      O.planExit(w, e, pick([null, 'roads', 'nowhere', ...((port && port.approaches) || []).map((a) => a.name)]));
+    },
+    // The line after the way out, drawn longer or taken away (as the ring and the cross of the sheet do).
+    exitLine: () => {
+      const e = pick(w.escorts);
+      if (e && e.routeHead > 0) O.editShipRoute(w, e, rnd() < 0.3 ? [] : [near(e, 300), near(e, 700)]);
+    },
     leavePort: () => { const e = pick(w.escorts); if (e) O.leavePort(w, e, ...near(e, 60)); },
     joinConvoy: () => { const e = pick(w.escorts); const c = pick(w.convoys); if (e && c) O.joinConvoy(w, e, c.id); },
     leaveConvoy: () => { const e = pick(w.escorts); if (e) O.leaveConvoy(w, e); },
     setEscortBehaviour: () => { const e = pick(w.escorts); if (e) O.setEscortBehaviour(w, e, pick(['stay', 'hunt'])); },
-    setHuntHours: () => { const e = pick(w.escorts); if (e && O.setHuntHours) O.setHuntHours(w, e, pick([1, 3, 12, 0, 99])); },
+    setEscortPattern: () => { const e = pick(w.escorts); if (e && O.setEscortPattern) O.setEscortPattern(w, e, pick(['full', 'light', 'none'])); },
+    // The orders of the sea as the interface sends them (2.8): at once, by lamp, by radio at
+    // the next relief or carried by a group, with what goes with them.
+    seaOrder: () => {
+      const C = sim.comms;
+      const u = pick(ships());
+      if (!C || !u) return;
+      const convoy = pick(w.convoys);
+      const port = pick(w.ports);
+      const args = {
+        route: [[near(u, 300), near(u, 600)]],
+        editRoute: [[near(u, 200), near(u, 500)]],
+        addLeg: [{ heading: rnd() * 360, end: legEnd() }],
+        updateLeg: [0, { heading: rnd() * 360, end: legEnd() }],
+        removeLeg: [0],
+        clearPlan: [],
+        speedPct: [rnd() * 130],
+        boost: [rnd() < 0.5],
+        convoySpeed: [rnd() * 14],
+        zigzag: [rnd() < 0.5],
+        join: [convoy ? convoy.id : 'none'],
+        leave: [],
+        home: [rnd() < 0.5 || !port ? null : port.id],
+        behaviour: [pick(['stay', 'hunt'])],
+        pattern: [pick(['full', 'light'])],
+        huntPlot: [pick(w.uboatPlots)?.id ?? 'none'],
+        huntStop: [],
+        // (A convoy's own: into a port by one of its channels, the Admiralty's route again.)
+        endAction: [pick([{ kind: 'stop' }, { kind: 'hold' }, { kind: 'hunt' }, { kind: 'port', id: port ? port.id : null }, ...(u.kind === 'convoy' ? convoyEnds(u) : [])])],
+        position: [],
+      };
+      const name = pick(C.ORDER_NAMES);
+      C.sendOrder(w, u, name, ...(args[name] || []));
+    },
+    commsCancel: () => { const C = sim.comms; const s = pick(w.signals || []); if (C && s) C.cancelOrder(w, s.id); },
+    commsCarry: () => { const C = sim.comms; const s = pick(w.signals || []); const e = pick(w.escorts); if (C && s && e) C.carryByShip(w, s.id, e.id); },
+    askPosition: () => { const C = sim.comms; const u = pick(ships()); if (C && u) C.requestPosition(w, u); },
+    // The settings of the game, changed by an order during the game (N9, Code 4 of the audit).
+    gameSetting: () => {
+      const key = pick([...settings.GAME_SETTING_KEYS, 'nothing']);
+      const values = Object.values(data.presets.presets).map((p) => p[key]).filter((v) => v !== undefined);
+      settings.setGameSetting(w, key, pick([...values, ...(data.presets.choices?.[key] || []), 'absurd', true, false, null]), data.presets);
+    },
+    applyPreset: () => { if (rnd() < 0.3) settings.applyPreset(w, pick([...Object.keys(data.presets.presets), 'nothing']), data.presets); },
     huntPlot: () => { const e = pick(w.escorts); const p = pick(w.uboatPlots); if (e && p) O.huntPlot(w, e, p.id); },
     stopHunt: () => { const e = pick(w.escorts); if (e) asw.stopHunt(w, e); },
     escortHome: () => { const e = pick(w.escorts); if (e) O.escortHome(w, e, rnd() < 0.5 ? null : (pick(w.ports) || {}).id); },
     setShipEndAction: () => { const e = pick(w.escorts); if (e) sim.naval.setShipEndAction(w, e, pick(sim.naval.shipEndChoices(w, e))); },
+    // The end of a convoy's route (2.10.5): one of its choices, or something that is none.
+    convoyEnd: () => { const c = pick(w.convoys); if (c) sim.naval.setShipEndAction(w, c, pick([...convoyEnds(c), { kind: 'port', id: 'nowhere', via: 'x' }, { kind: 'port', id: (pick(w.ports) || {}).id }, null])); },
     setExitChannel: () => { const e = pick(w.escorts); if (e) O.setExitChannel(w, e, pick(channels())); },
     sendTrain: () => { const a = pick(sites()); const b = pick(sites()); if (a && b) O.sendTrain(w, a.key, b.key, { fuel: rnd() * 120, materiel: rnd() < 0.5 ? rnd() * 60 : 0, ammo: rnd() < 0.3 ? 5 : 0 }); },
     setMinStock: () => { const a = pick(sites()); if (a) O.setMinStock(w, a, pick(['fuel', 'materiel', 'ammo']), pick([null, 0, 20, 60, NaN])); },
-    setPurchase: () => { if (O.setPurchase) O.setPurchase(w, pick([0, 0.25, 0.5, 0.75, 1, 2, -1])); },
     buyOffer: () => { const o = pick(sim.shipping.offers(w)); if (o) O.buyOffer(w, o.id); },
     deployMru: () => { const f = pick(w.airfields); if (f) mru.deployMru(w, f.x + (rnd() - 0.5) * 60, f.y + (rnd() - 0.5) * 60, rnd() * 360); },
     answerQuestion: () => { const q = pick(w.questions); if (q) O.answerQuestion(w, q.id, pick([true, false, 'wait', 'slow', 'go'])); },
@@ -141,6 +200,44 @@ function firstDifferences(a, b, path = '', out = []) {
   return out;
 }
 
+/**
+ * What is wrong with the `routeHead` of a group, or null: it counts the first points of the
+ * route, and those are a run of points of one charted channel of a port, outward.
+ */
+export function wayOutFlaw(w, e) {
+  const head = e.routeHead;
+  if (!Number.isInteger(head) || head < 0 || head > e.route.length) return `has a way out of ${head} points on a route of ${e.route.length}`;
+  if (!e.exitPlanned && e.exitChannel && e.state === 'inPort' && e.route.length) return 'keeps a channel that is no step';
+  if (e.state === 'inPort' && e.route.length && !head) return 'has a route in port that does not start by a way out';
+  if (!head) return null;
+  const same = (p, q) => Math.abs(p[0] - q[0]) < 1e-9 && Math.abs(p[1] - q[1]) < 1e-9;
+  for (const port of w.byId.port.values()) {
+    for (const a of port.approaches || []) {
+      const out = a.points.slice(0, -1).reverse();
+      for (let i = 0; i + head <= out.length; i++) {
+        if (same(out[i], e.route[0]) && e.route.slice(0, head).every((p, k) => same(p, out[i + k]))) return null;
+      }
+    }
+  }
+  return `has a way out of ${head} points that follows no channel of a port`;
+}
+
+/**
+ * What is wrong with what a convoy was told for the end of its route (2.10.5), or null: it
+ * is one of its choices, a route that goes into a port has none (its end is the port), and
+ * the mark of a route just ended does not outlive the step.
+ */
+export function convoyEndFlaw(w, c) {
+  if (c.routeEnded) return 'keeps the mark of a route that ended';
+  const a = c.endAction;
+  if (!a) return null;
+  const same = (x) => x.kind === a.kind && (x.id || null) === (a.id || null) && (x.via || null) === (a.via || null);
+  if (!convoyMod.convoyEndChoices(w, c).some(same)) return `was told an end that is none of its choices: ${JSON.stringify(a)}`;
+  if (c.destination) return `has an end order (${a.kind}) on a route that goes into ${c.destination}`;
+  if (!['atSea', 'waiting', 'inPort'].includes(c.state)) return `keeps an end order (${a.kind}) though it is ${c.state}`;
+  return null;
+}
+
 function check(w, label, problems) {
   const at = gameClock(w);
   for (const u of [...w.squadrons, ...w.convoys, ...w.escorts, ...w.uboats, ...w.raids]) {
@@ -153,6 +250,13 @@ function check(w, label, problems) {
   }
   for (const c of w.convoys) {
     if (c.ships < 0 || c.cargo.fuel < -1e-6 || c.cargo.materiel < -1e-6) problems.push(`${at} after « ${label} »: bad convoy ${c.id}`);
+    const flaw = convoyEndFlaw(w, c);
+    if (flaw) problems.push(`${at} after « ${label} »: convoy ${c.id} (${c.state}) ${flaw}`);
+  }
+  // The head of a group's route (2.10.3): its charted way out of port, and nothing else.
+  for (const e of w.escorts) {
+    const flaw = wayOutFlaw(w, e);
+    if (flaw) problems.push(`${at} after « ${label} »: group ${e.id} (${e.state}) ${flaw}`);
   }
   for (const site of w.sites.values()) {
     if (!site.stocks) {

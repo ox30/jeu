@@ -1,0 +1,83 @@
+{
+  "id": "lecon-intercepter",
+  "base": "m0-july-1940",
+  "title": "Leçon 1 : intercepter",
+  "note": "Leçon du tutoriel (I10). Un premier raid sur Hawkinge, que l'instructeur laisse passer en faisant décoller trop tard ; puis un raid retenu (held), une douzaine de bombardiers sans escorte sur Biggin Hill, que la leçon lâche deux minutes après son briefing.",
+  "start": "1940-07-10T12:00",
+  "end": "1940-07-11T20:00",
+  "seed": 11,
+  "map": {
+    "zone": "britain",
+    "view": "england",
+    "views": [
+      "britain",
+      "england"
+    ],
+    "layers": [
+      "grid",
+      "radars",
+      "night"
+    ],
+    "tools": [
+      "ruler",
+      "radarCover",
+      "reports",
+      "cards"
+    ]
+  },
+  "convoys": [],
+  "squadrons": [
+    {
+      "id": "32",
+      "name": "32 Sqn",
+      "type": "Hurricane",
+      "airfield": "biggin_hill",
+      "aircraft": 12
+    },
+    {
+      "id": "111",
+      "name": "111 Sqn",
+      "type": "Hurricane",
+      "airfield": "croydon",
+      "aircraft": 12
+    }
+  ],
+  "raids": [
+    {
+      "assemblyMin": 12,
+      "bomberType": "Do 17",
+      "escort": 0,
+      "escortType": "Bf 109",
+      "altitudeFt": 12000,
+      "speedKmh": 320,
+      "id": "d01",
+      "label": "H01",
+      "time": "1940-07-10T12:02",
+      "origin": {
+        "lon": 1.85,
+        "lat": 50.95
+      },
+      "target": "airfield:hawkinge",
+      "bombers": 12
+    },
+    {
+      "assemblyMin": 12,
+      "bomberType": "Do 17",
+      "escort": 0,
+      "escortType": "Bf 109",
+      "altitudeFt": 12000,
+      "speedKmh": 320,
+      "id": "d02",
+      "label": "H02",
+      "held": true,
+      "origin": {
+        "lon": 1.85,
+        "lat": 50.95
+      },
+      "target": "airfield:biggin_hill",
+      "bombers": 12
+    }
+  ],
+  "phantoms": [],
+  "objectives": []
+}

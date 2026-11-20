@@ -4,7 +4,6 @@
 
 import { escapeHtml, t } from '../core/i18n.js';
 import { formatTime } from '../core/time.js';
-import { loadFromBrowser } from '../save/game.js';
 
 /**
  * Called by the frame loop when a step or a frame throws. Pauses the game, keeps the last
@@ -40,8 +39,8 @@ export function openCrash(app) {
   // The save offered is one of this very game: a game just begun may still have the save of
   // the game before it in the browser.
   const ownSave = () => {
-    const s = loadFromBrowser();
-    return s && s.meta && s.meta.gameId === app.gameId ? s : null;
+    const e = app.store.current();
+    return e && e.gameId === app.gameId ? e : null;
   };
   const saved = ownSave();
   dlg.innerHTML = `
@@ -65,16 +64,17 @@ export function openCrash(app) {
       note.textContent = t('crash.exportFailed');
     }
   });
-  dlg.querySelector('[data-crash="resume"]').addEventListener('click', () => {
-    const again = ownSave();
-    if (!again) return;
-    try {
-      app.crash = null;
-      app.resume(again);
+  dlg.querySelector('[data-crash="resume"]').addEventListener('click', async () => {
+    if (!ownSave()) return;
+    const crash = app.crash;
+    app.crash = null;
+    const result = await app.reloadCurrent();
+    if (result.ok) {
       app.paused = true;
       dlg.close();
-    } catch (err) {
-      note.textContent = t('crash.resumeFailed', { message: err.message });
+    } else {
+      app.crash = crash;
+      note.textContent = t('crash.resumeFailed', { message: result.detail || result.code });
     }
   });
   if (!dlg.open) dlg.showModal();

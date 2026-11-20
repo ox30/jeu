@@ -1,13 +1,14 @@
 // Dialogs: settings, help, success and end of the scenario.
 
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
-import { dateTimeText, objectiveText, realDurationText } from './format.js';
+import { objectiveText, realDurationText } from './format.js';
 import { endSummaryKeys } from './summary.js';
 import { checkDevPassword } from './dev.js';
-import { markHelpSeen, matchingPreset, saveSettings } from '../save/settings.js';
+import { markHelpSeen, saveSettings } from '../save/settings.js';
+import { GAME_SETTING_KEYS, applyPreset, canSetGameSetting, matchingPreset, setGameSetting } from '../sim/gameSettings.js';
 import { showPage } from './pages.js';
 import { fighterCount } from '../sim/objectives.js';
-import { CHAIN, TRAINING, saveCampaign, scenarioStatus } from './campaign.js';
+import { presetStory } from '../sim/gameSettings.js';
 import { ALERT_GROUPS, defaultAlertSpeed } from './alertRules.js';
 import { setVolume } from './sound.js';
 
@@ -45,9 +46,18 @@ function speedWord(v) {
 
 const SETTINGS_TABS = ['game', 'time', 'map', 'sound', 'dev'];
 
-export function openSettings(app) {
+/**
+ * The settings page. `scope` says whose game settings it shows: 'game', those of the game
+ * under way (changed by an order, kept with the game), or 'defaults', the player's own, which
+ * the next games begin with. The display settings are the player's in both.
+ */
+export function openSettings(app, { scope = 'game' } = {}) {
   const dlg = app.el.dlgSettings;
-  const s = app.settings;
+  const inGame = scope === 'game';
+  const mine = app.settings;
+  // `s` gives every value of the page: the game's own for what belongs to it, the player's
+  // for the rest.
+  const s = inGame ? { ...mine, ...app.world.settings } : mine;
   const presets = app.data.presets;
   const presetChoices = [...Object.keys(presets.presets), 'custom'];
   const tab = SETTINGS_TABS.includes(app.settingsTab) ? app.settingsTab : 'game';
@@ -57,7 +67,8 @@ export function openSettings(app) {
       <h2>${escapeHtml(t('settings.title'))}</h2>
       <nav class="settings-tabs" role="tablist">${SETTINGS_TABS.map((id) => `<button type="button" role="tab" data-stab="${id}" class="${id === tab ? 'active' : ''}">${escapeHtml(t(`settings.tabs.${id}`))}</button>`).join('')}</nav>
       ${pane('game', `
-      <label>${escapeHtml(t('settings.preset'))} ${select('preset', matchingPreset(s, presets), presetChoices, 'settings.presets')}</label>
+      <p class="hint settings-scope">${escapeHtml(t(inGame ? 'settings.scopeGame' : 'settings.scopeDefaults'))}</p>
+      <label>${escapeHtml(t('settings.preset'))} ${select('preset', inGame ? app.world.settings.preset : matchingPreset(s, presets), presetChoices, 'settings.presets')}</label>
       <fieldset>
         <label>${escapeHtml(t('settings.detection'))} ${select('detection', s.detection, presets.choices.detection, 'settings.detectionChoices')}</label>
         ${checkbox('falseAlarms', s.falseAlarms, t('settings.falseAlarms'))}
@@ -70,12 +81,16 @@ export function openSettings(app) {
         <label>${escapeHtml(t('settings.rosterHours'))} ${select('rosterHours', String(s.rosterHours || '24'), presets.choices.rosterHours, 'settings.rosterHoursChoices')}</label>
         <label>${escapeHtml(t('settings.carry'))} ${select('carry', s.carry || 'none', presets.choices.carry, 'settings.carryChoices')}</label>
         <label>${escapeHtml(t('settings.bdienst'))} ${select('bdienst', String(s.bdienst ?? '25'), presets.choices.bdienst, 'settings.bdienstChoices')}</label>
+        <label>${escapeHtml(t('settings.seaComms'))} ${select('seaComms', s.seaComms || 'direct', presets.choices.seaComms, 'settings.seaCommsChoices')}</label>
+        <p class="hint">${escapeHtml(t('settings.seaCommsHint'))}</p>
       </fieldset>`)}
       ${pane('time', `
       <fieldset>
         ${checkbox('slowOnAlert', s.slowOnAlert, t('settings.slowOnAlert'))}
         ${checkbox('confirmSpeed', s.confirmSpeed !== false, t('settings.confirmSpeed'))}
         ${checkbox('questions', s.questions !== false, t('settings.questions'))}
+        <label>${escapeHtml(t('settings.watchStops'))} ${select('watchStops', s.watchStops || 'decision', presets.choices.watchStops, 'settings.watchStopsChoices')}</label>
+        <p class="hint">${escapeHtml(t('settings.watchStopsHint'))}</p>
       </fieldset>
       <p class="hint">${escapeHtml(t('settings.alertSpeedsHint'))}</p>
       <table class="alert-speeds">${alertSpeedTable(app)}</table>`)}
@@ -83,10 +98,14 @@ export function openSettings(app) {
       <fieldset>
         ${checkbox('altitudeStalks', s.altitudeStalks, t('settings.altitudeStalks'))}
         ${app.world.grid ? checkbox('grid', s.grid, t('settings.grid')) : ''}
+        ${checkbox('nightShadow', s.nightShadow !== false, t('settings.nightShadow'))}
+        ${checkbox('patrolZones', s.patrolZones !== false, t('settings.patrolZones'))}
         ${checkbox('autoZoom', s.autoZoom, t('settings.autoZoom'))}
         ${checkbox('lowRes', s.lowRes, t('settings.lowRes'))}
         <label>${escapeHtml(t('settings.sheetPos'))} ${select('sheetPos', s.sheetPos || 'right', presets.choices.sheetPos, 'settings.sheetPosChoices')}</label>
         <p class="hint">${escapeHtml(t('settings.sheetHint'))}</p>
+        <label>${escapeHtml(t('settings.sheetHelp'))} ${select('sheetHelp', s.sheetHelp || 'shown', presets.choices.sheetHelp, 'settings.sheetHelpChoices')}</label>
+        <p class="hint">${escapeHtml(t('settings.sheetHelpHint'))}</p>
         <label>${escapeHtml(t('settings.viewZones'))} ${select('viewZones', s.viewZones || 'selected', presets.choices.viewZones, 'settings.viewZonesChoices')}</label>
         <p class="hint">${escapeHtml(t('settings.viewZonesHint'))}</p>
       </fieldset>`)}
@@ -119,25 +138,47 @@ export function openSettings(app) {
     for (const x of form.querySelectorAll('[data-stab]')) x.classList.toggle('active', x === b);
     for (const p of form.querySelectorAll('[data-spane]')) p.hidden = p.dataset.spane !== b.dataset.stab;
   });
+  // What belongs to the game: its preset and its settings. Fixed ones (the carry-over of the
+  // campaign) cannot be changed once the game is under way.
+  if (inGame) {
+    for (const k of GAME_SETTING_KEYS) {
+      const field = form.elements[k];
+      if (field && !canSetGameSetting(app.world, k, field.type === 'checkbox' ? field.checked : field.value, presets)) field.disabled = true;
+    }
+  }
   form.addEventListener('change', (e) => {
     const field = e.target;
     if (field.dataset.dev) return; // developer mode: devSettings()
-    if (field.name.startsWith('alertSpeed:')) {
-      const type = field.name.slice('alertSpeed:'.length);
-      s.alertSpeeds = { ...(s.alertSpeeds || {}) };
-      if (field.value === '') delete s.alertSpeeds[type];
-      else s.alertSpeeds[type] = Number(field.value);
-    } else if (field.name === 'preset') {
-      if (field.value !== 'custom') Object.assign(s, presets.presets[field.value]);
-    } else if (field.type === 'checkbox') {
-      s[field.name] = field.checked;
-    } else if (field.type === 'range') {
-      s[field.name] = Number(field.value);
+    const ofGame = field.name === 'preset' || GAME_SETTING_KEYS.includes(field.name);
+    if (ofGame && inGame) {
+      // The game under way: by an order, which the journal keeps.
+      const value = field.type === 'checkbox' ? field.checked : field.value;
+      if (field.name === 'preset') {
+        if (value !== 'custom') applyPreset(app.world, value, presets);
+      } else setGameSetting(app.world, field.name, value, presets);
+      Object.assign(s, app.world.settings);
+      app.save();
     } else {
-      s[field.name] = field.value;
+      const own = mine;
+      if (field.name.startsWith('alertSpeed:')) {
+        const type = field.name.slice('alertSpeed:'.length);
+        own.alertSpeeds = { ...(own.alertSpeeds || {}) };
+        if (field.value === '') delete own.alertSpeeds[type];
+        else own.alertSpeeds[type] = Number(field.value);
+      } else if (field.name === 'preset') {
+        if (field.value !== 'custom') Object.assign(own, presets.presets[field.value]);
+      } else if (field.type === 'checkbox') {
+        own[field.name] = field.checked;
+      } else if (field.type === 'range') {
+        own[field.name] = Number(field.value);
+      } else {
+        own[field.name] = field.value;
+      }
+      own.preset = matchingPreset(own, presets);
+      saveSettings(own);
+      if (!inGame) Object.assign(s, own);
+      else for (const k of Object.keys(own)) if (!(k in app.world.settings)) s[k] = own[k];
     }
-    s.preset = matchingPreset(s, presets);
-    saveSettings(s);
     if (field.name === 'volume') setVolume(app);
     if (field.name === 'lowRes' && app.resize) app.resize();
     if (field.name === 'sheetPos' && app.applySheet) app.applySheet();
@@ -151,7 +192,7 @@ export function openSettings(app) {
   });
   // The volume follows the slider while it moves.
   form.elements.volume.addEventListener('input', (e) => {
-    s.volume = Number(e.target.value);
+    mine.volume = Number(e.target.value);
     setVolume(app);
   });
   showPage(app, dlg);
@@ -217,7 +258,7 @@ function devSettings(app, form) {
 
 // Keeps the form in step after a preset change.
 openSettings.refresh = (form, s, presets) => {
-  form.elements.preset.value = matchingPreset(s, presets);
+  form.elements.preset.value = s.preset && [...form.elements.preset.options].some((o) => o.value === s.preset) ? s.preset : matchingPreset(s, presets);
   form.elements.detection.value = s.detection;
   form.elements.interceptAid.value = s.interceptAid;
   form.elements.fuel.value = s.fuel;
@@ -228,6 +269,7 @@ openSettings.refresh = (form, s, presets) => {
   form.elements.bdienst.value = String(s.bdienst ?? '25');
   form.elements.falseAlarms.checked = s.falseAlarms;
   form.elements.pagesPause.checked = s.pagesPause;
+  form.elements.seaComms.value = s.seaComms || 'direct';
 };
 
 /** The steps of the help, for the scenario being played. */
@@ -237,7 +279,7 @@ function helpSteps(app) {
   return t(app.world.rail.enabled ? 'help.steps' : 'help.stepsTraining');
 }
 
-const HELP_TABS = ['scenario', 'sheet', 'air', 'sea', 'time', 'keys'];
+const HELP_TABS = ['scenario', 'sheet', 'air', 'sea', 'time', 'games', 'keys'];
 
 /** A picture from the test bench, beside the text it illustrates (data/help/images.json). */
 function helpImage(app, name) {
@@ -245,10 +287,14 @@ function helpImage(app, name) {
   return src ? `<figure class="help-image"><img src="${src}" alt="${escapeHtml(t(`help.images.${name}`))}"><figcaption>${escapeHtml(t(`help.images.${name}`))}</figcaption></figure>` : '';
 }
 
-/** The help, in tabs: this scenario, the sheet, the air, the sea, time and alerts, the keys. */
+/** The help, in tabs: this scenario, the sheet, the air, the sea, time and alerts, games and settings, the keys. */
 export function openHelp(app) {
   const dlg = app.el.dlgHelp;
-  const tab = HELP_TABS.includes(app.helpTab) ? app.helpTab : 'scenario';
+  // From the main menu with no game in hand there is no « this scenario » to speak of: the
+  // help opens on the games and their settings.
+  const noGame = Boolean(app.onMenu) && !(app.gameInProgress && app.gameInProgress());
+  const tabs = noGame ? HELP_TABS.filter((id) => id !== 'scenario') : HELP_TABS;
+  const tab = tabs.includes(app.helpTab) ? app.helpTab : noGame ? 'games' : 'scenario';
   const list = (items) => `<ol>${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
   const bodies = {
     scenario: list(helpSteps(app)),
@@ -256,13 +302,14 @@ export function openHelp(app) {
     air: `${list(t('help.air'))}${helpImage(app, 'roster')}`,
     sea: `${helpImage(app, 'escort')}${list(t('help.sea'))}`,
     time: list(t('help.time')),
+    games: list(t('help.games')),
     keys: `<p class="keys">${escapeHtml(t('help.keys'))}</p>`,
   };
   dlg.innerHTML = `
     <form method="dialog" class="help-page">
       <h2>${escapeHtml(t('help.title'))}</h2>
-      <nav class="settings-tabs" role="tablist">${HELP_TABS.map((id) => `<button type="button" role="tab" data-htab="${id}" class="${id === tab ? 'active' : ''}">${escapeHtml(t(`help.tabs.${id}`))}</button>`).join('')}</nav>
-      ${HELP_TABS.map((id) => `<section class="help-pane" data-hpane="${id}"${id === tab ? '' : ' hidden'}>${bodies[id]}</section>`).join('')}
+      <nav class="settings-tabs" role="tablist">${tabs.map((id) => `<button type="button" role="tab" data-htab="${id}" class="${id === tab ? 'active' : ''}">${escapeHtml(t(`help.tabs.${id}`))}</button>`).join('')}</nav>
+      ${tabs.map((id) => `<section class="help-pane" data-hpane="${id}"${id === tab ? '' : ' hidden'}>${bodies[id]}</section>`).join('')}
       <div class="dialog-buttons"><button value="close">${escapeHtml(t('help.close'))}</button></div>
     </form>`;
   dlg.querySelector('.settings-tabs').addEventListener('click', (e) => {
@@ -291,6 +338,8 @@ export function openEnd(app) {
   const dlg = app.el.dlgEnd;
   const w = app.world;
   const st = w.stats;
+  const story = presetStory(w);
+  const next = app.nextScenario ? app.nextScenario() : null;
   // The figures of each line; the lines themselves follow the scenario (summary.js).
   const figures = {
     unloaded: { fuel: formatNumber(Math.round(st.unloaded.fuel)), materiel: formatNumber(Math.round(st.unloaded.materiel)) },
@@ -320,175 +369,55 @@ export function openEnd(app) {
       ${objectives ? `<h3>${escapeHtml(t('end.objectives'))}</h3><ul class="end-objectives">${objectives}</ul>` : ''}
       <ul>${lines.join('')}</ul>
       ${played}
+      <p class="end-preset">${escapeHtml(story.changed
+    ? t('menu.presetChanged', { start: t(`settings.presets.${story.start}`), end: t(`settings.presets.${story.end}`) })
+    : t('menu.presetStory', { preset: t(`settings.presets.${story.end}`) }))}</p>
       <div class="dialog-buttons">
-        <button value="replay" type="button" data-replay>${escapeHtml(t('end.replay'))}</button>
-        <button value="close">${escapeHtml(t('end.close'))}</button>
+        <button type="button" data-end="replay">${escapeHtml(t('end.replay'))}</button>
+        ${next ? `<button type="button" data-end="next">${escapeHtml(t('menu.next', { title: t(`scenarios.${next}.title`) }))}</button>` : ''}
+        <button type="button" data-end="menu">${escapeHtml(t('menu.main'))}</button>
+        <button value="close" class="secondary">${escapeHtml(t('end.close'))}</button>
       </div>
     </form>`;
-  dlg.querySelector('[data-replay]').addEventListener('click', () => {
+  // Rejouer, the next scenario of the campaign when a victory has opened it, or the main menu.
+  dlg.querySelector('.dialog-buttons').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-end]');
+    if (!b) return;
     dlg.close();
-    app.restart();
+    if (b.dataset.end === 'replay') app.restart();
+    else if (b.dataset.end === 'next') app.restart(next);
+    else app.toMainMenu();
   });
   dlg.showModal();
 }
 
-/** Choice of scenario: starting one restarts the game. */
-export function openScenarios(app) {
-  const dlg = app.el.dlgScenario;
-  const c = app.campaign;
-  const item = (sc) => {
-    const status = scenarioStatus(c, sc.id);
-    const locked = status === 'locked';
-    const badge = status === 'free' ? t('campaign.training') : t(`campaign.${status}`);
-    const tutorial = sc.id === TRAINING ? `<button type="button" data-tutorial="${escapeHtml(sc.id)}">${escapeHtml(t('campaign.tutorial'))}</button>` : '';
-    return `
-    <li class="${sc.id === app.world.scenario.id ? 'current' : ''} ${status}">
-      <b>${escapeHtml(t(`scenarios.${sc.id}.title`))}</b> <span class="badge ${status}">${escapeHtml(badge)}</span>
-      <p>${escapeHtml(t(locked ? 'scenarios.locked' : `scenarios.${sc.id}.text`))}</p>
-      <div class="scenario-buttons">
-        <button type="button" data-scenario="${escapeHtml(sc.id)}"${locked ? ' disabled' : ''}>${escapeHtml(t('scenarios.play'))}</button>
-        ${tutorial}
-      </div>
-    </li>`;
-  };
-  const chain = CHAIN.map((id) => app.data.scenarios.find((sc) => sc.id === id)).filter(Boolean);
-  const others = app.data.scenarios.filter((sc) => !CHAIN.includes(sc.id));
+/**
+ * The scenario of a lesson has ended before the lesson did (its hours ran out, or the little
+ * battle was lost): no verdict and no objectives, which are not the pupil's business here —
+ * the lesson again with its instructor, or the list of the lessons.
+ */
+export function openLessonOver(app) {
+  const dlg = app.el.dlgEnd;
+  const name = app.tutorial ? t(`tutorial.lessons.${app.tutorial.lesson}.name`) : '';
   dlg.innerHTML = `
     <form method="dialog">
-      <h2>${escapeHtml(t('settings.scenarioTitle'))}</h2>
-      <h3>${escapeHtml(t('campaign.title'))}</h3>
-      <p class="hint">${escapeHtml(t('campaign.intro'))}</p>
-      <ul class="scenarios">${chain.map(item).join('')}</ul>
-      <label class="check"><input type="checkbox" data-unlock-all${c.unlockAll ? ' checked' : ''}> ${escapeHtml(t('campaign.unlockAll'))}</label>
-      <ul class="scenarios">${others.map(item).join('')}</ul>
-      <p class="hint">${escapeHtml(t('settings.scenarioNote'))}</p>
-      <h3>${escapeHtml(t('save.title'))}</h3>
-      <p class="hint">${escapeHtml(t('save.text'))}</p>
-      <div class="save-buttons">
-        <button type="button" data-export>${escapeHtml(t('save.export'))}</button>
-        <label class="file-button">${escapeHtml(t('save.import'))}<input type="file" accept=".json,application/json" data-import hidden></label>
-        <button type="button" data-restart>${escapeHtml(t('save.restart'))}</button>
+      <h2>${escapeHtml(t('tutorial.over.title'))}</h2>
+      <p>${escapeHtml(t('tutorial.over.text', { lesson: name }))}</p>
+      <div class="dialog-buttons">
+        <button type="button" data-end="again">${escapeHtml(t('tutorial.over.again'))}</button>
+        <button type="button" data-end="quit" class="secondary">${escapeHtml(t('tutorial.quit'))}</button>
       </div>
-      <p class="message" data-save-message hidden></p>
-      <div class="dialog-buttons"><button value="close">${escapeHtml(t('settings.close'))}</button></div>
     </form>`;
-  dlg.querySelector('[data-export]').addEventListener('click', async () => {
-    const result = await app.exportGame();
-    if (result === 'failed') {
-      const msg = dlg.querySelector('[data-save-message]');
-      msg.hidden = false;
-      msg.textContent = t('save.exportError');
-    }
-  });
-  dlg.querySelector('[data-restart]').addEventListener('click', () => {
-    dlg.close();
-    app.restart();
-  });
-  dlg.querySelector('[data-import]').addEventListener('change', async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    const msg = dlg.querySelector('[data-save-message]');
-    try {
-      app.importGame(await file.text());
-      dlg.close();
-    } catch (err) {
-      msg.hidden = false;
-      msg.textContent = t('save.importError');
-      console.warn(err);
-    }
-  });
-  for (const b of dlg.querySelectorAll('[data-scenario]')) {
-    b.addEventListener('click', () => {
-      dlg.close();
-      app.restart(b.dataset.scenario);
-    });
-  }
-  for (const b of dlg.querySelectorAll('[data-tutorial]')) {
-    b.addEventListener('click', () => {
-      dlg.close();
-      app.restart(b.dataset.tutorial, { tutorial: true });
-    });
-  }
-  dlg.querySelector('[data-unlock-all]').addEventListener('change', (e) => {
-    c.unlockAll = e.target.checked;
-    saveCampaign(c);
-    openScenarios(app); // rebuilt in place
-  });
-  showPage(app, dlg);
-}
-
-/**
- * The main menu: carry on with the game in progress, the campaign (its scenarios), the
- * training with its tutorial, a game saved in a file, the settings, the help. The game stands
- * still while it is open; « Continuer » sets it going again as it was.
- */
-export function openMainMenu(app) {
-  const dlg = app.el.dlgMenu;
-  const w = app.world;
-  if (!dlg.open) {
-    app.menuWasRunning = !app.paused && !w.ended;
-    app.paused = true;
-    app.dirtyHud = true;
-  }
-  const inGame = !w.ended && (w.t > 0 || app.resumed);
-  const when = dateTimeText(w.startMs + w.t * 1000);
-  dlg.innerHTML = `
-    <form method="dialog" class="main-menu">
-      <div class="mm-title"><h1>${escapeHtml(t('app.title'))}</h1><p>${escapeHtml(t('app.subtitle'))}</p></div>
-      <div class="mm-buttons">
-        ${inGame ? `<button type="button" class="mm-main" data-menu="continue">${escapeHtml(t('menu.continue'))}<small>${escapeHtml(t('menu.continueText', { scenario: t(`scenarios.${w.scenario.id}.title`), when }))}</small></button>` : ''}
-        <button type="button"${inGame ? '' : ' class="mm-main"'} data-menu="campaign">${escapeHtml(t('menu.campaign'))}<small>${escapeHtml(t('menu.campaignText'))}</small></button>
-        <button type="button" data-menu="training">${escapeHtml(t('menu.training'))}<small>${escapeHtml(t('menu.trainingText'))}</small></button>
-        <label class="mm-file">${escapeHtml(t('menu.load'))}<small>${escapeHtml(t('menu.loadText'))}</small><input type="file" accept=".json,application/json" data-menu-file hidden></label>
-        <div class="mm-row">
-          <button type="button" data-menu="settings">${escapeHtml(t('menu.settings'))}</button>
-          <button type="button" data-menu="help">${escapeHtml(t('menu.help'))}</button>
-        </div>
-      </div>
-      <p class="message" data-menu-message hidden></p>
-      <p class="hint mm-note">${escapeHtml(t('menu.note'))}</p>
-    </form>`;
-  const close = (run) => {
-    dlg.close();
-    if (run && app.menuWasRunning) {
-      app.paused = false;
-      app.accumulator = 0;
-    }
-    app.dirtyHud = true;
-  };
-  dlg.querySelector('[data-menu-file]').addEventListener('change', async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    try {
-      app.importGame(await file.text());
-      close(false);
-    } catch (err) {
-      const msg = dlg.querySelector('[data-menu-message]');
-      msg.hidden = false;
-      msg.textContent = t('save.importError');
-      console.warn(err);
-    }
-  });
-  dlg.querySelector('.mm-buttons').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-menu]');
+  dlg.querySelector('.dialog-buttons').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-end]');
     if (!b) return;
-    const what = b.dataset.menu;
-    if (what === 'continue') close(true);
-    else if (what === 'campaign') {
-      close(false);
-      openScenarios(app);
-    } else if (what === 'training') {
-      close(false);
-      app.restart(TRAINING, { tutorial: true });
-    } else if (what === 'settings') openSettings(app);
-    else if (what === 'help') openHelp(app);
+    dlg.close();
+    if (b.dataset.end === 'again') app.restart(null, { tutorial: true });
+    else app.onTutorialQuit();
   });
-  // Escape carries on with the game, like « Continuer ».
-  dlg.oncancel = (e) => {
-    e.preventDefault();
-    if (inGame) close(true);
-  };
-  if (!dlg.open) dlg.showModal();
+  // (Escape leaves the dialog: the lesson is then left, as its ended world cannot go on.)
+  dlg.oncancel = () => setTimeout(() => app.tutorial && app.world.ended && app.onTutorialQuit(), 0);
+  dlg.showModal();
 }
 
 /** Shown once on a small or touch-only screen: the game is made for a computer. */
@@ -523,10 +452,11 @@ function carryNote(world) {
   // The share really present: the carry is applied squadron by squadron, and rounded there.
   const n = world.carry.aircraft ?? world.fightersAtStart;
   const total = world.carry.establishment ?? fighterCount(world).establishment;
+  const asked = world.objectives.find((o) => o.type === 'enemyDown' && o.full);
   return `<p class="dialog-note">${escapeHtml(t('events.carry', {
     from: t(`scenarios.${world.carry.from}.title`),
     share: total ? Math.round((100 * n) / total) : 100,
     n,
     total,
-  }))}</p>`;
+  }))}${asked ? ` ${escapeHtml(t('log.carryDown', { count: asked.count, full: asked.full }))}` : ''}</p>`;
 }

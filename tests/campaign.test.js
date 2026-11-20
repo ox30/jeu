@@ -3,13 +3,23 @@
 // fighters present that morning. Measured on the establishment, 15 September could not be won.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeWorld } from './helpers.js';
+import { data, makeWorld } from './helpers.js';
+import { setDictionary } from '../src/core/i18n.js';
+import { drainEvents } from '../src/sim/events.js';
 import { step } from '../src/sim/world.js';
 import { restore, snapshot } from '../src/save/game.js';
 import { checkDefeat, fighterCount, fighterEstablishmentShare, fighterShare, finalize } from '../src/sim/objectives.js';
-import { carryFor, recordResult } from '../src/ui/campaign.js';
+import { readFileSync } from 'node:fs';
+import { carryFor, recordResult, setCampaignData } from '../src/ui/campaign.js';
+import { objectiveText } from '../src/ui/format.js';
+import { eventMessage } from '../src/ui/messages.js';
 import { runAir } from '../tools/bot/air.mjs';
 import { CONDUCTS } from '../tools/bot/conducts.mjs';
+
+setDictionary(data.fr);
+
+// The chain of the campaign is data since 2.9: given to the module as the page does.
+setCampaignData(JSON.parse(readFileSync(new URL('../data/campaign.json', import.meta.url), 'utf8')));
 
 const fighters = (w) => w.squadrons.filter((s) => s.role === 'fighter');
 
@@ -123,7 +133,84 @@ test('a save made before 2.7 takes the fighters of the start from the world it i
   const old = JSON.parse(JSON.stringify(snapshot(w)));
   delete old.fightersAtStart;
   delete old.carry;
+  // (With the number of its format: a save of the current one that lacked a part would be refused.)
+  old.version = 1;
   const back = restore(makeWorld('standard', {}, 'adlertag'), old);
   assert.equal(back.fightersAtStart, w.fightersAtStart, 'the relief arrived since is counted');
   assert.equal(fighterShare(back), fighterShare(w));
+});
+
+test('in a campaign the aircraft to shoot down follow the fighters carried over (2.10.2)', () => {
+  // 15 September asks 32 aircraft of a Fighter Command at full strength.
+  const alone = makeWorld('realistic', {}, 'quinze-septembre');
+  const full = alone.objectives.find((o) => o.type === 'enemyDown');
+  assert.equal(full.count, 32);
+  assert.equal(full.full, undefined, 'outside a campaign the objective is the scenario\'s own');
+  // With 60 % of its fighters (the most a campaign in Réaliste takes away), 60 % of the count.
+  const w = makeWorld('realistic', {}, 'quinze-septembre', { fighterShare: 0.6, from: 'adlertag' });
+  const { now, establishment } = fighterCount(w);
+  const asked = w.objectives.find((o) => o.type === 'enemyDown');
+  assert.equal(asked.count, Math.round((32 * now) / establishment));
+  assert.ok(asked.count >= 18 && asked.count <= 20, `about 19 aircraft (${asked.count})`);
+  assert.equal(asked.full, 32);
+  // The share is the one really present, squadron by squadron: the same as the briefing tells.
+  assert.equal(now, w.carry.aircraft);
+  // Standard carries half the losses, 75 % at least: 24 aircraft at the lowest.
+  const light = makeWorld('standard', {}, 'quinze-septembre', { fighterShare: 0.75, from: 'adlertag' });
+  const lightAsked = light.objectives.find((o) => o.type === 'enemyDown');
+  assert.ok(lightAsked.count >= 23 && lightAsked.count <= 25, `about 24 aircraft (${lightAsked.count})`);
+  // The same rule for every battle of the chain: Adlertag after Kanalkampf.
+  const adler = makeWorld('standard', {}, 'adlertag');
+  const base = adler.objectives.find((o) => o.type === 'enemyDown').count;
+  const after = makeWorld('standard', {}, 'adlertag', { fighterShare: 0.8, from: 'kanalkampf' });
+  const cut = after.objectives.find((o) => o.type === 'enemyDown');
+  const f = fighterCount(after);
+  assert.equal(cut.count, Math.round((base * f.now) / f.establishment));
+  assert.ok(cut.count < base && cut.full === base);
+  // A carry that takes nothing away changes nothing.
+  const whole = makeWorld('standard', {}, 'quinze-septembre', { fighterShare: 1, from: 'adlertag' });
+  assert.equal(whole.objectives.find((o) => o.type === 'enemyDown').count, 32);
+  assert.equal(whole.carry, null);
+});
+
+test('the count cut by the campaign is the one judged, told and saved', () => {
+  const carry = { fighterShare: 0.6, from: 'adlertag' };
+  const w = makeWorld('realistic', {}, 'quinze-septembre', carry);
+  const asked = w.objectives.find((o) => o.type === 'enemyDown');
+  // One aircraft short: not done. The count reached: done at the next minute.
+  w.stats.bombersDown = asked.count - 1;
+  for (let i = 0; i < 120; i++) step(w, 1);
+  assert.equal(asked.done, false);
+  w.stats.fightersDown = 1;
+  for (let i = 0; i < 120; i++) step(w, 1);
+  assert.equal(asked.done, true, 'the count of the campaign is the one that wins');
+  assert.ok(asked.count < 32);
+  // The save brings the objective back as it was: the count cut, and the scenario's own.
+  const snap = JSON.parse(JSON.stringify(snapshot(w)));
+  const back = restore(makeWorld('realistic', {}, 'quinze-septembre'), snap);
+  const again = back.objectives.find((o) => o.type === 'enemyDown');
+  assert.equal(again.count, asked.count);
+  assert.equal(again.full, 32);
+  // A relief that arrives later joins the fighters of the morning, but the count stays.
+  const adler = makeWorld('realistic', {}, 'adlertag', { fighterShare: 0.6, from: 'kanalkampf' });
+  const before = adler.objectives.find((o) => o.type === 'enemyDown').count;
+  for (let i = 0; i < 2 * 86400 + 12.5 * 3600; i++) step(adler, 1);
+  assert.ok(adler.squadrons.some((s) => s.id === '266'), 'the relief has arrived');
+  assert.equal(adler.objectives.find((o) => o.type === 'enemyDown').count, before);
+});
+
+test('the objective and the journal say the count of the campaign and the scenario\'s own', () => {
+  const w = makeWorld('realistic', {}, 'quinze-septembre', { fighterShare: 0.6, from: 'adlertag' });
+  const asked = w.objectives.find((o) => o.type === 'enemyDown');
+  assert.equal(objectiveText(w, asked), `Abattre au moins ${asked.count} avions ennemis (aujourd'hui 0) ; 32 à effectif complet`);
+  const told = drainEvents(w).find((e) => e.type === 'carryApplied');
+  assert.equal(told.down, asked.count);
+  assert.equal(told.downFull, 32);
+  const line = eventMessage(w, told).text;
+  assert.match(line, /la chasse commence à \d+ % de ses avions/);
+  assert.ok(line.endsWith(`Le nombre d'avions à abattre suit la même proportion : ${asked.count} au lieu de 32.`), line);
+  // Outside a campaign: the sentence of before, and no word of a carry.
+  const alone = makeWorld('realistic', {}, 'quinze-septembre');
+  assert.equal(objectiveText(alone, alone.objectives.find((o) => o.type === 'enemyDown')), "Abattre au moins 32 avions ennemis (aujourd'hui 0)");
+  assert.equal(drainEvents(alone).some((e) => e.type === 'carryApplied'), false);
 });

@@ -1,0 +1,404 @@
+{
+  "note": "Les leçons du tutoriel (I10) : chacune se joue sur son petit scénario (data/scenarios/lecon-*.json, écrit comme un scénario existant avec des changements) et suit ses étapes dans l'ordre. Une étape dit ce qu'elle fait en entrant (pause ou play, speed et keepSpeed, view, select, unitTab : l'onglet de la fiche) et à quoi elle se termine (done) ; « manual » lui donne un bouton pour passer à la suite ; « do » liste les ordres de l'instructeur (order), chacun donné une fois quand sa condition (when) est vraie, et « mark » retient l'heure. « times » et « gaps » remplissent le texte avec des heures de la leçon et des écarts en minutes. Les textes sont dans data/i18n/fr.json (tutorial.lessons.<leçon>.name, .summary et .steps.<étape>.title et .text). Conditions et ordres connus : src/ui/tutorial.js. « settings » : les réglages de la partie de la leçon, par-dessus le préréglage Standard.",
+  "lessons": [
+    {
+      "id": "intercept",
+      "scenario": "lecon-intercepter",
+      "minutes": [
+        3,
+        5
+      ],
+      "settings": {
+        "fatigue": "off",
+        "detection": "approximate",
+        "interceptAid": "track",
+        "orders": "draw",
+        "fuel": "simple",
+        "falseAlarms": false,
+        "questions": false
+      },
+      "steps": [
+        {
+          "id": "welcome",
+          "manual": true,
+          "pause": true,
+          "view": "england"
+        },
+        {
+          "id": "demo",
+          "play": true,
+          "speed": 60,
+          "keepSpeed": true,
+          "do": [
+            {
+              "when": {
+                "contactNear": {
+                  "raid": "d01",
+                  "site": "airfield:hawkinge",
+                  "km": 30
+                }
+              },
+              "mark": "ordered",
+              "order": {
+                "scramble": "32",
+                "toSite": "airfield:hawkinge",
+                "altitudeFt": 14000
+              }
+            }
+          ],
+          "done": {
+            "seen": [
+              "siteHit"
+            ]
+          },
+          "handsOff": true
+        },
+        {
+          "id": "why",
+          "manual": true,
+          "pause": true,
+          "do": [
+            {
+              "order": {
+                "home": "32"
+              }
+            }
+          ],
+          "times": {
+            "seen": {
+              "event": "raidDetected"
+            },
+            "ordered": {
+              "mark": "ordered"
+            },
+            "bombed": {
+              "event": "siteHit"
+            }
+          },
+          "gaps": {
+            "waited": [
+              "seen",
+              "ordered"
+            ],
+            "left": [
+              "ordered",
+              "bombed"
+            ]
+          },
+          "handsOff": true
+        },
+        {
+          "id": "yourTurn",
+          "manual": true,
+          "pause": true,
+          "select": {
+            "kind": "squadron",
+            "id": "111"
+          },
+          "unitTab": {
+            "squadron": "cmd"
+          },
+          "view": "england"
+        },
+        {
+          "id": "watch",
+          "play": true,
+          "speed": 10,
+          "do": [
+            {
+              "order": {
+                "releaseRaid": "d02",
+                "inS": 120
+              }
+            }
+          ],
+          "done": {
+            "count": {
+              "type": "raidDetected",
+              "n": 2
+            }
+          },
+          "wait": true
+        },
+        {
+          "id": "scramble",
+          "done": {
+            "airborne": [
+              "111"
+            ]
+          },
+          "view": "england"
+        },
+        {
+          "id": "altitude",
+          "done": {
+            "any": [
+              {
+                "seenSince": [
+                  "tallyHo",
+                  "combatRound"
+                ]
+              },
+              {
+                "raidReported": "d02"
+              }
+            ]
+          }
+        },
+        {
+          "id": "combat",
+          "done": {
+            "raidReported": "d02"
+          },
+          "speed": 60,
+          "keepSpeed": true,
+          "play": true,
+          "wait": true
+        },
+        {
+          "id": "reports",
+          "manual": true,
+          "pause": true,
+          "done": {
+            "flag": "reportsOpened"
+          }
+        },
+        {
+          "id": "end",
+          "manual": true,
+          "last": true
+        }
+      ]
+    },
+    {
+      "id": "supply",
+      "scenario": "lecon-ravitailler",
+      "minutes": [
+        3,
+        4
+      ],
+      "settings": {
+        "fatigue": "off",
+        "logistics": "manual"
+      },
+      "steps": [
+        {
+          "id": "welcome",
+          "manual": true,
+          "pause": true,
+          "view": "england"
+        },
+        {
+          "id": "base",
+          "manual": true,
+          "pause": true,
+          "select": {
+            "site": "airfield:biggin_hill"
+          },
+          "unitTab": {
+            "site": "state"
+          }
+        },
+        {
+          "id": "train",
+          "select": {
+            "site": "port:southampton"
+          },
+          "done": {
+            "trainTo": "airfield:biggin_hill"
+          },
+          "unitTab": {
+            "site": "orders"
+          }
+        },
+        {
+          "id": "minimum",
+          "select": {
+            "site": "airfield:biggin_hill"
+          },
+          "done": {
+            "minStock": "airfield:biggin_hill"
+          },
+          "unitTab": {
+            "site": "orders"
+          }
+        },
+        {
+          "id": "wait",
+          "done": {
+            "stockAtLeast": {
+              "site": "airfield:biggin_hill",
+              "fuel": 20
+            }
+          },
+          "wait": true
+        },
+        {
+          "id": "end",
+          "manual": true,
+          "pause": true,
+          "last": true
+        }
+      ]
+    },
+    {
+      "id": "escort",
+      "scenario": "lecon-escorter",
+      "minutes": [
+        4,
+        5
+      ],
+      "settings": {
+        "fatigue": "off",
+        "seaComms": "direct",
+        "watchStops": "decision",
+        "bdienst": "0",
+        "interceptAid": "track",
+        "orders": "draw"
+      },
+      "steps": [
+        {
+          "id": "welcome",
+          "manual": true,
+          "pause": true,
+          "view": "atlantic"
+        },
+        {
+          "id": "relief",
+          "play": true,
+          "speed": 600,
+          "done": {
+            "any": [
+              {
+                "flag": "watchOpened"
+              },
+              {
+                "joining": true
+              }
+            ]
+          },
+          "wait": true
+        },
+        {
+          "id": "send",
+          "done": {
+            "joining": true
+          }
+        },
+        {
+          "id": "orders",
+          "pause": true,
+          "select": {
+            "kind": "escort",
+            "index": 0
+          },
+          "done": {
+            "any": [
+              {
+                "flag": "action:escort-behaviour"
+              },
+              {
+                "flag": "action:escort-pattern"
+              }
+            ]
+          },
+          "unitTab": {
+            "escort": "cmd"
+          }
+        },
+        {
+          "id": "sail",
+          "done": {
+            "any": [
+              {
+                "escorting": true
+              },
+              {
+                "hours": 40
+              }
+            ]
+          },
+          "wait": true
+        },
+        {
+          "id": "end",
+          "manual": true,
+          "pause": true,
+          "last": true
+        }
+      ]
+    },
+    {
+      "id": "alert",
+      "scenario": "lecon-alerte",
+      "minutes": [
+        3,
+        4
+      ],
+      "settings": {
+        "fatigue": "on"
+      },
+      "steps": [
+        {
+          "id": "welcome",
+          "manual": true,
+          "pause": true,
+          "view": "england"
+        },
+        {
+          "id": "rest",
+          "pause": true,
+          "select": {
+            "kind": "squadron",
+            "id": "32"
+          },
+          "done": {
+            "alertIs": {
+              "squadron": "32",
+              "state": "rest"
+            }
+          },
+          "unitTab": {
+            "squadron": "cmd"
+          }
+        },
+        {
+          "id": "ready",
+          "select": {
+            "kind": "squadron",
+            "id": "111"
+          },
+          "done": {
+            "alertIs": {
+              "squadron": "111",
+              "state": "min5"
+            }
+          }
+        },
+        {
+          "id": "roster",
+          "manual": true,
+          "done": {
+            "flag": "rosterOpened"
+          }
+        },
+        {
+          "id": "night",
+          "done": {
+            "fatigueBelow": {
+              "squadron": "32",
+              "n": 35
+            }
+          },
+          "wait": true
+        },
+        {
+          "id": "end",
+          "manual": true,
+          "pause": true,
+          "last": true
+        }
+      ]
+    }
+  ]
+}

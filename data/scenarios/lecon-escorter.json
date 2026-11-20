@@ -1,0 +1,117 @@
+{
+  "id": "lecon-escorter",
+  "base": "hiver-atlantique",
+  "title": "Leçon 3 : escorter",
+  "note": "Leçon du tutoriel (I10). Un convoi HX à 1 100 km du canal du Nord, un groupe d'escorte à Liverpool, deux U-Boote près de la route : un rapport de quart, un groupe envoyé, les consignes et les grenades.",
+  "start": "1941-01-14T06:00",
+  "end": "1941-01-19T06:00",
+  "seed": 13,
+  "convoySchedule": [
+    {
+      "prefix": "HX",
+      "firstNumber": 102,
+      "first": "1941-01-14T06:10",
+      "everyHours": 99999,
+      "count": 1,
+      "speedKn": 9,
+      "heading": 75,
+      "tankers": 8,
+      "fuelPerTanker": 80,
+      "freighters": 30,
+      "materielPerFreighter": 12,
+      "admiraltyRoute": [
+        [
+          -24.0,
+          55.4
+        ],
+        [
+          -20.0,
+          56.2
+        ],
+        [
+          -12.0,
+          56.8
+        ],
+        [
+          -7.5,
+          55.62
+        ],
+        [
+          -6.25,
+          55.4
+        ],
+        [
+          -5.97,
+          55.25
+        ],
+        [
+          -5.55,
+          54.85
+        ],
+        [
+          -5.2,
+          54.55
+        ],
+        [
+          -5.0,
+          54.0
+        ],
+        [
+          -3.9,
+          53.6
+        ],
+        [
+          -2.998,
+          53.41
+        ]
+      ]
+    }
+  ],
+  "escorts": [
+    {
+      "id": "eg1",
+      "name": "1er groupe d'escorte",
+      "short": "EG 1",
+      "from": "liverpool",
+      "ships": 4,
+      "composition": "2 destroyers, 2 corvettes",
+      "speedKn": 16,
+      "enduranceDays": 8,
+      "radarFrom": "1941-03-01T06:00"
+    }
+  ],
+  "uboats": [
+    {
+      "id": "u1",
+      "lon": -17.5,
+      "lat": 56.6,
+      "radiusKm": 90,
+      "torpedoes": 4,
+      "known": true
+    },
+    {
+      "id": "u2",
+      "lon": -13.5,
+      "lat": 57.2,
+      "radiusKm": 90,
+      "torpedoes": 4
+    }
+  ],
+  "uboatRotation": false,
+  "squadrons": [
+    {
+      "id": "502",
+      "name": "502 Sqn",
+      "type": "Whitley",
+      "airfield": "aldergrove",
+      "aircraft": 6,
+      "role": "coastal",
+      "asv": true
+    }
+  ],
+  "currency": null,
+  "condors": null,
+  "events": [],
+  "objectives": [],
+  "defeat": null
+}

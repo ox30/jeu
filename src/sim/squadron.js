@@ -9,18 +9,29 @@ import { drawAmmo, drawFuel, sortieFuel } from './logistics.js';
 import { guidanceHeading } from './control.js';
 import { pilotsKilled } from './crews.js';
 import { chaseHeading } from './engagement.js';
+import { completeEntity, declareFields } from './entities.js';
+
+// The throttle, below the boost: 50 to 100 % of cruising speed.
+declareFields('squadron', (s) => {
+  s.speedPct = 100;
+});
 
 /** Characteristics of an aircraft type: a fighter, or a patrol aircraft. */
 export function aircraftSpec(world, type) {
   return world.rules.fighters[type] || (world.rules.patrols && world.rules.patrols[type]) || null;
 }
 
+/**
+ * A squadron as the scenario describes it. What the subsystems keep on it (alert states and
+ * roster, formation, rules of engagement, timetable…) is declared by each of them
+ * (entities.js) and added by completeEntity().
+ */
 export function createSquadron(world, def) {
   const field = world.byId.airfield.get(def.airfield);
   const type = aircraftSpec(world, def.type);
   if (!type) throw new Error(`squadron ${def.id}: unknown aircraft ${def.type}`);
   const altFt = def.altitudeFt ?? world.rules.squadron.defaultAltitudeFt;
-  return {
+  return completeEntity('squadron', {
     kind: 'squadron',
     id: def.id,
     name: def.name,
@@ -34,15 +45,7 @@ export function createSquadron(world, def) {
     aircraftStart: def.aircraft,
     pilots: def.pilots ?? def.aircraft,
     fatigue: def.fatigue ?? 10, // 0 (fresh) to 100 (exhausted)
-    alert: def.alert || 'available', // on the ground: rest | thirty | available | cockpit (crews.js)
-    alertAt: null, // a recall under way: when the new state holds
-    alertFrom: null, // the state it holds until then
-    alertLong: false,
-    roster: { daily: [], override: null }, // duty roster: alert states by the hour (roster.js)
-    alertManual: false, // a state set by hand holds until the player goes back to the plan
-    schedule: null, // a take-off ordered for later (timetable.js)
-    lateFor: null, // a formation it is catching up with, late at the rendezvous (rally.js)
-    rallySlow: null, // a wing's leader slowing for its latecomers: speed factor
+    alert: def.alert || 'min5', // on the ground: rest | min30 | min5 | cockpit (crews.js)
     x: field.x,
     y: field.y,
     px: field.x,
@@ -61,17 +64,7 @@ export function createSquadron(world, def) {
     intercept: null, // guided onto a raid by the controller (Arcade): { raidId, p, ok }
     follow: null, // big wing: id of the squadron it flies with
     inFormation: false,
-    formation: null, // id of the formation (big wing) it belongs to
-    holdForWing: false, // a wing's leader circles while its squadrons gather
-    wingSlowest: null, // a wing's leader: speeds of its slowest squadron in formation
-    roe: 'attack', // on meeting the enemy: defend | attack | pursue (engagement.js); attack, as in M2.2
-    cleared: new Set(), // raids it has leave to attack whatever its order
-    letGo: new Set(), // raids the player called it off: left alone until sent back
-    clearedBeyond: new Set(), // raids it has leave to follow beyond mid-Channel
-    attackRaid: null, // a raid it goes after while it can see it
-    breakOff: null, // a raid it must leave (refused leave beyond mid-Channel)
     speedMode: 'cruise', // cruise | max (the boost)
-    speedPct: 100, // throttle below the boost: 50 to 100 % of cruising speed
     state: 'ready', // ready | scrambling | airborne | combat | returning | refuelling | lost
     timer: 0,
     fuel: type.enduranceMin, // minutes at cruise power
@@ -85,7 +78,7 @@ export function createSquadron(world, def) {
     returnReason: null,
     nothingSeen: new Set(),
     watch: new Map(), // raids being approached, to tell the player when one is missed
-  };
+  }, world);
 }
 
 export function isFlying(s) {
@@ -284,6 +277,7 @@ function land(world, s) {
   s.timer = world.rules.squadron.refuelMinutes * 60 * airfieldDelayFactor(world, field);
   s.returnReason = null;
   s.speedMode = 'cruise';
+  s.uboatAttacks = 0; // rearmed for its next sortie (asw.js)
   emit(world, 'landed', { squadron: s.name, squadronId: s.id, airfield: field.name });
 }
 

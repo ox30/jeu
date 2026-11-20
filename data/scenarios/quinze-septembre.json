@@ -757,6 +757,28 @@
   "note": "Inspiré du 15 septembre 1940 ; unités et effectifs choisis pour le jeu. Deux grands raids de jour sur Londres.",
   "start": "1940-09-15T06:00",
   "end": "1940-09-15T20:30",
+  "seaRhythm": "direct",
+  "map": {
+    "zone": "britain",
+    "view": "england",
+    "views": [
+      "britain",
+      "england"
+    ],
+    "layers": [
+      "grid",
+      "radars",
+      "night"
+    ],
+    "tools": [
+      "ruler",
+      "radarCover",
+      "reports",
+      "formations",
+      "roster",
+      "cards"
+    ]
+  },
   "seed": 1509,
   "airfields": [
     {
@@ -1219,7 +1241,7 @@
   "objectives": [
     {
       "type": "enemyDown",
-      "count": 40
+      "count": 32
     },
     {
       "type": "siteDamageBelow",

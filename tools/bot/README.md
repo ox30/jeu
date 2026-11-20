@@ -26,6 +26,7 @@ Il vient de l'audit du prototype 2.6.1 et a été versé au dépôt au lot M2.7.
 | `conducts.mjs` | les conduites (façons de jouer) et la matrice de mesure |
 | `run.mjs` | une partie, résultat en une ligne de JSON |
 | `measure.mjs` | la matrice sur plusieurs graines, tableau Markdown |
+| `thresholds.mjs` | les seuils des objectifs rejugés sans rejouer (batailles aériennes) |
 | `perf.mjs` | durée des pas de simulation, une partie à la fois |
 | `monkey.mjs` | ordres au hasard, avec sauvegardes et reprises |
 
@@ -35,6 +36,15 @@ Batailles aériennes : `rien` (aucun ordre), `simple` (deux escadrilles par raid
 contre un gros), `soigne` (en plus : chasses libres laissées, repos la nuit), `sans-chasse`,
 `sans-ravitaillement`, `1-par-raid` à `6-par-raid`, `masse` (six par raid, poursuite permise
 au-delà de la mi-Manche), `masse-le-15` (campagne jouée simplement, le 15 septembre en masse).
+
+Une conduite peut différer d'une bataille à l'autre (`byScenario`). C'est le cas de `soigne`
+depuis le lot M2.10 : **le 15 septembre, « soigné » veut dire « en masse »** (six escadrilles
+par raid, tout engager, poursuivre), parce que c'est ce que demande cette bataille d'un jour
+et ce que conseille son aide. Ce jour-là, `soigne` et `masse` donnent donc les mêmes parties ;
+la matrice n'en garde qu'une ligne et met à côté `prudent` : le soin des batailles d'une
+semaine gardé ce jour-là aussi (deux par raid, chasses libres laissées), c'est-à-dire ce que
+`soigne` y faisait jusqu'au lot M2.9. La comparaison montre ce que la prudence coûte le
+15 septembre.
 
 Atlantique : `rien`, `simple` (un groupe d'escorte par convoi), `rester`, `chasser`, `soigne`
 (chasser, avec couverture aérienne), `deux-avions` (Hudson et Catalina achetés le premier jour).
@@ -51,11 +61,37 @@ node tools/bot/run.mjs adlertag '{"perRaid":3,"ignoreHigh":true,"preset":"realis
 node tools/bot/measure.mjs --name avant --seeds 10 --workers 2
 node tools/bot/measure.mjs --name apres --seeds 10 --only hiver,campagne/realistic
 node tools/bot/measure.mjs --summary avant
+node tools/bot/measure.mjs --name apres --seeds 20 --first 11 --append   # vingt graines neuves de plus
 ```
+
+`--append` garde le fichier et ne joue que les parties qu'il ne contient pas encore : une
+mesure interrompue reprend où elle s'était arrêtée, et l'on peut y ajouter des graines
+(`--first`) ou des lignes. **Un réglage se juge sur des graines qu'il n'a pas servi à
+choisir** : au lot M2.10, des seuils réglés sur les graines 1 à 10 ne tenaient plus sur les
+suivantes ; ils ont été repris sur trente graines et vérifiés sur vingt autres.
 
 Les résultats vont dans `tools/bot/out/<nom>.jsonl` (une ligne par partie, non versé au
 dépôt). La matrice complète, 32 lignes sur dix graines, prend environ quarante minutes sur
 deux cœurs.
+
+## Régler un seuil sans rejouer
+
+Changer la barre d'un objectif ne change pas les parties, seulement leur verdict.
+`thresholds.mjs` joue donc les batailles aériennes une fois, garde ce que mesure chaque
+objectif (part de cargaison livrée, avions abattus, chasse restante, heures hors service,
+dégâts), puis rejuge ces mêmes parties sous d'autres barres, en une seconde :
+
+```
+node tools/bot/thresholds.mjs --collect reglage --seeds 30
+node tools/bot/thresholds.mjs --judge reglage --split 10,30
+node tools/bot/thresholds.mjs --judge reglage --set kanalkampf.convoy:cw=0.66,adlertag.fighters=0.44
+node tools/bot/thresholds.mjs --collect reglage --seeds 20 --first 31   # puis vérifier sur des graines neuves
+```
+
+Sous les barres écrites dans les scénarios, l'outil dit combien de ses verdicts diffèrent de
+ceux du jeu : ce doit être zéro. Il ne rejuge que les barres : une défaite par règle du
+scénario (panne sèche, chasse détruite) reste une défaite, et tout changement de la
+simulation demande de rejouer (`--collect` sous un autre nom).
 
 Les durées de pas d'une mesure à deux parties de front ne valent rien : pour les pas, lancer
 `node tools/bot/perf.mjs` seul, sur une machine au repos.

@@ -20,12 +20,14 @@ export const ALERT_GROUPS = [
     id: 'sea',
     speeds: {
       uboatAttack: 1, convoyBombed: 1, escortEngaged: 1, uboatSighted: 1, convoySighted: 1, straggler: 1,
-      convoyInEscortRange: 1, escortLowFuel: 1, escortDry: 1, convoyStopped: 1, convoyWaiting: 1, condorSighted: 1, condorAttack: 1,
+      convoyInEscortRange: 1, escortLowFuel: 1, escortDry: 1, escortChargesOut: 1, convoyStopped: 1, convoyWaiting: 1, condorSighted: 1, condorAttack: 1,
     },
   },
   { id: 'bases', speeds: { siteOut: 600, noFuel: 600, noAmmo: 600, lowFuel: 600, scheduleDelayed: 600 } },
 ];
 const DEFAULT_SPEED = Object.assign({}, ...ALERT_GROUPS.map((g) => g.speeds));
+// At the rhythm of the watches the events of the sea go to the watch report instead.
+const SEA_TYPES = new Set(Object.keys(ALERT_GROUPS.find((g) => g.id === 'sea').speeds));
 
 /** Speed an alert slows the game down to (0: none), from the settings or by default. */
 export function alertSpeed(settings, type, level) {
@@ -156,6 +158,14 @@ const RULES = {
     variant: e.convoy ? 'text' : 'alone',
     focus: e.convoyId ? convoyAt(w, e.convoyId, e.x, e.y) : convoyAt(w, e.escortId, e.x, e.y),
   }),
+  // Racks empty: the group can only keep a U-boat down. It stays with its convoy unless told to go.
+  escortChargesOut: (w, e) => ({
+    level: 'warning',
+    key: `chargesOut:${e.escortId}`,
+    params: { escort: e.escort, convoy: e.convoy },
+    variant: e.convoy ? 'text' : 'alone',
+    focus: convoyAt(w, e.escortId, e.x, e.y),
+  }),
   escortDry: (w, e) => ({
     level: 'danger',
     key: `escortDry:${e.escortId}`,
@@ -233,18 +243,86 @@ const RULES = {
 };
 
 /**
+ * The alerts that ask for an order (C6 of the audit): they stay on the screen until the order
+ * is given or the player closes them. The others are information: they fade by themselves.
+ */
+export const DECISION_ALERTS = new Set([
+  'raidDetected', 'convoyInEscortRange', 'escortLowFuel', 'escortDry', 'escortChargesOut', 'convoyStopped', 'convoyWaiting',
+  'straggler', 'noFuel', 'noAmmo', 'lowFuel', 'seaStop',
+]);
+
+const inPortOrHomeward = (e) => !e || e.homeward || e.state === 'inPort' || e.state === 'refit';
+const fieldOf = (w, a) => (a.focus && a.focus.kind === 'site' ? w.sites.get(a.focus.id) : null);
+
+const UP = new Set(['scrambling', 'airborne', 'combat']);
+/** A train with this cargo on its way to the installation. */
+const trainTo = (w, f, cargo) => w.trains.some((tr) => tr.to === f.key && tr.cargo && tr.cargo[cargo] > 0);
+
+// What answers a decision: the order it asked for has been given (or no longer can be).
+const ANSWERED = {
+  // A fighter sent against the raid, or one of those that were on the ground when the banner
+  // showed (`readyThen`, alerts.js) ordered up: « Décoller », then a route drawn ahead of the
+  // raid, is an answer too.
+  raidDetected: (w, a) => w.squadrons.some((s) => s.role === 'fighter' && UP.has(s.state)
+    && ((a.readyThen && a.readyThen.includes(s.id)) || (s.intercept && s.intercept.raidId === a.focus.raidId)
+      || s.attackRaid === a.focus.raidId || s.engagedRaid === a.focus.raidId)),
+  convoyInEscortRange: (w, a) => {
+    const c = w.convoys.find((x) => x.id === a.focus.id);
+    return !c || c.state !== 'atSea' || w.escorts.some((e) => e.joinTarget === c.id || e.escorting === c.id);
+  },
+  escortLowFuel: (w, a) => inPortOrHomeward(w.escorts.find((e) => e.id === a.unitId)),
+  escortDry: (w, a) => {
+    const e = w.escorts.find((x) => x.id === a.unitId);
+    return !e || e.state === 'inPort' || e.state === 'refit';
+  },
+  escortChargesOut: (w, a) => {
+    const e = w.escorts.find((x) => x.id === a.unitId);
+    return inPortOrHomeward(e) || e.charges > 0;
+  },
+  convoyStopped: (w, a) => {
+    const c = w.convoys.find((x) => x.id === a.focus.id);
+    return !c || c.state !== 'atSea' || c.route.length > 0 || c.plan.length > 0;
+  },
+  convoyWaiting: (w, a) => {
+    const c = w.convoys.find((x) => x.id === a.focus.id);
+    return !c || c.state !== 'waiting';
+  },
+  // « Plus de carburant » : a train of fuel is on its way, or no squadron of the aerodrome
+  // waits for fuel any more (a tonne left in the tanks does not fill a squadron).
+  noFuel: (w, a) => {
+    const f = fieldOf(w, a);
+    return Boolean(f) && (trainTo(w, f, 'fuel') || !w.squadrons.some((s) => s.waitingFuel && w.byId.airfield.get(s.airfield) === f));
+  },
+  noAmmo: (w, a) => {
+    const f = fieldOf(w, a);
+    return Boolean(f) && trainTo(w, f, 'ammo');
+  },
+  lowFuel: (w, a) => {
+    const f = fieldOf(w, a);
+    return Boolean(f) && trainTo(w, f, 'fuel');
+  },
+};
+
+/** Has the order this alert asked for been given? (An information is never « answered ».) */
+export function alertAnswered(world, a) {
+  const check = a.decision ? ANSWERED[a.type] : null;
+  return Boolean(check && check(world, a));
+}
+
+/**
  * The alert an event calls for, or null. `memory` (a Map) remembers when each alert was
  * last given, in game seconds, so that the same one stays quiet for a while.
  */
 export function alertFor(world, e, memory) {
   const rule = RULES[e.type];
   if (!rule) return null;
+  if (world.watch && SEA_TYPES.has(e.type)) return null; // the watch report tells it
   const a = rule(world, e);
   if (!a) return null;
   const last = memory.get(a.key);
   if (last !== undefined && (!a.quiet || world.t - last < a.quiet)) return null;
   memory.set(a.key, world.t);
-  return { type: e.type, t: world.t, variant: 'text', ...a };
+  return { type: e.type, t: world.t, variant: 'text', decision: DECISION_ALERTS.has(e.type), unitId: e.escortId || e.convoyId || null, ...a };
 }
 
 /** The event types that call the player (for the documentation and the tests). */

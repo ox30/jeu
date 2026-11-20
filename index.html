@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div id="menu" class="menu-page" hidden></div>
   <div id="app">
     <header id="hud">
       <div class="hud-title">
@@ -22,21 +23,24 @@
         <div id="speeds" class="speeds" data-i18n-title="hud.speedTitle"></div>
         <div id="speed-confirm" class="speed-confirm" hidden role="alertdialog"></div>
       </div>
-      <div class="hud-group">
-        <button type="button" id="btn-atlantic" data-i18n="hud.atlantic"></button>
-        <button type="button" id="btn-britain" data-i18n="hud.britain"></button>
-        <button type="button" id="btn-england" data-i18n="hud.england"></button>
-      </div>
-      <div class="hud-group">
-        <button type="button" id="btn-ruler" data-i18n="hud.ruler"></button>
-        <button type="button" id="btn-radar" data-i18n="hud.radarShort" data-i18n-title="hud.radarCover"></button>
-        <button type="button" id="btn-reports" data-i18n="hud.reports"></button>
-        <button type="button" id="btn-formations" data-i18n="hud.formations" data-i18n-title="hud.formationsTitle"></button>
-        <button type="button" id="btn-roster" data-i18n="hud.roster"></button>
-        <button type="button" id="btn-cards" data-i18n="hud.cards"></button>
-        <button type="button" id="btn-scenario" data-i18n="hud.scenario"></button>
-        <button type="button" id="btn-settings" data-i18n="hud.settings"></button>
-        <button type="button" id="btn-help" data-i18n="hud.help"></button>
+      <!-- The tools: a pictogram each, its name and its key in the tooltip, a short word under
+           it when there is room (hud.js fills them). -->
+      <div class="hud-group tools" id="hud-tools">
+        <span class="hud-pop">
+          <button type="button" id="btn-view" class="tool" aria-haspopup="true" aria-expanded="false"></button>
+          <span id="view-menu" class="pop-menu" role="menu" hidden></span>
+        </span>
+        <button type="button" id="btn-ruler" class="tool"></button>
+        <button type="button" id="btn-radar" class="tool"></button>
+        <button type="button" id="btn-formations" class="tool"></button>
+        <button type="button" id="btn-roster" class="tool"></button>
+        <button type="button" id="btn-reports" class="tool"></button>
+        <button type="button" id="btn-watch" class="tool"></button>
+        <button type="button" id="btn-cards" class="tool"></button>
+        <button type="button" id="btn-journal" class="tool"></button>
+        <button type="button" id="btn-help" class="tool"></button>
+        <button type="button" id="btn-menu" class="tool"></button>
+        <button type="button" id="save-problem" class="save-problem" data-i18n="menu.saveProblem" data-i18n-title="save.errors.storage" hidden></button>
         <button type="button" id="btn-panel" class="only-small" data-i18n="hud.panel"></button>
       </div>
     </header>
@@ -45,6 +49,7 @@
       <canvas id="map"></canvas>
       <div id="alert" class="alert" hidden role="alert">
         <strong id="alert-title" data-i18n="alert.title"></strong>
+        <span id="alert-kind" class="alert-kind" data-i18n="alert.decision" data-i18n-title="alert.decisionTitle" hidden></span>
         <span id="alert-text"></span>
         <span id="alert-more" class="alert-more" hidden></span>
         <span class="alert-buttons">
@@ -52,6 +57,7 @@
           <button type="button" id="alert-close" class="close" data-i18n-label="alert.close">×</button>
         </span>
       </div>
+      <div id="drop-choice" class="drop-choice" role="menu" hidden></div>
       <div id="question" class="question" hidden role="alertdialog" aria-live="assertive">
         <strong id="question-title"></strong>
         <span id="question-text"></span>
@@ -69,6 +75,8 @@
       <div id="coach" class="coach" hidden role="status" aria-live="polite"></div>
       <aside id="unit-panel" class="unit-panel" hidden aria-labelledby="unit-title">
         <div class="sheet-grip" data-grip="sheet" aria-hidden="true"></div>
+        <!-- The units of a stack, one tab each, on the edge of the sheet that faces the map. -->
+        <nav id="unit-stack" class="unit-stack" role="tablist" hidden></nav>
         <header class="unit-head">
           <h2 id="unit-title"></h2>
           <span class="unit-head-buttons">
@@ -108,8 +116,14 @@
         <p id="panel-hint" class="hint" hidden></p>
       </section>
       <section class="log-section" id="log-section">
-        <h2 class="foldable" data-log-section="1"><span class="fold">▾</span> <span data-i18n="panel.log"></span></h2>
+        <h2 class="foldable with-tabs"><span data-log-section="1"><span class="fold">▾</span> <span data-i18n="panel.log"></span></span>
+          <span class="tabs" role="tablist" id="log-tabs" hidden>
+            <button type="button" role="tab" data-log-tab="journal" data-i18n="panel.logJournal"></button>
+            <button type="button" role="tab" data-log-tab="signals"><span data-i18n="panel.logSignals"></span> <span id="signals-count" class="badge" hidden></span></button>
+          </span>
+        </h2>
         <ol id="log" class="log"></ol>
+        <div id="signals" class="signals" hidden></div>
       </section>
     </aside>
   </div>
@@ -119,8 +133,9 @@
   <dialog id="dlg-success"></dialog>
   <dialog id="dlg-end"></dialog>
   <dialog id="dlg-desktop"></dialog>
-  <dialog id="dlg-scenario"></dialog>
+  <dialog id="dlg-confirm" class="confirm-dialog"></dialog>
   <dialog id="dlg-reports" class="page-dialog"></dialog>
+  <dialog id="dlg-watch" class="page-dialog"></dialog>
   <dialog id="dlg-cards" class="page-dialog"></dialog>
   <dialog id="dlg-formations" class="page-dialog"></dialog>
   <dialog id="dlg-roster" class="page-dialog"></dialog>

@@ -1,6 +1,11 @@
 // Games saved by version 2.6.1 (tests/fixtures, made by make-saves.mjs from a checkout of that
 // version) are restored by the current code and go on: no error, the fields added since are
-// there, and the measure of the fighter objective is the right one.
+// there, and the measure of the fighter objective is the right one. And games saved by 2.9.0,
+// the first version of format 2: a version that adds a part to the world without a new
+// format and its migration would refuse them (save/game.js, shapeProblem), and fail here.
+// And a game saved by 2.10.2 (make-save-2.10.2.mjs), whose escort groups are in the states
+// version 2.10.3 keeps otherwise: a channel chosen as a bare name, a way out of port counted
+// at the wrong end of the route.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -9,11 +14,14 @@ import { data, getTerrain, scenarioData } from './helpers.js';
 import { createWorld, step } from '../src/sim/world.js';
 import { drainEvents } from '../src/sim/events.js';
 import { restore, snapshot } from '../src/save/game.js';
+import { SNAP_VERSION, readSave } from '../src/save/migrate.js';
 import { addMobileRadar } from '../src/sim/mru.js';
 import { fighterCount, fighterEstablishmentShare, fighterShare } from '../src/sim/objectives.js';
+import { chartedRun, editShipRoute, editablePoints, plannedExit } from '../src/sim/convoy.js';
+import { project } from '../src/sim/geo.js';
 
-function load(name) {
-  const file = new URL(`./fixtures/save-2.6.1-${name}.json.gz`, import.meta.url);
+function load(name, version = '2.6.1') {
+  const file = new URL(`./fixtures/save-${version}-${name}.json.gz`, import.meta.url);
   return JSON.parse(gunzipSync(readFileSync(file)).toString('utf8'));
 }
 
@@ -81,6 +89,17 @@ test('a game of the Atlantic saved by 2.6.1 keeps its convoys, its numbers and i
     assert.equal(c.schedule, null, `${c.name}: schedule`);
     assert.equal(typeof c.rangeAlerted, 'boolean', `${c.name}: rangeAlerted`);
   }
+  // Escort groups saved before the depth charges (2.8): full racks, full patterns, and the
+  // length of a hunt, which the player set then, is gone.
+  assert.ok(saved.snap.escorts.every((e) => 'huntHours' in e && !('charges' in e)), 'a save of before the depth charges');
+  for (const e of w.escorts) {
+    assert.equal(e.chargesMax, 40 * e.ships, `${e.name}: stock`);
+    assert.equal(e.charges, e.chargesMax, `${e.name}: full racks`);
+    assert.equal(e.pattern, 'full');
+    assert.equal(e.chargesOut, false);
+    assert.ok(!('huntHours' in e), `${e.name}: no hunt hours`);
+    if (e.state === 'hunting' && !e.huntStay) assert.ok(e.huntUntil - w.t <= w.rules.asw.engagement.searchS, 'a hunt under way ends with a search');
+  }
   // The game keeps what it was begun with: HX 100 and the Anson of 502 Sqn, at Aldergrove.
   assert.ok(w.convoys.some((c) => c.name === 'HX 100'), 'HX 100 is still HX 100');
   assert.equal(w.squadrons.find((s) => s.id === '502').type, 'Anson');
@@ -91,6 +110,94 @@ test('a game of the Atlantic saved by 2.6.1 keeps its convoys, its numbers and i
   assert.ok(names().length > before, 'new convoys have sailed');
   assert.equal(new Set(w.convoys.map((c) => c.id)).size, w.convoys.length, 'no two convoys with the same id');
   assert.equal(new Set(names()).size, names().length, 'no two convoys with the same name');
+  const text = JSON.stringify(snapshot(w));
+  assert.equal(JSON.stringify(snapshot(resume({ snap: JSON.parse(text) }, 'standard'))), text);
+});
+
+test('the games saved by 2.9.0 (format 2) load with every part in its place, and go on', () => {
+  const ids = ['m0-july-1940', 'kanalkampf', 'adlertag', 'quinze-septembre', 'hiver-atlantique'];
+  for (const [name, carry] of [['adlertag', null], ['quinze-septembre-campagne', { fighterShare: 0.6, from: 'adlertag' }], ['hiver-atlantique', null]]) {
+    const saved = load(name, '2.9.0');
+    assert.equal(saved.madeBy, '2.9.0');
+    assert.equal(saved.snap.version, 2, `${name}: format 2`);
+    // Read as a file is: the format, the validation, the journal and the notes.
+    const read = readSave(structuredClone(saved), ids);
+    assert.equal(read.complete, SNAP_VERSION === 2, `${name}: a save of the format in use has every part`);
+    // Restored with the settings of another player (Arcade): the game keeps its own.
+    const w = resume(saved, 'arcade', carry);
+    assert.equal(w.settings.preset, saved.snap.settings.preset, `${name}: its preset`);
+    assert.equal(w.presetStart, saved.snap.presetStart);
+    assert.equal(w.t, saved.snap.t);
+    play(w, 86400);
+    assert.ok(w.t > saved.snap.t, `${name}: the game goes on`);
+    for (const [k, v] of Object.entries(w.stats)) if (typeof v === 'number') assert.ok(Number.isFinite(v), `${name}: stats.${k}`);
+    // Saved by this version, it comes back exactly.
+    const text = JSON.stringify(snapshot(w));
+    assert.equal(JSON.stringify(snapshot(resume({ snap: JSON.parse(text) }, 'realistic', carry))), text, `${name}: saved again and restored`);
+  }
+  // What each fixture was made to hold.
+  const a = resume(load('adlertag', '2.9.0'), 'standard');
+  assert.ok(a.squadrons.some((s) => s.id === '266') && a.mru.pending.length === 1 && a.formations.length === 1, 'Adlertag: the relief, the station on its way, the wing');
+  const s = resume(load('hiver-atlantique', '2.9.0'), 'standard');
+  assert.ok(s.watch && s.watch.reports.length > 20 && s.signals.length >= 0, 'the Atlantic: its watch reports');
+  assert.ok(s.escorts.every((e) => Number.isFinite(e.charges)), 'its depth charges');
+});
+
+test('a game of the Atlantic saved by 2.10.2: the group that waited sails, the ways out of port are read as steps', () => {
+  const saved = load('hiver-atlantique-sorties', '2.10.2');
+  assert.equal(saved.madeBy, '2.10.2');
+  const was = (id) => saved.snap.escorts.find((e) => e.id === id);
+  // What 2.10.2 wrote: no field of 2.10.3, an order that waits past its hour, locks at the wrong end.
+  assert.ok(saved.snap.escorts.every((e) => !('routeHead' in e) && !('exitPlanned' in e)));
+  assert.equal(was('eg1').schedule.delayed, true, 'EG 1: its sailing waited (« ni route ni étapes »)');
+  assert.equal(was('eg1').route.length, 0);
+  assert.equal(was('eg2').routeLocked, was('eg2').route.length, 'EG 2: every point of its route locked');
+  assert.equal(was('eg3').routeLocked, 8, 'EG 3: its channel counted as the end of its route');
+  const read = readSave(structuredClone(saved), ['hiver-atlantique']);
+  assert.equal(read.complete, true, 'a save of the format in use');
+  const w = resume(saved, 'standard');
+  const group = (id) => w.escorts.find((e) => e.id === id);
+  const events = [];
+  const play2 = (seconds) => {
+    for (let i = 0; i < seconds; i++) {
+      step(w, 1);
+      events.push(...w.events);
+      w.events.length = 0;
+    }
+  };
+  play2(120);
+  // EG 1: its channel becomes its exit step, and the sailing that waited leaves, late.
+  const eg1 = group('eg1');
+  assert.equal(eg1.state, 'atSea');
+  assert.equal(eg1.schedule, null);
+  assert.equal(eg1.exitPlanned, true);
+  assert.equal(eg1.routeHead, eg1.route.length);
+  assert.equal(chartedRun(w, eg1.route), eg1.route.length, 'down the channel chosen in 2.10.2');
+  assert.ok(events.some((e) => e.type === 'scheduledSail' && e.unitId === 'eg1' && e.late));
+  // EG 3: still in port until its hour, with its step and its line told apart.
+  const eg3 = group('eg3');
+  assert.equal(eg3.state, 'inPort');
+  assert.equal(plannedExit(eg3), 'Canal Saint-Georges');
+  assert.equal(eg3.routeHead, 8);
+  assert.equal(eg3.routeLocked, 0);
+  assert.deepEqual(eg3.route, was('eg3').route, 'not a point of its route has moved');
+  assert.equal(editablePoints(eg3).length, 2, 'the two points drawn are the player\'s');
+  // EG 2: going down its channel, its line can be changed again and drawn longer.
+  const eg2 = group('eg2');
+  assert.equal(eg2.routeLocked, 0);
+  assert.equal(eg2.routeHead, chartedRun(w, eg2.route));
+  const mine = editablePoints(eg2).map((p) => [p[0], p[1]]);
+  assert.equal(mine.length, eg2.route.length - eg2.routeHead);
+  assert.ok(mine.length >= 3, `the points drawn (${mine.length}) can be moved; in 2.10.2 none could`);
+  assert.ok(editShipRoute(w, eg2, [...mine, project(-20, 58)]).ok);
+  // EG 4 waited at the roads and still does. And at its hour EG 3 sails, on time.
+  assert.equal(group('eg4').state, 'waiting');
+  play2(was('eg3').schedule.at - w.t + 60);
+  assert.equal(eg3.state, 'atSea');
+  assert.ok(events.some((e) => e.type === 'scheduledSail' && e.unitId === 'eg3' && !e.late));
+  // The game goes on, and saved by this version it comes back exactly.
+  play(w, 86400);
+  assert.equal(w.ended, false);
   const text = JSON.stringify(snapshot(w));
   assert.equal(JSON.stringify(snapshot(resume({ snap: JSON.parse(text) }, 'standard'))), text);
 });

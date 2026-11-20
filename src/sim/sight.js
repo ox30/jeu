@@ -1,7 +1,8 @@
 // What the player's units see, as circles on the map (Réglages, Carte: "zones de vue").
 // The same ranges as the detection itself: contact.js for aircraft, asw.js for U-boats.
 
-import { isDaylight, isPatrol, sightKm } from './patrols.js';
+import { isPatrol, sightKm } from './patrols.js';
+import { isDaylight } from './daylight.js';
 import { isFlying } from './squadron.js';
 
 /** Escort group states in which the group keeps watch (asw.js). */
@@ -12,7 +13,7 @@ export const WATCHING = ['escorting', 'atSea', 'hunting', 'waiting'];
  * height), 'surface' (a U-boat on the surface) or 'submerged' (a U-boat under water).
  */
 export function viewZones(world, u, unitKind) {
-  const day = isDaylight(world);
+  const day = isDaylight(world, u.x, u.y);
   const zones = [];
   const add = (kind, km) => {
     if (km > 0) zones.push({ unit: u, x: u.x, y: u.y, km, kind, night: !day });
@@ -29,9 +30,9 @@ export function viewZones(world, u, unitKind) {
   if (unitKind === 'escort') {
     if (!WATCHING.includes(u.state)) return zones;
     const A = world.rules.asw;
-    const radar = world.scenario.escortRadar ? A.radar : null;
+    const radar = u.radar ? A.radar : null;
     add('surface', Math.max(day ? A.lookoutDayKm : A.lookoutNightKm, radar ? radar.surfaceKm : 0));
-    add('submerged', Math.max(A.asdicKm, day ? A.periscopeKm : 0, radar ? radar.periscopeKm : 0));
+    add('submerged', Math.max(A.asdicKm, day ? A.periscopeKm : 0));
   }
   return zones;
 }

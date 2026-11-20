@@ -11,7 +11,8 @@
       "pagesPause": true,
       "fatigue": "off",
       "carry": "none",
-      "bdienst": "0"
+      "bdienst": "0",
+      "seaComms": "direct"
     },
     "standard": {
       "detection": "approximate",
@@ -23,7 +24,8 @@
       "pagesPause": true,
       "fatigue": "on",
       "carry": "light",
-      "bdienst": "25"
+      "bdienst": "25",
+      "seaComms": "silence"
     },
     "realistic": {
       "detection": "delayed",
@@ -35,7 +37,8 @@
       "pagesPause": false,
       "fatigue": "losses",
       "carry": "full",
-      "bdienst": "50"
+      "bdienst": "50",
+      "seaComms": "silence"
     }
   },
   "choices": {
@@ -96,6 +99,19 @@
       "50",
       "75",
       "100"
+    ],
+    "watchStops": [
+      "decision",
+      "twice",
+      "every"
+    ],
+    "seaComms": [
+      "direct",
+      "silence"
+    ],
+    "sheetHelp": [
+      "shown",
+      "folded"
     ]
   },
   "options": {
@@ -108,11 +124,15 @@
     "confirmSpeed": true,
     "questions": true,
     "rosterHours": "24",
+    "watchStops": "decision",
+    "nightShadow": true,
+    "patrolZones": true,
     "viewZones": "selected",
     "volume": 80,
     "lowRes": false,
     "sheetPos": "right",
     "sheetW": 400,
-    "sheetH": 300
+    "sheetH": 300,
+    "sheetHelp": "shown"
   }
 }

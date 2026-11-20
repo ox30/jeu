@@ -5,7 +5,20 @@
 const AIR = {
   rien: { idle: true }, // no order at all
   simple: { perRaid: 2, scale: true }, // two squadrons a raid, more against a big one
-  soigne: { perRaid: 2, scale: true, ignoreHigh: true, nightRest: true }, // and: sweeps left alone, rest at night
+  // Carefully: sweeps left alone, rest at night — and on 15 September, as its briefing asks,
+  // everything in mass (the battle of one day is won by committing: the mirror of Adlertag).
+  // On that day « soigne » and « masse » are therefore the same games: the tables show one
+  // line of it, and « prudent » beside it.
+  soigne: {
+    perRaid: 2,
+    scale: true,
+    ignoreHigh: true,
+    nightRest: true,
+    byScenario: { 'quinze-septembre': { perRaid: 6, scale: false, ignoreHigh: false, answers: { engage: true, pursue: true, beyond: true } } },
+  },
+  // The care of the week-long battles kept on 15 September too (two a raid, sweeps left
+  // alone): what « soigne » was on that day until 2.9, measured to show what it costs there.
+  prudent: { perRaid: 2, scale: true, ignoreHigh: true, nightRest: true },
   'sans-chasse': { perRaid: 0 }, // convoys and trains only: the fighters stay on the ground
   'sans-ravitaillement': { perRaid: 2, scale: true, minStocks: false }, // no order to the trains
   '1-par-raid': { perRaid: 1 },
@@ -28,7 +41,9 @@ const SEA = {
   simple: {}, // one escort group a convoy, with the game's own defaults
   rester: { behaviour: 'stay' },
   chasser: { behaviour: 'hunt' },
-  soigne: { behaviour: 'hunt', air: 'cover' },
+  'rester-econome': { behaviour: 'stay', pattern: 'light' },
+  'chasser-econome': { behaviour: 'hunt', pattern: 'light' },
+  soigne: { behaviour: 'hunt', air: 'cover', rearm: true },
   'deux-avions': { buy: [{ id: 'hudson', day: 0 }, { id: 'catalina', day: 0 }] },
 };
 
@@ -62,12 +77,14 @@ export const MATRIX = [
   ['quinze-septembre', 'standard', '2-par-raid'],
   ['quinze-septembre', 'standard', '4-par-raid'],
   ['quinze-septembre', 'realistic', 'simple'],
-  ['quinze-septembre', 'realistic', 'soigne'],
-  ['quinze-septembre', 'realistic', 'masse'],
+  ['quinze-septembre', 'realistic', 'soigne'], // in mass on that day (the same games as « masse »)
+  ['quinze-septembre', 'realistic', 'prudent'],
   ['hiver-atlantique', 'standard', 'rien'],
   ['hiver-atlantique', 'standard', 'simple'],
   ['hiver-atlantique', 'standard', 'rester'],
   ['hiver-atlantique', 'standard', 'chasser'],
+  ['hiver-atlantique', 'standard', 'chasser-econome'],
+  ['hiver-atlantique', 'standard', 'soigne'],
   ['hiver-atlantique', 'standard', 'deux-avions'],
   ['hiver-atlantique', 'realistic', 'rester'],
   ['hiver-atlantique', 'realistic', 'chasser'],

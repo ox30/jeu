@@ -7,6 +7,20 @@ import { emit } from './events.js';
 import { damageSite, siteRules } from './sites.js';
 import { attackConvoyFromAir } from './naval.js';
 import { bombStocks } from './logistics.js';
+import { completeEntity, declareFields } from './entities.js';
+
+// How a raid goes, from its assembly to its way home: the same for a real raid and for a
+// false echo.
+declareFields('raid', (r) => {
+  r.phase = 'pending'; // pending | assembling | inbound | bombing | outbound | done
+  r.timer = 0;
+  r.orbitAngle = 0;
+  r.engagedBy = new Set();
+  r.intercepted = false;
+  r.repelled = false;
+  r.bombed = false;
+  r.destroyed = false;
+});
 
 /** "airfield:manston" → the installation, "convoy:cw" → the convoy. */
 export function resolveTarget(world, ref) {
@@ -15,16 +29,24 @@ export function resolveTarget(world, ref) {
   return world.sites.get(ref) || null;
 }
 
+/**
+ * "Not yet", as a game time, for the departure of a raid held back (`held` in the scenario):
+ * it waits until an order releases it (orders.js, releaseRaid) — the lessons of the tutorial
+ * send their raids when the pupil is ready. A number a save can keep.
+ */
+export const HELD = 1e12;
+
 export function createRaid(world, def) {
   const target = resolveTarget(world, def.target);
   if (!target) throw new Error(`raid ${def.id}: unknown target ${def.target}`);
   const [ox, oy] = project(def.origin.lon, def.origin.lat);
-  return {
+  return completeEntity('raid', {
     kind: 'raid',
     id: def.id,
     label: def.label,
     phantom: false,
-    departure: (parseGameDate(def.time) - world.startMs) / 1000,
+    held: Boolean(def.held),
+    departure: def.held ? HELD : (parseGameDate(def.time) - world.startMs) / 1000,
     assembly: def.assemblyMin * 60,
     target: def.target,
     targetKind: def.target.split(':')[0],
@@ -45,15 +67,7 @@ export function createRaid(world, def) {
     escort: def.escort,
     escortStart: def.escort,
     escortType: def.escortType,
-    phase: 'pending', // pending | assembling | inbound | bombing | outbound | done
-    timer: 0,
-    orbitAngle: 0,
-    engagedBy: new Set(),
-    intercepted: false,
-    repelled: false,
-    bombed: false,
-    destroyed: false,
-  };
+  }, world);
 }
 
 /** A false radar echo: it can be plotted, but there is nothing to intercept. */
@@ -61,7 +75,7 @@ export function createPhantom(world, def) {
   const [ox, oy] = project(def.origin.lon, def.origin.lat);
   const [dx, dy] = headingVector(def.heading);
   const length = (def.speedKmh / 3600) * def.durationMin * 60;
-  return {
+  return completeEntity('raid', {
     kind: 'raid',
     id: def.id,
     label: def.label,
@@ -87,15 +101,7 @@ export function createPhantom(world, def) {
     escort: 0,
     escortStart: 0,
     escortType: null,
-    phase: 'pending',
-    timer: 0,
-    orbitAngle: 0,
-    engagedBy: new Set(),
-    intercepted: false,
-    repelled: false,
-    bombed: false,
-    destroyed: false,
-  };
+  }, world);
 }
 
 export function isActive(r) {

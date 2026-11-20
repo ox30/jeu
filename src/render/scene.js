@@ -5,7 +5,7 @@ import { clockColorIndex, formatTime } from '../core/time.js';
 import { FOOT_M, distance, greatCircle, headingOf, polylineLength, project, scaleX, sphereKm } from '../sim/geo.js';
 import { columnLetter } from '../sim/grid.js';
 import { solveIntercept } from '../sim/intercept.js';
-import { editableRoute, navigationEnd, planTrack, routeCanExtend } from '../sim/orders.js';
+import { navigationEnd, planTrack, wayOutEnd } from '../sim/orders.js';
 import { contactEstimate, nearestContact, visiblePlots } from '../sim/query.js';
 import { feetOf, isFlying, squadronSpeed } from '../sim/squadron.js';
 import { currentSpeed } from '../sim/convoy.js';
@@ -25,6 +25,13 @@ import { drawDevLayer } from './devLayer.js';
 import { formationById, leaderOf } from '../sim/formations.js';
 import { rallyPoint } from '../sim/rally.js';
 import { allViewZones } from '../sim/sight.js';
+import { drawNight } from './night.js';
+import { shownPosition } from '../sim/comms.js';
+import { awaited, awaitedLand, workingRoute } from '../ui/awaited.js';
+import { endPreview } from '../ui/convoyEnd.js';
+import { clockHour } from '../sim/watch.js';
+import { activeMember, findStacks, indexStacks, stackConvoy, stackKey, stackOfSelection, stackRole } from '../ui/stacks.js';
+import { patrolZone, shownAsZone } from '../ui/patrolZone.js';
 
 const DEG = Math.PI / 180;
 
@@ -34,6 +41,152 @@ function lerp(a, b, k) {
 
 function unitScreen(cam, u, alpha) {
   return toScreen(cam, lerp(u.px, u.x, alpha), lerp(u.py, u.y, alpha));
+}
+
+/**
+ * Where a ship is drawn: [sx, sy, est]. `est` is null for its true place; under radio silence
+ * on the high seas it is the estimate the table holds ({ radiusKm, fix }).
+ */
+function shipScreen(app, cam, u, alpha) {
+  const p = shownPosition(app.world, u);
+  if (!p.est) return [...unitScreen(cam, u, alpha), null];
+  return [...toScreen(cam, p.x, p.y), p];
+}
+
+/** An estimated place: a dashed outline round the ship and its circle of doubt, in friendly blue. */
+function drawEstimate(ctx, cam, sx, sy, est, y, selected) {
+  const rx = est.radiusKm * cam.scale / Math.max(0.2, scaleX(y));
+  const ry = est.radiusKm * cam.scale;
+  ctx.save();
+  ctx.strokeStyle = selected ? 'rgba(47, 79, 111, 0.85)' : 'rgba(47, 79, 111, 0.5)';
+  ctx.lineWidth = selected ? 1.6 : 1.1;
+  if (ry > 14) ringOutline(ctx, cam, sx, sy, rx, ry, [6, 5]);
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.arc(sx, sy, 13, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// The pencil of an order that has not reached its ship yet: ochre, where a route known to
+// the ship is blue.
+const AWAITED = '176, 122, 18';
+
+/** The end of an escort group's way out of port, where a route of the player's begins; or null. */
+function wayOutTip(u) {
+  const head = u.kind === 'escort' ? Math.min(u.routeHead || 0, u.route.length) : 0;
+  return head > 0 ? u.route[head - 1] : null;
+}
+
+/**
+ * What a ship has been told and does not know yet (radio silence: an order waits for the
+ * relief of the watch, or for the group that carries it): the route or the legs as they will
+ * be, in ochre dashes, until the order is handed over. It stays on the map for every ship,
+ * heavier for the one in hand, which also says when it leaves.
+ */
+function drawAwaited(ctx, cam, app, u, sx, sy, selected) {
+  const world = app.world;
+  const w = awaited(world, u);
+  if (!w.route && !w.legs) return;
+  const color = `rgba(${AWAITED}, ${selected ? 0.95 : 0.7})`;
+  const width = selected ? 2 : 1.4;
+  let end = null;
+  let via = 'radio';
+  let carrier = null;
+  if (w.route && w.route.points.length) {
+    // (A route changed keeps the way out of port before it; a line drawn starts at the ship.)
+    const lead = w.route.name === 'editRoute' ? wayOutTip(u) : null;
+    const pts = [lead ? toScreen(cam, lead[0], lead[1]) : [sx, sy], ...w.route.points.map(([x, y]) => toScreen(cam, x, y))];
+    pencilLine(ctx, pts, { color, width, dash: [6, 4], arrow: true });
+    end = pts[pts.length - 1];
+    via = w.route.via;
+    carrier = w.route.carrier;
+  } else if (w.legs && w.legs.length) {
+    const p = shownPosition(world, u);
+    const track = planTrack(world, u, w.legs, { x: p.x, y: p.y, t: world.t });
+    const pts = track.map((q) => toScreen(cam, q.x, q.y));
+    pts[0] = [sx, sy];
+    for (let i = 1; i < pts.length; i++) {
+      pencilLine(ctx, [pts[i - 1], pts[i]], { color, width, dash: track[i].open ? [2, 5] : [6, 4], arrow: i === pts.length - 1 });
+    }
+    if (selected) {
+      // The number of each leg at its end, as on the legs the ship already has.
+      ctx.font = `bold 10px ${FONTS.mono}`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      for (let i = 1; i < pts.length; i++) {
+        const [x, y] = pts[i];
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fill();
+        if (track[i].open) continue;
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(247, 240, 220, 0.85)';
+        ctx.strokeText(String(i), x + 6, y - 8);
+        ctx.fillText(String(i), x + 6, y - 8);
+      }
+    }
+    end = pts[pts.length - 1];
+  }
+  if (!selected || !end) return;
+  // Where it would touch land, seen from here: the order would be refused when it arrives.
+  const land = awaitedLand(world, u);
+  if (land) {
+    const [fx, fy] = toScreen(cam, land[0], land[1]);
+    ctx.strokeStyle = COLORS.rafRed;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(fx, fy, 10, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = COLORS.rafRed;
+    ctx.font = `bold 12px ${FONTS.serif}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(t('map.landHere'), fx + 14, fy);
+  }
+  const group = carrier ? world.escorts.find((e) => e.id === carrier) : null;
+  const hour = (clockHour(world) - (clockHour(world) % 4) + 4) % 24;
+  const label = via === 'ship' && group ? t('map.awaitedShip', { group: group.short }) : t('map.awaitedRadio', { hour });
+  ctx.font = `italic 11px ${FONTS.serif}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(247, 240, 220, 0.9)';
+  // (Above the end of the line: what the ship does there is written below it.)
+  ctx.strokeText(label, end[0] + 12, end[1] - 13);
+  ctx.fillStyle = `rgba(${AWAITED}, 1)`;
+  ctx.fillText(label, end[0] + 12, end[1] - 13);
+}
+
+/**
+ * The convoy in hand: what it was told to do at the end of its line or of its legs. A word
+ * by the end (« ⚓ Liverpool par Canal Saint-Georges », « → garde le cap »), and in faint
+ * dots the way it will take from there: to the entrance of the channel and up it, or the
+ * Admiralty's route from the nearest point ahead. Ochre while the order has not reached it.
+ */
+function drawConvoyEnd(ctx, cam, app, c) {
+  const world = app.world;
+  const end = endPreview(world, c);
+  if (!end || !end.from) return;
+  const a = end.action;
+  const rgb = end.waiting || awaited(world, c).route !== null ? AWAITED : '47, 79, 111';
+  const [fx, fy] = toScreen(cam, end.from[0], end.from[1]);
+  if (end.points && end.points.length) {
+    const pts = [[fx, fy], ...end.points.map(([x, y]) => toScreen(cam, x, y))];
+    pencilLine(ctx, pts, { color: `rgba(${rgb}, 0.9)`, width: 1.8, dash: [3, 5], arrow: true });
+  }
+  const port = a.kind === 'port' ? world.byId.port.get(a.id) : null;
+  const label = a.kind === 'port' ? t(a.via ? 'map.convoyEnd.portVia' : 'map.convoyEnd.port', { port: port ? port.name : '', channel: a.via || '' }) : t(`map.convoyEnd.${a.kind}`);
+  ctx.font = `italic 11px ${FONTS.serif}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(247, 240, 220, 0.9)';
+  ctx.strokeText(label, fx + 12, fy + 14);
+  ctx.fillStyle = `rgba(${rgb}, 0.95)`;
+  ctx.fillText(label, fx + 12, fy + 14);
 }
 
 function onScreen(cam, sx, sy, margin = 60) {
@@ -121,6 +274,103 @@ function placePlaque(ctx, app, x, y, lines, opts = {}, r = 10) {
   const box = plaque(ctx, pick[0], pick[1], lines, opts);
   app.plaqueBoxes.push(box);
   return box;
+}
+
+// ---- stacks: units whose marks overlap (C9 of the audit) ----------------------------
+
+/**
+ * Notes where the mark of a unit stands (the stacks of the next image are found from the
+ * marks of this one) and tells how to draw it: as usual (null or 'active'), faded (another
+ * unit of its stack is in hand) or not at all (the stack's own mark stands for it).
+ */
+function markRole(app, family, kind, id, x, y, label, formation = null, detail = null, leads = false) {
+  app.marks.push({ family, kind, id, x, y, label, formation, detail, leads });
+  return stackRole(app.stackOf, app.selection, kind, id);
+}
+
+/** A small disc with the number of units of a stack. */
+function countBadge(ctx, x, y, n) {
+  ctx.beginPath();
+  ctx.arc(x, y, 8, 0, Math.PI * 2);
+  ctx.fillStyle = '#2b241a';
+  ctx.fill();
+  ctx.strokeStyle = '#f2e9d2';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.font = `bold 11px ${FONTS.mono}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#f2e9d2';
+  ctx.fillText(String(n), x, y + 0.5);
+}
+
+/** The mark of a stack of ships: a disc of the table's paper with a warship on it. */
+function navalMark(ctx, x, y) {
+  ctx.beginPath();
+  ctx.arc(x, y, 11, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(242, 233, 210, 0.95)';
+  ctx.fill();
+  ctx.strokeStyle = '#4f6070';
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  warship(ctx, x, y, 90, 7);
+}
+
+/**
+ * The stacks: with no unit of a stack in hand, one mark for all (the RAF roundel for
+ * squadrons, the naval mark for groups and convoys), their number and their names; a click
+ * opens the sheet with a tab a unit. With one in hand, that one is drawn as usual and the
+ * number stays beside it.
+ */
+function drawStacks(ctx, cam, app) {
+  for (const s of app.stacks) {
+    const n = s.members.length;
+    const members = s.members.map(({ kind, id, formation }) => ({ kind, id, formation }));
+    const active = activeMember(s, app.selection);
+    if (active) {
+      countBadge(ctx, active.x + 13, active.y - 12, n);
+      // Behind the unit in hand: a click beside it, on the others, keeps the stack open.
+      app.hits.push({ kind: 'stack', family: s.family, members, x: s.x, y: s.y, r: 16, priority: 1.5, box: null });
+      continue;
+    }
+    if (!onScreen(cam, s.x, s.y)) continue;
+    const convoy = stackConvoy(s);
+    if (convoy && convoy.detail) {
+      // A convoy and its escort: the convoy's own mark and plaque, the groups named under it.
+      const { heading, single, plaque } = convoy.detail;
+      if (single) ship(ctx, convoy.x, convoy.y, heading, 8);
+      else {
+        ship(ctx, convoy.x - 4, convoy.y + 2, heading, 8);
+        ship(ctx, convoy.x + 4, convoy.y - 2, heading, 8);
+      }
+      warship(ctx, convoy.x - 3, convoy.y, heading, 6);
+      warship(ctx, convoy.x + 3, convoy.y - 3, heading, 6);
+      countBadge(ctx, convoy.x + 13, convoy.y - 12, n);
+      const groups = s.members.filter((m) => m !== convoy);
+      const names = groups.slice(0, 3).map((m) => m.label).join(' · ') + (groups.length > 3 ? t('map.stackMore', { n: groups.length - 3 }) : '');
+      const box = placePlaque(ctx, app, convoy.x, convoy.y, [plaque, t('map.stackEscort', { names })], { accent: '#4f6070' }, 15);
+      app.hits.push({ kind: 'stack', family: s.family, members, x: convoy.x, y: convoy.y, r: 16, priority: 0, box });
+      continue;
+    }
+    if (s.family === 'air') roundel(ctx, s.x, s.y, 9);
+    else navalMark(ctx, s.x, s.y);
+    countBadge(ctx, s.x + 11, s.y - 10, n);
+    const names = s.members.slice(0, 3).map((m) => m.label).join(' · ') + (n > 3 ? t('map.stackMore', { n: n - 3 }) : '');
+    const box = placePlaque(ctx, app, s.x, s.y, [names], { size: 10, accent: s.family === 'air' ? null : '#4f6070' }, 15);
+    app.hits.push({ kind: 'stack', family: s.family, members, x: s.x, y: s.y, r: 16, priority: 0, box });
+  }
+}
+
+/** A word of the page by a place of the map, for a few seconds (a line drawn from a closed stack). */
+function drawMapNote(ctx, cam, app) {
+  const note = app.mapNote;
+  if (!note) return;
+  if (performance.now() >= note.until) {
+    app.mapNote = null;
+    return;
+  }
+  const [x, y] = toScreen(cam, note.x, note.y);
+  if (onScreen(cam, x, y)) placePlaque(ctx, app, x, y + 30, [note.text], { accent: COLORS.rafRed }, 15);
 }
 
 // ---- grid and coverage -------------------------------------------------------------
@@ -212,6 +462,46 @@ function drawObserverZone(ctx, cam, world) {
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(m.canvas, x0, y0, m.cols * size, m.rows * size);
   ctx.restore();
+}
+
+/**
+ * The waters closed to the U-boats (minefields, patrols): a pale dashed outline. Under radio
+ * silence they are also where the ships are followed live: the outline says where an order
+ * is carried out at once.
+ */
+function drawClosedWaters(ctx, cam, app) {
+  const areas = app.world.rules.uboats.closedWaters || [];
+  if (!areas.length || cam.scale < 0.08) return;
+  ctx.save();
+  ctx.setLineDash([5, 5]);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(47, 79, 111, 0.38)';
+  ctx.fillStyle = 'rgba(47, 79, 111, 0.035)';
+  for (const a of areas) {
+    const pts = closedWaterPoints(a);
+    if (!pts.length) continue;
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => {
+      const [sx, sy] = toScreen(cam, x, y);
+      if (i === 0) ctx.moveTo(sx, sy);
+      else ctx.lineTo(sx, sy);
+    });
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// The outlines in kilometres, worked out once for each area of the rules.
+const closedWaterCache = new WeakMap();
+function closedWaterPoints(area) {
+  let pts = closedWaterCache.get(area);
+  if (!pts) {
+    pts = (area.area || []).map(([lon, lat]) => project(lon, lat));
+    closedWaterCache.set(area, pts);
+  }
+  return pts;
 }
 
 function drawCoverage(ctx, cam, world) {
@@ -776,7 +1066,7 @@ function drawEscorts(ctx, cam, app, alpha) {
     const f = m ? m.f : null;
     const leader = f ? world.escorts.find((x) => x.id === f.members[0]) : null;
     const selected = isSelected(app, 'escort', e.id) || Boolean(f && m.index === 0 && isSelected(app, 'formation', f.id));
-    const [sx, sy] = unitScreen(cam, e, alpha);
+    const [sx, sy, est] = shipScreen(app, cam, e, alpha);
     // A group in station with its support group's leader: a small symbol, no plaque.
     const inPort = (x) => x.state === 'inPort' || x.state === 'refit';
     const tucked = m && m.index > 0 && leader && (
@@ -799,7 +1089,8 @@ function drawEscorts(ctx, cam, app, alpha) {
       continue;
     }
     if (e.state === 'hunting') {
-      // The search area (or the U-boat held), and a line back to the convoy it left.
+      // The search area (or the U-boat held), and a line back to the convoy it left. (The
+      // group signalled its contact: on the high seas it is drawn where the table puts it.)
       const held = e.engage ? world.uboats.find((u) => u.id === e.engage.uboatId) : null;
       if (!held) {
         const [hx, hy] = toScreen(cam, e.huntX, e.huntY);
@@ -815,12 +1106,17 @@ function drawEscorts(ctx, cam, app, alpha) {
         pencilLine(ctx, [[sx, sy], [hx, hy]], { color: 'rgba(139, 26, 26, 0.55)', width: 1.2, dash: [4, 4] });
       }
       const c = world.convoys.find((x) => x.id === e.huntFor);
-      if (c && selected) pencilLine(ctx, [[sx, sy], toScreen(cam, c.x, c.y)], { color: 'rgba(79, 96, 112, 0.5)', width: 1, dash: [2, 5], arrow: false });
+      if (c && selected) pencilLine(ctx, [[sx, sy], shipScreen(app, cam, c, alpha).slice(0, 2)], { color: 'rgba(79, 96, 112, 0.5)', width: 1, dash: [2, 5], arrow: false });
     }
-    if (e.state === 'atSea' || e.state === 'waiting') {
+    // In port, what waits for the order to sail (the group in hand, or one with its hour
+    // set): its exit step and the line after it, or its legs from the end of the way out.
+    const waiting = e.state === 'inPort' && (selected || Boolean(e.schedule));
+    if (e.state === 'atSea' || e.state === 'waiting' || waiting) {
       if (e.route.length) {
-        pencilLine(ctx, [[sx, sy], ...e.route.map(([x, y]) => toScreen(cam, x, y))], { color: 'rgba(79, 96, 112, 0.8)', width: 1.4, dash: [6, 5] });
-        if (selected && e.endAction && e.endAction.kind !== 'stop' && !e.homeward) {
+        // (In hand in port: the pencil of the legs, heavier than the chart's own channel under it.)
+        const style = waiting && selected ? { color: 'rgba(47, 79, 111, 0.9)', width: 2, dash: [7, 4] } : { color: 'rgba(79, 96, 112, 0.8)', width: 1.4, dash: [6, 5] };
+        pencilLine(ctx, [[sx, sy], ...e.route.map(([x, y]) => toScreen(cam, x, y))], style);
+        if (selected && !e.plan.length && e.endAction && e.endAction.kind !== 'stop' && !e.homeward) {
           const [lx, ly] = toScreen(cam, e.route[e.route.length - 1][0], e.route[e.route.length - 1][1]);
           ctx.font = `italic 11px ${FONTS.serif}`;
           ctx.textAlign = 'left';
@@ -828,19 +1124,34 @@ function drawEscorts(ctx, cam, app, alpha) {
           ctx.fillStyle = 'rgba(47, 79, 111, 0.95)';
           ctx.fillText(shipEndLabel(world, e), lx + 10, ly + 12);
         }
-      } else {
+      }
+      // (A group leaving port by its way out has its legs after it: both are drawn.)
+      if (!e.route.length || (e.plan.length && (waiting || e.routeHead >= e.route.length))) {
         drawPlanTrack(ctx, cam, app, e, selected);
       }
       if (e.joinTarget) {
         const c = world.convoys.find((x) => x.id === e.joinTarget);
-        if (c) pencilLine(ctx, [[sx, sy], toScreen(cam, c.x, c.y)], { color: 'rgba(79, 96, 112, 0.6)', width: 1.2, dash: [2, 4], arrow: false });
+        if (c) pencilLine(ctx, [[sx, sy], shipScreen(app, cam, c, alpha).slice(0, 2)], { color: 'rgba(79, 96, 112, 0.6)', width: 1.2, dash: [2, 4], arrow: false });
       }
     }
+    drawAwaited(ctx, cam, app, e, sx, sy, selected);
     if (!onScreen(cam, sx, sy)) continue;
+    // A group with its convoy shares its circle of doubt: one is enough.
+    if (est && (e.state !== 'escorting' || selected)) drawEstimate(ctx, cam, sx, sy, est, e.y, selected);
     const ox = e.state === 'inPort' || e.state === 'refit' ? 14 : 0;
     const oy = e.state === 'inPort' || e.state === 'refit' ? 12 : 0;
+    // In a stack (the groups of one port, a group with its convoy): its mark stands for it,
+    // or it fades behind the unit in hand. A support group counts for one unit.
+    const leads = Boolean(f && m.index === 0);
+    const role = markRole(app, 'sea', 'escort', e.id, sx + ox, sy + oy, f ? f.name : e.short, f ? f.id : null, null, leads);
+    if (role === 'hidden') continue;
+    if (role === 'faded') ctx.globalAlpha = 0.35;
     warship(ctx, sx + ox - 3, sy + oy, e.heading, 6);
     warship(ctx, sx + ox + 3, sy + oy - 3, e.heading, 6);
+    if (role === 'faded') {
+      ctx.globalAlpha = 1;
+      continue;
+    }
     if (selected) {
       ctx.strokeStyle = COLORS.select;
       ctx.lineWidth = 2;
@@ -859,7 +1170,7 @@ function drawEscorts(ctx, cam, app, alpha) {
     }
     let box = null;
     if (e.state !== 'escorting' || selected) {
-      let label = `${e.short} · ${e.ships}`;
+      let label = `${e.short}${est ? t('map.estimated') : ''} · ${e.ships}`;
       if (e.engage) label = t('map.escortCombat', { name: e.short, n: e.ships });
       else if (e.state === 'hunting') label = t('map.escortHunting', { name: e.short, n: e.ships });
       if (f && m.index === 0) {
@@ -868,7 +1179,7 @@ function drawEscorts(ctx, cam, app, alpha) {
       } else if (f) {
         label = `${e.short} · ${e.ships} → ${f.name}`;
       }
-      box = placePlaque(ctx, app, sx + ox, sy + oy, [label], { accent: e.engage ? COLORS.rafRed : selected ? COLORS.select : '#4f6070', size: 10 }, 10);
+      box = placePlaque(ctx, app, sx + ox, sy + oy, [label], { accent: e.engage && !est ? COLORS.rafRed : selected ? COLORS.select : '#4f6070', size: 10 }, 10);
     }
     app.hits.push({ kind: 'escort', id: e.id, formation: f ? f.id : undefined, x: sx + ox, y: sy + oy, r: 12, priority: 1, box });
   }
@@ -916,14 +1227,18 @@ function drawViewZones(ctx, cam, app, alpha) {
   const mode = app.settings.viewZones || 'selected';
   if (mode === 'none') return;
   const chosen = mode === 'selected' ? chosenUnits(app) : [];
-  const zones = allViewZones(app.world, mode, chosen);
+  // (A patrol drawn as the zone it covers has its circle there, not round the aircraft.)
+  const wings = formationIndex(app.world, 'air');
+  const zones = allViewZones(app.world, mode, chosen).filter((z) => !(z.unit.kind === 'squadron' && zoneOf(app, z.unit, wings)));
   if (!zones.length) return;
   // Labels for the unit chosen (its leader for a formation), not for every unit on the map.
   const named = mode === 'selected' && chosen.length ? chosen[0].unit : null;
   const labels = [];
   ctx.save();
   for (const z of [...zones].sort((a, b) => b.km - a.km)) {
-    const [sx, sy] = unitScreen(cam, z.unit, alpha);
+    // (A ship on the high seas under radio silence: round the place the table gives it.)
+    const ship = z.unit.kind === 'escort' || z.unit.kind === 'convoy';
+    const [sx, sy] = ship ? shipScreen(app, cam, z.unit, alpha) : unitScreen(cam, z.unit, alpha);
     const r = z.km * cam.scale;
     const rx = r / scaleX(z.unit.y);
     if (r < 3 || !onScreen(cam, sx, sy, rx + 20)) continue;
@@ -1091,8 +1406,8 @@ function drawGates(ctx, cam, app) {
   const ship = sel && (sel.kind === 'convoy' || sel.kind === 'escort') ? sel : null;
   // The bubbles of the ports (a route or a leg that ends in one enters the port): with a ship
   // chosen, and always when ordering by headings (like the pilots' gates).
-  if (ship || app.settings.orders === 'headings') drawPortBubbles(ctx, cam, app, ship);
-  if (app.settings.orders !== 'headings' && !ship) return;
+  if (ship || app.world.settings.orders === 'headings') drawPortBubbles(ctx, cam, app, ship);
+  if (app.world.settings.orders !== 'headings' && !ship) return;
   const r = Math.max(5, world.rules.navigation.pilotKm * cam.scale);
   ctx.save();
   for (const port of world.ports) {
@@ -1120,7 +1435,12 @@ function drawGates(ctx, cam, app) {
 function drawPlanTrack(ctx, cam, app, u, selected) {
   if (!u.plan.length) return;
   const world = app.world;
-  const track = planTrack(world, u);
+  // A ship whose place is an estimate (radio silence): its legs start where the table holds
+  // it, like its mark, and not where it really is. (A group still on its way out of port
+  // has its legs after that way out.)
+  const shown = u.kind === 'squadron' ? null : shownPosition(world, u);
+  const from = shown && shown.est && !(u.kind === 'escort' && u.route.length) ? { x: shown.x, y: shown.y, t: world.t } : null;
+  const track = planTrack(world, u, u.plan, from);
   const pts = track.map((p) => toScreen(cam, p.x, p.y));
   const color = u.kind === 'squadron' ? 'rgba(44, 74, 124, 0.85)' : 'rgba(47, 79, 111, 0.85)';
   for (let i = 1; i < pts.length; i++) {
@@ -1181,14 +1501,17 @@ function drawConvoys(ctx, cam, app, alpha) {
       ctx.textAlign = 'center';
       ctx.fillText(t('map.admiraltyRoute'), mid[0], mid[1] - 10);
     }
-    const [sx, sy] = unitScreen(cam, c, alpha);
+    const [sx, sy, est] = shipScreen(app, cam, c, alpha);
     if (c.state === 'atSea' && c.route.length) {
       const pts = [[sx, sy], ...c.route.map(([x, y]) => toScreen(cam, x, y))];
       pencilLine(ctx, pts, { color: COLORS.route, width: 1.6, dash: [8, 6], arrow: true });
     } else if (c.state !== 'arrived') {
       drawPlanTrack(ctx, cam, app, c, selected);
     }
-    if (!onScreen(cam, sx, sy)) continue;
+    drawAwaited(ctx, cam, app, c, sx, sy, selected);
+    if (selected) drawConvoyEnd(ctx, cam, app, c);
+    if (!onScreen(cam, sx, sy, est ? 60 + est.radiusKm * cam.scale : 60)) continue;
+    if (est) drawEstimate(ctx, cam, sx, sy, est, c.y, selected);
     if (awaiting) {
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 300);
       ctx.strokeStyle = `rgba(184, 64, 44, ${0.35 + 0.5 * pulse})`;
@@ -1197,15 +1520,26 @@ function drawConvoys(ctx, cam, app, alpha) {
       ctx.arc(sx, sy, 15 + 3 * pulse, 0, Math.PI * 2);
       ctx.stroke();
     }
+    const name = c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name;
+    const kn = Math.round((currentSpeed(c) * 3600) / 1.852);
+    const plaque = t('map.convoyPlaque', {
+      name: `${name}${est ? t('map.estimated') : ''}`, ships: c.ships, kn: c.state === 'atSea' ? kn : c.speedKn, zigzag: c.zigzag ? t('map.convoyPlaqueZigzag') : '',
+    });
+    // In a stack: its mark stands for it, or it fades behind the unit in hand. (With its
+    // escort alone, the stack is drawn as the convoy itself: see drawStacks.)
+    const role = markRole(app, 'sea', 'convoy', c.id, sx, sy, name, null, { plaque, heading: c.heading, single: Boolean(c.straggler) });
+    if (role === 'hidden') continue;
+    if (role === 'faded') ctx.globalAlpha = 0.35;
     if (c.straggler) ship(ctx, sx, sy, c.heading, 8);
     else {
       ship(ctx, sx - 4, sy + 2, c.heading, 8);
       ship(ctx, sx + 4, sy - 2, c.heading, 8);
     }
-    const kn = Math.round((currentSpeed(c) * 3600) / 1.852);
-    const name = c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name;
-    const zz = c.zigzag ? ` · ${t('map.zigzag')}` : '';
-    const box = placePlaque(ctx, app, sx, sy, [`${name} · ${c.ships} · ${c.state === 'atSea' ? kn : c.speedKn} nd${zz}`], {
+    if (role === 'faded') {
+      ctx.globalAlpha = 1;
+      continue;
+    }
+    const box = placePlaque(ctx, app, sx, sy, [plaque], {
       accent: selected ? COLORS.select : null,
     }, 14);
     app.hits.push({ kind: 'convoy', id: c.id, x: sx, y: sy, r: 16, priority: 1, box });
@@ -1430,6 +1764,143 @@ function drawRallies(ctx, cam, app) {
   }
 }
 
+// ---- patrol zones (idea B of the audit) ----------------------------------------------
+
+let watchTile = null;
+let watchDpr = 0;
+
+/**
+ * The hatching of a zone that is watched: thin blue lines, on the other slant than the red
+ * ones of the direction-finding zones, anchored on the map so that it moves with it.
+ */
+function watchHatch(ctx, cam, dpr) {
+  if (typeof document === 'undefined') return null;
+  if (!watchTile || watchDpr !== dpr) {
+    const n = Math.max(1, Math.round(8 * dpr));
+    watchTile = document.createElement('canvas');
+    watchTile.width = n;
+    watchTile.height = n;
+    const g = watchTile.getContext('2d');
+    g.strokeStyle = 'rgba(44, 74, 124, 0.6)';
+    g.lineWidth = dpr;
+    g.beginPath();
+    g.moveTo(-1, n + 1);
+    g.lineTo(n + 1, -1);
+    g.moveTo(-1, 1);
+    g.lineTo(1, -1);
+    g.moveTo(n - 1, n + 1);
+    g.lineTo(n + 1, n - 1);
+    g.stroke();
+    watchDpr = dpr;
+  }
+  const pattern = ctx.createPattern(watchTile, 'repeat');
+  const [ox, oy] = toScreen(cam, 0, 0);
+  if (pattern && pattern.setTransform) pattern.setTransform(new DOMMatrix().translateSelf(ox, oy).scaleSelf(1 / dpr));
+  return pattern;
+}
+
+/**
+ * Where the zone of a patrol stands on the screen. Over a convoy it is the place the table
+ * gives the convoy (its estimate, under radio silence): the patrol must not betray more.
+ */
+function zoneAnchor(app, cam, zone, alpha) {
+  if (zone.kind === 'cover') {
+    const convoy = app.world.convoys.find((c) => c.id === zone.convoy);
+    if (convoy) return shipScreen(app, cam, convoy, alpha).slice(0, 2);
+  }
+  return toScreen(cam, zone.anchor[0], zone.anchor[1]);
+}
+
+/** Is this squadron drawn as its zone? (A squadron of a formation, or the unit in hand, never.) */
+function zoneOf(app, sq, wings) {
+  const m = wings.get(sq.id) || null;
+  if (m || !shownAsZone(app, sq, isSelected(app, 'squadron', sq.id))) return null;
+  return patrolZone(app.world, sq);
+}
+
+/**
+ * At sea and from ×600 on, the zones the patrols of Coastal Command cover, under the units:
+ * the circle watched (hatched when the patrol sees now, empty by night without radar), the
+ * band watched on the way there, and the way itself. Their marks are drawn with the
+ * squadrons (zoneMark). `app.patrolZones` keeps what was drawn, for the tests.
+ */
+function drawPatrolZones(ctx, cam, app, alpha) {
+  app.patrolZones = [];
+  const wings = formationIndex(app.world, 'air');
+  let hatch = null;
+  for (const sq of app.world.squadrons) {
+    const zone = zoneOf(app, sq, wings);
+    if (!zone) continue;
+    hatch = hatch || watchHatch(ctx, cam, app.dpr || 1);
+    const [ax, ay] = zoneAnchor(app, cam, zone, alpha);
+    const r = zone.km * cam.scale;
+    ctx.save();
+    if (zone.path.length > 1) {
+      const pts = zone.path.map(([x, y]) => toScreen(cam, x, y));
+      pts[0] = unitScreen(cam, sq, alpha);
+      if (zone.kind === 'cover') pts[pts.length - 1] = [ax, ay];
+      const band = 2 * zone.sightKm * cam.scale;
+      if (band >= 4 && hatch) {
+        ctx.beginPath();
+        pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+        ctx.strokeStyle = hatch;
+        ctx.lineWidth = band;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalAlpha = 0.55;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      pencilLine(ctx, pts, { color: zone.kind === 'home' ? 'rgba(90, 80, 60, 0.45)' : 'rgba(44, 74, 124, 0.55)', width: 1.2, dash: [2, 4], arrow: zone.kind !== 'home' });
+    }
+    if (r >= 4 && onScreen(cam, ax, ay, r + 20)) {
+      const wide = scaleX(zone.anchor[1]);
+      // What it watches now, hatched: the whole circle by day, the reach of its radar by night.
+      const watched = zone.watchedKm * cam.scale;
+      if (watched >= 2 && hatch) {
+        ctx.beginPath();
+        ctx.ellipse(ax, ay, watched / wide, watched, 0, 0, Math.PI * 2);
+        ctx.fillStyle = hatch;
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.ellipse(ax, ay, r / wide, r, 0, 0, Math.PI * 2);
+      ctx.setLineDash(zone.watchedKm >= zone.km ? [] : [3, 4]);
+      ctx.strokeStyle = 'rgba(44, 74, 124, 0.65)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+    ctx.restore();
+    app.patrolZones.push({ id: sq.id, kind: zone.kind, x: ax, y: ay, r, watched: zone.watchedKm * cam.scale, sees: zone.sees, convoy: zone.convoy });
+  }
+}
+
+/**
+ * The mark of a patrol drawn as its zone: its symbol and a plaque that says what it does,
+ * at the zone, where a click or a line from it finds the squadron. Above the convoy it
+ * covers or the aerodrome it flies home to, so as not to hide them.
+ */
+function zoneMark(ctx, cam, app, sq, zone, alpha) {
+  const world = app.world;
+  const [ax, ay] = zoneAnchor(app, cam, zone, alpha);
+  const mx = ax;
+  const my = zone.kind === 'cover' || zone.kind === 'home' ? ay - 24 : ay;
+  if (!onScreen(cam, mx, my)) return;
+  const role = markRole(app, 'air', 'squadron', sq.id, mx, my, sq.name);
+  if (role === 'hidden') return;
+  if (role === 'faded') ctx.globalAlpha = 0.35;
+  patrolMark(ctx, mx, my, 7, true);
+  if (role === 'faded') {
+    ctx.globalAlpha = 1;
+    return;
+  }
+  const convoy = zone.convoy ? world.convoys.find((c) => c.id === zone.convoy) : null;
+  const what = zone.kind === 'route' && convoy ? 'toCover' : zone.kind;
+  const line = t(`map.zone.${what}`, { name: sq.name, n: sq.aircraft, convoy: convoy ? convoy.name : '' });
+  const box = placePlaque(ctx, app, mx, my, [line], {}, 12);
+  app.hits.push({ kind: 'squadron', id: sq.id, x: mx, y: my, r: 14, priority: 0, box });
+}
+
 // ---- squadrons ---------------------------------------------------------------------
 
 function drawSquadrons(ctx, cam, app, alpha) {
@@ -1441,6 +1912,13 @@ function drawSquadrons(ctx, cam, app, alpha) {
     const m = wings.get(sq.id) || null;
     const f = m ? m.f : null;
     const selected = isSelected(app, 'squadron', sq.id) || Boolean(f && m.index === 0 && isSelected(app, 'formation', f.id));
+    // At sea and at high speed, a patrol of Coastal Command is drawn as the zone it covers
+    // (idea B of the audit): its mark stands at the zone, drawn under the units.
+    const zone = zoneOf(app, sq, wings);
+    if (zone) {
+      zoneMark(ctx, cam, app, sq, zone, alpha);
+      continue;
+    }
     // A squadron in station in its big wing: a small roundel beside the leader, no plaque.
     if (m && m.index > 0 && sq.state === 'airborne' && sq.inFormation && sq.follow === f.members[0]) {
       const [sx, sy] = unitScreen(cam, sq, alpha);
@@ -1502,9 +1980,25 @@ function drawSquadrons(ctx, cam, app, alpha) {
     }
     if (!onScreen(cam, sx, sy)) continue;
     const h = stalkPx(app, altFt);
-    stalk(ctx, sx, sy, h, 'rgba(44, 74, 124, 0.85)');
     const top = sy - h;
     const ox = sq.state === 'combat' && h > 0 ? -14 : 0;
+    // In a stack (squadrons flying together): its mark stands for it, or it fades behind the
+    // unit in hand. The squadrons of a big wing are one unit, and its leader stands for it.
+    const leads = Boolean(f && m.index === 0);
+    const role = markRole(app, 'air', 'squadron', sq.id, sx + ox, top, f ? f.name : sq.name, f ? f.id : null, null, leads);
+    if (role === 'hidden') {
+      stalk(ctx, sx, sy, h, 'rgba(44, 74, 124, 0.35)');
+      continue;
+    }
+    if (role === 'faded') {
+      ctx.globalAlpha = 0.35;
+      stalk(ctx, sx, sy, h, 'rgba(44, 74, 124, 0.85)');
+      if (isPatrol(sq)) patrolMark(ctx, sx + ox, top, 7, sq.role === 'coastal');
+      else roundel(ctx, sx + ox, top, 7);
+      ctx.globalAlpha = 1;
+      continue;
+    }
+    stalk(ctx, sx, sy, h, 'rgba(44, 74, 124, 0.85)');
     if (sq.state === 'combat' && !meleeDone.has(sq.engagedRaid)) {
       meleeDone.add(sq.engagedRaid);
       drawMelee(ctx, sx, top, now, sq.id.length * 7);
@@ -1606,7 +2100,7 @@ function drawRouteEditor(ctx, cam, app, alpha) {
       let [ex, ey] = toScreen(cam, end.x, end.y);
       ex += 9;
       ey += 13;
-      if (u.route.length && app.settings.orders !== 'headings') {
+      if (u.route.length && app.world.settings.orders !== 'headings') {
         // Beside the ring that lengthens the route.
         const pts = u.route;
         const [lx, ly] = toScreen(cam, pts[pts.length - 1][0], pts[pts.length - 1][1]);
@@ -1626,10 +2120,24 @@ function drawRouteEditor(ctx, cam, app, alpha) {
       ctx.fillText(label, ex, ey);
     }
   }
-  if (app.settings.orders === 'headings') return;
-  const pts = editableRoute(u);
-  if (!pts) return;
-  const [ux, uy] = unitScreen(cam, u, alpha);
+  if (app.world.settings.orders === 'headings') return;
+  // The route worked on: the one on its way to the ship when an order waits (radio silence),
+  // else the unit's own. Its handles are ochre while it has not left.
+  const work = workingRoute(world, u);
+  const pts = work.points || [];
+  const ink = work.pending ? `rgba(${AWAITED}, 0.95)` : 'rgba(44, 74, 124, 0.9)';
+  // An escort group's way out of port (its exit step, the channel it is going down) has no
+  // point of the player's to move, but its end is where the route is drawn longer from.
+  const tip = pts.length || work.pending ? null : wayOutEnd(u);
+  if (!pts.length && !tip) return;
+  // What comes before the first point of the player's: the end of the way out, or the unit
+  // (a ship: where the table holds it).
+  const first = work.pending ? -1 : pts.length ? u.route.indexOf(pts[0]) : u.route.length;
+  const lead = work.pending ? (work.pending === 'editRoute' ? wayOutTip(u) : null) : first > 0 ? u.route[first - 1] : null;
+  const ship = u.kind === 'convoy' || u.kind === 'escort';
+  const shown = ship ? shownPosition(world, u) : null;
+  const [ux, uy] = lead ? toScreen(cam, lead[0], lead[1]) : ship ? shipScreen(app, cam, u, alpha).slice(0, 2) : unitScreen(cam, u, alpha);
+  const fromWorld = lead ? [lead[0], lead[1]] : shown && shown.est ? [shown.x, shown.y] : [u.x, u.y];
   const drag = app.routeDrag && app.routeDrag.id === u.id && app.routeDrag.kind === u.kind ? app.routeDrag : null;
   const screen = pts.map((p) => toScreen(cam, p[0], p[1]));
   if (drag) {
@@ -1648,7 +2156,7 @@ function drawRouteEditor(ctx, cam, app, alpha) {
     const my = (prev[1] + y) / 2;
     if (Math.hypot(x - prev[0], y - prev[1]) > 46) {
       ctx.fillStyle = 'rgba(247, 240, 220, 0.95)';
-      ctx.strokeStyle = 'rgba(44, 74, 124, 0.8)';
+      ctx.strokeStyle = work.pending ? ink : 'rgba(44, 74, 124, 0.8)';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.arc(mx, my, 5, 0, Math.PI * 2);
@@ -1660,7 +2168,7 @@ function drawRouteEditor(ctx, cam, app, alpha) {
       ctx.moveTo(mx, my - 3);
       ctx.lineTo(mx, my + 3);
       ctx.stroke();
-      app.hits.push({ kind: 'routeMid', unitKind: u.kind, id: u.id, index: i, x: mx, y: my, wx: (pts[i][0] + (i ? pts[i - 1][0] : u.x)) / 2, wy: (pts[i][1] + (i ? pts[i - 1][1] : u.y)) / 2, r: 7, priority: -1 });
+      app.hits.push({ kind: 'routeMid', unitKind: u.kind, id: u.id, index: i, x: mx, y: my, wx: (pts[i][0] + (i ? pts[i - 1][0] : fromWorld[0])) / 2, wy: (pts[i][1] + (i ? pts[i - 1][1] : fromWorld[1])) / 2, r: 7, priority: -1 });
     }
     prev = [x, y];
   });
@@ -1669,7 +2177,7 @@ function drawRouteEditor(ctx, cam, app, alpha) {
   screen.forEach(([x, y], i) => {
     const on = i === active;
     ctx.fillStyle = on ? COLORS.select : 'rgba(247, 240, 220, 0.95)';
-    ctx.strokeStyle = on ? 'rgba(30, 26, 20, 0.9)' : 'rgba(44, 74, 124, 0.9)';
+    ctx.strokeStyle = on ? 'rgba(30, 26, 20, 0.9)' : ink;
     ctx.lineWidth = 1.4;
     ctx.fillRect(x - 4, y - 4, 8, 8);
     ctx.strokeRect(x - 4, y - 4, 8, 8);
@@ -1690,13 +2198,15 @@ function drawRouteEditor(ctx, cam, app, alpha) {
     }
   });
   // Ring beyond the last point: drag from it to draw the route longer.
-  if (routeCanExtend(u)) {
-    const [lx, ly] = screen[screen.length - 1];
-    const [px, py] = screen.length > 1 ? screen[screen.length - 2] : [ux, uy];
+  if (work.canExtend) {
+    const [lx, ly] = screen.length ? screen[screen.length - 1] : toScreen(cam, tip[0], tip[1]);
+    // (With nothing of the player's yet, the ring stands beyond the end of the way out.)
+    const wayBack = u.route.length > 1 ? u.route[u.route.length - 2] : null;
+    const [px, py] = screen.length > 1 ? screen[screen.length - 2] : screen.length ? [ux, uy] : wayBack ? toScreen(cam, wayBack[0], wayBack[1]) : unitScreen(cam, u, alpha);
     const len = Math.hypot(lx - px, ly - py) || 1;
     const kx = lx + ((lx - px) / len) * 20;
     const ky = ly + ((ly - py) / len) * 20;
-    ctx.strokeStyle = 'rgba(44, 74, 124, 0.9)';
+    ctx.strokeStyle = ink;
     ctx.fillStyle = 'rgba(247, 240, 220, 0.85)';
     ctx.lineWidth = 1.4;
     ctx.beginPath();
@@ -1908,13 +2418,30 @@ export function drawScene(ctx, app, alpha) {
   const cam = app.camera;
   const dpr = app.dpr;
   app.hits = [];
+  // The stacks, from where the marks stood in the image before (a sixtieth of a second ago).
+  app.stacks = findStacks(app.marks || []);
+  app.stackOf = indexStacks(app.stacks);
+  app.marks = [];
+  // The tabs of the sheet follow the stack of the unit in hand.
+  const mine = stackOfSelection(app.stackOf, app.selection);
+  const signature = mine ? mine.members.map((m) => stackKey(m.kind, m.id)).join(',') : '';
+  if (signature !== (app.stackSignature || '')) {
+    app.stackSignature = signature;
+    app.dirtyPanels = true;
+  }
   app.plaqueBoxes = symbolObstacles(app, alpha);
   drawMap(ctx, cam, dpr, app.mapRenderer);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  if (app.settings.grid) drawGrid(ctx, cam, app.world.grid);
-  if (app.settings.radarCover && cam.scale > 0.35) drawCoverage(ctx, cam, app.world);
+  // The layers the scenario declares (its « map » block), each with its display setting.
+  const layers = app.world.scenario.map && app.world.scenario.map.layers;
+  const layer = (name) => !layers || layers.includes(name);
+  if (layer('night') && app.settings.nightShadow !== false) drawNight(ctx, cam, app);
+  if (layer('closedWaters')) drawClosedWaters(ctx, cam, app);
+  if (layer('grid') && app.settings.grid) drawGrid(ctx, cam, app.world.grid);
+  if (layer('radars') && app.settings.radarCover && cam.scale > 0.35) drawCoverage(ctx, cam, app.world);
   drawRail(ctx, cam, app);
   drawViewZones(ctx, cam, app, alpha);
+  drawPatrolZones(ctx, cam, app, alpha);
   drawCondorZone(ctx, cam, app);
   drawDfZones(ctx, cam, app);
   drawUboatPlots(ctx, cam, app);
@@ -1923,7 +2450,7 @@ export function drawScene(ctx, app, alpha) {
   drawPendingMru(ctx, cam, app);
   drawGauges(ctx, cam, app);
   drawGates(ctx, cam, app);
-  drawGreatCircles(ctx, cam, app);
+  if (layer('routes')) drawGreatCircles(ctx, cam, app);
   drawTrains(ctx, cam, app, alpha);
   drawConvoys(ctx, cam, app, alpha);
   drawEscorts(ctx, cam, app, alpha);
@@ -1931,6 +2458,8 @@ export function drawScene(ctx, app, alpha) {
   drawContacts(ctx, cam, app, alpha);
   drawInterceptPoint(ctx, cam, app, alpha);
   drawSquadrons(ctx, cam, app, alpha);
+  drawStacks(ctx, cam, app);
+  drawMapNote(ctx, cam, app);
   drawDevLayer(ctx, cam, app, alpha);
   drawRouteEditor(ctx, cam, app, alpha);
   drawEffects(ctx, app, FX_LABELS);

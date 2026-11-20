@@ -35,9 +35,18 @@ test('the help speaks of the sheet as it is now (no old tabs)', () => {
   }
 });
 
-test('every tutorial step has a title and a text', () => {
-  for (const id of ['welcome', 'convoy', 'time', 'radar', 'scramble', 'altitude', 'combat', 'reports', 'end']) {
-    assert.equal(typeof fr.tutorial[id].title, 'string', id);
-    assert.ok(fr.tutorial[id].text.length > 20, id);
+test('every step of every lesson has a title and a text, and every lesson its name and summary', () => {
+  const tutorial = JSON.parse(readFileSync(new URL('../data/tutorial.json', import.meta.url), 'utf8'));
+  // Four lessons since 2.10 (I10): intercept, supply, escort, alert states and fatigue.
+  assert.deepEqual(tutorial.lessons.map((l) => l.id), ['intercept', 'supply', 'escort', 'alert']);
+  for (const lesson of tutorial.lessons) {
+    const texts = fr.tutorial.lessons[lesson.id];
+    assert.ok(texts && texts.name.length > 5 && texts.summary.length > 20, lesson.id);
+    for (const step of lesson.steps) {
+      assert.equal(typeof texts.steps[step.id].title, 'string', `${lesson.id}.${step.id}`);
+      assert.ok(texts.steps[step.id].text.length > 20, `${lesson.id}.${step.id}`);
+    }
+    // No text left over from a step that is gone.
+    assert.deepEqual(Object.keys(texts.steps).sort(), lesson.steps.map((s) => s.id).sort(), lesson.id);
   }
 });

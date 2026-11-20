@@ -56,3 +56,65 @@ test('an entity restored from an older save gets the fields it lacks and keeps t
   assert.deepEqual(convoy.schedule, { at: 100 });
   assert.equal(convoy.rangeAlerted, false);
 });
+
+test('squadrons, escort groups, U-boats and raids have every declared field in every scenario', () => {
+  for (const id of ['m0', 'kanalkampf', 'adlertag', 'quinze-septembre', 'hiver-atlantique']) {
+    const w = makeWorld('standard', {}, id);
+    for (const [kind, list] of [['squadron', w.squadrons], ['escort', w.escorts], ['uboat', w.uboats], ['raid', w.raids]]) {
+      const fields = declaredFields(kind, w);
+      assert.ok(fields.length > 0 || list.length === 0 || kind === 'raid', `${id}: ${kind} declares fields`);
+      for (const u of list) for (const f of fields) assert.notEqual(u[f], undefined, `${id}: ${kind} ${u.id}.${f}`);
+    }
+  }
+});
+
+test('each subsystem declares what it keeps: alert and roster, formation, engagement, hunts, way of a U-boat', () => {
+  const w = makeWorld('standard', {}, 'hiver-atlantique');
+  const squadron = declaredFields('squadron', w);
+  for (const f of ['alertAt', 'alertFrom', 'alertLong', 'roster', 'alertManual', 'schedule', 'lateFor', 'rallySlow', 'formation', 'holdForWing',
+    'wingSlowest', 'roe', 'cleared', 'letGo', 'clearedBeyond', 'attackRaid', 'breakOff', 'speedPct', 'uboatAttacks']) assert.ok(squadron.includes(f), `squadron.${f}`);
+  const escort = declaredFields('escort', w, { ships: 4, state: 'inPort' });
+  for (const f of ['berthed', 'leftConvoy', 'exitChannel', 'boost', 'boostKn', 'dry', 'dryKn', 'endAction', 'routeEnded', 'schedule', 'lateFor', 'formation',
+    'followEscort', 'followSlot', 'waitForGroup', 'huntPath', 'huntGoal', 'huntStay', 'engage', 'charges', 'chargesMax', 'pattern', 'radar', 'fix', 'est']) assert.ok(escort.includes(f), `escort.${f}`);
+  const uboat = declaredFields('uboat', w);
+  for (const f of ['deepUntil', 'sunkAt', 'boat', 'way', 'wanderAt']) assert.ok(uboat.includes(f), `uboat.${f}`);
+  const raid = declaredFields('raid', w);
+  for (const f of ['phase', 'timer', 'engagedBy', 'intercepted', 'repelled', 'bombed', 'destroyed']) assert.ok(raid.includes(f), `raid.${f}`);
+});
+
+test('two entities never share a declared value: a set, a roster, an end of route of their own', () => {
+  const w = makeWorld('standard', {}, 'adlertag');
+  const [a, b] = w.squadrons;
+  assert.notEqual(a.cleared, b.cleared);
+  assert.notEqual(a.roster, b.roster);
+  a.cleared.add('R1');
+  assert.equal(b.cleared.size, 0);
+  const sea = makeWorld('standard', {}, 'hiver-atlantique');
+  const [e, f] = sea.escorts;
+  assert.notEqual(e.endAction, f.endAction);
+});
+
+test('a group and a U-boat of an old save get what they lack: alongside in refit, never gone deep', () => {
+  const w = makeWorld('standard', {}, 'hiver-atlantique');
+  const refit = { id: 'old-1', ships: 3, state: 'refit', behaviour: 'hunt' };
+  fillMissingFields('escort', refit, w);
+  assert.equal(refit.berthed, true, 'a group in refit is alongside');
+  assert.equal(refit.behaviour, 'hunt', 'kept');
+  assert.equal(refit.charges, 3 * w.rules.asw.engagement.chargesPerShip);
+  assert.deepEqual(refit.endAction, { kind: 'stop' });
+  const atSea = { id: 'old-2', ships: 4, state: 'escorting', boost: true };
+  fillMissingFields('escort', atSea, w);
+  assert.equal(atSea.berthed, false, 'a group at sea is not');
+  assert.equal(atSea.boost, true, 'kept');
+  const boat = { id: 'U-old', state: 'patrol', torpedoes: 2 };
+  fillMissingFields('uboat', boat, w);
+  assert.equal(boat.deepUntil, 0);
+  assert.equal(boat.boat, 1);
+  assert.equal(boat.way, null);
+  assert.equal(boat.torpedoes, 2);
+  const squadron = { id: 'old-sqn', roe: 'defend' };
+  fillMissingFields('squadron', squadron, w);
+  assert.equal(squadron.roe, 'defend', 'kept');
+  assert.ok(squadron.cleared instanceof Set);
+  assert.deepEqual(squadron.roster, { daily: [], override: null });
+});
