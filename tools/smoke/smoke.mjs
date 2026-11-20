@@ -323,6 +323,27 @@ async function tutorial(page) {
   await page.waitForFunction(() => !window.__game.onMenu, null, { timeout: 8000 }).catch(() => {});
   note(await game(page, () => Boolean(window.__game.tutorial) && window.__game.world.scenario.id === 'lecon-ravitailler'), 'tutorial: « Continuer » goes back to the lesson while it is in hand');
   await closeDialogs(page);
+  // (2.11.0) The help of a lesson speaks of the lesson, not of the battle its map comes from;
+  // a link written in it opens the rubric it names.
+  await page.click('#btn-help');
+  await sleep(250);
+  const lessonHelp = await game(page, () => {
+    const dlg = document.getElementById('dlg-help');
+    const tab = dlg.querySelector('[data-htab].active');
+    return { tab: tab && tab.dataset.htab, first: dlg.querySelector('[data-hpane="scenario"] li')?.textContent || '', links: dlg.querySelectorAll('[data-hpane="scenario"] [data-hlink]').length };
+  });
+  note(lessonHelp.tab === 'scenario' && /^Leçon « Ravitailler »/.test(lessonHelp.first) && lessonHelp.links >= 1, 'tutorial: the help of a lesson is its own (« Ce scénario »)', JSON.stringify(lessonHelp).slice(0, 140));
+  await page.click('#dlg-help [data-hpane="scenario"] [data-hlink]');
+  await sleep(250);
+  const linked = await game(page, () => {
+    const dlg = document.getElementById('dlg-help');
+    const target = dlg.querySelector('.help-pane:not([hidden]) .help-target');
+    const r = target ? target.getBoundingClientRect() : null;
+    const d = dlg.getBoundingClientRect();
+    return { tab: dlg.querySelector('[data-htab].active').dataset.htab, anchor: target ? target.dataset.anchor : '', title: target ? target.querySelector('h3').textContent : '', inView: Boolean(r && r.top >= d.top && r.top < d.bottom - 40) };
+  });
+  note(linked.tab === 'air' && linked.anchor === 'trains' && linked.title === 'Trains et stocks' && linked.inView, 'tutorial: a link of the help opens the rubric it names, in view', JSON.stringify(linked));
+  await closeDialogs(page);
   await page.click('#btn-menu');
   await sleep(200);
   note(await game(page, () => document.querySelector('#dlg-menu [data-gm="save"]').disabled && document.querySelector('#dlg-menu [data-gm="export"]').disabled
@@ -1968,7 +1989,7 @@ async function interfaceChecks(page, errors) {
     await page.click('#help-bubble [data-help-link]');
     await sleep(400);
     const help = await read();
-    note(link && link.link === 'sea:chasse' && help.helpTab === 'sea' && !help.bubble, 'sheet help: the link of a bubble opens the help on the tab of its rubric', JSON.stringify({ link: link && link.link, tab: help.helpTab, target: help.target }));
+    note(link && link.link === 'sea:chasse' && help.helpTab === 'sea' && help.target === 'chasse' && !help.bubble, 'sheet help: the link of a bubble opens the help on its rubric', JSON.stringify({ link: link && link.link, tab: help.helpTab, target: help.target }));
     await closeDialogs(page);
     await game(page, () => {
       window.__game.settings.sheetHelp = 'shown';

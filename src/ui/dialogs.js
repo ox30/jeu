@@ -285,6 +285,20 @@ function helpSteps(app) {
 
 export const HELP_TABS = ['scenario', 'sheet', 'air', 'sea', 'time', 'games', 'keys'];
 
+/** The rubrics of a tab of the help: [{ id, title, text: [paragraphs], image? }]. */
+export function helpRubrics(tab) {
+  const list = t(`help.rubrics.${tab}`);
+  return Array.isArray(list) ? list : [];
+}
+
+/** A link to a rubric written in a text of the help: [[tab:anchor|words]]. */
+export const HELP_LINK = /\[\[([a-z]+):([a-z-]+)\|([^\]]+)\]\]/g;
+
+/** A paragraph of the help as HTML: its text, and the links to other rubrics as buttons. */
+export function helpParagraph(text) {
+  return escapeHtml(text).replace(HELP_LINK, (all, tab, anchor, words) => `<button type="button" class="link" data-hlink="${tab}:${anchor}">${words}</button>`);
+}
+
 /** A picture from the test bench, beside the text it illustrates (data/help/images.json). */
 function helpImage(app, name) {
   const src = app.data.helpImages && app.data.helpImages[name];
@@ -304,38 +318,48 @@ export function openHelp(app, wantTab = null, anchor = null) {
   const tabs = noGame ? HELP_TABS.filter((id) => id !== 'scenario') : HELP_TABS;
   if (wantTab && tabs.includes(wantTab)) app.helpTab = wantTab;
   const tab = tabs.includes(app.helpTab) ? app.helpTab : noGame ? 'games' : 'scenario';
-  const list = (items) => `<ol>${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
-  const bodies = {
-    scenario: list(helpSteps(app)),
-    sheet: `${helpImage(app, 'sheet')}${list(t('help.sheet'))}`,
-    air: `${list(t('help.air'))}${helpImage(app, 'roster')}`,
-    sea: `${helpImage(app, 'escort')}${list(t('help.sea'))}`,
-    time: list(t('help.time')),
-    games: list(t('help.games')),
-    keys: `<p class="keys">${escapeHtml(t('help.keys'))}</p>`,
+  // This scenario: its steps, numbered. The other tabs: short titled rubrics, each with its
+  // anchor (a « ? » bubble opens the help on one), under the list of their titles.
+  const rubric = (r) => `<section class="help-rubric" data-anchor="${escapeHtml(r.id)}"><h3>${escapeHtml(r.title)}</h3>
+    ${r.text.map((p) => `<p>${helpParagraph(p)}</p>`).join('')}${r.image ? helpImage(app, r.image) : ''}</section>`;
+  const rubrics = (id) => {
+    const list = helpRubrics(id);
+    const contents = list.length > 1 ? `<nav class="help-contents" aria-label="${escapeHtml(t('help.contents'))}">${list.map((r) =>
+      `<button type="button" class="link" data-hlink="${id}:${escapeHtml(r.id)}">${escapeHtml(r.title)}</button>`).join('')}</nav>` : '';
+    return `${contents}${list.map(rubric).join('')}`;
   };
+  const body = (id) => (id === 'scenario' ? `<ol>${helpSteps(app).map((x) => `<li>${helpParagraph(x)}</li>`).join('')}</ol>` : rubrics(id));
   dlg.innerHTML = `
     <form method="dialog" class="help-page">
       <h2>${escapeHtml(t('help.title'))}</h2>
       <nav class="settings-tabs" role="tablist">${tabs.map((id) => `<button type="button" role="tab" data-htab="${id}" class="${id === tab ? 'active' : ''}">${escapeHtml(t(`help.tabs.${id}`))}</button>`).join('')}</nav>
-      ${tabs.map((id) => `<section class="help-pane" data-hpane="${id}"${id === tab ? '' : ' hidden'}>${bodies[id]}</section>`).join('')}
+      ${tabs.map((id) => `<section class="help-pane" data-hpane="${id}"${id === tab ? '' : ' hidden'}>${body(id)}</section>`).join('')}
       <div class="dialog-buttons"><button value="close">${escapeHtml(t('help.close'))}</button></div>
     </form>`;
-  dlg.querySelector('.settings-tabs').addEventListener('click', (e) => {
+  /** Shows a tab, and in it the rubric asked for: in view, and marked. */
+  const go = (id, to = null) => {
+    if (!tabs.includes(id)) return;
+    app.helpTab = id;
+    for (const x of dlg.querySelectorAll('[data-htab]')) x.classList.toggle('active', x.dataset.htab === id);
+    for (const p of dlg.querySelectorAll('[data-hpane]')) p.hidden = p.dataset.hpane !== id;
+    for (const x of dlg.querySelectorAll('.help-target')) x.classList.remove('help-target');
+    const target = to ? dlg.querySelector(`[data-hpane="${id}"] [data-anchor="${to}"]`) : null;
+    if (target) {
+      target.classList.add('help-target');
+      target.scrollIntoView({ block: 'start' });
+    } else {
+      dlg.scrollTop = 0;
+    }
+  };
+  dlg.querySelector('.help-page').addEventListener('click', (e) => {
     const b = e.target.closest('[data-htab]');
-    if (!b) return;
-    app.helpTab = b.dataset.htab;
-    for (const x of dlg.querySelectorAll('[data-htab]')) x.classList.toggle('active', x === b);
-    for (const p of dlg.querySelectorAll('[data-hpane]')) p.hidden = p.dataset.hpane !== b.dataset.htab;
+    const link = e.target.closest('[data-hlink]');
+    if (b) go(b.dataset.htab);
+    else if (link) go(...link.dataset.hlink.split(':'));
   });
   dlg.addEventListener('close', markHelpSeen, { once: true });
   showPage(app, dlg);
-  // The rubric asked for: in view, and marked for a moment.
-  const target = anchor ? dlg.querySelector(`[data-hpane="${tab}"] [data-anchor="${anchor}"]`) : null;
-  if (target) {
-    target.classList.add('help-target');
-    target.scrollIntoView({ block: 'start' });
-  }
+  if (anchor) go(tab, anchor);
 }
 
 export function openSuccess(app) {

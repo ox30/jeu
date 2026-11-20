@@ -888,6 +888,15 @@ dialog.menu-dialog::backdrop { background: rgba(27, 21, 14, 0.62); }
 .help-page .help-pane[hidden] { display: none; }
 .help-page .help-pane ol { padding-left: 20px; }
 .help-page .help-pane li { margin: 0 0 8px; }
+/* The help: wide enough for its tabs on one line; they stay in view while the text scrolls. */
+dialog#dlg-help { width: 680px; max-width: min(680px, 94vw); }
+#dlg-help .settings-tabs { position: sticky; top: -16px; z-index: 1; margin-top: -8px; padding-top: 16px; background: var(--paper); }
+/* The rubrics of a tab: their titles first, as links, then each under its title. */
+.help-contents { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 10px; padding: 0 0 8px; border-bottom: 1px solid var(--paper-dark); }
+.help-page .link { background: none; border: 0; padding: 0; min-height: 0; color: var(--raf-blue); font: inherit; text-decoration: underline; cursor: pointer; text-align: left; }
+.help-rubric { margin: 0 0 12px; padding: 2px 6px; border-radius: 4px; scroll-margin-top: 56px; }
+.help-rubric h3 { margin: 0 0 4px; font-size: 15px; }
+.help-rubric p { margin: 0 0 6px; }
 .help-image { margin: 4px 0 10px; text-align: center; }
 .help-image img { max-width: 100%; border: 1px solid var(--paper-dark); border-radius: 3px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); }
 .help-image figcaption { font-size: 12px; color: var(--ink-soft); font-style: italic; margin-top: 3px; }
