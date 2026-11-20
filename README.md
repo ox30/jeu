@@ -8,12 +8,35 @@ avec un menu principal, un tutoriel en cinq leçons et une aide illustrée.
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.11.0** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit,
+**Version 2.11.1** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit,
 les retours des premières parties d'essai en quatre tours, et le rangement des textes d'aide).
 Les décisions qui guident les lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md`
 (fichier du projet) ; le journal des travaux est dans `docs/journal-m2.7-m2.10.md`. Le
 rangement de l'aide suit `claude/textes-aide-plan-rangement.md` ; son journal, avec la table
 « ancienne clé → nouvelle place », est dans `docs/journal-aide-en-jeu.md`.
+
+## Nouveautés de la 2.11.1 : trois retouches de l'aide
+
+Les réponses de Florian après sa partie d'essai de la 2.11.0. Rien ne change dans les règles
+du jeu : `src/sim` n'est pas touché.
+
+- **« Abords » d'un port ou d'un aérodrome**, et non plus « bulle » : ce mot ne désigne plus
+  que la bulle d'un « ? ». Quatre phrases changent : la bulle « Convois » d'un groupe
+  d'escorte et deux rubriques de l'aide (« Tracés et ordres sur la carte », deux phrases, et
+  « Chasse aux U-Boote »).
+- **Une astuce ne survit pas à son occasion.** Quand ce dont elle parle n'est plus là (l'unité
+  lâchée, le groupe parti en mer, le point de route qui n'est plus choisi), l'astuce quitte
+  la carte sans compter comme vue : elle reviendra avec son occasion. La carte est alors
+  libre pour une astuce qui tombe juste. Avant, « Au port : la sortie » restait affichée une
+  fois le groupe en mer et retenait « Silence radio ». Seul « Compris » note une astuce comme
+  vue. L'astuce « Programmer un départ » vaut tant que ce qui était en main à l'ordre le
+  reste. Une astuce dont l'occasion tient garde la carte : une seule à la fois, comme avant.
+- **Espace sur un bouton qui a le clavier actionne le bouton**, sans mettre le jeu en pause
+  ni le relancer : « Compris », un « ? » et sa bulle, une vitesse, tous les boutons. « Avoir
+  le clavier », c'est avoir le focus quand il a bougé pour la dernière fois au clavier (Tab),
+  et non d'un clic. Un bouton cliqué à la souris garde Espace pour la pause : cliquer « ×10 »
+  puis appuyer sur Espace arrête le jeu, comme avant. Espace tenue enfoncée ne fait plus
+  qu'une pause, au lieu d'une à chaque répétition de la touche.
 
 ## Nouveautés de la 2.11.0 : l'aide rangée, des fiches épurées
 
@@ -505,8 +528,8 @@ autonomie 1,6 fois plus vite.
    touché (il rentre et n'est plus attaqué), perdu ou rien de visible ; chaque attaque a son rapport, avec les grenades lancées. « Au port »
    rentre au port choisi dans la section « Retour au port », du plus proche par mer au plus
    loin, avec distance et durée (tirées d'un champ de distances par mer calculé une fois par
-   port : la fiche ne coûte plus rien, même à ×14 400) ; les routes de mer contournent la terre, et un tracé qui finit dans la bulle d'un
-   port (15 km, montrée quand un navire est choisi) y entre. Comme pour les avions, la section
+   port : la fiche ne coûte plus rien, même à ×14 400) ; les routes de mer contournent la terre, et un tracé qui finit aux abords d'un
+   port (à 15 km, le cercle montré quand un navire est choisi) y entre. Comme pour les avions, la section
    « Route et étapes » dit que faire à la fin du tracé ou des étapes : s'arrêter et attendre, garder le cap, chercher
    un U-Boot sur place, rejoindre un convoi ou entrer au port. Un groupe qui attend ses ordres garde
    la veille ; un groupe attaqué en rentrant reprend ensuite sa route vers le port, sans
@@ -800,7 +823,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 474 tests, environ quatre minutes
+npm test          # les 481 tests, environ quatre minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : leçons, pages, fiches, corrections, quarts, menu, interface
@@ -836,6 +859,12 @@ Le filet du M2.7 :
   chaque page et chaque sorte de fiche s'ouvre dans chaque scénario, et les corrections du
   M2.7 sont rejouées (plaques empilées, touches d'un clavier AZERTY, bilan de fin, briefing
   de campagne, garde-fou sur une erreur provoquée).
+- Les tests de la 2.11.1 : une astuce dont l'occasion disparaît quitte la carte sans être
+  notée, et celle qui tombe juste prend sa place (`tests/tips.test.js`) ; Espace actionne le
+  bouton atteint au clavier et reste la pause partout ailleurs, Tab avec Ctrl, Alt ou Meta
+  ne compte pas, Espace tenue ne fait qu'une pause (`tests/keys.test.js`). L'essai de fumée
+  fait sortir un groupe du port jusqu'à la haute mer, puis va avec Tab jusqu'à « Compris »
+  et jusqu'à un « ? », où il appuie deux fois sur Espace.
 - Les tests de la 2.11.0 : chaque « ? » écrit par les pages nomme une bulle qui existe, de
   deux à quatre phrases quels que soient les réglages, et chaque bulle a son « ? » ; les
   fiches n'écrivent plus de phrase d'aide ; chaque infobulle tient en une ligne ; le réglage
@@ -894,7 +923,7 @@ programmés (chaque jour, rejoindre une formation, ordre qui attend), les plans 
 rassemblement (départs calculés, retardataire, attendre ou ralentir, groupe de soutien sur un
 point ou sur son chef), le plan du jour des Effectifs et son exception en heures H, la mer au
 M2.4 (routes autour de la terre, retour au port choisi par le chenal, durée et interruption de
-la chasse, passes de grenades et leurs rapports, fin de tracé des navires, bulle de port,
+la chasse, passes de grenades et leurs rapports, fin de tracé des navires, abords d'un port,
 chasse jamais à terre, veille d'un groupe qui attend, retour au port après une attaque), les
 zones de vue, la vitesse de chaque alerte, des rapports qui ne disent que ce que la RAF sait,
 au M2.5 la sortie en rade ou par un chenal, l'alerte « U-Boot en vue », la vitesse en % et le

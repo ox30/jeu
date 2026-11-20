@@ -123,6 +123,119 @@ test('no tip during a lesson, none on the menu; a scheduled departure asks for i
   }
 });
 
+// ---- 2.11.1: a tip does not outlive its occasion ----
+
+test('a tip whose occasion goes leaves the card, not counted as seen; one that fits takes its place', () => {
+  const { app, w, store, done } = appOn('hiver-atlantique');
+  try {
+    run(w, 12 * 3600);
+    const group = w.escorts.find((x) => x.state === 'inPort' && (w.byId.port.get(x.portId).approaches || []).length);
+    const convoy = w.convoys.find((x) => x.state === 'atSea');
+    assert.ok(group && convoy && isSilent(w) && orderChannel(w, convoy) === 'radio');
+    app.selection = { kind: 'escort', id: group.id };
+    updateTips(app, 0);
+    assert.equal(app.tips.shown, 'exit', '« Au port : la sortie »');
+    assert.match(app.el.tip.innerHTML, /Au port : la sortie/);
+    // (Seen in play: the group at sea, the tip stayed and kept « Silence radio » away.) The
+    // group sails and reaches the high seas: its tip leaves, the one of the silence comes.
+    group.state = 'atSea';
+    group.x = convoy.x;
+    group.y = convoy.y;
+    assert.equal(orderChannel(w, group), 'radio');
+    updateTips(app, 1000);
+    assert.equal(app.tips.shown, 'silence', 'the card is free for the tip that fits');
+    assert.match(app.el.tip.innerHTML, /Silence radio/);
+    assert.equal(loadTips(store).seen.size, 0, 'gone by itself: not seen');
+    assert.ok(!app.tips.seen.has('exit'));
+    // The unit let go: nothing to say, the card is put away, and nothing is counted.
+    app.selection = null;
+    updateTips(app, 2000);
+    assert.equal(app.tips.shown, null);
+    assert.equal(app.el.tip.hidden, true);
+    assert.equal(app.tips.seen.size, 0);
+    // Taken in hand again, the tip comes back at once: nothing asked for a pause.
+    app.selection = { kind: 'convoy', id: convoy.id };
+    updateTips(app, 2500);
+    assert.equal(app.tips.shown, 'silence');
+    // « Compris » still counts, and still asks for a moment of quiet.
+    dismissTip(app, 3000);
+    assert.deepEqual([...loadTips(store).seen], ['silence']);
+    app.selection = { kind: 'escort', id: w.escorts.find((x) => x.state === 'inPort' && x.id !== group.id && (w.byId.port.get(x.portId).approaches || []).length).id };
+    updateTips(app, 4000);
+    assert.equal(app.tips.shown, null, 'quiet after « Compris »');
+    updateTips(app, 3000 + 20000);
+    assert.equal(app.tips.shown, 'exit', 'the tip that left comes back with its occasion');
+  } finally {
+    done();
+  }
+});
+
+test('the point no longer chosen, its tip leaves; a departure scheduled is an occasion while its unit stays in hand', () => {
+  const { app, w, done } = appOn('kanalkampf');
+  try {
+    app.tips.seen.add('sheet');
+    const sq = w.squadrons.find((s) => s.role === 'fighter');
+    app.selection = { kind: 'squadron', id: sq.id };
+    assert.ok(scramble(w, sq, { route: [[sq.x + 40, sq.y, null]] }));
+    app.activePoint = { kind: 'squadron', id: sq.id, index: 0 };
+    updateTips(app, 0);
+    assert.equal(app.tips.shown, 'point');
+    app.activePoint = null;
+    updateTips(app, 100);
+    assert.equal(app.tips.shown, null);
+    assert.ok(!app.tips.seen.has('point'));
+    // Something scheduled for this squadron: the tip, as long as the squadron is in hand.
+    tipOccasion(app, 'schedule');
+    updateTips(app, 200);
+    assert.equal(app.tips.shown, 'schedule');
+    const other = w.squadrons.find((s) => s.role === 'fighter' && s.id !== sq.id);
+    app.selection = { kind: 'squadron', id: other.id };
+    updateTips(app, 300);
+    assert.equal(app.tips.shown, null, 'another unit in hand: the occasion is gone');
+    app.selection = { kind: 'squadron', id: sq.id };
+    updateTips(app, 400);
+    assert.equal(app.tips.shown, null, 'and does not come back by itself');
+    assert.ok(!app.tips.seen.has('schedule'), 'not seen: the next departure scheduled brings it');
+    tipOccasion(app, 'schedule');
+    updateTips(app, 500);
+    assert.equal(app.tips.shown, 'schedule');
+  } finally {
+    done();
+  }
+});
+
+test('one tip at a time still: in a browser that has seen none, « Tracer et corriger » comes between the port and the high seas', () => {
+  // (Review of 2.11.1.) A tip whose occasion holds keeps the card: the group that sails
+  // through the waters the headquarters follows gets the tip of every first sheet, which
+  // stays until « Compris »; « Silence radio » comes after it. Each is shown when it fits.
+  const { app, w, store, done } = appOn('hiver-atlantique');
+  try {
+    run(w, 12 * 3600);
+    const group = w.escorts.find((x) => x.state === 'inPort' && (w.byId.port.get(x.portId).approaches || []).length);
+    const convoy = w.convoys.find((x) => x.state === 'atSea');
+    app.selection = { kind: 'escort', id: group.id };
+    updateTips(app, 0);
+    assert.equal(app.tips.shown, 'exit');
+    // Out of port, still in the approaches (orders at once, no silence yet).
+    group.state = 'atSea';
+    assert.equal(orderChannel(w, group), 'direct');
+    updateTips(app, 1000);
+    assert.equal(app.tips.shown, 'sheet', 'the tip of a first sheet fits a group at sea');
+    // On the high seas: the card is taken, « Silence radio » waits for « Compris ».
+    group.x = convoy.x;
+    group.y = convoy.y;
+    assert.equal(orderChannel(w, group), 'radio');
+    updateTips(app, 2000);
+    assert.equal(app.tips.shown, 'sheet', 'not changed under the reader\'s eyes');
+    dismissTip(app, 3000);
+    updateTips(app, 3000 + 20000);
+    assert.equal(app.tips.shown, 'silence');
+    assert.deepEqual([...loadTips(store).seen], ['sheet'], 'only « Compris » counts a tip as seen');
+  } finally {
+    done();
+  }
+});
+
 // ---- what the review of 2.11.0 found ----
 
 test('a browser that refuses its storage does not stop the game: the tips are shown for this visit', () => {

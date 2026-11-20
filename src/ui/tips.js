@@ -2,8 +2,10 @@
 // corner of the map — never in front of a sheet, never during a lesson. A tip comes when its
 // occasion does (the first sheet of a unit that moves, the first point chosen on a route, the
 // first escort group in port, the first ship under radio silence, the first departure
-// scheduled), stays until « Compris », and the browser remembers it. « Revoir les astuces »,
-// in the settings, shows them again.
+// scheduled) and stays until « Compris », which the browser remembers. When its occasion goes
+// first (the unit let go, the group gone to sea), the tip leaves the card without counting as
+// seen (2.11.1): one that fits what is now in hand may take its place, and it will come back
+// with its own occasion. « Revoir les astuces », in the settings, shows them again.
 
 import { escapeHtml, t } from '../core/i18n.js';
 import { isSilent, orderChannel } from '../sim/comms.js';
@@ -18,6 +20,9 @@ const QUIET_MS = 20000;
 /** The unit a tip speaks of: the one in hand, or the leader of the formation in hand. */
 const unitInHand = (app) => selectedUnit(app);
 
+/** What is in hand, as a word: an occasion made by an order lasts as long as it stays in hand. */
+const selectionKey = (app) => (app.selection ? `${app.selection.kind}:${app.selection.id}` : '');
+
 const AT_SEA = new Set(['atSea', 'waiting', 'escorting', 'hunting']);
 
 /**
@@ -25,8 +30,8 @@ const AT_SEA = new Set(['atSea', 'waiting', 'escorting', 'hunting']);
  * occasion; `link`: the rubric of the help that says more; `text`: which of its texts fits.
  */
 export const TIPS = {
-  // Asked for by an order (panelActions.js): something was scheduled.
-  schedule: { link: ['air', 'programmer'], when: (app) => app.tips.asked.has('schedule') },
+  // Asked for by an order (panelActions.js): something was scheduled, for the unit in hand.
+  schedule: { link: ['air', 'programmer'], when: (app) => app.tips.asked.has('schedule') && app.tips.askedFor === selectionKey(app) },
   point: {
     link: ['sheet', 'traces'],
     when: (app) => Boolean(activePoint(app)),
@@ -74,7 +79,7 @@ export function loadTips(storage = null) {
   } catch {
     // no storage: the tips are shown once in this visit
   }
-  return { seen, shown: null, text: 'text', asked: new Set(), quietUntil: 0, sheet: '' };
+  return { seen, shown: null, text: 'text', asked: new Set(), askedFor: '', quietUntil: 0, sheet: '' };
 }
 
 function save(app) {
@@ -101,7 +106,7 @@ export function panelHintDue(app) {
 export function sheetOpened(app) {
   const tips = app.tips;
   if (!tips) return;
-  const key = app.selection ? `${app.selection.kind}:${app.selection.id}` : '';
+  const key = selectionKey(app);
   const opened = Boolean(key) && key !== tips.sheet;
   tips.sheet = key;
   if (!opened || app.tutorial || app.onMenu || tips.seen.has('panel')) return;
@@ -112,7 +117,9 @@ export function sheetOpened(app) {
 /** An occasion that an order makes, not a state of the game: « schedule ». */
 export function tipOccasion(app, id) {
   // (Not during a lesson: its tip would come later, in another game, about nothing.)
-  if (app.tips && !app.tutorial && !app.tips.seen.has(id)) app.tips.asked.add(id);
+  if (!app.tips || app.tutorial || app.tips.seen.has(id)) return;
+  app.tips.asked.add(id);
+  app.tips.askedFor = selectionKey(app);
 }
 
 /** May the card show a tip now? Not on the menu, and never during a lesson. */
@@ -156,13 +163,14 @@ export function updateTips(app, now = performance.now()) {
     tips.shown = null;
     tips.asked.clear();
   }
-  if (!tips.shown && now >= tips.quietUntil) {
-    const id = tipDue(app);
-    if (id) {
-      tips.shown = id;
-      tips.text = TIPS[id].text ? TIPS[id].text(app) : 'text';
-    }
-  }
+  // What an order asked for lasts while its unit stays in hand.
+  if (tips.asked.size && tips.askedFor !== selectionKey(app)) tips.asked.clear();
+  // Its occasion gone (the unit let go, the group at sea, the point no longer chosen), the
+  // tip leaves the card, not counted as seen: the card is free for one that fits.
+  if (tips.shown && !TIPS[tips.shown].when(app)) tips.shown = null;
+  if (!tips.shown && now >= tips.quietUntil) tips.shown = tipDue(app);
+  // (Its words follow what is in hand: the point of a ship, after the point of a squadron.)
+  if (tips.shown) tips.text = TIPS[tips.shown].text ? TIPS[tips.shown].text(app) : 'text';
   render(app);
 }
 
@@ -184,7 +192,7 @@ export function resetTips(app) {
   app.tips.shown = null;
   app.tips.quietUntil = 0;
   // (The sheet now open was opened before: it does not count as a first one.)
-  app.tips.sheet = app.selection ? `${app.selection.kind}:${app.selection.id}` : '';
+  app.tips.sheet = selectionKey(app);
   save(app);
   try {
     localStorage.removeItem(OLD_SCHEDULE_KEY);
