@@ -9,9 +9,12 @@ import { aircraftSpec } from '../sim/squadron.js';
 import { countText, ftText } from './format.js';
 import { toolOffered } from './offered.js';
 import { pageTitle } from './commands.js';
+import { closeBubble } from './helpBubble.js';
 
 /** Opens a dialog as a page; the game pauses while it is open when the setting asks. */
 export function showPage(app, dlg) {
+  // (A « ? » bubble open on the sheet would stay behind the page: it leaves first.)
+  closeBubble();
   if (app.world.settings.pagesPause && !app.paused && !app.world.ended && !dlg.open) {
     app.paused = true;
     app.pausedByPage = true;

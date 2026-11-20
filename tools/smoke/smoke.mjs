@@ -217,6 +217,10 @@ async function tutorial(page) {
   const drawn = await sq32();
   note(drawn.route.length === 1 && await untilStep(page, 'move', 5000), 'lesson 2: a drag from the squadron is its route', JSON.stringify(drawn.route));
   await shot(page, 'lesson2-route');
+  // (Review of 2.11.0: Space set the clock going, and the route to correct was flown away.)
+  await page.keyboard.press(' ');
+  await sleep(400);
+  note((await sq32()).paused && (await lessonStep(page)) === 'route:move', 'lesson 2: the clock stays stopped while a gesture is asked for, whatever the pupil presses');
   // Move: the square at the end of the line.
   let h = await handles();
   await drag(h.routePoint[0], [h.routePoint[0][0] - 20, h.routePoint[0][1] + 70]);
@@ -1105,7 +1109,7 @@ async function watches(page, errors) {
     await page.click('#unit-body [data-action="add-leg"]');
     await sleep(400);
     const legs = await table();
-    note(legs.legs.length === 1 && /^awaited\|Cap 250° pendant 6 h à transmettre/.test(legs.legs[0]) && legs.pending.includes('addLeg') && /^En ocre : transmis à la relève de \d+ h\.$/.test(legs.hint),
+    note(legs.legs.length === 1 && /^awaited\|Cap 250° pendant 6 h à transmettre/.test(legs.legs[0]) && legs.pending.includes('addLeg') && /^En ocre : à transmettre à la relève de \d+ h\.$/.test(legs.hint),
       'radio silence: a leg typed is listed as on its way', JSON.stringify(legs.legs));
     await shot(page, 'radio-legs-waiting');
     const legSignal = await game(page, (cid) => window.__game.world.signals.find((s) => s.unitId === cid && s.name === 'addLeg').id, id);
@@ -2217,6 +2221,11 @@ async function interfaceChecks(page, errors) {
     note(first.shown === 'sheet' && first.title === 'Tracer et corriger' && /^Glissez depuis l'unité pour tracer sa route/.test(first.text), 'tips: the first sheet of a unit that moves brings its tip', JSON.stringify(first).slice(0, 150));
     note(first.apart && first.inMap && first.under && first.small, 'tips: a small card at the corner of the map, under the sheet and beside it', JSON.stringify({ apart: first.apart, inMap: first.inMap, under: first.under, small: first.small }));
     await shot(page, 'tip-sheet');
+    // (Review of 2.11.0: a click anywhere on the card opened the help.)
+    await page.click('#tip p');
+    await page.click('#tip b');
+    await sleep(200);
+    note(await game(page, () => !document.getElementById('dlg-help').open && !document.getElementById('tip').hidden), 'tips: a click on the text of the card does nothing; only its two buttons answer');
     // The sheet on the left, then at the bottom: the card keeps clear of it.
     const sides = [];
     for (const pos of ['left', 'bottom', 'right']) {
@@ -2229,6 +2238,20 @@ async function interfaceChecks(page, errors) {
       sides.push(`${pos}:${r.apart && r.inMap}`);
     }
     note(sides.every((x) => x.endsWith(':true')), 'tips: wherever the sheet stands, the card does not hide it', sides.join(' '));
+    // (Review of 2.11.0.) A small window, where the sheet takes the bottom of the map: the
+    // card stands above it, at its own width.
+    await page.setViewportSize({ width: 800, height: 600 });
+    await sleep(350);
+    const small = await game(page, () => {
+      const r = document.getElementById('tip').getBoundingClientRect();
+      const p = document.getElementById('unit-panel').getBoundingClientRect();
+      const b = document.querySelector('#tip [data-tip="seen"]').getBoundingClientRect();
+      const top = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+      return { apart: r.bottom <= p.top || r.top >= p.bottom || r.right <= p.left || r.left >= p.right, width: Math.round(r.width), reach: Boolean(top && top.closest('#tip')) };
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await sleep(350);
+    note(small.apart && small.width >= 240 && small.reach, 'tips: in a small window the card stands above the sheet, and « Compris » can be reached', JSON.stringify(small));
     // The « ? » of a section opens in front of everything; the tip stays where it is.
     await page.click('#unit-body details.sec > summary .help-mark');
     await sleep(250);
@@ -2377,6 +2400,57 @@ async function interfaceChecks(page, errors) {
     await shot(page, 'roster-message');
     await closeDialogs(page);
 
+    // (Review of 2.11.0.) An aerodrome has two « Stock minimum »: each « ? » opens its own
+    // bubble; and the bubble keeps its « ? » when the sheet is drawn again.
+    await game(page, async () => {
+      const a = window.__game;
+      const actions = await import('./src/ui/actions.js');
+      a.tabsBefore = a.unitTabs;
+      a.unitTabs = { ...(a.unitTabs || {}), site: 'orders' };
+      actions.select(a, 'site', 'airfield:biggin_hill');
+      a.dirtyPanels = true;
+    });
+    await sleep(400);
+    const twin = async (n) => {
+      await game(page, (i) => document.querySelectorAll('#unit-body .help-mark[data-help="minStock"]')[i].click(), n);
+      await sleep(250);
+      return game(page, () => {
+        const b = document.getElementById('help-bubble');
+        const marks = [...document.querySelectorAll('#unit-body .help-mark[data-help="minStock"]')];
+        return { open: Boolean(b), expanded: marks.map((m) => m.getAttribute('aria-expanded')).join(','), marks: marks.length };
+      });
+    };
+    const firstMin = await twin(0);
+    const secondMin = await twin(1);
+    note(firstMin.marks === 2 && firstMin.open && firstMin.expanded === 'true,false' && secondMin.open && secondMin.expanded === 'false,true',
+      'sheet help: two « ? » of the same help each open their own bubble', JSON.stringify({ firstMin, secondMin }));
+    await game(page, () => {
+      window.__game.el.unitKeyed.__key = '';
+      window.__game.dirtyPanels = true;
+    });
+    await sleep(500);
+    const redrawn = await game(page, () => {
+      const marks = [...document.querySelectorAll('#unit-body .help-mark[data-help="minStock"]')];
+      return { open: Boolean(document.getElementById('help-bubble')), expanded: marks.map((m) => m.getAttribute('aria-expanded')).join(',') };
+    });
+    note(redrawn.open && redrawn.expanded === 'false,true', 'sheet help: the sheet drawn again, the bubble stays with its « ? »', JSON.stringify(redrawn));
+    // A page that opens by itself over the bubble (a report of the watch) takes it away:
+    // nothing is left behind the page, and Escape is the page's.
+    await game(page, async () => {
+      const D = await import('./src/ui/dialogs.js');
+      D.openHelp(window.__game);
+    });
+    await sleep(300);
+    note(await game(page, () => document.getElementById('dlg-help').open && !document.getElementById('help-bubble')), 'sheet help: a page that opens by itself closes the bubble left on the sheet');
+    await page.keyboard.press('Escape');
+    await sleep(200);
+    note(await game(page, () => !document.getElementById('dlg-help').open), 'sheet help: … and Escape closes that page at once');
+    await game(page, () => {
+      // (The tab of an installation's sheet, as the steps that follow expect it.)
+      window.__game.unitTabs = window.__game.tabsBefore;
+      delete window.__game.tabsBefore;
+    });
+
     // Formations and Fiches techniques.
     await page.click('#btn-formations');
     await sleep(300);
@@ -2398,6 +2472,12 @@ async function interfaceChecks(page, errors) {
     });
     note(['setSeaComms', 'setWatchStops', 'setAlertSpeeds', 'setSheetPos', 'setSheetHelp', 'setTips', 'setViewZones', 'setDev'].every((k) => set.marks.includes(k)) && set.marks.length === 8 && set.hints.length === 2,
       'settings: one « ? » by setting; only the scope of the page and its note are written out', JSON.stringify(set));
+    // (Review of 2.11.0: the « ? » inside the label had taken the label away from its list.)
+    const labels = await game(page, () => ['seaComms', 'watchStops', 'sheetPos', 'sheetHelp', 'viewZones'].map((name) => {
+      const field = document.querySelector(`#dlg-settings select[name="${name}"]`);
+      return `${name}:${field.labels.length}:${field.labels[0] && field.labels[0].control === field}`;
+    }));
+    note(labels.every((x) => x.endsWith(':1:true')), 'settings: each list keeps its label, the « ? » stands beside it', labels.join(' '));
     const sb = await bubbleOf('#dlg-settings .help-mark[data-help="setSheetHelp"]');
     const value = await game(page, () => document.querySelector('#dlg-settings select[name="sheetHelp"]').value);
     note(sb && sb.front && sb.host === 'dlg-settings' && /^Masquées, les aides d'une fiche/.test(sb.text) && sb.link === 'sheet:lire' && value === 'folded', 'settings: the « ? » of a setting opens its bubble, and changes nothing', JSON.stringify(sb).slice(0, 160));

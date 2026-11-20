@@ -41,7 +41,6 @@ import {
   altitudeText, countText, dateTimeText, durationText, endActionText, ftText, headingText, kmText, legEndInput, legText,
   objectiveText, positionText, reportText, siteEffectText, siteRepairText, siteStatusText, siteTitle,
 } from './format.js';
-import { applySheetHelp } from './sheetHelp.js';
 import { bubbleFollows } from './helpBubble.js';
 import { panelHintDue, sheetOpened } from './tips.js';
 import { activeMember, memberSelection, stackOfSelection } from './stacks.js';
@@ -646,7 +645,7 @@ function convoyBar(app, c) {
   const canOrder = c.state === 'inPort' || c.state === 'waiting' || c.state === 'atSea';
   if (!canOrder) return '';
   const acts = [];
-  if (c.state === 'inPort') acts.push(cmdButton('sail', 'sail', t('cmd.sailConvoy'), { id: c.id, kind: 'convoy', title: t('tips.sailConvoy'), disabled: !c.plan.length }));
+  if (c.state === 'inPort') acts.push(cmdButton('sail', 'sail', t('cmd.sailConvoy'), { id: c.id, kind: 'convoy', title: t(w.settings.orders === 'headings' ? 'tips.sailConvoyHeadings' : 'tips.sailConvoy'), disabled: !c.plan.length }));
   if (c.admiraltyRoute.length && !c.route.length) acts.push(cmdButton('admiralty', 'route', t('cmd.admiralty'), { id: c.id, kind: 'convoy', title: t('orders.admiralty') }));
   if (c.type !== 'coastal' && !c.straggler) {
     acts.push(cmdButton('zigzag', 'zigzag', t('cmd.zigzag'), { id: c.id, kind: 'convoy', active: c.zigzag, title: t(c.zigzag ? 'tips.zigzagOn' : 'tips.zigzagOff') }));
@@ -996,7 +995,8 @@ function squadronPanel(app, s) {
     cmd = [
       grounded || s.schedule ? section(app, 'ground', t('sec.ground'), ordersBox(takeoffBlock(app, s, false), alertBlock(app, s)), true, fatigueOn(w) ? 'ground' : 'groundPlain') : '',
       routeSection(app, s),
-      section(app, 'mission', t('sec.mission'), ordersBox(up ? coverButtons(app, s) : '', interceptBlock(app, s), letGoLine(app, s)), true, 'mission'),
+      // (Coastal Command covers convoys and does nothing else here: its own bubble.)
+      section(app, 'mission', t('sec.mission'), ordersBox(up ? coverButtons(app, s) : '', interceptBlock(app, s), letGoLine(app, s)), true, s.role === 'fighter' ? 'mission' : 'missionCover'),
       section(app, 'formation', t('sec.formation'), ordersBox(formationLine(app, s)), !up, 'formation'),
     ].join('');
   }
@@ -1034,6 +1034,12 @@ function sailBlock(app, c) {
   ].join('');
 }
 
+/** « Traînard : seul, sans escorte. », or the group that has come to it. */
+function stragglerText(w, c) {
+  const group = w.escorts.find((e) => e.state === 'escorting' && e.escorting === c.id);
+  return group ? t('sheet.stragglerEscorted', { group: group.short }) : t('sheet.straggler');
+}
+
 function convoyPanel(app, c) {
   const w = app.world;
   const dest = c.destination ? w.byId.port.get(c.destination).name : t('sheet.none');
@@ -1044,7 +1050,7 @@ function convoyPanel(app, c) {
   const speedKn = Math.round((currentSpeed(c) * 3600) / 1.852);
   const stateText = t(`states.convoy.${c.state === 'arrived' && c.unloading ? 'unloading' : c.state}`);
   const rows = [
-    c.straggler ? `<p class="state-line">${escapeHtml(t('sheet.straggler'))}</p>` : '',
+    c.straggler ? `<p class="state-line">${escapeHtml(stragglerText(w, c))}</p>` : '',
     row(t('sheet.state'), escapeHtml(stateText)),
     c.tankers || c.freighters ? convoyCargoRows(app, c)
       : row(t('sheet.ships'), c.ships === c.shipsStart ? String(c.ships) : t('sheet.aircraftOf', { n: c.ships, total: c.shipsStart })),
@@ -1060,7 +1066,7 @@ function convoyPanel(app, c) {
   const canOrder = c.state === 'inPort' || c.state === 'waiting' || c.state === 'atSea';
   const cmd = canOrder ? [
     // (A convoy has no way out to choose: its section in port is its sailing alone.)
-    c.state === 'inPort' || c.state === 'refit' ? section(app, 'convoyPort', t('sec.convoyPort'), ordersBox(sailBlock(app, c)), true, 'convoyPort') : '',
+    c.state === 'inPort' || c.state === 'refit' ? section(app, 'convoyPort', t('sec.portSail'), ordersBox(sailBlock(app, c)), true, 'convoyPort') : '',
     commsLines(app, c) ? section(app, 'comms', t('sec.comms'), ordersBox(commsLines(app, c)), true, 'comms') : '',
     routeSection(app, c),
   ].join('') : '';
@@ -1112,7 +1118,7 @@ function escortPanel(app, e) {
     const inPort = e.state === 'inPort';
     cmd = [
       // (A port without channels has no way out to choose: its sailing alone.)
-      inPort || e.state === 'refit' ? section(app, 'port', t(hasChannels(w, e) ? 'sec.port' : 'sec.convoyPort'), ordersBox(inPort ? exitLines(app, e) : '', sailBlock(app, e)), true, hasChannels(w, e) ? 'port' : 'portPlain') : '',
+      inPort || e.state === 'refit' ? section(app, 'port', t(hasChannels(w, e) ? 'sec.port' : 'sec.portSail'), ordersBox(inPort ? exitLines(app, e) : '', sailBlock(app, e)), true, hasChannels(w, e) ? 'port' : 'portPlain') : '',
       inPort ? route : '',
       commsLines(app, e) ? section(app, 'comms', t('sec.comms'), ordersBox(commsLines(app, e)), true, 'comms') : '',
       section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, e)), true, 'convoys'),
@@ -1312,7 +1318,7 @@ function formationPanel(app, f) {
     const atSea = members.some((e) => ['atSea', 'waiting', 'escorting', 'hunting'].includes(e.state));
     cmd = [
       planned ? `<p class="state-line">${escapeHtml(t('rally.underWay'))}</p>` : '',
-      !planned && leader.state === 'inPort' ? section(app, 'port', t(hasChannels(w, leader) ? 'sec.port' : 'sec.convoyPort'), ordersBox(exitLines(app, leader), sailBlock(app, leader)), true, hasChannels(w, leader) ? 'port' : 'portPlain') : '',
+      !planned && leader.state === 'inPort' ? section(app, 'port', t(hasChannels(w, leader) ? 'sec.port' : 'sec.portSail'), ordersBox(exitLines(app, leader), sailBlock(app, leader)), true, hasChannels(w, leader) ? 'port' : 'portPlain') : '',
       canMove && leader.state === 'inPort' ? routeSection(app, leader) : '',
       section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, leader)), true, 'convoys'),
       section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, leader)), true, 'uboats'),
@@ -1721,20 +1727,19 @@ function renderUnitPanel(app) {
   }
   el.unitProfile.hidden = !profile;
   if (profile) drawProfile(el.unitProfile, app, panel.profileUnit);
-  // The help sentences: shown, or folded behind a « ? » by section (setting « Aides des fiches »).
-  applySheetHelp(app, el.unitBody);
-  bubbleFollows(app);
 }
 
 export function renderPanels(app) {
   renderObjectives(app);
   renderTote(app);
   renderUnitPanel(app);
+  // The bubble of a « ? », if one is open, follows what was just drawn (helpBubble.js).
+  bubbleFollows(app);
   // With nothing selected, a word on how to open a sheet: until a first sheet has been
   // opened in this browser, and never again after (tips.js).
   const hint = app.el.panelHint;
   if (hint) {
-    if (app.selection) sheetOpened(app);
+    sheetOpened(app);
     hint.hidden = Boolean(app.selection) || !panelHintDue(app);
     const text = app.world.settings.orders === 'headings' ? t('panel.hintHeadings') : t('panel.hint');
     if (hint.textContent !== text) hint.textContent = text;

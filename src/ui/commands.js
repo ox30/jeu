@@ -86,9 +86,13 @@ export function helpInline(app, key, args = null) {
   return `<p class="hint help-inline">${escapeHtml(helpText(key, app.world ? app.world.settings : null, args || {}))}</p>`;
 }
 
-/** The name of a setting, with the « ? » that says what it changes. */
-export function named(title, help) {
-  return `<span>${escapeHtml(title)}${helpMark(help)}</span>`;
+/**
+ * A setting with a « ? »: its name (the label of the field `set-<name>`), the « ? » beside
+ * the name and not inside the label — a button in a label would take the label away from
+ * its field — then the field.
+ */
+export function settingRow(title, name, help, field) {
+  return `<div class="settings-row"><span><label for="set-${name}">${escapeHtml(title)}</label>${helpMark(help)}</span> ${field}</div>`;
 }
 
 /** The title of a page, with the « ? » of the help it carries. */

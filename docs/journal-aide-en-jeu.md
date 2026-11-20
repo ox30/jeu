@@ -57,10 +57,11 @@ fiche, le panneau de la fiche seul).
   vérifie sur « En l'air 5 min après l'ordre de décoller. », « Désengagée de H01. » et un
   tracé en attente sous silence radio (étape « state lines stay with the help folded »).
 - **Une faute de méthode, corrigée** : j'ai d'abord fermé ce lot sur le seul groupe
-  « interface » de l'essai de fumée. L'essai entier a ensuite montré quatre vérifications du
-  groupe « quarts » qui lisaient encore `.hint.awaited` et les anciennes phrases. Elles
-  lisent maintenant `.state-line.awaited` et les phrases raccourcies (commit à part). Depuis,
-  chaque lot est fermé sur l'essai de fumée entier.
+  « interface » de l'essai de fumée. L'essai entier a ensuite montré quatre vérifications
+  (ordres en attente sous silence radio, fin de route d'un convoi, « Retour au planning »)
+  qui lisaient encore la classe `.hint` et les anciennes phrases. Six lignes de l'essai
+  lisent maintenant `.state-line` et les phrases raccourcies (commit à part). Depuis, chaque
+  lot est fermé sur l'essai de fumée entier.
 
 ### Lot 2 — le « ? » de section
 
@@ -95,14 +96,14 @@ fiche, le panneau de la fiche seul).
 
 ### Lot 4 — l'aide générale en rubriques
 
-- `help.rubrics.<onglet>` : 42 rubriques titrées (100 paragraphes de 560 signes au plus ; le
+- `help.rubrics.<onglet>` : 44 rubriques titrées (106 paragraphes de 560 signes au plus ; le
   plus long en faisait 1 332), chacune avec son ancre. En tête de chaque onglet, la liste des
   titres ; dans les textes, des liens d'une rubrique à l'autre (`[[onglet:ancre|titre]]`).
   Les onglets de l'aide restent en vue quand le texte défile ; l'aide passe à 680 px de large.
 - Rubriques nouvelles : « Tracés et ordres sur la carte », « La carte », « Lire une fiche »,
   « Trains et stocks », « Radars et installations », « Rejoindre un convoi », « Repères et
-  contacts U-Boot », « Vitesse, zigzag et traînards », « Silence radio », « Achats en
-  Amérique », « Le rythme des quarts », « Astuces de première fois ». Les longs paragraphes
+  contacts U-Boot », « Vitesse, zigzag et traînards », « Silence radio », « Groupes de soutien », « Achats en
+  Amérique », « Le rythme des quarts », « Fiches techniques », « Astuces de première fois ». Les longs paragraphes
   de « Ce scénario » de l'Atlantique (quarts, silence radio) y sont passés ; le scénario en
   garde un résumé et un lien.
 - Leçons : leur propre « Ce scénario » (`help.scenario.lecon-*`).
@@ -116,14 +117,16 @@ fiche, le panneau de la fiche seul).
 
 - `src/ui/tips.js` : cinq astuces, chacune à son occasion, une à la fois, dans une petite
   carte en bas à gauche de la carte, au-dessus de l'échelle. Elle est sous la fiche (z-index
-  2 contre 3) et à côté d'elle, où que la fiche soit rangée. Après « Compris », rien pendant
+  2 contre 3) et à côté d'elle, où que la fiche soit rangée ; dans une petite fenêtre, où la
+  fiche prend le bas de l'écran, elle est au-dessus. Après « Compris », rien pendant
   vingt secondes : pas une astuce sur l'autre. La clé `jeu-1940.tips.v1` reprend
   `jeu-1940.scheduleHint.v1`. « Revoir les astuces » dans les Réglages, onglet Carte et fiche.
 - Leçon 2 « Tracer et corriger » : scénario `lecon-tracer` (un ciel sans raid, le 32 Sqn),
   dix étapes. L'instructeur fait décoller l'escadrille, le temps s'arrête, puis chaque étape
   attend son geste : tracer, déplacer un carré, glisser un « + », prolonger depuis l'anneau,
   retirer un point, mesurer à la règle, régler l'altitude d'un point. Un geste fait avant son
-  étape est redemandé (condition `flagSince`). 171 mots ; l'essai de fumée la joue à la
+  étape est redemandé (condition `flagSince`) ; pendant ces étapes le temps reste arrêté et
+  l'escadrille en main (`hold`). 171 mots ; l'essai de fumée la joue à la
   souris et la mesure à 3,0 minutes en première lecture.
 - Leçons renumérotées (noms, titres des scénarios) ; les textes qui comptaient quatre leçons
   en comptent cinq (menu, aide, fin de la leçon 5, README).
@@ -151,7 +154,7 @@ fiche, le panneau de la fiche seul).
 ### Lot 7 — vérifier et rendre compte
 
 - Version 2.11.0 (paquet, `src/core/version.js`, README). README mis à jour.
-- Relecture par un agent neuf, puis corrections : voir à la fin de ce journal.
+- Relecture par un agent neuf, puis corrections : voir « Relecture par un agent neuf ».
 
 ## Écarts au plan, et pourquoi
 
@@ -201,19 +204,31 @@ fiche, le panneau de la fiche seul).
 10. **La note « Réglages de la partie en cours… » et « Les réglages s'appliquent tout de
     suite… » restent écrites** dans les Réglages : elles disent à qui la page s'applique,
     c'est un état de la page, pas un mode d'emploi.
+11. **« En ocre : à transmettre à la relève de 16 h. »** Le plan disait « En ocre : transmis
+    à la relève de 16 h ». La relecture a trouvé que « transmis » se lit comme déjà fait ;
+    « à transmettre » reprend le mot de chaque étape de la liste. À toi de trancher.
+12. **« Traînard : seul, sans escorte. »** reste la ligne du plan, sauf quand un groupe
+    d'escorte l'a rejoint : la ligne nomme alors le groupe.
+13. **Les bulles ont deux formes là où les gestes diffèrent** : en ordres par caps
+    (Réaliste) on ne trace pas, il n'y a ni carré ni anneau. Le plan ne le prévoyait que
+    pour la première phrase de « Route et étapes ».
 
 ## Tests existants modifiés
 
 « Un test existant ne s'affaiblit jamais pour passer. » Voici chaque vérification existante
 que j'ai dû changer, et pourquoi ; aucune n'a été retirée.
 
-- Essai de fumée, groupe « quarts » (lot 1) : quatre vérifications lisaient la classe
-  `.hint.awaited` et l'ancienne phrase ; elles lisent `.state-line.awaited` et la phrase
-  d'état raccourcie par le plan. Elles vérifient la même chose : que la ligne est là.
+- Essai de fumée (lot 1) : six lignes, qui nourrissent quatre vérifications, lisaient la
+  classe `.hint` et l'ancienne phrase ; elles lisent `.state-line` et la phrase d'état
+  raccourcie par le plan. Elles vérifient la même chose : que la ligne est là, et, pour la
+  vérification négative (« pas de « Sans autre ordre » quand un ordre est donné »), que la
+  nouvelle phrase n'y est pas.
 - Essai de fumée, étape « the help of the sheets (C8) » : réécrite pour la bulle, comme le
   plan le demande ; elle vérifie plus qu'avant (huit vérifications au lieu de trois).
 - `tests/help.test.js`, premier test : l'aide n'est plus `help.sheet`, `help.air`… mais
   `help.rubrics` ; le test vérifie les rubriques (titre, ancre unique, paragraphes courts).
+- `tests/keys.test.js` : trois cas ajoutés (« + » n'est pas une touche de vitesse) ; les cas
+  existants, AZERTY compris, sont inchangés.
 - `tests/help.test.js` et `tests/scenarios.test.js` : quatre leçons → cinq ; « trois à cinq
   minutes » reste exigé des quatre premières, la nouvelle doit annoncer deux à trois.
 - Essai de fumée, tutoriel : « quatre leçons » → cinq ; la durée de la leçon 2 est vérifiée
@@ -223,6 +238,73 @@ que j'ai dû changer, et pourquoi ; aucune n'a été retirée.
   employait pour l'onglet Ordres d'une installation (qui existe). Je n'ai pas touché au
   test : j'ai récrit la phrase (« « Envoyer un train », dans la fiche d'un port ou d'un
   dépôt »).
+
+## Relecture par un agent neuf, et corrections
+
+Un agent sans mémoire du chantier a relu la branche (`496dc55`) : le code, les textes contre
+les règles du jeu, la table de ce journal, les tests modifiés. Il n'a rien modifié. Verdict :
+les contraintes sont tenues (`src/sim` intact, aucun test affaibli, rien de perdu « à part
+les variantes en ordres par caps »), une régression bloquante et six défauts importants.
+Tout ce qui suit est corrigé, sauf mention contraire.
+
+| nº | Ce qu'il a trouvé | Ce qui est fait |
+| --- | --- | --- |
+| 1 | **Bloquant.** Le jeu ne démarrait plus quand le navigateur refuse son stockage (cookies bloqués) : `tips.js` lisait `localStorage` hors de son `try` | Lu dans le `try` ; un test avec un stockage qui lève une erreur |
+| 2 | Un clic n'importe où sur la carte d'astuce ouvrait l'aide | Seuls ses deux boutons répondent ; vérifié à l'essai de fumée |
+| 3 | La légende du profil de montée recouvrait son titre | La légende a sa ligne, sous le titre ; elle se resserre sur une fiche étroite |
+| 4 | Le « ? » placé dans le `<label>` d'un réglage lui prenait sa liste (lecteur d'écran, clic sur le nom) | Le « ? » est à côté du label ; vérifié pour les cinq listes |
+| 5 | En ordres par caps (Réaliste), plusieurs bulles parlaient de gestes qui n'existent pas alors (tracé tiré, carré, anneau) ; deux variantes « caps » de la 2.10 étaient perdues | Dix bulles ont deux formes (tracé, ordres par caps) ; l'astuce du port et l'infobulle d'« Appareiller » aussi ; un test interdit ces gestes dans toute bulle en ordres par caps |
+| 6 | La touche « + », que l'aide annonce pour le zoom, passait le jeu à ×1 sur un clavier suisse (Maj + 1) | « + » n'est plus une touche de vitesse ; trois cas ajoutés à `tests/keys.test.js` |
+| 7 | Fenêtre de 820 px ou moins : la carte d'astuce passait sous la fiche, ou devenait une colonne de 25 px | Elle se range au-dessus de la fiche ; vérifié à 800 × 600 |
+| 8 | « Revoir les astuces » ne faisait pas revenir « Cliquez sur une unité… » si une fiche était ouverte | Seule l'ouverture d'une fiche compte, pas la fiche restée ouverte |
+| 9 | Bulle : restée derrière une page qui s'ouvre seule ; « ? » redessiné sans son état ; deux « Stock minimum » confondus ; ne suivait pas le défilement | Une page qui s'ouvre ferme la bulle ; la bulle suit son « ? » d'un dessin à l'autre et au défilement, et s'en va avec lui ; chaque « ? » ouvre sa bulle |
+| 10 | « Maj + double-clic dézoome » laisse une règle de longueur nulle | La phrase est retirée de l'aide (le geste reste, comme avant) |
+| 11 | « En ocre : transmis à la relève de 16 h. » se lit comme déjà transmis | « En ocre : à transmettre à la relève de 16 h. » — voir « Écarts au plan », point 11 |
+| 12 | « Traînard : seul, sans escorte. » faux quand un groupe l'a rejoint | La ligne dit alors « sous l'escorte de EG 2 » |
+| 13 | La ligne de la table sur `unit.memberHint*` était trompeuse | Corrigée : la fiche d'un membre n'a pas de « ? », le reste est dans l'aide |
+| 14 | Fiche en bas : une règle CSS visait `p.hint` et ne s'appliquait plus aux lignes d'état | Elle vise `p.state-line` et `p.warn-line` |
+| 15 | Un départ programmé pendant une leçon faisait venir l'astuce dans la partie suivante | Aucune occasion n'est retenue pendant une leçon |
+| 16 | Le premier lien vers une rubrique de « La fiche » arrivait 450 px trop bas (image pas encore dessinée) | La rubrique est ramenée en vue une fois l'image dessinée |
+| 17 | Quatre inexactitudes de texte (`groundPlain`, « carré » dans l'Atlantique, la bulle « Mission » d'une patrouille, la règle du port pour un convoi) | Récrites ; la patrouille de Coastal Command a sa bulle (`missionCover`) |
+| 18 | Leçon 2 : Espace relançait le temps, et la route à corriger s'envolait | Les étapes de geste gardent le temps arrêté et l'escadrille en main (`hold`) |
+| 19 | « carré » ou « point » pour la même poignée ; une infobulle sans point final | « carré » pour la poignée, « point » pour le point de route ; point final ajouté |
+| — | Liens de bulle faibles (`cards`, `setDev`, les bulles navales vers l'onglet Air) | Rubriques « Fiches techniques » et « Groupes de soutien » ; le mode développeur a son paragraphe |
+| — | Restes : `sheetHelp.js`, `.help-folded`, `openBubbleKey`, `sec.convoyPort` employée pour un groupe | Retirés ; la clé s'appelle `sec.portSail` |
+| — | Espace sur un « ? » mettait le jeu en pause | Espace presse le « ? » |
+
+Laissé tel quel, et dit ici :
+
+- **« bulle » a deux sens** dans les textes : la bulle d'un « ? » et la « bulle d'un port »
+  (sa zone), qui existait avant. Voir « Questions », point 5.
+- **Les bulles sont longues** : toutes tiennent en quatre phrases, mais plusieurs grâce aux
+  « ; » et aux « : » (jusqu'à 130 mots pour la route d'un convoi). Avec « Aides des fiches :
+  affichées », la fiche d'une escadrille au sol fait 948 px, contre 753 en 2.10.5, et celle
+  d'un groupe d'escorte en mer 1 084 px contre 972 : ce mode écrit tout
+  (`node tools/smoke/sheets.mjs --help shown`). Voir « Questions », point 1.
+- **Entraînement repasse devant** au menu principal pour qui avait fait les quatre leçons :
+  la cinquième lui reste à faire.
+- Espace sur un autre bouton qui a le clavier (« Compris ») met toujours le jeu en pause :
+  c'est le comportement d'avant, pour tous les boutons.
+
+## Questions
+
+1. **Longueur des bulles.** Tu les reliras dans la table plus bas. Si tu les veux plus
+   courtes, dis-moi lesquelles : ce qui sort d'une bulle a déjà sa place dans la rubrique
+   d'aide où mène son lien.
+2. **Réglage « Aides des fiches » d'un joueur de la 2.10.** Tous prennent « Masquées », y
+   compris celui qui avait choisi « Affichées » (rien ne le distinguait). Cela te va-t-il ?
+3. **Le point sur le bouton « Aide »** tant que l'aide n'a jamais été ouverte : c'est ma façon
+   de me servir de la note « aide lue », que le jeu écrivait sans la relire. Une proposition
+   plus visible (une astuce au premier lancement) aurait fait une sixième astuce.
+4. **La pose d'une station radar mobile** : le geste s'affiche sous « Déployer » pendant la
+   pose, et non en astuce (cinq au plus). Veux-tu qu'elle remplace une des cinq ?
+5. **« Bulle d'un port »** : veux-tu un autre mot (« zone », « abords ») maintenant que
+   « bulle » désigne aussi celle du « ? » ?
+6. **« En ocre : à transmettre à la relève de 16 h. »** au lieu de « transmis à la relève »
+   (le mot du plan) : garde-t-on ma version ?
+7. **La section « Convois » absente** quand il n'y a rien à rejoindre : en Réaliste, où
+   « Rejoindre » n'est pas offert, elle n'apparaît que pour quitter un convoi. Préfères-tu
+   une section toujours là, avec une ligne d'état « Aucun convoi en mer » ?
 
 ## Table « ancienne clé → nouvelle place »
 
@@ -241,26 +323,28 @@ suivantes.
 | `orders.pointHintAir`<br>`orders.pointHintSea` | ↑ ↓ règlent l'altitude que l'escadrille vise en allant vers ce point.… | — | Bulle « Route et étapes » ; infobulle de « Supprimer ce point » (`tips.pointDelete`) ; astuce « Un point choisi » (`firstTips.point`) ; aide « Tracés et ordres sur la carte » |
 | `orders.awaitedRoute` | Tracé de {n} point{s} en attente : il part par radio à la relève de {h… | État : « Tracé de {n} point{s} en attente : il part par radio à la relève de {hour} h. » | « En ocre, modifiable » : bulle « Communications », aide « Silence radio » |
 | `orders.awaitedRouteShip` | Tracé de {n} point{s} confié à {group} : il sera remis à la rencontre.… | État, sans « Il reste sur la carte, en ocre » | — |
-| `orders.awaitedLegs` | En ocre : pas encore transmis. Ces ordres partent par radio à la relèv… | État : « En ocre : transmis à la relève de {hour} h. » | Le reste : bulle « Communications », aide « Silence radio » |
-| `orders.exitStepHint`<br>`orders.exitStepHintHeadings` | La sortie attend l'ordre d'appareiller (le bouton, ou l'heure programm… | — | Bulle « Route et étapes » d'un groupe (`sheetHelp.routeEscort`) ; astuce « Au port : la sortie » ; aide « Appareiller » |
+| `orders.awaitedLegs` | En ocre : pas encore transmis. Ces ordres partent par radio à la relèv… | État : « En ocre : à transmettre à la relève de {hour} h. » | Le reste : bulle « Communications », aide « Silence radio » |
+| `orders.exitStepHint` | La sortie attend l'ordre d'appareiller (le bouton, ou l'heure programm… | — | Bulle « Route et étapes » d'un groupe (`sheetHelp.routeEscort.draw`) ; astuce « Au port : la sortie » (`firstTips.exit.text`) ; aide « Appareiller » |
+| `orders.exitStepHintHeadings` | La sortie attend l'ordre d'appareiller (le bouton, ou l'heure programm… | — | La même bulle en ordres par caps, sans l'anneau (`sheetHelp.routeEscort.headings`) ; `firstTips.exit.textHeadings` |
 | `orders.convoyEnd.hint` | Sans ordre, un convoi s'arrête au bout d'un tracé et attend ; au bout… | — | Bulle « Route et étapes » d'un convoi (`sheetHelp.routeConvoy`) ; aide « Fin de route d'un convoi » |
 | `orders.convoyEnd.hintNow` | Le convoi n'a plus rien à suivre : l'ordre choisi ici s'exécute tout d… | — | Infobulle de la liste « Et maintenant » (`tips.convoyEndNow`) ; bulle `routeConvoy` |
 | `orders.convoyEnd.autoPort` | Ce tracé passe près de l'entrée de ce chenal et finit vers ce port : s… | État : « Sans autre ordre, le convoi entre de lui-même dans ce port. » | Le reste : bulle `routeConvoy` (dernière phrase), aide « Fin de route d'un convoi » |
 | **Escadrilles** | | | |
-| `orders.scrambleHint`<br>`orders.scrambleHintHeadings` | Glissez depuis l'aérodrome vers le raid : l'escadrille prête décolle e… | — | Retirée des deux endroits (fiche d'une escadrille, onglet Ordres d'un aérodrome) ; leçon 1 ; bulle `routeAir` ; aide « Intercepter un raid, couvrir un convoi » |
+| `orders.scrambleHint` | Glissez depuis l'aérodrome vers le raid : l'escadrille prête décolle e… | — | Retirée des deux endroits (fiche d'une escadrille, onglet Ordres d'un aérodrome) ; leçon 1 ; bulle `routeAir.draw` ; aide « Intercepter un raid, couvrir un convoi » |
+| `orders.scrambleHintHeadings` | Préparez un cap direct ou des étapes, puis faites décoller l'escadrill… | — | Bulle `routeAir.headings` : « Au sol, préparez des étapes, puis faites décoller l'escadrille : elles attendent le décollage. » |
 | `orders.scheduleHint`<br>`orders.understood` | Programmer un départ : l'heure saisie est celle de l'ordre. L'unité pa… | — | Astuce de première fois « Programmer un départ » (`firstTips.schedule`, `firstTips.understood`) ; aide « Programmer un départ » |
 | `orders.scheduledRouteHint` | Glissez depuis l'aérodrome pour tracer la route : elle attend le décol… | État, seulement sans route ni étapes : « Sans route ni étapes : patrouillera au-dessus de sa base. » (`orders.scheduledNoRoute`) | Le geste : bulles `routeAir` et `groundPlain` |
 | `orders.interceptHint` | Le contrôleur guide l'escadrille et la fait monter au-dessus du raid.… | — | Infobulle des boutons « Intercepter » (`tips.intercept`) ; bulle « Mission » ; aide « Intercepter un raid, couvrir un convoi » |
 | `orders.coverHint` | L'escadrille tourne au-dessus du convoi et le suit. | — | Infobulle des boutons « Couvrir » (`tips.cover`) ; bulle « Mission » |
 | `orders.letGo`<br>`orders.letGoMany` | Désengagée de {raids} : elle laisse ce raid tranquille, quelle que soi… | État : « Désengagée de {raids}. » | La règle : infobulle de « Rompre » (`cmd.breakOffTitle`), bulle « Mission », aide « Face à l'ennemi » |
 | `sheet.roleHint.watch`<br>`sheet.roleHint.coastal` | Section de guet : elle ne combat pas. Ce qu'elle voit est plotté avec… | Onglet Fiche technique, au-dessus de la carte de l'avion (`cards.role.*`) | Aide « Intercepter un raid, couvrir un convoi » |
-| `unit.memberHintAir`<br>`unit.memberHintSea` | Les ordres se donnent à la formation : elle décolle, vole et rentre en… | État : « Ordres : par {name}. » (`unit.ordersVia`), avec « Voir la formation » | Bulles « Formation » et « Groupe de soutien » ; aide « Formations » |
+| `unit.memberHintAir`<br>`unit.memberHintSea` | Les ordres se donnent à la formation : elle décolle, vole et rentre en… | État : « Ordres : par {name}. » (`unit.ordersVia`), avec « Voir la formation » | Aide « Formations » et « Groupes de soutien ». (La fiche d'un membre n'a pas de section, donc pas de « ? » ; les bulles « Formation » et « Groupe de soutien » sont sur la fiche d'une unité hors formation, à côté du bouton qui en crée une.) |
 | **Convois** | | | |
-| `orders.sailHint` | Le convoi attend au port : préparez ses étapes, puis donnez l'ordre d'… | — | Supprimée de la fiche (doublon). L'infobulle d'« Appareiller » dit son action (`tips.sailConvoy`) |
+| `orders.sailHint` | Le convoi attend au port : préparez ses étapes, puis donnez l'ordre d'… | — | Supprimée de la fiche (doublon). L'infobulle d'« Appareiller » dit son action (`tips.sailConvoy` ; `tips.sailConvoyHeadings` en ordres par caps) |
 | `orders.sailScheduledHint` | Tracez la route depuis le port, ou préparez des étapes : elles attende… | — | Bulle « Au port : appareillage » (`sheetHelp.convoyPort`) ; aide « Appareiller » |
 | `orders.speedHint` | Au maximum, des navires lents décrochent et deviennent des traînards.… | — | Infobulle de la vitesse maximale d'un convoi (`tips.boostConvoy`) et du zigzag (`tips.zigzagOn`, `tips.zigzagOff`) ; aide « Vitesse, zigzag et traînards » |
 | `orders.zigzagOn`<br>`orders.zigzagOff` | Zigzag : oui | — | `tips.zigzagOn`, `tips.zigzagOff` |
-| `sheet.stragglerHint` | Un navire tombé derrière son convoi : seul, sans escorte, une proie fa… | État : « Traînard : seul, sans escorte. » (`sheet.straggler`) | Aide « Vitesse, zigzag et traînards » |
+| `sheet.stragglerHint` | Un navire tombé derrière son convoi : seul, sans escorte, une proie fa… | État : « Traînard : seul, sans escorte. » (`sheet.straggler`), ou « Traînard, tombé derrière son convoi : sous l'escorte de {group}. » (`sheet.stragglerEscorted`) | Aide « Vitesse, zigzag et traînards » |
 | **Groupes d'escorte et groupes de soutien** | | | |
 | `orders.exitHint` | Choisir une sortie en fait la première étape du groupe : elle se dessi… | — | Bulle « Au port : sortie et appareillage » (`sheetHelp.port`) ; infobulle d'« Appareiller » réduite à son action (`tips.sailEscort`) ; aide « Appareiller » |
 | `orders.exitHintNoChannel` | Appareiller : le groupe sort au large du port et y attend vos ordres,… | — | Infobulle d'« Appareiller » dans un port sans chenal (`tips.sailEscortNoChannel`) ; bulle `portPlain` |
@@ -271,9 +355,9 @@ suivantes.
 | `orders.dryHint` | Plus de mazout : le groupe rentre au port le plus proche, à {kn} nœuds… | Alerte raccourcie (`orders.dry`) : « À sec : rentre au port le plus proche, {kn} nœuds au plus. Seul le port peut changer. » | — |
 | `comms.channel.radio` | En haute mer, sous silence radio : la position est une estimation, et… | État raccourci : « En haute mer, sous silence radio : position estimée, ordres par radio à la relève de {hour} h. » | Le B-Dienst : bulle « Communications », aide « Silence radio » |
 | `comms.askPositionHint` | Le navire répond par radio à la relève de {hour} h : un point sûr pour… | — | Infobulle de « Demander la position » (`tips.askPosition`) ; bulle « Communications » |
-| `unit.groupHint` | Tracez la route depuis le groupe de soutien : ses groupes suivent le c… | — | Bulles « Gérer la formation » (`sheetHelp.manageSea`) et `routeGroup` ; aide « Formations » |
+| `unit.groupHint` | Tracez la route depuis le groupe de soutien : ses groupes suivent le c… | — | Bulles « Gérer la formation » (`sheetHelp.manageSea`) et `routeGroup` ; aide « Groupes de soutien » |
 | **Big wings et rassemblements** | | | |
-| `unit.wingHintGround`<br>`unit.wingHintAir`<br>`unit.wingHintGroundHeadings`<br>`unit.wingHintAirHeadings` | Glissez depuis le chef (ou son aérodrome) pour tracer la route de la f… | — | Bulle « Route et étapes » d'une big wing (`sheetHelp.routeWing`) ; aide « Formations » |
+| `unit.wingHintGround`<br>`unit.wingHintAir`<br>`unit.wingHintGroundHeadings`<br>`unit.wingHintAirHeadings` | Glissez depuis le chef (ou son aérodrome) pour tracer la route de la f… | — | Bulle « Route et étapes » d'une big wing (`sheetHelp.routeWing.draw` et `.headings`) ; aide « Formations » |
 | `rally.routeHint` | Route après le rendez-vous : glissez depuis le point RV sur la carte (… | État : « Route après le rendez-vous : {n} point{s}. » ou « Pas de route après le rendez-vous : la formation tournera au-dessus du point. » (`rally.routeAfter`, `rally.routeNone`) | Le geste : bulle « Lieu du rassemblement », aide « Rassemblement » |
 | `rally.timeSet` | Rendez-vous à {time} : la formation part à cette heure ; les premiers… | État : « Rendez-vous à {time}. » | Le reste : bulle « Lieu du rassemblement » |
 | `rally.missingHintAir`<br>`rally.missingHintSea` | Au rendez-vous, s'il manque une escadrille, la question vous est posée… | — | Bulle « Lieu du rassemblement » ; une infobulle par bouton (`tips.missing.wait`, `.slow`, `.go`) |
@@ -300,10 +384,10 @@ suivantes.
 | `settings.seaCommsHint`<br>`settings.watchStopsHint`<br>`settings.alertSpeedsHint`<br>`settings.sheetHint`<br>`settings.sheetHelpHint`<br>`settings.viewZonesHint`<br>`settings.devHint` | Silence radio (dans l'Atlantique) : hors des eaux suivies — eaux fermé… | — | Un « ? » par réglage (`sheetHelp.setSeaComms`, `.setWatchStops`, `.setAlertSpeeds`, `.setSheetPos`, `.setSheetHelp`, `.setViewZones`, `.setDev`) |
 | `menu.loadIntro` | La partie en cours, ses cinq dernières sauvegardes automatiques (une p… | — | Bulle du « ? » du titre de la page Charger (`sheetHelp.load`) |
 | `sheet.helpToggle` | Aide de cette section | — | Remplacée par `help.mark` (« Aide », le nom du « ? ») |
-| `help.sheet`<br>`help.air`<br>`help.sea`<br>`help.time`<br>`help.games`<br>`help.keys` | La fiche d'une unité s'ouvre quand on clique l'unité, sur la carte ou… | — | `help.rubrics.<onglet>` : les mêmes textes, coupés en 42 rubriques titrées |
+| `help.sheet`<br>`help.air`<br>`help.sea`<br>`help.time`<br>`help.games`<br>`help.keys` | La fiche d'une unité s'ouvre quand on clique l'unité, sur la carte ou… | — | `help.rubrics.<onglet>` : les mêmes textes, coupés en 44 rubriques titrées |
 | `unit.stackTab`<br>`unit.siteTab` | {name} : ouvrir sa fiche (les unités superposées sur la carte ont chac… | Infobulle d'un onglet de pile, sans sa parenthèse | L'explication : aide « Unités superposées » |
 | `cmd.breakOffTitle` | Désengager {raid} (D) : sortir du combat, tourner sur place et laisser… | Infobulle de « Rompre », avec la règle : « … et laisser ce raid tranquille jusqu'à un nouvel ordre sur lui » | — |
-| `profile.window` | zone de combat possible | Légende des bandes du profil de montée (jamais affichée jusqu'ici) : « combat possible : avec l'avantage (vert), sans (ocre) » | — |
+| `profile.window` | zone de combat possible | Légende des bandes du profil de montée (jamais affichée jusqu'ici) : « zone de combat possible » (ocre), à côté de « avec l'avantage de l'altitude » (vert, `profile.advantage`) | — |
 
 Inchangées, mais passées du style d'aide au style d'état (lot 1) : `orders.followingUntilRelief`,
 `orders.noLeg`, `orders.noLegReady`, `orders.awaitedLand` (alerte), `orders.convoyEnd.intoPort`,
@@ -331,32 +415,33 @@ réglage du jeu), puis vient son lien « Plus dans l'aide : « rubrique » ».
 | Bulle | Où | Texte | Lien « Plus dans l'aide » |
 | --- | --- | --- | --- |
 | `ground` | Fiche d'une escadrille ou d'une big wing, section « Au sol » (avec la fatigue) | Le délai d'un état d'alerte, c'est le temps pour être en l'air après l'ordre de décoller. Monter d'un cran prend la différence (du repos à l'alerte : 1 h 55) ; descendre est immédiat. Seul le Repos repose vraiment : Disponible repose peu, l'Alerte fatigue un peu, le Cockpit davantage. Un départ programmé donne l'ordre à l'heure saisie : l'escadrille part ensuite selon son état. | Air · « États d'alerte » |
-| `groundPlain` | La même section, sans la fatigue | « Programmer » donne l'ordre de décoller à l'heure saisie, une fois ou chaque jour. Tracez la route depuis l'aérodrome, ou préparez des étapes : elles attendent le décollage. Sans route ni étapes, l'escadrille patrouille au-dessus de sa base. | Air · « Programmer un départ » |
-| `routeAir` | Escadrille, section « Route et étapes » | Un point choisi se règle avec ↑ ↓ : c'est l'altitude que l'escadrille vise en y allant. Une étape au cap se donne sous « Nouvelle étape » : un cap, puis une fin (durée, heure, carré ou position) ; sans fin, elle dure jusqu'à nouvel ordre. Au sol, une route tracée depuis l'aérodrome fait décoller l'escadrille prête ; avec un départ programmé, elle attend l'heure. *(précédé de la phrase du tracé, ci-dessous)* | La fiche · « Tracés et ordres sur la carte » |
-| `routeWing` | Big wing, section « Route et étapes » | Toutes les escadrilles de la formation suivent la route du chef, à la vitesse de la plus lente. Décollée ensemble, elle se rassemble au-dessus du chef avant de partir. Un point choisi se règle avec ↑ ↓ : c'est l'altitude visée en y allant. *(précédé de la phrase du tracé, ci-dessous)* | Air · « Formations : big wing et groupe de soutien » |
-| `routeEscort` | Groupe d'escorte, section « Route et étapes » | Au port, la sortie choisie est la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge depuis l'anneau à son bout ou par des étapes au cap. Une étape au cap prend une fin (durée, heure ou position) ; sans fin, elle dure jusqu'à nouvel ordre. La liste de fin de route dit ce que le groupe fait ensuite : attendre, garder le cap, rejoindre un convoi, chasser ou entrer dans un port. *(précédé de la phrase du tracé, ci-dessous)* | Mer · « Appareiller » |
-| `routeGroup` | Groupe de soutien, section « Route et étapes » | Les groupes du groupe de soutien suivent le chef en ligne de file. Au port, la sortie choisie est leur première étape : elle attend « Appareiller » ou l'heure programmée. Quand le plus court arrive au bout de son autonomie, tous rentrent. *(précédé de la phrase du tracé, ci-dessous)* | Air · « Formations : big wing et groupe de soutien » |
+| `groundPlain` | La même section, sans la fatigue | **Tracé :** « Programmer » donne l'ordre de décoller à l'heure saisie, une fois ou chaque jour. Avec un départ programmé, la route tracée depuis l'aérodrome et les étapes préparées attendent l'heure ; sans lui, un tracé depuis l'aérodrome fait décoller tout de suite. Sans route ni étapes, l'escadrille patrouille au-dessus de sa base.<br>**Ordres par caps :** « Programmer » donne l'ordre de décoller à l'heure saisie, une fois ou chaque jour. Les étapes préparées attendent le décollage. Sans étapes, l'escadrille patrouille au-dessus de sa base. | Air · « Programmer un départ » |
+| `routeAir` | Escadrille, section « Route et étapes » | **Tracé :** Un carré choisi se règle avec ↑ ↓ : c'est l'altitude que l'escadrille vise en allant vers ce point. Une étape au cap se donne sous « Nouvelle étape » : un cap, puis une fin (durée, heure, position, ou carré là où la carte a sa grille) ; sans fin, elle dure jusqu'à nouvel ordre. Au sol, une route tracée depuis l'aérodrome fait décoller l'escadrille prête ; avec un départ programmé, elle attend l'heure.<br>**Ordres par caps :** Une étape, c'est un cap, puis une fin (durée, heure, position, ou carré là où la carte a sa grille) ; sans fin, elle dure jusqu'à nouvel ordre. En vol, « Cap direct » donne un cap à suivre tout de suite. Au sol, préparez des étapes, puis faites décoller l'escadrille : elles attendent le décollage. *(précédé de la phrase du tracé, ci-dessous)* | La fiche · « Tracés et ordres sur la carte » |
+| `routeWing` | Big wing, section « Route et étapes » | **Tracé :** Toutes les escadrilles de la formation suivent la route du chef, à la vitesse de la plus lente. Décollée ensemble, elle se rassemble au-dessus du chef avant de partir. Un carré choisi se règle avec ↑ ↓ : c'est l'altitude visée en allant vers ce point.<br>**Ordres par caps :** Donnez un cap ou des étapes au chef : toutes les escadrilles de la formation le suivent, à la vitesse de la plus lente. Décollée ensemble, elle se rassemble au-dessus du chef avant de partir. *(précédé de la phrase du tracé, ci-dessous)* | Air · « Formations : big wing et groupe de soutien » |
+| `routeEscort` | Groupe d'escorte, section « Route et étapes » | **Tracé :** Au port, la sortie choisie est la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge depuis l'anneau à son bout ou par des étapes au cap. Une étape au cap prend une fin (durée, heure ou position) ; sans fin, elle dure jusqu'à nouvel ordre. La liste de fin de route dit ce que le groupe fait ensuite : attendre, garder le cap, rejoindre un convoi, chasser ou entrer dans un port.<br>**Ordres par caps :** Au port, la sortie choisie est la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge par des étapes au cap, qui partent du bout de la sortie. Une étape prend une fin (durée, heure ou position) ; sans fin, elle dure jusqu'à nouvel ordre. La liste de fin de route dit ce que le groupe fait ensuite : attendre, garder le cap, rejoindre un convoi, chasser ou entrer dans un port. *(précédé de la phrase du tracé, ci-dessous)* | Mer · « Appareiller » |
+| `routeGroup` | Groupe de soutien, section « Route et étapes » | Les groupes du groupe de soutien suivent le chef en ligne de file. Au port, la sortie choisie est leur première étape : elle attend « Appareiller » ou l'heure programmée. Quand le plus court arrive au bout de son autonomie, tous rentrent. *(précédé de la phrase du tracé, ci-dessous)* | Mer · « Groupes de soutien » |
 | `routeConvoy` | Convoi, section « Route et étapes » | Sans ordre, un convoi s'arrête au bout d'un tracé et attend ; au bout de ses étapes, il garde le cap. La liste de fin de route en décide autrement, tout de suite s'il n'a plus rien à suivre : « Entrer à… » le mène par le large à l'entrée du chenal choisi, où le pilote monte à bord ; « Reprendre la route de l'Amirauté » la rejoint au prochain point devant lui. Un tracé qui passe près de l'entrée d'un chenal et finit vers son port y entre de lui-même. *(précédé de la phrase du tracé, ci-dessous)* | Mer · « Fin de route d'un convoi » |
-| `mission` | Escadrille ou big wing, section « Mission » | « Couvrir » fait tourner l'escadrille au-dessus du convoi, qu'elle suit. En Arcade, « Intercepter » laisse le contrôleur la guider et la faire monter au-dessus du raid ; sa chance dépend de la couverture radar au point de rencontre. « Rompre », dans la barre de commandes, la désengage d'un raid : elle le laisse tranquille, quelle que soit son attitude, jusqu'à un nouvel ordre sur lui. | Air · « Face à l'ennemi » |
+| `mission` | Escadrille de chasse ou big wing, section « Mission » | « Couvrir » fait tourner l'escadrille au-dessus du convoi, qu'elle suit. En Arcade, « Intercepter » laisse le contrôleur la guider et la faire monter au-dessus du raid ; sa chance dépend de la couverture radar au point de rencontre. « Rompre », dans la barre de commandes, la désengage d'un raid : elle le laisse tranquille, quelle que soit son attitude, jusqu'à un nouvel ordre sur lui. | Air · « Face à l'ennemi » |
+| `missionCover` | Patrouille de Coastal Command, section « Mission » | « Couvrir » fait tourner l'escadrille au-dessus du convoi, qu'elle suit. Coastal Command couvre tout convoi en mer : il voit les U-Boote en surface et les oblige à plonger, sans combattre les raids. | Air · « Intercepter un raid, couvrir un convoi » |
 | `formation` | Escadrille, section « Formation » | Une big wing est une seule unité : les ordres se donnent à la formation, qui décolle, vole et rentre ensemble. Chaque escadrille garde son état d'alerte et peut partir à sa propre heure. | Air · « Formations : big wing et groupe de soutien » |
-| `group` | Groupe d'escorte, section « Groupe de soutien » | Un groupe de soutien réunit des groupes d'escorte : les ordres se donnent au groupe de soutien, dont les groupes appareillent, escortent et rentrent ensemble. Quand le plus court arrive au bout de son autonomie, tous rentrent. | Air · « Formations : big wing et groupe de soutien » |
+| `group` | Groupe d'escorte, section « Groupe de soutien » | Un groupe de soutien réunit des groupes d'escorte : les ordres se donnent au groupe de soutien, dont les groupes appareillent, escortent et rentrent ensemble. Quand le plus court arrive au bout de son autonomie, tous rentrent. | Mer · « Groupes de soutien » |
 | `manageAir` | Big wing, section « Gérer la formation » | Une big wing est une seule unité : une fiche, les mêmes ordres pour toutes ses escadrilles. Une escadrille à court d'essence ou de munitions la quitte et rentre ; le chef suivant prend la tête. « Composer… » ouvre la page Formations, pour ajouter une escadrille ou changer de chef ; « Dissoudre » rend à chacune ses propres ordres. Dans l'onglet Membres, « Prendre… » fait passer ici toutes les escadrilles d'une autre big wing. | Air · « Formations : big wing et groupe de soutien » |
-| `manageSea` | Groupe de soutien, section « Gérer la formation » | Tracez la route depuis le groupe de soutien : ses groupes suivent le chef en ligne de file. Quand le plus court arrive au bout de son autonomie, tous rentrent. « Composer… » ouvre la page Formations ; « Dissoudre » rend à chaque groupe ses propres ordres. Dans l'onglet Membres, « Prendre… » fait passer ici tous les groupes d'un autre groupe de soutien. | Air · « Formations : big wing et groupe de soutien » |
-| `convoyPort` | Convoi au port, section « Au port : appareillage » | Un tracé tiré depuis le port fait appareiller le convoi tout de suite. Des étapes préparées attendent « Appareiller », dans la barre de commandes. Avec un appareillage programmé, tracé et étapes attendent l'heure dite. Sans rien de préparé à cette heure, le convoi n'a nulle part où aller, et l'ordre attend. | Mer · « Appareiller » |
-| `port` | Groupe d'escorte au port, section « Au port : sortie et appareillage » | Choisir une sortie en fait la première étape du groupe : en rade, ou par un chenal jusqu'au large. Elle attend « Appareiller » ou l'heure programmée ; sans sortie choisie, un tracé tiré depuis le port part tout de suite. À l'heure dite, le groupe appareille avec ce qui est préparé, ou sort en rade et y attend vos ordres s'il n'y a rien. | Mer · « Appareiller » |
-| `portPlain` | Groupe d'escorte dans un port sans chenal, section « Au port : appareillage » | « Appareiller » fait sortir le groupe au large du port, où il attend vos ordres. Un tracé tiré depuis le port part tout de suite. Avec un appareillage programmé, tracé et étapes attendent l'heure dite. | Mer · « Appareiller » |
+| `manageSea` | Groupe de soutien, section « Gérer la formation » | Les ordres donnés au groupe de soutien valent pour tous ses groupes, qui suivent le chef en ligne de file. Quand le plus court arrive au bout de son autonomie, tous rentrent. « Composer… » ouvre la page Formations ; « Dissoudre » rend à chaque groupe ses propres ordres. Dans l'onglet Membres, « Prendre… » fait passer ici tous les groupes d'un autre groupe de soutien. | Mer · « Groupes de soutien » |
+| `convoyPort` | Convoi au port, section « Au port : appareillage » | **Tracé :** Un tracé tiré depuis le port fait appareiller le convoi tout de suite. Des étapes préparées attendent « Appareiller », dans la barre de commandes. Avec un appareillage programmé, tracé et étapes attendent l'heure dite. Sans rien de préparé à cette heure, le convoi n'a nulle part où aller, et l'ordre attend.<br>**Ordres par caps :** Des étapes préparées attendent « Appareiller », dans la barre de commandes, ou l'heure programmée. Sans étape préparée à cette heure, le convoi n'a nulle part où aller, et l'ordre attend. | Mer · « Appareiller » |
+| `port` | Groupe d'escorte au port, section « Au port : sortie et appareillage » | **Tracé :** Choisir une sortie en fait la première étape du groupe : en rade, ou par un chenal jusqu'au large. Elle attend « Appareiller » ou l'heure programmée ; sans sortie choisie, un tracé tiré depuis le port part tout de suite. À l'heure dite, le groupe appareille avec ce qui est préparé, ou sort en rade et y attend vos ordres s'il n'y a rien.<br>**Ordres par caps :** Choisir une sortie en fait la première étape du groupe : en rade, ou par un chenal jusqu'au large. Elle attend « Appareiller » ou l'heure programmée, avec les étapes au cap qui la suivent. À l'heure dite, le groupe appareille avec ce qui est préparé, ou sort en rade et y attend vos ordres s'il n'y a rien. | Mer · « Appareiller » |
+| `portPlain` | Groupe d'escorte dans un port sans chenal, section « Au port : appareillage » | **Tracé :** « Appareiller » fait sortir le groupe au large du port, où il attend vos ordres. Un tracé tiré depuis le port part tout de suite. Avec un appareillage programmé, tracé et étapes attendent l'heure dite.<br>**Ordres par caps :** « Appareiller » fait sortir le groupe au large du port, où il attend vos ordres ou prend les étapes préparées. Avec un appareillage programmé, les étapes attendent l'heure dite. | Mer · « Appareiller » |
 | `comms` | Navire en mer, section « Communications (silence radio) » | En haute mer, sous silence radio, la position d'un navire est une estimation et vos ordres partent par radio à la relève suivante. D'ici là ils restent sur la carte, en ocre, et se modifient encore. Une route envoyée par radio peut être lue par le B-Dienst ; au projecteur d'un avion en vue, ou portée par un groupe d'escorte, elle ne l'est pas. « Demander la position » fait répondre le navire à la relève : un point sûr pour vous, un relèvement pour les U-Boote. | Mer · « Silence radio » |
-| `convoys` | Groupe d'escorte, section « Convois » | Le groupe prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » calcule lui-même la route d'interception (sauf en Réaliste) et contourne la terre ; « Rentrer au port » aussi. Une route tracée qui finit dans la bulle d'un port y entre. | Mer · « Rejoindre un convoi » |
+| `convoys` | Groupe d'escorte, section « Convois » | Le groupe prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » calcule lui-même la route d'interception (sauf en Réaliste) et contourne la terre ; « Rentrer au port » aussi. Une route qui finit dans la bulle d'un port y entre. | Mer · « Rejoindre un convoi » |
 | `uboats` | Groupe d'escorte, section « Chasse aux U-Boote » | Rester : le groupe garde son poste et n'attaque qu'un U-Boot qu'il peut rejoindre sans lâcher son convoi (30 min et 15 km au plus). Chasser : il quitte le convoi pour un contact frais et revient seul, U-Boot coulé, contact perdu ou grenades tombées au tiers gardé pour le convoi ; le convoi reste sans escorte pendant ce temps. Grenadage plein : dix grenades par passe ; économe : cinq, avec moins de chances mais deux fois plus de passes. À vide, le groupe passe encore, à blanc : le U-Boot reste en plongée et perd le convoi. | Mer · « Chasse aux U-Boote » |
-| `rallyAir` | Big wing, onglet Rassemblement, « Lieu du rassemblement » | Sur le chef : les membres décollent à leur heure et rejoignent le chef, qui les attend au-dessus de sa base (15 min au plus). Sur un point : avec une heure de rendez-vous, la formation part à cette heure et les premiers arrivés l'attendent ; pour la route d'après, glissez depuis le point RV sur la carte. S'il manque une escadrille à l'heure, la question vous est posée : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans elle ; sans réponse, le choix fait ici s'applique. *(suivi de la phrase de l'aide au rassemblement, ci-dessous)* | Air · « Rassemblement » |
-| `rallySea` | Groupe de soutien, onglet Rassemblement, « Lieu du rassemblement » | Sur le chef : le chef appareille à son heure avec ses propres ordres ; chaque groupe appareille à la sienne, le rejoint en mer et prend son poste. Sur un point : avec une heure de rendez-vous, le groupe de soutien part à cette heure et les premiers arrivés l'attendent ; pour la route d'après, glissez depuis le point RV sur la carte. S'il manque un groupe à l'heure, le choix fait ici s'applique : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans lui. *(suivi de la phrase de l'aide au rassemblement, ci-dessous)* | Air · « Rassemblement » |
+| `rallyAir` | Big wing, onglet Rassemblement, « Lieu du rassemblement » | **Tracé :** Sur le chef : les membres décollent à leur heure et rejoignent le chef, qui les attend au-dessus de sa base (15 min au plus). Sur un point : avec une heure de rendez-vous, la formation part à cette heure et les premiers arrivés l'attendent ; pour la route d'après, glissez depuis le point RV sur la carte. S'il manque une escadrille à l'heure, la question vous est posée : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans elle ; sans réponse, le choix fait ici s'applique.<br>**Ordres par caps :** Sur le chef : les membres décollent à leur heure et rejoignent le chef, qui les attend au-dessus de sa base (15 min au plus). Sur un point : avec une heure de rendez-vous, la formation part à cette heure et les premiers arrivés l'attendent sur place. S'il manque une escadrille à l'heure, la question vous est posée : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans elle ; sans réponse, le choix fait ici s'applique. *(suivi de la phrase de l'aide au rassemblement, ci-dessous)* | Air · « Rassemblement » |
+| `rallySea` | Groupe de soutien, onglet Rassemblement, « Lieu du rassemblement » | **Tracé :** Sur le chef : le chef appareille à son heure avec ses propres ordres ; chaque groupe appareille à la sienne, le rejoint en mer et prend son poste. Sur un point : avec une heure de rendez-vous, le groupe de soutien part à cette heure et les premiers arrivés l'attendent ; pour la route d'après, glissez depuis le point RV sur la carte. S'il manque un groupe à l'heure, le choix fait ici s'applique : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans lui.<br>**Ordres par caps :** Sur le chef : le chef appareille à son heure avec ses propres ordres ; chaque groupe appareille à la sienne, le rejoint en mer et prend son poste. Sur un point : avec une heure de rendez-vous, le groupe de soutien part à cette heure et les premiers arrivés l'attendent sur place. S'il manque un groupe à l'heure, le choix fait ici s'applique : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans lui. *(suivi de la phrase de l'aide au rassemblement, ci-dessous)* | Mer · « Groupes de soutien » |
 | `minStock` | Aérodrome ou usine, onglet Ordres, « Stock minimum » | Le stock minimum est un ordre permanent : quand le stock (trains en route compris) passe sous ce seuil, un train part du port le mieux placé. Champ vide : pas d'ordre. En Arcade, le seuil est automatique. | Air · « Trains et stocks » |
 | `train` | Port ou dépôt, onglet Ordres, « Envoyer un train » | Un train compte au plus {wagons} wagons : citernes de {fuel} t pour le carburant, wagons couverts de {materiel} t pour le reste. Il lui faut au moins {min} t. Un petit train prend quand même un des trains de la ligne. | Air · « Trains et stocks » |
 | `offers` | Panneau de droite, onglet Logistique, « Achats en Amérique » | Avant le prêt-bail, la Grande-Bretagne paie comptant. Les convois partent chargés à plein tant que la réserve le permet ; ce qu'elle ne peut plus payer part sur lest. | Mer · « Achats en Amérique » |
 | `roster` | Page Effectifs, titre | Choisissez un aérodrome, puis réglez chaque escadrille : son état maintenant, son plan de chaque jour (de 00:00 à 24:00, il se répète) ou, case cochée, un plan d'exception pour les prochaines {n} h en heures H. Un état choisi à la main garde la main jusqu'à « Retour au planning ». | Air · « La page Effectifs » |
 | `formationsAir` | Page Formations, titre (big wings) | Une big wing est une seule unité : une fiche, les mêmes ordres pour toutes ses escadrilles. Elle décolle ensemble, se rassemble au-dessus de son chef, puis vole à la vitesse de la plus lente. Une escadrille à court d'essence ou de munitions la quitte et rentre ; le chef suivant (★) prend la tête. | Air · « Formations : big wing et groupe de soutien » |
-| `formationsNaval` | Page Formations, titre (groupes de soutien) | Un groupe de soutien réunit des groupes d'escorte : ils appareillent, escortent et chassent ensemble. Quand le plus court d'entre eux arrive au bout de son autonomie, tout le groupe rentre au port. | Air · « Formations : big wing et groupe de soutien » |
-| `cards` | Page Fiches techniques, titre | Les chiffres que le jeu utilise, proches de ceux de l'époque. Le plafond limite l'altitude qu'on peut ordonner. | Air · « Formations : big wing et groupe de soutien » |
+| `formationsNaval` | Page Formations, titre (groupes de soutien) | Un groupe de soutien réunit des groupes d'escorte : ils appareillent, escortent et chassent ensemble. Quand le plus court d'entre eux arrive au bout de son autonomie, tout le groupe rentre au port. | Mer · « Groupes de soutien » |
+| `cards` | Page Fiches techniques, titre | Les chiffres que le jeu utilise, proches de ceux de l'époque. Le plafond limite l'altitude qu'on peut ordonner. | La fiche · « Fiches techniques » |
 | `load` | Menu principal, page Charger, titre | La partie en cours, ses cinq dernières sauvegardes automatiques (une par jour de jeu, toutes les deux heures de jeu dans une bataille d'une journée), la dernière de chacune des parties d'avant (cinq au plus) et vos sauvegardes manuelles. Charger une sauvegarde remplace la partie en cours, qui est d'abord gardée parmi les sauvegardes automatiques. | Parties et réglages · « Sauvegardes » |
 | `setSeaComms` | Réglages, « Communications en mer » | Silence radio (dans l'Atlantique) : hors des eaux suivies — eaux fermées aux U-Boote, approches des ports, couverture des radars côtiers — vos navires ne sont vus que par estimation. Un ordre part par radio à la relève suivante, au projecteur si un de vos avions est en vue, ou confié à un groupe qui rejoint le convoi. | Mer · « Silence radio » |
 | `setWatchStops` | Réglages, « Arrêt aux relèves » | Dans l'Atlantique, un rapport s'écrit à chaque relève de quart (0, 4, 8, 12, 16 et 20 h), que le jeu s'arrête ou non : onglet « Signaux » du journal. Entre deux relèves, le jeu ne s'arrête que pour la première attaque d'un convoi dans la nuit. | Temps et alertes · « Le rythme des quarts » |
@@ -371,7 +456,7 @@ Les phrases qui dépendent d'un réglage :
 
 | Phrase | Quand | Texte |
 | --- | --- | --- |
-| `sheetHelpLead.route.draw` | Début d'une bulle « Route et étapes », ordres par tracé | Glissez depuis l'unité pour tracer sa route ; sur le tracé, glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger, et double-cliquez un point (ou Suppr) pour le retirer. |
+| `sheetHelpLead.route.draw` | Début d'une bulle « Route et étapes », ordres par tracé | Glissez depuis l'unité pour tracer sa route ; sur le tracé, glissez un carré pour déplacer son point, un « + » pour en ajouter un, l'anneau du bout pour prolonger, et double-cliquez un carré (ou Suppr) pour retirer son point. |
 | `sheetHelpLead.route.headings` | La même, en ordres par caps (Réaliste) | En ordres par caps, la route se donne en étapes : mesurez le cap à la règle (glissez depuis l'unité), puis ajoutez l'étape mesurée ou tapez-la sous « Nouvelle étape ». |
 | `sheetHelpLead.rally.auto` | Fin de la bulle du rassemblement, en Arcade | Les départs sont calculés pour que tous arrivent ensemble. |
 | `sheetHelpLead.rally.default` | En Standard | L'heure d'arrivée de chacun s'affiche selon son départ ; sans heure, il part au lancement du plan. |
@@ -386,7 +471,7 @@ Une ligne chacune (200 signes et deux phrases au plus, vérifié).
 | `tips.legEnd.air` | Fin de l'étape : une durée (6, 1 h 30), une heure (14:20), un carré (J5) ou une position (51N 1E). Vide : jusqu'à nouvel ordre. |
 | `tips.legEnd.airNoGrid` | Fin de l'étape : une durée (6, 1 h 30), une heure (14:20) ou une position (56N 12O). Vide : jusqu'à nouvel ordre. |
 | `tips.legEnd.sea` | Fin de l'étape : une durée en heures (30, 6 min), une heure (14:20) ou une position (56N 12O). Vide : jusqu'à nouvel ordre. |
-| `tips.pointDelete` | Retirer ce point du tracé (Suppr, ou double-clic sur le point) |
+| `tips.pointDelete` | Retirer ce point du tracé (Suppr, ou double-clic sur son carré). |
 | `tips.convoyEndNow` | Le convoi n'a plus rien à suivre : l'ordre choisi ici s'exécute tout de suite. |
 | `tips.intercept` | Le contrôleur guide l'escadrille et la fait monter au-dessus du raid ; la chance affichée dépend de la couverture au point de rencontre. |
 | `tips.cover` | L'escadrille tourne au-dessus du convoi et le suit. |
@@ -413,6 +498,7 @@ Une ligne chacune (200 signes et deux phrases au plus, vérifié).
 | `tips.forecast` | Sans compter les pertes à venir, ni un éventuel prêt-bail. « Achetables » : les convois qui peuvent encore arriver avant la fin, payés avec la réserve. |
 | `tips.forecastLend` | Sans compter les pertes à venir. Les convois qui peuvent encore arriver avant la fin partent chargés à plein. |
 | `tips.decide` | Une décision laissée de côté reste dans les rapports suivants, sans arrêter le jeu une seconde fois. |
+| `tips.sailConvoyHeadings` | Appareiller avec les étapes préparées. Sans étape, le convoi n'a nulle part où aller. |
 | `cmd.breakOffTitle` | Rompre {raid} (D) : sortir du combat, tourner sur place et laisser ce raid tranquille jusqu'à un nouvel ordre sur lui |
 
 ## Astuces de première fois (à relire)
@@ -426,6 +512,7 @@ Bouton « Compris », et un lien « Plus dans l'aide » vers la rubrique.
 | `firstTips.point.text` | Le premier point choisi sur un tracé | Un point choisi | ↑ ↓ règlent l'altitude que l'escadrille vise en allant vers ce point. Suppr, ou un double-clic sur le carré, le retire. |
 | `firstTips.point.textSea` | Le premier point choisi sur un tracé (navire) | Un point choisi | Glissez le carré pour déplacer ce point. Suppr, ou un double-clic sur le carré, le retire. |
 | `firstTips.exit.text` | Le premier groupe d'escorte au port (port à chenaux) | Au port : la sortie | La sortie choisie devient la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge depuis l'anneau à son bout. |
+| `firstTips.exit.textHeadings` | Le premier groupe d'escorte au port (port à chenaux) (ordres par caps) | Au port : la sortie | La sortie choisie devient la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge par des étapes au cap. |
 | `firstTips.silence.text` | Le premier navire en haute mer sous silence radio | Silence radio | En haute mer, la position de ce navire est une estimation. Vos ordres partent par radio à la relève suivante : d'ici là ils restent sur la carte, en ocre, et se modifient encore. |
 | `firstTips.schedule.text` | Le premier départ programmé | Programmer un départ | L'heure saisie est celle de l'ordre. L'unité part ensuite selon son état : 2 min au cockpit, 5 min en alerte, 30 min disponible, 2 h au repos. Anticipez l'état d'alerte, ou programmez-le dans les effectifs. |
 
@@ -448,9 +535,9 @@ Bouton « Compris », et un lien « Plus dans l'aide » vers la rubrique.
 
 | Onglet | Rubriques (ancre) |
 | --- | --- |
-| La fiche | La fiche d'une unité (`fiche`) · Lire une fiche (`lire`) · Place et taille de la fiche (`place`) · La carte (`carte`) · Tracés et ordres sur la carte (`traces`) · Cap direct et étapes au cap (`caps`) · Unités superposées (`piles`) · Rapports (`rapports`) |
+| La fiche | La fiche d'une unité (`fiche`) · Lire une fiche (`lire`) · Place et taille de la fiche (`place`) · La carte (`carte`) · Tracés et ordres sur la carte (`traces`) · Cap direct et étapes au cap (`caps`) · Unités superposées (`piles`) · Rapports (`rapports`) · Fiches techniques (`techniques`) |
 | Air | Face à l'ennemi (`attitude`) · Intercepter un raid, couvrir un convoi (`interception`) · États d'alerte (`alerte`) · Fatigue (`fatigue`) · La page Effectifs (`effectifs`) · Programmer un départ (`programmer`) · Formations : big wing et groupe de soutien (`formations`) · Rassemblement (`rassemblement`) · Trains et stocks (`trains`) · Radars et installations (`radars`) |
-| Mer | Appareiller (`appareiller`) · Fin de route d'un convoi (`fin-de-route`) · Rejoindre un convoi (`rejoindre`) · Chasse aux U-Boote (`chasse`) · Repères et contacts U-Boot (`reperes`) · Vitesse, zigzag et traînards (`vitesse`) · Autonomie (`autonomie`) · Silence radio (`silence`) · Le commandement des U-Boote (`bdu`) · Le globe (`globe`) · Patrouilles de Coastal Command (`patrouilles`) · Achats en Amérique (`achats`) |
+| Mer | Appareiller (`appareiller`) · Fin de route d'un convoi (`fin-de-route`) · Rejoindre un convoi (`rejoindre`) · Groupes de soutien (`soutien`) · Chasse aux U-Boote (`chasse`) · Repères et contacts U-Boot (`reperes`) · Vitesse, zigzag et traînards (`vitesse`) · Autonomie (`autonomie`) · Silence radio (`silence`) · Le commandement des U-Boote (`bdu`) · Le globe (`globe`) · Patrouilles de Coastal Command (`patrouilles`) · Achats en Amérique (`achats`) |
 | Temps et alertes | Les alertes ralentissent le temps (`alertes`) · À décider (`decider`) · Pages et pause (`pages`) · Le rythme des quarts (`quarts`) |
 | Parties et réglages | Le menu principal (`menu`) · Le menu d'une partie (`partie`) · Sauvegardes (`sauvegardes`) · Exporter et importer (`fichiers`) · Si le navigateur n'enregistre plus (`stockage`) · Réglages de la partie, réglages du joueur (`reglages`) · Astuces de première fois (`astuces`) |
 | Touches | Clavier (`touches`) |

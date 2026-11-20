@@ -141,6 +141,9 @@ test('lesson 2 (2.11.0): the instructor sends the squadron up; each gesture is a
   for (const [id, flag] of Object.entries(gestures)) {
     const s = step(id);
     assert.ok(s.pause && !s.handsOff, `${id}: the clock stopped, the pupil's hand`);
+    // (Review of 2.11.0: Space set the clock going and the route was flown away.) The step
+    // holds the clock and keeps the squadron in hand.
+    assert.ok(s.hold && s.select && s.select.id === order.scramble, `${id}: held on the squadron`);
     const tu = { ...state(w), stepFlags: new Set() };
     assert.equal(holds(app, s.done, tu), false, id);
     // Done earlier in the lesson (a « + » dragged when a square was asked for): asked for again.

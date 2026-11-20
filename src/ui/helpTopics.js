@@ -3,7 +3,9 @@
 // sheetHelp.<key>) and a link to the rubric of the help that says more, [tab, anchor].
 //
 // `lead`: a first sentence that depends on a setting of the game, [group, setting]: the
-// text sheetHelpLead.<group>.<value of the setting>. `tail`: the same, at the end.
+// text sheetHelpLead.<group>.<value of the setting>. `tail`: the same, at the end. The text
+// itself has two forms, { draw, headings }, where it speaks of gestures that only exist when
+// routes are drawn.
 
 import { t } from '../core/i18n.js';
 
@@ -14,13 +16,14 @@ export const HELP_TOPICS = {
   routeAir: { tab: 'sheet', anchor: 'traces', lead: ['route', 'orders'] },
   routeWing: { tab: 'air', anchor: 'formations', lead: ['route', 'orders'] },
   routeEscort: { tab: 'sea', anchor: 'appareiller', lead: ['route', 'orders'] },
-  routeGroup: { tab: 'air', anchor: 'formations', lead: ['route', 'orders'] },
+  routeGroup: { tab: 'sea', anchor: 'soutien', lead: ['route', 'orders'] },
   routeConvoy: { tab: 'sea', anchor: 'fin-de-route', lead: ['route', 'orders'] },
   mission: { tab: 'air', anchor: 'attitude' },
+  missionCover: { tab: 'air', anchor: 'interception' },
   formation: { tab: 'air', anchor: 'formations' },
-  group: { tab: 'air', anchor: 'formations' },
+  group: { tab: 'sea', anchor: 'soutien' },
   manageAir: { tab: 'air', anchor: 'formations' },
-  manageSea: { tab: 'air', anchor: 'formations' },
+  manageSea: { tab: 'sea', anchor: 'soutien' },
   convoyPort: { tab: 'sea', anchor: 'appareiller' },
   port: { tab: 'sea', anchor: 'appareiller' },
   portPlain: { tab: 'sea', anchor: 'appareiller' },
@@ -28,7 +31,7 @@ export const HELP_TOPICS = {
   convoys: { tab: 'sea', anchor: 'rejoindre' },
   uboats: { tab: 'sea', anchor: 'chasse' },
   rallyAir: { tab: 'air', anchor: 'rassemblement', tail: ['rally', 'interceptAid'] },
-  rallySea: { tab: 'air', anchor: 'rassemblement', tail: ['rally', 'interceptAid'] },
+  rallySea: { tab: 'sea', anchor: 'soutien', tail: ['rally', 'interceptAid'] },
   // ---- an installation ----
   minStock: { tab: 'air', anchor: 'trains' },
   train: { tab: 'air', anchor: 'trains' },
@@ -36,8 +39,8 @@ export const HELP_TOPICS = {
   offers: { tab: 'sea', anchor: 'achats' },
   roster: { tab: 'air', anchor: 'effectifs' },
   formationsAir: { tab: 'air', anchor: 'formations' },
-  formationsNaval: { tab: 'air', anchor: 'formations' },
-  cards: { tab: 'air', anchor: 'formations' },
+  formationsNaval: { tab: 'sea', anchor: 'soutien' },
+  cards: { tab: 'sheet', anchor: 'techniques' },
   load: { tab: 'games', anchor: 'sauvegardes' },
   // ---- the settings: one « ? » each ----
   setSeaComms: { tab: 'sea', anchor: 'silence' },
@@ -69,7 +72,12 @@ export function helpText(key, settings = null, args = {}) {
     const value = settings && settings[setting];
     return own && typeof own === 'object' ? own[value] || own.default || '' : '';
   };
-  return [part(topic.lead), t(`sheetHelp.${key}`, args), part(topic.tail)].filter(Boolean).join(' ');
+  // The body: one text, or two where the gestures differ — { draw, headings } — for a game
+  // where routes are drawn, or one where orders are given by headings (no line, no handle).
+  const own = t(`sheetHelp.${key}`);
+  const mode = settings && settings.orders === 'headings' ? 'headings' : 'draw';
+  const body = own && typeof own === 'object' ? t(`sheetHelp.${key}.${mode}`, args) : t(`sheetHelp.${key}`, args);
+  return [part(topic.lead), body, part(topic.tail)].filter(Boolean).join(' ');
 }
 
 /** The rubric of the help a bubble links to: { tab, anchor, name } (the title of the rubric, else of its tab). */

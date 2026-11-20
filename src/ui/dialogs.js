@@ -8,7 +8,7 @@ import { markHelpSeen, saveSettings } from '../save/settings.js';
 import { GAME_SETTING_KEYS, applyPreset, canSetGameSetting, matchingPreset, setGameSetting } from '../sim/gameSettings.js';
 import { showPage } from './pages.js';
 import { resetTips } from './tips.js';
-import { helpMark, named } from './commands.js';
+import { helpMark, settingRow } from './commands.js';
 import { fighterCount } from '../sim/objectives.js';
 import { presetStory } from '../sim/gameSettings.js';
 import { ALERT_GROUPS, defaultAlertSpeed } from './alertRules.js';
@@ -17,8 +17,9 @@ import { setVolume } from './sound.js';
 function select(name, value, choices, labelKey) {
   const options = choices.map((c) =>
     `<option value="${c}"${c === value ? ' selected' : ''}>${escapeHtml(t(`${labelKey}.${c}`))}</option>`).join('');
-  return `<select name="${name}">${options}</select>`;
+  return `<select name="${name}" id="set-${name}">${options}</select>`;
 }
+
 
 function checkbox(name, checked, label) {
   return `<label class="check"><input type="checkbox" name="${name}"${checked ? ' checked' : ''}> ${escapeHtml(label)}</label>`;
@@ -83,16 +84,16 @@ export function openSettings(app, { scope = 'game' } = {}) {
         <label>${escapeHtml(t('settings.rosterHours'))} ${select('rosterHours', String(s.rosterHours || '24'), presets.choices.rosterHours, 'settings.rosterHoursChoices')}</label>
         <label>${escapeHtml(t('settings.carry'))} ${select('carry', s.carry || 'none', presets.choices.carry, 'settings.carryChoices')}</label>
         <label>${escapeHtml(t('settings.bdienst'))} ${select('bdienst', String(s.bdienst ?? '25'), presets.choices.bdienst, 'settings.bdienstChoices')}</label>
-        <label>${named(t('settings.seaComms'), 'setSeaComms')} ${select('seaComms', s.seaComms || 'direct', presets.choices.seaComms, 'settings.seaCommsChoices')}</label>
+        ${settingRow(t('settings.seaComms'), 'seaComms', 'setSeaComms', select('seaComms', s.seaComms || 'direct', presets.choices.seaComms, 'settings.seaCommsChoices'))}
       </fieldset>`)}
       ${pane('time', `
       <fieldset>
         ${checkbox('slowOnAlert', s.slowOnAlert, t('settings.slowOnAlert'))}
         ${checkbox('confirmSpeed', s.confirmSpeed !== false, t('settings.confirmSpeed'))}
         ${checkbox('questions', s.questions !== false, t('settings.questions'))}
-        <label>${named(t('settings.watchStops'), 'setWatchStops')} ${select('watchStops', s.watchStops || 'decision', presets.choices.watchStops, 'settings.watchStopsChoices')}</label>
+        ${settingRow(t('settings.watchStops'), 'watchStops', 'setWatchStops', select('watchStops', s.watchStops || 'decision', presets.choices.watchStops, 'settings.watchStopsChoices'))}
       </fieldset>
-      <div class="sub">${named(t('settings.alertSpeedsTitle'), 'setAlertSpeeds')}</div>
+      <div class="settings-sub">${escapeHtml(t('settings.alertSpeedsTitle'))}${helpMark('setAlertSpeeds')}</div>
       <table class="alert-speeds">${alertSpeedTable(app)}</table>`)}
       ${pane('map', `
       <fieldset>
@@ -102,10 +103,10 @@ export function openSettings(app, { scope = 'game' } = {}) {
         ${checkbox('patrolZones', s.patrolZones !== false, t('settings.patrolZones'))}
         ${checkbox('autoZoom', s.autoZoom, t('settings.autoZoom'))}
         ${checkbox('lowRes', s.lowRes, t('settings.lowRes'))}
-        <label>${named(t('settings.sheetPos'), 'setSheetPos')} ${select('sheetPos', s.sheetPos || 'right', presets.choices.sheetPos, 'settings.sheetPosChoices')}</label>
-        <label>${named(t('settings.sheetHelp'), 'setSheetHelp')} ${select('sheetHelp', s.sheetHelp === 'shown' ? 'shown' : 'folded', presets.choices.sheetHelp, 'settings.sheetHelpChoices')}</label>
+        ${settingRow(t('settings.sheetPos'), 'sheetPos', 'setSheetPos', select('sheetPos', s.sheetPos || 'right', presets.choices.sheetPos, 'settings.sheetPosChoices'))}
+        ${settingRow(t('settings.sheetHelp'), 'sheetHelp', 'setSheetHelp', select('sheetHelp', s.sheetHelp === 'shown' ? 'shown' : 'folded', presets.choices.sheetHelp, 'settings.sheetHelpChoices'))}
         <div class="settings-line"><button type="button" data-tips="review">${escapeHtml(t('firstTips.review'))}</button>${helpMark('setTips')} <span class="settings-done" role="status"></span></div>
-        <label>${named(t('settings.viewZones'), 'setViewZones')} ${select('viewZones', s.viewZones || 'selected', presets.choices.viewZones, 'settings.viewZonesChoices')}</label>
+        ${settingRow(t('settings.viewZones'), 'viewZones', 'setViewZones', select('viewZones', s.viewZones || 'selected', presets.choices.viewZones, 'settings.viewZonesChoices'))}
       </fieldset>`)}
       ${pane('sound', `
       <fieldset>
@@ -114,7 +115,7 @@ export function openSettings(app, { scope = 'game' } = {}) {
       </fieldset>`)}
       ${pane('dev', `
       <fieldset class="dev-settings">
-        <label class="check"><input type="checkbox" data-dev="toggle"${app.dev ? ' checked' : ''}> ${named(t('settings.devMode'), 'setDev')}</label>
+        <div class="settings-row check"><label class="check"><input type="checkbox" data-dev="toggle"${app.dev ? ' checked' : ''}> ${escapeHtml(t('settings.devMode'))}</label>${helpMark('setDev')}</div>
         <div class="dev-password" hidden>
           <input type="password" data-dev="password" autocomplete="off" spellcheck="false" placeholder="${escapeHtml(t('settings.devPassword'))}" aria-label="${escapeHtml(t('settings.devPassword'))}">
           <button type="button" data-dev="ok">${escapeHtml(t('settings.devOk'))}</button>
@@ -349,6 +350,11 @@ export function openHelp(app, wantTab = null, anchor = null) {
     if (target) {
       target.classList.add('help-target');
       target.scrollIntoView({ block: 'start' });
+      // (A picture above it that has not its height yet would push the rubric down: once
+      // drawn, the rubric is brought back in view.)
+      for (const img of dlg.querySelectorAll(`[data-hpane="${id}"] img`)) {
+        if (!img.complete) img.addEventListener('load', () => target.classList.contains('help-target') && target.scrollIntoView({ block: 'start' }), { once: true });
+      }
     } else {
       dlg.scrollTop = 0;
     }

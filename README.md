@@ -27,7 +27,8 @@ n'est pas touché.
   style, en texte droit, et reste toujours visible.
 - **Un « ? » par section.** Dans le titre de chaque section qui a une aide, un « ? » ouvre
   une bulle au premier plan : deux à quatre phrases, puis « Plus dans l'aide : « rubrique » »,
-  qui ouvre l'aide au bon endroit. Échap ou un clic ailleurs la ferme. Le même « ? » se
+  qui ouvre l'aide au bon endroit. Échap ou un clic ailleurs la ferme. En ordres par caps
+  (Réaliste), où l'on ne trace pas, les bulles ont leur propre texte. Le même « ? » se
   trouve dans le titre des pages Effectifs, Formations, Fiches techniques et Charger, du
   bloc « Achats en Amérique », et à côté de chaque réglage qui avait une phrase.
 - **Des infobulles d'une ligne** sur les boutons et les champs : Fin d'une étape, Stock
@@ -37,7 +38,7 @@ n'est pas touché.
 - **Réglage « Aides des fiches »** (Carte et fiche) : *masquées* par défaut. *Affichées*
   écrit le texte de chaque bulle sous le titre de sa section, pour qui débute. Les réglages
   enregistrés avant la 2.11.0 prennent le nouveau défaut ; un choix fait depuis est gardé.
-- **L'aide générale en rubriques** : 42 rubriques courtes et titrées dans six onglets,
+- **L'aide générale en rubriques** : 44 rubriques courtes et titrées dans six onglets,
   chacune avec son ancre, la liste des titres en tête d'onglet et des liens d'une rubrique à
   l'autre. Rubriques nouvelles : « Tracés et ordres sur la carte » (tous les gestes), « La
   carte » (la déplacer, zoomer), « Lire une fiche ». Les leçons ont leur propre « Ce
@@ -212,7 +213,7 @@ l'ancien affichage.
 
 ## Nouveautés du M2.10
 
-- **Tutoriel en quatre leçons** (cinq depuis la 2.11.0) de trois à cinq minutes (menu principal, Entraînement) :
+- **Tutoriel en quatre leçons** de trois à cinq minutes (menu principal, Entraînement ; une cinquième, plus courte, depuis la 2.11.0) :
   *intercepter* (un raid perdu en démonstration, l'instructeur faisant décoller trop tard,
   avec le bilan des heures ; puis un raid à gagner, une douzaine de bombardiers sans
   escorte), *ravitailler* (un train de carburant et un stock minimum), *escorter* (un
@@ -799,7 +800,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 472 tests, environ quatre minutes
+npm test          # les 474 tests, environ quatre minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : leçons, pages, fiches, corrections, quarts, menu, interface

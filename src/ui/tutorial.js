@@ -300,6 +300,15 @@ export function updateTutorial(app) {
   for (let guard = 0; guard < steps.length; guard++) {
     const step = steps[tu.index];
     script(app, step);
+    // A step that teaches a gesture on a stopped clock (`hold`) keeps the clock stopped and
+    // its unit in hand: a route flown away, or a sheet closed, would leave nothing to work on.
+    if (step.hold) {
+      if (!app.paused) pause(app, true);
+      if (step.select && !app.selection) {
+        select(app, step.select.kind, step.select.id);
+        app.dirtyPanels = true;
+      }
+    }
     // A step that shows something keeps its speed whatever the alerts do.
     if (step.keepSpeed && step.speed && !app.paused && app.speed !== step.speed && !app.speedConfirm) {
       app.speed = step.speed;

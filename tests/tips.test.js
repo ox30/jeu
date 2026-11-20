@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { data, makeWorld, run } from './helpers.js';
 import { isSilent, orderChannel } from '../src/sim/comms.js';
 import { setDictionary, t } from '../src/core/i18n.js';
-import { TIPS, TIP_NAMES, dismissTip, loadTips, resetTips, tipDue, tipOccasion, updateTips } from '../src/ui/tips.js';
+import { TIPS, TIP_NAMES, dismissTip, loadTips, panelHintDue, resetTips, sheetOpened, tipDue, tipOccasion, updateTips } from '../src/ui/tips.js';
 import { helpRubrics } from '../src/ui/dialogs.js';
 import { scramble } from '../src/sim/orders.js';
 
@@ -123,6 +123,72 @@ test('no tip during a lesson, none on the menu; a scheduled departure asks for i
   }
 });
 
+// ---- what the review of 2.11.0 found ----
+
+test('a browser that refuses its storage does not stop the game: the tips are shown for this visit', () => {
+  // (All cookies blocked: the very name `localStorage` throws. The game no longer started.)
+  const real = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, get() { throw new Error('The operation is insecure.'); } });
+  try {
+    const tips = loadTips();
+    assert.equal(tips.seen.size, 0);
+    const app = { world: makeWorld('standard', {}, 'kanalkampf'), selection: null, activePoint: null, onMenu: false, tutorial: null, el: { tip: { dataset: {}, hidden: true, innerHTML: '' } }, tips };
+    app.selection = { kind: 'squadron', id: app.world.squadrons[0].id };
+    updateTips(app, 0);
+    assert.equal(app.tips.shown, 'sheet');
+    dismissTip(app, 10); // nothing to write to: no error, and seen for this visit
+    assert.ok(app.tips.seen.has('sheet'));
+    resetTips(app);
+    sheetOpened(app);
+  } finally {
+    if (real) Object.defineProperty(globalThis, 'localStorage', real);
+    else delete globalThis.localStorage;
+  }
+});
+
+test('an order given during a lesson asks for no tip later; the word of the right panel counts sheets that open', () => {
+  const { app, w, store, done } = appOn('kanalkampf');
+  try {
+    // (Lesson 5 schedules a state of alert: « Programmer un départ » came up in the next game.)
+    app.tutorial = { index: 0 };
+    tipOccasion(app, 'schedule');
+    assert.equal(app.tips.asked.size, 0);
+    app.tutorial = null;
+    tipOccasion(app, 'schedule');
+    app.tutorial = { index: 0 };
+    updateTips(app, 0);
+    app.tutorial = null;
+    assert.equal(app.tips.asked.size, 0, 'an occasion that waited is dropped when a lesson begins');
+    // The word « Cliquez sur une unité… »: until a sheet is opened.
+    assert.equal(panelHintDue(app), true);
+    sheetOpened(app);
+    assert.equal(panelHintDue(app), true, 'nothing in hand: nothing opened');
+    app.tutorial = { index: 0 };
+    app.selection = { kind: 'squadron', id: w.squadrons[0].id };
+    sheetOpened(app);
+    assert.equal(panelHintDue(app), true, 'a sheet a lesson opens does not count');
+    app.tutorial = null;
+    app.selection = { kind: 'squadron', id: w.squadrons[1].id };
+    sheetOpened(app);
+    assert.equal(panelHintDue(app), false);
+    assert.ok(loadTips(store).seen.has('panel'));
+    // « Revoir les astuces » with that sheet still open: the word is due again, and stays
+    // due while the same sheet is drawn again and again; the next sheet opened ends it.
+    resetTips(app);
+    sheetOpened(app);
+    sheetOpened(app);
+    assert.equal(panelHintDue(app), true, 'the sheet already open is no first sheet');
+    app.selection = null;
+    sheetOpened(app);
+    assert.equal(panelHintDue(app), true);
+    app.selection = { kind: 'squadron', id: w.squadrons[0].id };
+    sheetOpened(app);
+    assert.equal(panelHintDue(app), false);
+  } finally {
+    done();
+  }
+});
+
 test('the tips of the sea: the way out of an escort group in port, a ship under radio silence', () => {
   const { app, w, done } = appOn('hiver-atlantique');
   try {
@@ -130,6 +196,12 @@ test('the tips of the sea: the way out of an escort group in port, a ship under 
     const e = w.escorts.find((x) => x.state === 'inPort' && (w.byId.port.get(x.portId).approaches || []).length);
     app.selection = { kind: 'escort', id: e.id };
     assert.equal(tipDue(app), 'exit');
+    // With orders by headings there is no ring to pull the way out from: its own text.
+    assert.equal(TIPS.exit.text(app), 'text');
+    w.settings.orders = 'headings';
+    assert.equal(TIPS.exit.text(app), 'textHeadings');
+    assert.ok(!/anneau/.test(t('firstTips.exit.textHeadings')));
+    w.settings.orders = 'draw';
     // On the high seas, where orders go by radio at the relief.
     run(w, 12 * 3600);
     const c = w.convoys.find((x) => x.state === 'atSea');

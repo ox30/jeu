@@ -55,9 +55,13 @@ export function drawProfile(canvas, app, s) {
   ctx.fillStyle = '#f7f0dc';
   ctx.fillRect(0, 0, W, H);
 
+  // (Coastal Command patrols the sea: the raids on the table are not its business.)
+  const fights = s.role !== 'coastal';
+  const near = fights ? nearestContact(world, s.x, s.y) : null;
   const left = 40;
   const right = W - 8;
-  const top = 18;
+  // With a raid drawn, a second line above the plot: the legend of its bands.
+  const top = near ? 30 : 18;
   const bottom = H - 30;
   const R = world.rules.squadron;
   const field = world.byId.airfield.get(s.airfield);
@@ -70,9 +74,6 @@ export function drawProfile(canvas, app, s) {
   const climbS = delayS + (Math.abs(targetFt - startFt) / (targetFt >= startFt ? type.climbMpm : R.descentMpm)) * FOOT_M * 60;
 
   // Possible contact with the nearest raid (only with an interception aid).
-  // (Coastal Command patrols the sea: the raids on the table are not its business.)
-  const fights = s.role !== 'coastal';
-  const near = fights ? nearestContact(world, s.x, s.y) : null;
   let contactS = null;
   const fighting = s.state === 'combat';
   if (near && !fighting && world.settings.interceptAid !== 'none' && s.state !== 'returning' && s.state !== 'refuelling') {
@@ -205,18 +206,22 @@ export function drawProfile(canvas, app, s) {
     ctx.fillStyle = 'rgba(70, 58, 36, 0.8)';
     ctx.fillText(t('profile.noRaid'), 6, textY);
   }
-  // The legend of the bands, when a raid is drawn: the heights a fight is possible from.
+  // The legend of the bands, when a raid is drawn, on its own line under the title: the
+  // heights a fight is possible from, with the advantage of height (green) or without (ochre).
   if (near) {
     ctx.font = `10px ${FONTS.serif}`;
-    ctx.textAlign = 'right';
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    const legend = t('profile.window');
-    const width = ctx.measureText(legend).width;
-    ctx.fillStyle = 'rgba(46, 107, 58, 0.45)';
-    ctx.fillRect(right - width - 26, 4, 9, 8);
-    ctx.fillStyle = 'rgba(176, 122, 18, 0.45)';
-    ctx.fillRect(right - width - 15, 4, 9, 8);
-    ctx.fillStyle = 'rgba(70, 58, 36, 0.9)';
-    ctx.fillText(legend, right, 2);
+    const items = [['rgba(46, 107, 58, 0.5)', t('profile.advantage')], ['rgba(176, 122, 18, 0.5)', t('profile.window')]];
+    // (Squeezed if the sheet is narrow: the two words stay on their line.)
+    const room = (right - left - 12) / items.length - 14;
+    let x = left;
+    for (const [colour, word] of items) {
+      ctx.fillStyle = colour;
+      ctx.fillRect(x, 17, 9, 8);
+      ctx.fillStyle = 'rgba(70, 58, 36, 0.9)';
+      ctx.fillText(word, x + 13, 15, room);
+      x += 13 + Math.min(room, ctx.measureText(word).width) + 12;
+    }
   }
 }

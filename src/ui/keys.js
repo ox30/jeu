@@ -8,6 +8,9 @@
  */
 export function speedIndexOfKey(e, count) {
   if (e.ctrlKey || e.altKey || e.metaKey) return -1;
+  // « + » zooms the map, wherever the keyboard puts it: on a Swiss keyboard it is typed with
+  // Shift on the key of the 1, and must not be taken for the first speed.
+  if (e.key === '+') return -1;
   const typed = /^[1-9]$/.test(e.key || '') ? Number(e.key) : 0;
   const row = /^Digit([1-9])$/.exec(e.code || '');
   const pad = /^Numpad([1-9])$/.exec(e.code || '');

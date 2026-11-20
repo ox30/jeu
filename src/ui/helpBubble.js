@@ -8,22 +8,30 @@
 import { escapeHtml, t } from '../core/i18n.js';
 import { helpLink, helpText } from './helpTopics.js';
 
-let shown = null; // { key, el, mark, selection }
+let shown = null; // { key, index, el, mark, root, selection }
+
+/** The marks of a key in a page (a dialog) or in the whole document, in the order they stand. */
+const marksOf = (root, key) => [...root.querySelectorAll(`.help-mark[data-help="${key}"]`)];
+
+/**
+ * The mark of the bubble as the page has it now: a sheet is drawn again several times a
+ * second, and the button that was clicked is replaced by another of the same place.
+ */
+function liveMark() {
+  if (!shown) return null;
+  if (shown.mark.isConnected) return shown.mark;
+  return marksOf(shown.root, shown.key)[shown.index] || null;
+}
 
 const selectionKey = (app) => (app.selection ? `${app.selection.kind}:${app.selection.id}` : '');
-
-/** The key of the bubble that is open, or null. */
-export function openBubbleKey() {
-  return shown ? shown.key : null;
-}
 
 /** Closes the bubble; `focus` gives the keyboard back to its mark. */
 export function closeBubble(focus = false) {
   if (!shown) return;
-  const { el, mark } = shown;
+  const live = liveMark();
+  const { el } = shown;
   shown = null;
   el.remove();
-  const live = mark && mark.isConnected ? mark : document.querySelector(`.help-mark[data-help="${el.dataset.key}"]`);
   if (live) {
     live.setAttribute('aria-expanded', 'false');
     if (focus) live.focus();
@@ -66,16 +74,34 @@ function show(app, mark) {
     ${link ? `<button type="button" class="link" data-help-link="${escapeHtml(`${link.tab}:${link.anchor}`)}">${escapeHtml(t('help.more', { name: link.name }))}</button>` : ''}`;
   // In front of everything: inside the page that holds the mark when it is a dialog (the top
   // layer of the browser), else on the body.
-  (mark.closest('dialog[open]') || document.body).appendChild(el);
+  const page = mark.closest('dialog[open]');
+  (page || document.body).appendChild(el);
   place(el, mark);
   mark.setAttribute('aria-expanded', 'true');
-  shown = { key, el, mark, selection: selectionKey(app) };
+  const root = page || document;
+  shown = { key, index: marksOf(root, key).indexOf(mark), el, mark, root, selection: selectionKey(app) };
   el.focus({ preventScroll: true });
 }
 
-/** After each drawing of the sheet: a bubble does not outlive the unit it spoke of. */
+/**
+ * After each drawing of the panels: a bubble does not outlive the unit it spoke of, nor the
+ * section its « ? » stood in; and the « ? » drawn anew is the one of the open bubble.
+ */
 export function bubbleFollows(app) {
-  if (shown && !shown.el.closest('dialog') && shown.selection !== selectionKey(app)) closeBubble();
+  if (!shown) return;
+  if (!shown.el.closest('dialog') && shown.selection !== selectionKey(app)) {
+    closeBubble();
+    return;
+  }
+  const mark = liveMark();
+  if (!mark) {
+    closeBubble();
+    return;
+  }
+  if (mark !== shown.mark) {
+    shown.mark = mark;
+    mark.setAttribute('aria-expanded', 'true');
+  }
 }
 
 /** Listens for the marks, wherever they are. `openHelp(app, tab, anchor)` opens the help. */
@@ -87,7 +113,9 @@ export function installHelpBubble(app, openHelp) {
     if (mark) {
       e.preventDefault(); // (in a <summary>: the section must not fold)
       e.stopPropagation();
-      const again = shown && shown.key === mark.dataset.help;
+      // (The same « ? » closes its bubble; another one — even of the same help, as the two
+      // « Stock minimum » of an aerodrome — opens its own.)
+      const again = liveMark() === mark;
       closeBubble();
       if (!again) show(app, mark);
       return;
@@ -112,16 +140,34 @@ export function installHelpBubble(app, openHelp) {
     }
   }, true);
   document.addEventListener('keydown', (e) => {
+    // (Space on a « ? » presses it: the game must not take it for its pause key.)
+    if (e.key === ' ' && e.target instanceof Element && e.target.closest('.help-mark, .help-bubble')) e.stopPropagation();
     if (e.key !== 'Escape' || !shown) return;
+    // A page opened over the bubble (a report of the watch that comes by itself): the bubble
+    // leaves, and Escape is the page's.
+    const page = document.querySelector('dialog[open]');
+    if (page && !page.contains(shown.el)) {
+      closeBubble();
+      return;
+    }
     e.preventDefault(); // (Escape closes the bubble only: not the sheet, not the page under it)
     e.stopPropagation();
     closeBubble(true);
   }, true);
   // (A page that Escape would have closed with its bubble open: the bubble goes first.)
   document.addEventListener('cancel', (e) => {
-    if (!shown) return;
+    if (!shown || !(e.target instanceof Element) || !e.target.contains(shown.el)) return;
     e.preventDefault();
     closeBubble(true);
   }, true);
   window.addEventListener('resize', () => closeBubble());
+  // The sheet scrolls: the bubble stays by its « ? », and leaves with it when it goes out of view.
+  document.addEventListener('scroll', (e) => {
+    if (!shown || (e.target instanceof Node && shown.el.contains(e.target))) return;
+    const mark = liveMark();
+    const box = e.target instanceof Element ? e.target.getBoundingClientRect() : null;
+    const r = mark ? mark.getBoundingClientRect() : null;
+    if (!r || (box && (r.bottom < box.top || r.top > box.bottom))) closeBubble();
+    else place(shown.el, mark);
+  }, true);
 }

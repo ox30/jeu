@@ -419,7 +419,7 @@
     "awaitedRoute": "Tracé de {n} point{s} en attente : il part par radio à la relève de {hour} h.",
     "awaitedRouteShip": "Tracé de {n} point{s} confié à {group} : il sera remis à la rencontre.",
     "awaitedLeg": "à transmettre",
-    "awaitedLegs": "En ocre : transmis à la relève de {hour} h.",
+    "awaitedLegs": "En ocre : à transmettre à la relève de {hour} h.",
     "awaitedLand": "Vu de la position estimée du navire, ce trajet touche terre (cercle rouge sur la carte) : l'ordre serait refusé à l'arrivée. Corrigez-le avant la relève.",
     "convoyEnd": {
       "stop": "S'arrêter et attendre",
@@ -579,7 +579,8 @@
     "gathering": "rassemblement",
     "speedPct": "{p} % de la croisière ({n} km/h)",
     "straggler": "Traînard : seul, sans escorte.",
-    "uplotLegend": "Tirets : en surface · pointillé : en plongée."
+    "uplotLegend": "Tirets : en surface · pointillé : en plongée.",
+    "stragglerEscorted": "Traînard, tombé derrière son convoi : sous l'escorte de {group}."
   },
   "settings": {
     "title": "Réglages",
@@ -1279,7 +1280,7 @@
           "id": "carte",
           "title": "La carte",
           "text": [
-            "Glissez le fond de la carte pour la déplacer. La molette, un pincement à deux doigts, un double-clic ou les touches + et − zooment (Maj + double-clic dézoome). Le bouton « Vue » de la barre du haut, ou les touches A, L et G, passe d'une carte à l'autre : Atlantique, Grande-Bretagne, Angleterre.",
+            "Glissez le fond de la carte pour la déplacer. La molette, un pincement à deux doigts, un double-clic ou les touches + et − zooment. Le bouton « Vue » de la barre du haut, ou les touches A, L et G, passe d'une carte à l'autre : Atlantique, Grande-Bretagne, Angleterre.",
             "Maj + glisser, ou l'outil Règle (R), mesure un cap et une distance ; la croix de son encart efface la mesure. C montre la couverture des radars."
           ]
         },
@@ -1287,7 +1288,7 @@
           "id": "traces",
           "title": "Tracés et ordres sur la carte",
           "text": [
-            "Tracer : glissez depuis une unité pour tracer sa route. Glissez depuis un aérodrome vers un raid : l'escadrille prête décolle et suit votre tracé. Un tracé qui finit sur un raid vaut l'autorisation de l'attaquer ; un tracé de navire qui finit dans la bulle d'un port y entre.",
+            "Tracer : glissez depuis une unité pour tracer sa route. Glissez depuis un aérodrome vers un raid : l'escadrille prête décolle et suit votre tracé. Un tracé qui finit sur un raid vaut l'autorisation de l'attaquer ; celui d'un groupe d'escorte qui finit dans la bulle d'un port y entre, et celui d'un convoi suit sa propre règle ([[sea:fin-de-route|Fin de route d'un convoi]]).",
             "Corriger : cliquez l'unité pour voir les carrés de sa route. Glissez un carré pour le déplacer, un « + » pour ajouter un point entre deux carrés, l'anneau du bout pour prolonger. Double-cliquez un carré pour le retirer, ou choisissez-le d'un clic et appuyez sur Suppr.",
             "Un point choisi d'une escadrille prend une altitude avec ↑ ↓ : celle qu'elle vise en allant vers ce point. Le chenal de sortie d'un port et son chenal d'entrée ne se modifient pas.",
             "La fin du tracé : une escadrille y orbite, sauf autre choix dans la section « Route et étapes » de sa fiche (se poser si le tracé finit dans la bulle d'un aérodrome) ; un navire suit sa liste de fin de route. Échap annule un tracé en cours.",
@@ -1316,6 +1317,14 @@
           "title": "Rapports",
           "text": [
             "Chaque raid se termine par un rapport, rangé dans « Rapports », avec ce que la RAF en sait : le premier plot, la composition une fois le raid vu, les bombes tombées ; chaque attaque à la grenade d'un groupe d'escorte aussi. La partie est gardée dans le navigateur ; le bouton ☰, puis « Exporter la partie », en fait un fichier."
+          ]
+        },
+        {
+          "id": "techniques",
+          "title": "Fiches techniques",
+          "text": [
+            "Les fiches techniques (barre du haut) donnent les chiffres que le jeu utilise, proches de ceux de l'époque : vitesses, plafonds, autonomies, armement. Le plafond limite l'altitude qu'on peut ordonner.",
+            "L'onglet Fiche technique d'une unité montre la sienne. Pour une escadrille qui n'est pas de chasse, il dit aussi son rôle : section de guet, ou Coastal Command."
           ]
         }
       ],
@@ -1435,8 +1444,17 @@
           "id": "rejoindre",
           "title": "Rejoindre un convoi",
           "text": [
-            "Un groupe d'escorte prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » (section Convois) calcule lui-même la route d'interception et contourne la terre ; « Rentrer au port » aussi. En Réaliste, pas de route calculée : tracez-la ou donnez des étapes jusqu'au convoi. Un groupe peut aussi rejoindre un traînard.",
+            "Un groupe d'escorte prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » (section Convois) calcule lui-même la route d'interception et contourne la terre ; « Rentrer au port » aussi. Sans aide à l'interception (Réaliste), pas de route calculée : donnez vous-même la route jusqu'au convoi, par des étapes au cap ou par un tracé, selon le réglage des ordres. Un groupe peut aussi rejoindre un traînard.",
             "La section Convois n'apparaît que s'il y a un convoi en mer à rejoindre, ou un convoi à quitter."
+          ]
+        },
+        {
+          "id": "soutien",
+          "title": "Groupes de soutien",
+          "text": [
+            "Un groupe de soutien réunit des groupes d'escorte (page Formations, barre du haut) : il devient une seule unité, avec une fiche et les mêmes ordres pour tous. Ses groupes appareillent, escortent et chassent ensemble, en ligne de file derrière le chef. Quand le plus court d'entre eux arrive au bout de son autonomie, tout le groupe rentre au port.",
+            "Au port, la sortie choisie est la première étape de tous : elle attend « Appareiller » ou l'heure programmée ([[sea:appareiller|Appareiller]]). La fiche d'un membre dit par qui viennent ses ordres et y mène par « Voir la formation ». « Composer… » ouvre la page Formations ; « Dissoudre » rend à chaque groupe ses propres ordres ; onglet Membres, « Prendre… » fait passer dans le groupe de soutien tous les groupes d'un autre.",
+            "Le rendez-vous d'un groupe de soutien se règle dans son onglet Rassemblement : sur le chef, qui appareille à son heure avec ses propres ordres et que chaque groupe rejoint en mer, ou sur un point à une heure donnée ([[air:rassemblement|Rassemblement]]). Un groupe en haute mer sous silence radio ne peut pas être mis dans un groupe de soutien : il faut le joindre au port ou en eaux suivies."
           ]
         },
         {
@@ -1591,7 +1609,8 @@
           "id": "reglages",
           "title": "Réglages de la partie, réglages du joueur",
           "text": [
-            "Les réglages qui changent les règles (préréglage, détection, carburant, fatigue, B-Dienst, communications en mer, arrêt aux relèves…) appartiennent à la partie : fixés au lancement, ils se changent en cours de route par ☰, Réglages de la partie, et le journal note chaque changement. Si le préréglage change, l'écran de fin et la campagne le disent : « commencée en Réaliste, terminée en Standard ». Le report de campagne reste celui du départ. Les réglages d'affichage (son, ombre de la nuit, place de la fiche…) restent ceux du joueur."
+            "Les réglages qui changent les règles (préréglage, détection, carburant, fatigue, B-Dienst, communications en mer, arrêt aux relèves…) appartiennent à la partie : fixés au lancement, ils se changent en cours de route par ☰, Réglages de la partie, et le journal note chaque changement. Si le préréglage change, l'écran de fin et la campagne le disent : « commencée en Réaliste, terminée en Standard ». Le report de campagne reste celui du départ. Les réglages d'affichage (son, ombre de la nuit, place de la fiche…) restent ceux du joueur.",
+            "Mode développeur (Réglages, onglet Développeur) : pour contrôler les scénarios, il montre les vraies positions ennemies en magenta et un onglet « Ennemis ». Il ne change rien à la partie ; le cocher demande le mot de passe."
           ]
         },
         {
@@ -1763,8 +1782,9 @@
     },
     "now": "maintenant",
     "raid": "Raid {raid}",
-    "window": "combat possible : avec l'avantage (vert), sans (ocre)",
-    "fighting": "Au combat avec le raid {raid}."
+    "window": "zone de combat possible",
+    "fighting": "Au combat avec le raid {raid}.",
+    "advantage": "avec l'avantage de l'altitude"
   },
   "desktop": {
     "title": "Conçu pour un ordinateur",
@@ -2762,7 +2782,7 @@
     "home": "Retour au port",
     "group": "Groupe de soutien",
     "comms": "Communications (silence radio)",
-    "convoyPort": "Au port : appareillage"
+    "portSail": "Au port : appareillage"
   },
   "comms": {
     "estimated": "Position estimée",
@@ -2944,7 +2964,7 @@
   },
   "sheetHelpLead": {
     "route": {
-      "draw": "Glissez depuis l'unité pour tracer sa route ; sur le tracé, glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger, et double-cliquez un point (ou Suppr) pour le retirer.",
+      "draw": "Glissez depuis l'unité pour tracer sa route ; sur le tracé, glissez un carré pour déplacer son point, un « + » pour en ajouter un, l'anneau du bout pour prolonger, et double-cliquez un carré (ou Suppr) pour retirer son point.",
       "headings": "En ordres par caps, la route se donne en étapes : mesurez le cap à la règle (glissez depuis l'unité), puis ajoutez l'étape mesurée ou tapez-la sous « Nouvelle étape »."
     },
     "rally": {
@@ -2955,27 +2975,54 @@
   },
   "sheetHelp": {
     "ground": "Le délai d'un état d'alerte, c'est le temps pour être en l'air après l'ordre de décoller. Monter d'un cran prend la différence (du repos à l'alerte : 1 h 55) ; descendre est immédiat. Seul le Repos repose vraiment : Disponible repose peu, l'Alerte fatigue un peu, le Cockpit davantage. Un départ programmé donne l'ordre à l'heure saisie : l'escadrille part ensuite selon son état.",
-    "groundPlain": "« Programmer » donne l'ordre de décoller à l'heure saisie, une fois ou chaque jour. Tracez la route depuis l'aérodrome, ou préparez des étapes : elles attendent le décollage. Sans route ni étapes, l'escadrille patrouille au-dessus de sa base.",
-    "routeAir": "Un point choisi se règle avec ↑ ↓ : c'est l'altitude que l'escadrille vise en y allant. Une étape au cap se donne sous « Nouvelle étape » : un cap, puis une fin (durée, heure, carré ou position) ; sans fin, elle dure jusqu'à nouvel ordre. Au sol, une route tracée depuis l'aérodrome fait décoller l'escadrille prête ; avec un départ programmé, elle attend l'heure.",
-    "routeWing": "Toutes les escadrilles de la formation suivent la route du chef, à la vitesse de la plus lente. Décollée ensemble, elle se rassemble au-dessus du chef avant de partir. Un point choisi se règle avec ↑ ↓ : c'est l'altitude visée en y allant.",
-    "routeEscort": "Au port, la sortie choisie est la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge depuis l'anneau à son bout ou par des étapes au cap. Une étape au cap prend une fin (durée, heure ou position) ; sans fin, elle dure jusqu'à nouvel ordre. La liste de fin de route dit ce que le groupe fait ensuite : attendre, garder le cap, rejoindre un convoi, chasser ou entrer dans un port.",
+    "groundPlain": {
+      "draw": "« Programmer » donne l'ordre de décoller à l'heure saisie, une fois ou chaque jour. Avec un départ programmé, la route tracée depuis l'aérodrome et les étapes préparées attendent l'heure ; sans lui, un tracé depuis l'aérodrome fait décoller tout de suite. Sans route ni étapes, l'escadrille patrouille au-dessus de sa base.",
+      "headings": "« Programmer » donne l'ordre de décoller à l'heure saisie, une fois ou chaque jour. Les étapes préparées attendent le décollage. Sans étapes, l'escadrille patrouille au-dessus de sa base."
+    },
+    "routeAir": {
+      "draw": "Un carré choisi se règle avec ↑ ↓ : c'est l'altitude que l'escadrille vise en allant vers ce point. Une étape au cap se donne sous « Nouvelle étape » : un cap, puis une fin (durée, heure, position, ou carré là où la carte a sa grille) ; sans fin, elle dure jusqu'à nouvel ordre. Au sol, une route tracée depuis l'aérodrome fait décoller l'escadrille prête ; avec un départ programmé, elle attend l'heure.",
+      "headings": "Une étape, c'est un cap, puis une fin (durée, heure, position, ou carré là où la carte a sa grille) ; sans fin, elle dure jusqu'à nouvel ordre. En vol, « Cap direct » donne un cap à suivre tout de suite. Au sol, préparez des étapes, puis faites décoller l'escadrille : elles attendent le décollage."
+    },
+    "routeWing": {
+      "draw": "Toutes les escadrilles de la formation suivent la route du chef, à la vitesse de la plus lente. Décollée ensemble, elle se rassemble au-dessus du chef avant de partir. Un carré choisi se règle avec ↑ ↓ : c'est l'altitude visée en allant vers ce point.",
+      "headings": "Donnez un cap ou des étapes au chef : toutes les escadrilles de la formation le suivent, à la vitesse de la plus lente. Décollée ensemble, elle se rassemble au-dessus du chef avant de partir."
+    },
+    "routeEscort": {
+      "draw": "Au port, la sortie choisie est la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge depuis l'anneau à son bout ou par des étapes au cap. Une étape au cap prend une fin (durée, heure ou position) ; sans fin, elle dure jusqu'à nouvel ordre. La liste de fin de route dit ce que le groupe fait ensuite : attendre, garder le cap, rejoindre un convoi, chasser ou entrer dans un port.",
+      "headings": "Au port, la sortie choisie est la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge par des étapes au cap, qui partent du bout de la sortie. Une étape prend une fin (durée, heure ou position) ; sans fin, elle dure jusqu'à nouvel ordre. La liste de fin de route dit ce que le groupe fait ensuite : attendre, garder le cap, rejoindre un convoi, chasser ou entrer dans un port."
+    },
     "routeGroup": "Les groupes du groupe de soutien suivent le chef en ligne de file. Au port, la sortie choisie est leur première étape : elle attend « Appareiller » ou l'heure programmée. Quand le plus court arrive au bout de son autonomie, tous rentrent.",
     "routeConvoy": "Sans ordre, un convoi s'arrête au bout d'un tracé et attend ; au bout de ses étapes, il garde le cap. La liste de fin de route en décide autrement, tout de suite s'il n'a plus rien à suivre : « Entrer à… » le mène par le large à l'entrée du chenal choisi, où le pilote monte à bord ; « Reprendre la route de l'Amirauté » la rejoint au prochain point devant lui. Un tracé qui passe près de l'entrée d'un chenal et finit vers son port y entre de lui-même.",
     "mission": "« Couvrir » fait tourner l'escadrille au-dessus du convoi, qu'elle suit. En Arcade, « Intercepter » laisse le contrôleur la guider et la faire monter au-dessus du raid ; sa chance dépend de la couverture radar au point de rencontre. « Rompre », dans la barre de commandes, la désengage d'un raid : elle le laisse tranquille, quelle que soit son attitude, jusqu'à un nouvel ordre sur lui.",
     "formation": "Une big wing est une seule unité : les ordres se donnent à la formation, qui décolle, vole et rentre ensemble. Chaque escadrille garde son état d'alerte et peut partir à sa propre heure.",
     "group": "Un groupe de soutien réunit des groupes d'escorte : les ordres se donnent au groupe de soutien, dont les groupes appareillent, escortent et rentrent ensemble. Quand le plus court arrive au bout de son autonomie, tous rentrent.",
     "manageAir": "Une big wing est une seule unité : une fiche, les mêmes ordres pour toutes ses escadrilles. Une escadrille à court d'essence ou de munitions la quitte et rentre ; le chef suivant prend la tête. « Composer… » ouvre la page Formations, pour ajouter une escadrille ou changer de chef ; « Dissoudre » rend à chacune ses propres ordres. Dans l'onglet Membres, « Prendre… » fait passer ici toutes les escadrilles d'une autre big wing.",
-    "manageSea": "Tracez la route depuis le groupe de soutien : ses groupes suivent le chef en ligne de file. Quand le plus court arrive au bout de son autonomie, tous rentrent. « Composer… » ouvre la page Formations ; « Dissoudre » rend à chaque groupe ses propres ordres. Dans l'onglet Membres, « Prendre… » fait passer ici tous les groupes d'un autre groupe de soutien.",
-    "convoyPort": "Un tracé tiré depuis le port fait appareiller le convoi tout de suite. Des étapes préparées attendent « Appareiller », dans la barre de commandes. Avec un appareillage programmé, tracé et étapes attendent l'heure dite. Sans rien de préparé à cette heure, le convoi n'a nulle part où aller, et l'ordre attend.",
-    "port": "Choisir une sortie en fait la première étape du groupe : en rade, ou par un chenal jusqu'au large. Elle attend « Appareiller » ou l'heure programmée ; sans sortie choisie, un tracé tiré depuis le port part tout de suite. À l'heure dite, le groupe appareille avec ce qui est préparé, ou sort en rade et y attend vos ordres s'il n'y a rien.",
+    "manageSea": "Les ordres donnés au groupe de soutien valent pour tous ses groupes, qui suivent le chef en ligne de file. Quand le plus court arrive au bout de son autonomie, tous rentrent. « Composer… » ouvre la page Formations ; « Dissoudre » rend à chaque groupe ses propres ordres. Dans l'onglet Membres, « Prendre… » fait passer ici tous les groupes d'un autre groupe de soutien.",
+    "convoyPort": {
+      "draw": "Un tracé tiré depuis le port fait appareiller le convoi tout de suite. Des étapes préparées attendent « Appareiller », dans la barre de commandes. Avec un appareillage programmé, tracé et étapes attendent l'heure dite. Sans rien de préparé à cette heure, le convoi n'a nulle part où aller, et l'ordre attend.",
+      "headings": "Des étapes préparées attendent « Appareiller », dans la barre de commandes, ou l'heure programmée. Sans étape préparée à cette heure, le convoi n'a nulle part où aller, et l'ordre attend."
+    },
+    "port": {
+      "draw": "Choisir une sortie en fait la première étape du groupe : en rade, ou par un chenal jusqu'au large. Elle attend « Appareiller » ou l'heure programmée ; sans sortie choisie, un tracé tiré depuis le port part tout de suite. À l'heure dite, le groupe appareille avec ce qui est préparé, ou sort en rade et y attend vos ordres s'il n'y a rien.",
+      "headings": "Choisir une sortie en fait la première étape du groupe : en rade, ou par un chenal jusqu'au large. Elle attend « Appareiller » ou l'heure programmée, avec les étapes au cap qui la suivent. À l'heure dite, le groupe appareille avec ce qui est préparé, ou sort en rade et y attend vos ordres s'il n'y a rien."
+    },
     "comms": "En haute mer, sous silence radio, la position d'un navire est une estimation et vos ordres partent par radio à la relève suivante. D'ici là ils restent sur la carte, en ocre, et se modifient encore. Une route envoyée par radio peut être lue par le B-Dienst ; au projecteur d'un avion en vue, ou portée par un groupe d'escorte, elle ne l'est pas. « Demander la position » fait répondre le navire à la relève : un point sûr pour vous, un relèvement pour les U-Boote.",
-    "convoys": "Le groupe prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » calcule lui-même la route d'interception (sauf en Réaliste) et contourne la terre ; « Rentrer au port » aussi. Une route tracée qui finit dans la bulle d'un port y entre.",
+    "convoys": "Le groupe prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » calcule lui-même la route d'interception (sauf en Réaliste) et contourne la terre ; « Rentrer au port » aussi. Une route qui finit dans la bulle d'un port y entre.",
     "uboats": "Rester : le groupe garde son poste et n'attaque qu'un U-Boot qu'il peut rejoindre sans lâcher son convoi (30 min et 15 km au plus). Chasser : il quitte le convoi pour un contact frais et revient seul, U-Boot coulé, contact perdu ou grenades tombées au tiers gardé pour le convoi ; le convoi reste sans escorte pendant ce temps. Grenadage plein : dix grenades par passe ; économe : cinq, avec moins de chances mais deux fois plus de passes. À vide, le groupe passe encore, à blanc : le U-Boot reste en plongée et perd le convoi.",
-    "rallyAir": "Sur le chef : les membres décollent à leur heure et rejoignent le chef, qui les attend au-dessus de sa base (15 min au plus). Sur un point : avec une heure de rendez-vous, la formation part à cette heure et les premiers arrivés l'attendent ; pour la route d'après, glissez depuis le point RV sur la carte. S'il manque une escadrille à l'heure, la question vous est posée : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans elle ; sans réponse, le choix fait ici s'applique.",
-    "rallySea": "Sur le chef : le chef appareille à son heure avec ses propres ordres ; chaque groupe appareille à la sienne, le rejoint en mer et prend son poste. Sur un point : avec une heure de rendez-vous, le groupe de soutien part à cette heure et les premiers arrivés l'attendent ; pour la route d'après, glissez depuis le point RV sur la carte. S'il manque un groupe à l'heure, le choix fait ici s'applique : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans lui.",
+    "rallyAir": {
+      "draw": "Sur le chef : les membres décollent à leur heure et rejoignent le chef, qui les attend au-dessus de sa base (15 min au plus). Sur un point : avec une heure de rendez-vous, la formation part à cette heure et les premiers arrivés l'attendent ; pour la route d'après, glissez depuis le point RV sur la carte. S'il manque une escadrille à l'heure, la question vous est posée : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans elle ; sans réponse, le choix fait ici s'applique.",
+      "headings": "Sur le chef : les membres décollent à leur heure et rejoignent le chef, qui les attend au-dessus de sa base (15 min au plus). Sur un point : avec une heure de rendez-vous, la formation part à cette heure et les premiers arrivés l'attendent sur place. S'il manque une escadrille à l'heure, la question vous est posée : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans elle ; sans réponse, le choix fait ici s'applique."
+    },
+    "rallySea": {
+      "draw": "Sur le chef : le chef appareille à son heure avec ses propres ordres ; chaque groupe appareille à la sienne, le rejoint en mer et prend son poste. Sur un point : avec une heure de rendez-vous, le groupe de soutien part à cette heure et les premiers arrivés l'attendent ; pour la route d'après, glissez depuis le point RV sur la carte. S'il manque un groupe à l'heure, le choix fait ici s'applique : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans lui.",
+      "headings": "Sur le chef : le chef appareille à son heure avec ses propres ordres ; chaque groupe appareille à la sienne, le rejoint en mer et prend son poste. Sur un point : avec une heure de rendez-vous, le groupe de soutien part à cette heure et les premiers arrivés l'attendent sur place. S'il manque un groupe à l'heure, le choix fait ici s'applique : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans lui."
+    },
     "minStock": "Le stock minimum est un ordre permanent : quand le stock (trains en route compris) passe sous ce seuil, un train part du port le mieux placé. Champ vide : pas d'ordre. En Arcade, le seuil est automatique.",
     "train": "Un train compte au plus {wagons} wagons : citernes de {fuel} t pour le carburant, wagons couverts de {materiel} t pour le reste. Il lui faut au moins {min} t. Un petit train prend quand même un des trains de la ligne.",
-    "portPlain": "« Appareiller » fait sortir le groupe au large du port, où il attend vos ordres. Un tracé tiré depuis le port part tout de suite. Avec un appareillage programmé, tracé et étapes attendent l'heure dite.",
+    "portPlain": {
+      "draw": "« Appareiller » fait sortir le groupe au large du port, où il attend vos ordres. Un tracé tiré depuis le port part tout de suite. Avec un appareillage programmé, tracé et étapes attendent l'heure dite.",
+      "headings": "« Appareiller » fait sortir le groupe au large du port, où il attend vos ordres ou prend les étapes préparées. Avec un appareillage programmé, les étapes attendent l'heure dite."
+    },
     "offers": "Avant le prêt-bail, la Grande-Bretagne paie comptant. Les convois partent chargés à plein tant que la réserve le permet ; ce qu'elle ne peut plus payer part sur lest.",
     "roster": "Choisissez un aérodrome, puis réglez chaque escadrille : son état maintenant, son plan de chaque jour (de 00:00 à 24:00, il se répète) ou, case cochée, un plan d'exception pour les prochaines {n} h en heures H. Un état choisi à la main garde la main jusqu'à « Retour au planning ».",
     "formationsAir": "Une big wing est une seule unité : une fiche, les mêmes ordres pour toutes ses escadrilles. Elle décolle ensemble, se rassemble au-dessus de son chef, puis vole à la vitesse de la plus lente. Une escadrille à court d'essence ou de munitions la quitte et rentre ; le chef suivant (★) prend la tête.",
@@ -2989,7 +3036,8 @@
     "setSheetHelp": "Masquées, les aides d'une fiche s'ouvrent section par section avec le « ? ». Affichées, leur texte reste écrit sous le titre de chaque section : utile pour débuter.",
     "setTips": "Cinq astuces courtes s'affichent au coin de la carte, chacune la première fois qu'elle sert, jamais pendant une leçon. « Revoir les astuces » les fait revenir, chacune à son occasion ; la phrase « Cliquez sur une unité… » du panneau de droite revient aussi.",
     "setViewZones": "Ce que voient les unités, de jour ou de nuit. Un avion : son rayon de vue sur les autres avions (à même altitude ; de bien plus haut ou plus bas, moitié moins loin) et, pour une patrouille côtière, sur un U-Boot en surface. Un groupe d'escorte : un U-Boot en surface (vigies, radar s'il en a) et en plongée (ASDIC).",
-    "setDev": "Pour contrôler les scénarios : les vraies positions ennemies en magenta et un onglet « Ennemis ». Il ne change rien à la partie. Le cocher demande le mot de passe."
+    "setDev": "Pour contrôler les scénarios : les vraies positions ennemies en magenta et un onglet « Ennemis ». Il ne change rien à la partie. Le cocher demande le mot de passe.",
+    "missionCover": "« Couvrir » fait tourner l'escadrille au-dessus du convoi, qu'elle suit. Coastal Command couvre tout convoi en mer : il voit les U-Boote en surface et les oblige à plonger, sans combattre les raids."
   },
   "tips": {
     "legEnd": {
@@ -2997,7 +3045,7 @@
       "airNoGrid": "Fin de l'étape : une durée (6, 1 h 30), une heure (14:20) ou une position (56N 12O). Vide : jusqu'à nouvel ordre.",
       "sea": "Fin de l'étape : une durée en heures (30, 6 min), une heure (14:20) ou une position (56N 12O). Vide : jusqu'à nouvel ordre."
     },
-    "pointDelete": "Retirer ce point du tracé (Suppr, ou double-clic sur le point)",
+    "pointDelete": "Retirer ce point du tracé (Suppr, ou double-clic sur son carré).",
     "convoyEndNow": "Le convoi n'a plus rien à suivre : l'ordre choisi ici s'exécute tout de suite.",
     "intercept": "Le contrôleur guide l'escadrille et la fait monter au-dessus du raid ; la chance affichée dépend de la couverture au point de rencontre.",
     "cover": "L'escadrille tourne au-dessus du convoi et le suit.",
@@ -3027,7 +3075,8 @@
     "trainLoad": "Au plus {wagons} wagons par train : citernes de {fuel} t pour le carburant, wagons couverts de {materiel} t pour le reste. Au moins {min} t par train.",
     "forecast": "Sans compter les pertes à venir, ni un éventuel prêt-bail. « Achetables » : les convois qui peuvent encore arriver avant la fin, payés avec la réserve.",
     "forecastLend": "Sans compter les pertes à venir. Les convois qui peuvent encore arriver avant la fin partent chargés à plein.",
-    "decide": "Une décision laissée de côté reste dans les rapports suivants, sans arrêter le jeu une seconde fois."
+    "decide": "Une décision laissée de côté reste dans les rapports suivants, sans arrêter le jeu une seconde fois.",
+    "sailConvoyHeadings": "Appareiller avec les étapes préparées. Sans étape, le convoi n'a nulle part où aller."
   },
   "firstTips": {
     "understood": "Compris",
@@ -3046,7 +3095,8 @@
     },
     "exit": {
       "title": "Au port : la sortie",
-      "text": "La sortie choisie devient la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge depuis l'anneau à son bout."
+      "text": "La sortie choisie devient la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge depuis l'anneau à son bout.",
+      "textHeadings": "La sortie choisie devient la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge par des étapes au cap."
     },
     "silence": {
       "title": "Silence radio",

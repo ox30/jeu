@@ -46,6 +46,7 @@ export const TIPS = {
       const port = u && u.kind === 'escort' && u.state === 'inPort' ? app.world.byId.port.get(u.portId) : null;
       return Boolean(port && port.approaches && port.approaches.length);
     },
+    text: (app) => (app.world.settings.orders === 'headings' ? 'textHeadings' : 'text'),
   },
   sheet: {
     link: ['sheet', 'traces'],
@@ -59,24 +60,28 @@ export const TIPS = {
 
 export const TIP_NAMES = Object.keys(TIPS);
 
-/** The tips this browser has already shown, as it remembers them. */
-export function loadTips(storage = globalThis.localStorage) {
+/**
+ * The tips this browser has already shown, as it remembers them. (The storage is read inside
+ * the `try`: where the browser refuses it, its very name throws.)
+ */
+export function loadTips(storage = null) {
   const seen = new Set();
   try {
+    storage = storage || globalThis.localStorage;
     const kept = JSON.parse(storage.getItem(KEY) || '[]');
     if (Array.isArray(kept)) for (const id of kept) seen.add(String(id));
     if (storage.getItem(OLD_SCHEDULE_KEY) === '1') seen.add('schedule');
   } catch {
     // no storage: the tips are shown once in this visit
   }
-  return { seen, shown: null, text: 'text', asked: new Set(), quietUntil: 0 };
+  return { seen, shown: null, text: 'text', asked: new Set(), quietUntil: 0, sheet: '' };
 }
 
-function save(app, storage = globalThis.localStorage) {
+function save(app) {
   try {
-    storage.setItem(KEY, JSON.stringify([...app.tips.seen]));
+    globalThis.localStorage.setItem(KEY, JSON.stringify([...app.tips.seen]));
   } catch {
-    // ignore
+    // no storage: remembered for this visit only
   }
 }
 
@@ -88,16 +93,26 @@ export function panelHintDue(app) {
   return Boolean(app.tips) && !app.tips.seen.has('panel');
 }
 
-/** A sheet is open by the player's hand (a lesson opens its own): the word has done its work. */
+/**
+ * Called with every drawing of the panels. A sheet that opens by the player's hand (a lesson
+ * opens its own) ends the word's work. Only the opening counts: after « Revoir les astuces »
+ * with a sheet already open, the word comes back when that sheet is closed.
+ */
 export function sheetOpened(app) {
-  if (!app.tips || app.tutorial || app.onMenu || app.tips.seen.has('panel')) return;
-  app.tips.seen.add('panel');
+  const tips = app.tips;
+  if (!tips) return;
+  const key = app.selection ? `${app.selection.kind}:${app.selection.id}` : '';
+  const opened = Boolean(key) && key !== tips.sheet;
+  tips.sheet = key;
+  if (!opened || app.tutorial || app.onMenu || tips.seen.has('panel')) return;
+  tips.seen.add('panel');
   save(app);
 }
 
 /** An occasion that an order makes, not a state of the game: « schedule ». */
 export function tipOccasion(app, id) {
-  if (app.tips && !app.tips.seen.has(id)) app.tips.asked.add(id);
+  // (Not during a lesson: its tip would come later, in another game, about nothing.)
+  if (app.tips && !app.tutorial && !app.tips.seen.has(id)) app.tips.asked.add(id);
 }
 
 /** May the card show a tip now? Not on the menu, and never during a lesson. */
@@ -115,9 +130,11 @@ function render(app) {
   const el = app.el.tip;
   if (!el) return;
   const id = allowed(app) ? app.tips.shown : null;
+  // (Kept under another name than the buttons' `data-tip`: a click on the text of the card
+  // must not be taken for one of them.)
   const key = id ? `${id}:${app.tips.text}` : '';
-  if (el.dataset.tip === key && el.hidden === !id) return;
-  el.dataset.tip = key;
+  if (el.dataset.shown === key && el.hidden === !id) return;
+  el.dataset.shown = key;
   el.hidden = !id;
   if (!id) {
     el.innerHTML = '';
@@ -135,7 +152,10 @@ export function updateTips(app, now = performance.now()) {
   if (!tips) return;
   // A lesson begins, or the menu comes: the tip on the screen leaves, not counted as seen; it
   // will come back with its occasion.
-  if (!allowed(app)) tips.shown = null;
+  if (!allowed(app)) {
+    tips.shown = null;
+    tips.asked.clear();
+  }
   if (!tips.shown && now >= tips.quietUntil) {
     const id = tipDue(app);
     if (id) {
@@ -163,6 +183,8 @@ export function resetTips(app) {
   app.tips.seen.clear();
   app.tips.shown = null;
   app.tips.quietUntil = 0;
+  // (The sheet now open was opened before: it does not count as a first one.)
+  app.tips.sheet = app.selection ? `${app.selection.kind}:${app.selection.id}` : '';
   save(app);
   try {
     localStorage.removeItem(OLD_SCHEDULE_KEY);
@@ -176,7 +198,7 @@ export function attachTips(app, openHelp) {
   app.tips = loadTips();
   if (!app.el.tip) return;
   app.el.tip.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-tip]');
+    const b = e.target.closest('button[data-tip]');
     if (!b || !app.tips.shown) return;
     if (b.dataset.tip === 'seen') dismissTip(app);
     else openHelp(app, ...TIPS[app.tips.shown].link);

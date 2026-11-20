@@ -26,19 +26,26 @@ test('every bubble has its text: two to four sentences, whatever the settings of
   const texts = t('sheetHelp');
   assert.deepEqual(Object.keys(texts).sort(), Object.keys(HELP_TOPICS).sort(), 'one text for each « ? », and no text without its « ? »');
   for (const [key, topic] of Object.entries(HELP_TOPICS)) {
-    const settings = [{}];
-    for (const pair of [topic.lead, topic.tail]) {
-      if (!pair) continue;
-      const before = settings.splice(0);
-      for (const s of before) for (const v of VARIANTS[pair[1]]) settings.push({ ...s, [pair[1]]: v });
-    }
+    // A text with two forms has both: routes drawn, orders by headings.
+    if (typeof texts[key] !== 'string') assert.deepEqual(Object.keys(texts[key]).sort(), ['draw', 'headings'], `« ${key} »: its two forms`);
+    // Every way the game can be set: the way orders are given, and the setting of its tail.
+    let settings = VARIANTS.orders.map((orders) => ({ orders }));
+    if (topic.tail) settings = settings.flatMap((s) => VARIANTS[topic.tail[1]].map((v) => ({ ...s, [topic.tail[1]]: v })));
     for (const s of settings) {
       const text = helpText(key, s, { wagons: 20, fuel: 5, materiel: 4, min: 10, n: 24 });
       const n = sentences(text).length;
       assert.ok(n >= 2 && n <= 4, `« ${key} » (${JSON.stringify(s)}): ${n} sentences — ${text}`);
-      assert.ok(!/\{\w+\}/.test(text), `« ${key} »: a figure is missing in — ${text}`);
+      assert.ok(!/\{\w+\}/.test(text) && !/\[object/.test(text), `« ${key} »: a figure is missing in — ${text}`);
       assert.ok(text.length <= 700, `« ${key} »: ${text.length} signs`);
+      // With orders by headings nothing is drawn: no line to pull, no square, no « + », no
+      // ring. A bubble does not speak of gestures the game does not have then.
+      if (s.orders === 'headings') {
+        const gesture = text.match(/\banneau\b|un carré|« \+ »|tir(é|ez) (un tracé )?depuis|[Tt]racez|tracée? depuis|depuis le point RV/);
+        assert.equal(gesture, null, `« ${key} », orders by headings, speaks of a gesture of the drawn routes: ${gesture && gesture[0]} — ${text}`);
+      }
     }
+    // (No game in hand — the main menu: the form of the drawn routes.)
+    assert.equal(helpText(key, null, { wagons: 20, fuel: 5, materiel: 4, min: 10, n: 24 }), helpText(key, { orders: 'draw' }, { wagons: 20, fuel: 5, materiel: 4, min: 10, n: 24 }).replace(t('sheetHelpLead.route.draw') + ' ', ''), key);
     // A lead or a tail is there for every value of its setting.
     for (const pair of [topic.lead, topic.tail]) {
       if (!pair) continue;
@@ -101,7 +108,7 @@ test('every « ? » the pages write names a bubble that exists, and every bubble
   const used = new Map();
   const files = readdirSync(new URL('src/ui/', root)).filter((f) => f.endsWith('.js') && f !== 'commands.js' && f !== 'helpTopics.js');
   // Where each helper takes the key of its bubble.
-  const where = { section: 5, subTitle: 2, helpMark: 0, helpInline: 1, pageTitle: 2, named: 1 };
+  const where = { section: 5, subTitle: 2, helpMark: 0, helpInline: 1, pageTitle: 2, settingRow: 2 };
   for (const file of files) {
     const text = readFileSync(new URL(`src/ui/${file}`, root), 'utf8');
     for (const [name, index] of Object.entries(where)) {
