@@ -6,7 +6,7 @@ import { contactEstimate } from '../sim/query.js';
 import {
   addLeg, clearPlan, departConvoy, setSpeedPct, editableRoute, removeLeg, removeRoutePoint, returnToBase, scramble,
   sendTrain, setAltitude, setCover, setEndAction, setMinStock, setOrbit, setPointAltitude, setRoute, setSpeed, setVector, updateLeg, interceptRaid,
-  setAlert, followSquadron, leaveFormation, planGroundRoute,
+  setAlert, planGroundRoute,
 } from '../sim/orders.js';
 import { canHunt } from '../sim/asw.js';
 import { cancelOrder, carryByShip, pendingOrders, requestPosition, sendOrder, shownPosition } from '../sim/comms.js';
@@ -384,17 +384,6 @@ export function orderOrbit(app, sq) {
 
 export function orderCover(app, sq, convoyId) {
   setCover(app.world, sq, convoyId);
-  app.dirtyPanels = true;
-}
-
-/** Big wing: fly with another squadron. */
-export function orderFollow(app, sq, leaderId) {
-  if (!followSquadron(app.world, sq, leaderId)) sheetMessage(app, t('orders.followRefused'));
-  app.dirtyPanels = true;
-}
-
-export function orderLeaveFormation(app, sq) {
-  leaveFormation(app.world, sq);
   app.dirtyPanels = true;
 }
 

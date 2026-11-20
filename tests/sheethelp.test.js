@@ -140,6 +140,17 @@ test('the « ? » of a section stands in its title; « affichées » writes its 
   assert.match(helpText('routeAir', { orders: 'headings' }), /^En ordres par caps/);
 });
 
+test('every tooltip of the tidied sheets is used, in one line', () => {
+  const ui = readdirSync(new URL('src/ui/', root)).filter((f) => f.endsWith('.js')).map((f) => readFileSync(new URL(`src/ui/${f}`, root), 'utf8')).join('\n');
+  const flat = (node, path) => (typeof node === 'string' ? [[path, node]] : Object.entries(node).flatMap(([k, v]) => flat(v, `${path}.${k}`)));
+  for (const [key, text] of flat(t('tips'), 'tips')) {
+    const parent = key.slice(0, key.lastIndexOf('.'));
+    assert.ok(ui.includes(`'${key}'`) || ui.includes(`\`${parent}.\${`), `${key} is read nowhere`);
+    assert.ok(text.length <= 200, `${key}: ${text.length} signs — a tooltip is one line`);
+    assert.ok(sentences(text).length <= 2, `${key}: ${text}`);
+  }
+});
+
 test('the help is masked by default; settings saved before 2.11.0 keep a choice only when one was made', () => {
   assert.equal(defaultSettings(data.presets).sheetHelp, 'folded');
   assert.deepEqual(data.presets.choices.sheetHelp, ['folded', 'shown']);

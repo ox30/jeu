@@ -25,7 +25,6 @@
   "app": {
     "title": "Prototype M2",
     "subtitle": "Acte I, 1940-1941",
-    "loading": "Chargement de la table de traçage…",
     "error": "Le jeu n'a pas pu démarrer : {message}"
   },
   "hud": {
@@ -101,7 +100,6 @@
   "panel": {
     "objectives": "Objectifs",
     "tote": "Tableau d'état",
-    "sheet": "Fiche",
     "log": "Journal des opérations",
     "hint": "Cliquez sur une unité ou une installation pour ouvrir sa fiche à droite de la carte. Glissez depuis une unité pour tracer sa route.",
     "units": "Unités",
@@ -256,19 +254,9 @@
   "orders": {
     "scramble": "Décoller (Scramble)",
     "altitude": "Altitude",
-    "cruise": "Croisière",
-    "orbit": "Orbiter (Orbit)",
-    "home": "Rentrer (Pancake)",
     "vector": "Cap direct (Vector)",
     "applyVector": "Donner le cap",
     "admiralty": "Route de l'Amirauté",
-    "sail": "Appareiller",
-    "centre": "Centrer la carte",
-    "drawHint": "Glissez depuis l'unité pour tracer sa route. Sur le tracé : glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger. Maj + glisser : la règle.",
-    "headingsHint": "Mesurez le cap avec la règle (glissez depuis l'unité), puis ajoutez l'étape mesurée ou tapez-la ci-dessous.",
-    "scrambleHint": "Glissez depuis l'aérodrome vers le raid : l'escadrille prête décolle et suit votre tracé.",
-    "scrambleHintHeadings": "Préparez un cap direct ou des étapes, puis faites décoller l'escadrille.",
-    "sailHint": "Le convoi attend au port : préparez ses étapes, puis donnez l'ordre d'appareiller.",
     "plan": "Étapes",
     "noLeg": "Aucune étape.",
     "noLegReady": "Aucune étape préparée.",
@@ -280,14 +268,11 @@
     "addMeasured": "Ajouter l'étape mesurée à la règle",
     "clearPlan": "Effacer les étapes",
     "removeLeg": "Retirer cette étape",
-    "endHintAir": "Fin : durée (6, 1 h 30), heure (14:20), carré (J5) ou position (51N 1E). Vide : jusqu'à nouvel ordre.",
-    "endHintAirNoGrid": "Fin : durée (6, 1 h 30), heure (14:20) ou position (56N 12O). Vide : jusqu'à nouvel ordre.",
     "endExample": {
       "sea": "30 · 14:20 · 56N 12O",
       "air": "6 · 14:20 · J5",
       "airNoGrid": "6 · 14:20 · 56N 12O"
     },
-    "endHintSea": "Fin : durée en heures (30, 6 min), heure (14:20), position (56N 12O). Vide : jusqu'à nouvel ordre.",
     "errors": {
       "heading": "Cap invalide : un nombre entre 0 et 360.",
       "dry": "Plus de mazout : le groupe ne peut que rentrer au port (vous pouvez choisir lequel).",
@@ -311,18 +296,12 @@
     "join": "Rejoindre {convoy}",
     "leave": "Quitter le convoi",
     "homePort": "Rentrer au port",
-    "joinHint": "Le groupe prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » calcule lui-même la route d'interception (sauf en Réaliste), et contourne la terre ; « Rentrer au port » aussi. Une route tracée qui finit dans la bulle d'un port y entre.",
     "cover": "Couvrir {convoy}",
-    "coverHint": "L'escadrille tourne au-dessus du convoi et le suit.",
-    "escortSail": "Appareiller",
-    "escortSailHint": "Préparez des étapes ou une route, puis appareillez.",
     "point": "Point {n} sur {of}",
     "pointAlt": "Altitude au point",
     "pointAltNone": "sans altitude",
     "pointAltClear": "Sans altitude",
     "pointDelete": "Supprimer ce point",
-    "pointHintAir": "↑ ↓ règlent l'altitude que l'escadrille vise en allant vers ce point. Glissez le carré pour le déplacer, double-cliquez-le (ou Suppr) pour le retirer.",
-    "pointHintSea": "Glissez le carré pour déplacer le point, double-cliquez-le (ou Suppr) pour le retirer. Le chenal de sortie du port et le chenal d'entrée ne se modifient pas.",
     "followingRoute": "Suit son tracé · {n} point{s}.",
     "followingUntilRelief": "Jusque-là, il suit son tracé actuel ({n} point{s}).",
     "editLeg": "Modifier cette étape",
@@ -340,7 +319,6 @@
     "endCover": "Couvrir {convoy}",
     "intercept": "Intercepter {raid} · {p} %",
     "interceptNone": "{raid} : hors couverture",
-    "interceptHint": "Le contrôleur guide l'escadrille et la fait monter au-dessus du raid. Sa chance dépend de la couverture au point de rencontre : cœur d'un faisceau radar, bord de portée, observateurs, patrouille. Vous pouvez aussi glisser depuis l'escadrille jusqu'au raid.",
     "alert": "État d'alerte",
     "alerts": {
       "rest": "Repos (2 h)",
@@ -348,18 +326,6 @@
       "min5": "Alerte (5 min)",
       "cockpit": "Cockpit (2 min)"
     },
-    "alertHint": "Le délai d'un état, c'est le temps pour être en l'air après l'ordre de décoller. Monter d'un cran prend la différence (du repos à l'alerte : 1 h 55) ; descendre est immédiat. Seul le Repos repose vraiment : Disponible repose peu, l'Alerte fatigue un peu, le Cockpit davantage.",
-    "convoySpeed": "Vitesse",
-    "speedBest": "{n} nœuds (le maximum)",
-    "speedHint": "Au maximum, des navires lents décrochent et deviennent des traînards. À {n} nœuds ou moins, le convoi reste groupé. Le zigzag gêne les U-Boote mais ralentit d'environ 15 %.",
-    "zigzagOn": "Zigzag : oui",
-    "zigzagOff": "Zigzag : non",
-    "behaviour": "Face aux U-Boote",
-    "behaviours": {
-      "stay": "Rester avec le convoi",
-      "hunt": "Chasser les contacts"
-    },
-    "behaviourHint": "Rester : le groupe garde son poste et n'attaque qu'un U-Boot qu'il peut rejoindre sans lâcher son convoi (30 min et 15 km au plus) ; un attaquant aperçu plus loin est seulement forcé à plonger. Chasser : il quitte le convoi pour un contact frais et revient seul : U-Boot coulé ou touché, contact perdu (la recherche ne le retrouve qu'une fois sur trois), ou grenades tombées au tiers gardé pour le convoi. Le convoi reste sans escorte pendant ce temps. Tout ordre interrompt une chasse.",
     "patterns": {
       "full": "Plein",
       "light": "Économe"
@@ -368,15 +334,9 @@
       "full": "Grenadage plein : dix grenades par passe",
       "light": "Grenadage économe : cinq grenades par passe, moins de chances de couler"
     },
-    "patternHint": "Grenadage plein : dix grenades par passe. Économe : cinq, avec moins de chances de couler ou de toucher, mais deux fois plus de passes. À vide, le groupe passe encore, à blanc : le U-Boot reste en plongée et perd le convoi, sans rien risquer. Les grenades se refont au port, avec le mazout.",
     "chargesSpare": "de quoi chasser",
     "chargesReserve": "réserve du convoi : plus de chasse",
     "chargesEmpty": "épuisées : passes à blanc",
-    "formation": "Big Wing",
-    "followLeader": "Voler avec {name}",
-    "leaveFormation": "Quitter la formation",
-    "formationHint": "En formation, l'escadrille suit son chef et attaque avec lui : l'escorte allemande se partage entre elles.",
-    "followRefused": "Impossible de rejoindre cette escadrille.",
     "alertNames": {
       "rest": "au repos",
       "min30": "disponible (30 min)",
@@ -393,11 +353,9 @@
     "add": "Ajouter",
     "at": "à",
     "daily": "chaque jour",
-    "speed": "Vitesse",
     "today": "aujourd'hui",
     "tomorrow": "demain",
     "roster": "Planning des effectifs",
-    "rosterIntro": "Le planning de chaque escadrille se répète chaque jour, de 00:00 à 24:00 (des heures, pas de dates). Pour une journée particulière (une mission prévue), cochez « Seulement les prochaines 24 h » : un planning vide part de maintenant (H0), on le remplit en heures (de H0 à H+6 au repos, de H+6 à H+9 en alerte…) ; il remplace celui de chaque jour jusqu'à sa fin, puis on y revient. La frise montre les 24 prochaines heures (sans les vols) ; les hachures, un rappel en cours ; le trait dessous, le planning des prochaines heures.",
     "scheduleHint": "Programmer un départ : l'heure saisie est celle de l'ordre. L'unité part ensuite selon son état : 2 min au cockpit, 5 min en alerte, 30 min disponible, 2 h au repos (le temps de rappeler le personnel). Anticipez l'état d'alerte, ou programmez-le dans les effectifs.",
     "understood": "Compris",
     "scrambleIn": "Décoller (en l'air dans {d})",
@@ -410,13 +368,10 @@
     "joinWing": "Rejoindre une formation",
     "sailAt": "Appareillage programmé",
     "sailScheduled": "Appareillage programmé : {time}",
-    "sailScheduledHint": "Tracez la route depuis le port, ou préparez des étapes : elles attendent l'heure.",
-    "sailScheduledHintEscort": "À l'heure dite, le groupe appareille avec ce qui est préparé : sa sortie, puis le tracé ou les étapes qui la suivent. Sans rien de préparé, il sort en rade et y attend vos ordres.",
     "sailJoin": "Appareillage programmé {time} pour rejoindre {formation}.",
     "joinGroup": "Rejoindre un groupe de soutien",
     "rosterOverride": "Seulement les prochaines {n} h",
     "rosterOverrideUntil": "H0 = {start} ; à H+{n}, {time}, retour au planning quotidien.",
-    "rosterEmpty": "Vide : l'escadrille garde son état. Ajoutez des changements ci-dessous.",
     "rosterDailyAfter": "Ensuite, chaque jour : {plan}",
     "rosterNone": "Aucun changement : ceux que vous ajoutez ici se répètent chaque jour.",
     "alertShort": {
@@ -428,7 +383,6 @@
     "inDays": "dans {n} jours",
     "rosterUnchanged": "état inchangé",
     "fromH": "De H+",
-    "hours": "{n} h",
     "huntStop": "Interrompre la chasse",
     "huntPlot": "Chasser le contact de {time} ({km} km)",
     "go": "Y aller",
@@ -444,16 +398,12 @@
       "escort": "Rejoindre {convoy}",
       "port": "Entrer au port : {port}"
     },
-    "breakOff": "Désengager {raid}",
     "breakOffNone": "Plus rien à rompre : l'unité n'est plus sur ce raid.",
     "letGo": "Désengagée de {raids}.",
-    "homePortPick": "Rentrer au port…",
     "exitBy": "Sortie :",
     "exitRoads": "en rade (au large du port)",
     "exitChannel": "chenal {name}",
     "exitNone": "aucune (à l'appareillage : en rade)",
-    "exitHint": "Choisir une sortie en fait la première étape du groupe : elle se dessine sur la carte et s'inscrit sous « Route et étapes », où vous la retirez, la prolongez et lui donnez sa fin. Rien ne part avant « Appareiller » ou l'heure programmée. Sans sortie choisie, « Appareiller » mène le groupe en rade, où il attend vos ordres ; un tracé tiré depuis le port part alors tout de suite.",
-    "exitHintNoChannel": "Appareiller : le groupe sort au large du port et y attend vos ordres, ou prend votre tracé ou vos étapes.",
     "exitTitle": "Sortie du port",
     "exitStepRoads": "En rade, au large du port",
     "exitStepChannel": "Par le chenal : {name}",
@@ -462,8 +412,6 @@
     "lineStep": "Puis le tracé : {n} point{s}",
     "exitRemove": "Retirer la sortie (et le tracé qui la suit)",
     "lineRemove": "Effacer le tracé qui suit la sortie (la sortie reste)",
-    "exitStepHint": "La sortie attend l'ordre d'appareiller (le bouton, ou l'heure programmée). Pour la prolonger : tirez un tracé depuis l'anneau au bout de la sortie, sur la carte, ou ajoutez des étapes au cap ci-dessous. « Au bout de la sortie » dit ce que le groupe fait ensuite.",
-    "exitStepHintHeadings": "La sortie attend l'ordre d'appareiller (le bouton, ou l'heure programmée). Pour la prolonger : ajoutez des étapes au cap ci-dessous, elles partent du bout de la sortie. « Au bout de la sortie » dit ce que le groupe fait ensuite.",
     "exitLineDropped": "Le tracé qui suivait a été effacé : il ne se rejoint pas par la mer depuis cette sortie.",
     "waitingRoute": "Tracé préparé · {n} point{s} : attend l'appareillage.",
     "endActionExit": "Au bout de la sortie",
@@ -488,22 +436,13 @@
         "legs": "À la fin des étapes",
         "now": "Et maintenant"
       },
-      "hint": "Sans ordre, un convoi s'arrête au bout d'un tracé et attend ; au bout de ses étapes, il garde le cap. « Entrer à… » le mène par le large à l'entrée du chenal choisi, où le pilote monte à bord ; « Reprendre la route de l'Amirauté » la rejoint au prochain point devant lui.",
-      "hintNow": "Le convoi n'a plus rien à suivre : l'ordre choisi ici s'exécute tout de suite. Ou tracez-lui une route depuis son repère.",
       "intoPort": "Plus de tracé à terminer : le convoi entre à {port}.",
       "intoPortVia": "Plus de tracé à terminer : le convoi rejoint le chenal ({channel}) et entre à {port}.",
       "waiting": "En attente : « {what} », transmis par radio à la relève de {hour} h.",
-      "autoPort": "Sans autre ordre, le convoi entre de lui-même dans ce port.",
-      "autoPortHelp": "Ce tracé passe près de l'entrée de ce chenal et finit vers ce port. Avec un autre choix, le convoi suit le tracé jusqu'au bout, sans le chenal, puis fait ce qui est choisi."
+      "autoPort": "Sans autre ordre, le convoi entre de lui-même dans ce port."
     },
     "waitingRouteAir": "Tracé préparé · {n} point{s} : attend le décollage.",
-    "routeHelp": "Glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger.",
-    "awaitedRouteHelp": "Il reste sur la carte, en ocre : déplacez ses points, ou prolongez-le depuis l'anneau à son bout.",
-    "awaitedLegsHelp": "Jusque-là le navire suit ses ordres actuels. La carte montre le tracé des étapes en attente, et vous pouvez en ajouter d'autres à la suite.",
     "scheduledNoRoute": "Sans route ni étapes : patrouillera au-dessus de sa base.",
-    "scheduledRouteHelp": "Glissez depuis l'aérodrome pour tracer la route : elle attend le décollage. Ou préparez des étapes dans la section « Route et étapes ».",
-    "letGoHelp": "Elle laisse ce raid tranquille, quelle que soit son attitude, jusqu'à un nouvel ordre sur lui (tracé qui finit sur le raid, ou « Intercepter »).",
-    "letGoHelpMany": "Elle laisse ces raids tranquilles, quelle que soit son attitude, jusqu'à un nouvel ordre sur eux (tracé qui finit sur le raid, ou « Intercepter »).",
     "dry": "À sec : rentre au port le plus proche, {kn} nœuds au plus. Seul le port peut changer."
   },
   "sheet": {
@@ -623,15 +562,9 @@
     "patrol": "vu par une patrouille",
     "sight": "Vue",
     "sightText": "{n} km autour de la patrouille",
-    "roleHint": {
-      "watch": "Section de guet : elle ne combat pas. Ce qu'elle voit est plotté avec l'effectif et l'altitude exacts, et le guidage y est sûr. Gare à l'escorte allemande.",
-      "coastal": "Coastal Command : patrouille la mer et couvre les convois. Elle voit les U-Boote en surface et les oblige à plonger. Elle ne combat pas les raids."
-    },
     "uplotTitle": "Contact sous-marin",
     "reachSurface": "Peut être, en surface, jusqu'à",
     "reachSubmerged": "En plongée, jusqu'à",
-    "uplotHint": "Les deux cercles grandissent avec l'âge du plot : ce que le U-Boot peut avoir parcouru en surface (17 nœuds) et sous l'eau (5 nœuds, au plus 70 milles avant de devoir refaire surface).",
-    "stragglerHint": "Un navire tombé derrière son convoi est une proie facile. Il suit la même route, plus lentement. Un groupe d'escorte peut le rejoindre.",
     "huntingUntil": "cherche un contact jusqu'à {time}",
     "huntingHeld": "attaque un U-Boot",
     "radarFitted": "radar",
@@ -646,7 +579,6 @@
     "depth": "Profondeur",
     "surfaced": "en surface",
     "submerged": "en plongée",
-    "ucontactHint": "Le U-Boot est suivi tant qu'il reste en vue ou au contact de l'ASDIC. Perdu, il laisse un repère à sa dernière position.",
     "gathering": "rassemblement",
     "speedPct": "{p} % de la croisière ({n} km/h)",
     "straggler": "Traînard : seul, sans escorte.",
@@ -1161,7 +1093,6 @@
   "map": {
     "admiraltyRoute": "Route recommandée par l'Amirauté",
     "intercept": "Cap {heading} · {min} min",
-    "noIntercept": "Interception impossible",
     "track5": "+5 min",
     "track10": "+10 min",
     "measure": "{km} km · {nm} milles · cap {heading}°",
@@ -1170,14 +1101,11 @@
     "landHere": "terre",
     "missed": "raté · {km} km · {ft}",
     "missedSame": "raté · {km} km",
-    "nothing": "rien en vue",
     "gate": "Pilote · {name}",
     "turnBack": "demi-tour",
-    "now": "maintenant",
     "gateShort": "Pilote",
     "df": "U-Boot ? {time}",
     "observersTag": "obs.",
-    "rail": "chemin de fer",
     "end": {
       "orbit": "⟳ orbite",
       "hold": "→ garde le cap",
@@ -1187,7 +1115,6 @@
     "endCover": "⛨ couvre {convoy}",
     "guided": "guidage : {p} % de chances",
     "patrolTag": "vu",
-    "zigzag": "zigzag",
     "uplot": "U ? {time} · {source}",
     "uSource": {
       "seen": "vu en surface",
@@ -1426,11 +1353,6 @@
       "factory": "Usine",
       "depot": "Dépôt de munitions"
     },
-    "status": {
-      "intact": "En service",
-      "damaged": "Endommagé",
-      "out": "Hors service"
-    },
     "statusDamage": {
       "intact": "En service",
       "damaged": "Endommagé · {n} %",
@@ -1445,7 +1367,6 @@
       "portOut": "Port fermé",
       "factoryDamaged": "Production ralentie",
       "factoryOut": "Production arrêtée",
-      "none": "Aucun",
       "navalDamaged": "Base navale endommagée",
       "navalOut": "Base navale inutilisable"
     },
@@ -1487,12 +1408,10 @@
     "alt": " à {alt}"
   },
   "profile": {
-    "title": "Vue de profil",
     "noRaid": "Aucun raid sur la table.",
     "climb": "Montée à {ft} : {d}",
     "level": "À l'altitude ordonnée",
     "contact": "Contact prévu dans {d} : {verdict}",
-    "contactNone": "Le raid est trop loin ou trop rapide pour le contact au cap actuel.",
     "verdict": {
       "above": "{ft} au-dessus du raid, idéal",
       "level": "à hauteur du raid, sans avantage",
@@ -1501,18 +1420,13 @@
     },
     "now": "maintenant",
     "raid": "Raid {raid}",
-    "you": "{squadron}",
-    "window": "zone de combat possible",
+    "window": "combat possible : avec l'avantage (vert), sans (ocre)",
     "fighting": "Au combat avec le raid {raid}."
   },
   "desktop": {
     "title": "Conçu pour un ordinateur",
     "text": "Ce jeu se joue sur un ordinateur, avec une souris et un clavier. Sur cet écran, la carte et les fiches seront à l'étroit.",
     "continue": "Continuer quand même"
-  },
-  "types": {
-    "Hurricane": "Hurricane",
-    "Spitfire": "Spitfire"
   },
   "resources": {
     "fuel": "carburant",
@@ -1531,14 +1445,11 @@
     "tonnes": "{n} t",
     "fuelDays": "{t} t (environ {d} j)",
     "minStock": "Stock minimum",
-    "minHint": "Ordre permanent : quand le stock (trains en route compris) passe sous ce seuil, un train part du port le mieux placé. Vide : pas d'ordre.",
-    "minAuto": "Arcade : seuil automatique de {n} t.",
     "apply": "Appliquer",
     "sendTrain": "Envoyer un train",
     "resource": "Chargement",
     "to": "Vers",
     "send": "Envoyer",
-    "trainHint": "Un train compte au plus {wagons} wagons : citernes de {fuel} t pour le carburant, wagons couverts de {materiel} t pour le reste. Au moins {min} t par train. Un petit train prend quand même un des trains de la ligne.",
     "eta": "arrivée vers {time}",
     "production": "Production",
     "productionRate": "{n} {type} par jour",
@@ -1776,6 +1687,10 @@
       "Ju 88": "Le plus moderne des bombardiers de 1940 : rapide, capable d'attaquer en piqué.",
       "Bf 110 Jabo": "Bf 110 armés de bombes, comme l'Erprobungsgruppe 210 : ils frappent vite et bas les radars et les aérodromes.",
       "Catalina": "Hydravion américain à très grande autonomie : il couvre les convois loin dans l'Atlantique."
+    },
+    "role": {
+      "watch": "Section de guet : elle ne combat pas. Ce qu'elle voit est plotté avec l'effectif et l'altitude exacts, et le guidage y est sûr. Gare à l'escorte allemande.",
+      "coastal": "Coastal Command : patrouille la mer et couvre les convois. Elle voit les U-Boote en surface et les oblige à plonger. Elle ne combat pas les raids."
     }
   },
   "save": {
@@ -1990,7 +1905,7 @@
           },
           "base": {
             "title": "Une base à sec",
-            "text": "La fiche de Biggin Hill est ouverte : il lui reste 4 t de carburant, moins d'une sortie pour le 32 Sqn. Une alerte « stock bas » vous préviendrait en partie ; ici, on agit tout de suite."
+            "text": "La fiche de Biggin Hill est ouverte : il lui reste 4 t de carburant, moins d'une sortie pour le 32 Sqn. Une alerte « Carburant bas » vous préviendrait en partie ; ici, on agit tout de suite."
           },
           "train": {
             "title": "Envoyer un train",
@@ -2306,8 +2221,6 @@
     "joiningShort": "rejoint",
     "leaderOf": "Chef de {name}.",
     "memberOf": "Membre de {name}.",
-    "memberHintAir": "Les ordres se donnent à la formation : elle décolle, vole et rentre ensemble.",
-    "memberHintSea": "Les ordres se donnent au groupe de soutien : ses groupes appareillent, escortent et rentrent ensemble.",
     "showFormation": "Voir la formation",
     "leaveFormation": "Retirer de la formation",
     "newWing": "Créer une big wing avec cette escadrille",
@@ -2318,16 +2231,9 @@
     "dissolve": "Dissoudre",
     "mergeTitle": "Fusionner",
     "mergeWith": "Prendre {name}",
-    "mergeHint": "Toutes les unités de l'autre formation rejoignent celle-ci, à la suite.",
     "scrambleWing": "Décoller ensemble ({n} prêtes)",
     "launchWaiting": "Faire décoller les {n} restées au sol",
     "scrambleRefused": "Aucune escadrille de la formation ne peut décoller.",
-    "wingHintGround": "Glissez depuis le chef (ou son aérodrome) pour tracer la route de la formation, ou décollez ensemble : elle se rassemble au-dessus du chef avant de partir.",
-    "wingHintGroundHeadings": "Préparez des branches dans la section « Route et étapes », ou décollez ensemble : la formation se rassemble au-dessus du chef avant de partir.",
-    "wingHintAir": "Glissez depuis la formation pour tracer sa route : toutes ses escadrilles la suivent, à la vitesse de la plus lente.",
-    "wingHintAirHeadings": "Donnez un cap ou des branches au chef : toutes les escadrilles le suivent, à la vitesse de la plus lente.",
-    "groupHint": "Tracez la route depuis le groupe de soutien : ses groupes suivent le chef en ligne de file. Quand le plus court arrive au bout de son autonomie, tous rentrent.",
-    "roe": "Face à l'ennemi",
     "roes": {
       "defend": "Défense",
       "attack": "Attaque",
@@ -2338,8 +2244,8 @@
       "attack": "Attaque les raids qui arrivent ; un raid qui rentre demande votre autorisation de poursuivre.",
       "pursue": "Attaque et poursuit les raids qui rentrent, sans demander, jusqu'à mi-Manche ; au-delà, elle demande."
     },
-    "stackTab": "{name} : ouvrir sa fiche (les unités superposées sur la carte ont chacune leur onglet)",
-    "siteTab": "{name} : la fiche de l'installation (les unités qui s'y trouvent ont chacune leur onglet)",
+    "stackTab": "{name} : ouvrir sa fiche",
+    "siteTab": "{name} : la fiche de l'installation",
     "siteUnitTab": "{name} : ouvrir sa fiche ({site})",
     "tired": "{level} ({n} %)",
     "ordersVia": "Ordres : par {name}."
@@ -2377,7 +2283,6 @@
     "noPoint": "Point à placer sur la carte",
     "place": "Placer sur la carte",
     "placing": "Cliquez sur la carte…",
-    "routeHint": "Pour tracer la route d'après le rendez-vous, glissez depuis le point RV sur la carte.",
     "routeClear": "Effacer la route",
     "when": "Heure du rendez-vous",
     "asap": "Au plus tôt",
@@ -2390,17 +2295,9 @@
       "go": "Partir sans lui"
     },
     "upTo": "au plus",
-    "missingHintAir": "Au rendez-vous, s'il manque une escadrille, la question vous est posée ; sans réponse, ce choix s'applique. Les retardataires suivent le plan en retard, à pleine vitesse.",
-    "missingHintSea": "Au rendez-vous, s'il manque un groupe, ce choix s'applique. Les retardataires suivent le plan en retard.",
-    "leaderHint": "Sur le chef : les membres décollent à leur heure et rejoignent le chef ; le chef tourne au-dessus de sa base jusqu'à ce qu'ils l'aient rejoint (15 min au plus).",
     "departures": "Départs (heure de l'ordre)",
     "departuresAuto": "Départs calculés (heure de l'ordre)",
     "arrival": "au point vers {time}",
-    "aid": {
-      "auto": "Arcade : les départs sont calculés pour que tous arrivent ensemble.",
-      "eta": "Standard : l'heure d'arrivée de chacun s'affiche selon son départ. Sans heure, il part au lancement du plan.",
-      "none": "Réaliste : à vous de compter le délai de décollage, la montée et le trajet (règle, profil). Sans heure, il part au lancement du plan."
-    },
     "compute": "Calculer les départs",
     "arm": "Lancer le plan",
     "cancel": "Annuler le plan",
@@ -2426,10 +2323,8 @@
     "errors": {
       "arm": "Placez d'abord le point de rendez-vous sur la carte."
     },
-    "leaderHintSea": "Sur le chef : le chef appareille à son heure avec ses propres ordres (étapes ou route tracée depuis le port) ; chaque groupe appareille à la sienne, rejoint le chef en mer et prend son poste.",
     "routeAfter": "Route après le rendez-vous : {n} point{s}.",
-    "routeNone": "Pas de route après le rendez-vous : la formation tournera au-dessus du point.",
-    "timeHelp": "La formation part à cette heure ; les premiers arrivés l'attendent sur place."
+    "routeNone": "Pas de route après le rendez-vous : la formation tournera au-dessus du point."
   },
   "cmd": {
     "orders": "Ordres",
@@ -2439,7 +2334,7 @@
     "home": "Rentrer",
     "homeTitle": "Rentrer à la base (P)",
     "breakOff": "Rompre {raid}",
-    "breakOffTitle": "Désengager {raid} (D) : sortir du combat, tourner sur place et laisser ce raid",
+    "breakOffTitle": "Rompre {raid} (D) : sortir du combat, tourner sur place et laisser ce raid tranquille jusqu'à un nouvel ordre sur lui",
     "roeCaption": "Face à l'ennemi",
     "roe": {
       "defend": "Défense",
@@ -2480,7 +2375,8 @@
     "uboats": "Chasse aux U-Boote",
     "home": "Retour au port",
     "group": "Groupe de soutien",
-    "comms": "Communications (silence radio)"
+    "comms": "Communications (silence radio)",
+    "convoyPort": "Au port : appareillage"
   },
   "comms": {
     "estimated": "Position estimée",
@@ -2498,8 +2394,7 @@
     "channel": {
       "direct": "En eaux suivies : position en direct, ordres immédiats.",
       "lamp": "Un de vos avions est en vue : les ordres passent au projecteur, tout de suite et sans radio.",
-      "radio": "En haute mer, sous silence radio : position estimée, ordres par radio à la relève de {hour} h.",
-      "radioHelp": "Une nouvelle route envoyée par radio peut être lue par le B-Dienst."
+      "radio": "En haute mer, sous silence radio : position estimée, ordres par radio à la relève de {hour} h."
     },
     "pending": "Ordres en route",
     "byRadio": "par radio, à la relève de {hour} h",
@@ -2508,7 +2403,6 @@
     "cancel": "Annuler",
     "carryRefused": "Ce groupe ne peut plus prendre l'ordre : il doit être au port ou en eaux suivies, en route vers ce convoi.",
     "askPosition": "Demander la position",
-    "askPositionHint": "Le navire répond par radio à la relève de {hour} h : un point sûr pour vous, mais aussi un relèvement pour le commandement des U-Boote.",
     "positionAsked": "{unit} : position demandée, réponse à la prochaine relève.",
     "sentByRadio": "{unit} est en haute mer : l'ordre part par radio à la relève de {hour} h.",
     "sentByLamp": "{unit} : ordre passé au projecteur par un avion en vue.",
@@ -2609,8 +2503,6 @@
       "text": "Vous jouez cette partie depuis {played}. Elle sera gardée parmi les sauvegardes automatiques, et le scénario repartira de son début.",
       "yes": "Recommencer"
     },
-    "open": "Menu",
-    "openTitle": "Menu de la partie : reprendre, sauvegarder, réglages, recommencer, menu principal",
     "gameNow": "{when} · {played} de jeu",
     "resume": "Reprendre",
     "save": "Sauvegarder",
@@ -2668,7 +2560,7 @@
   },
   "sheetHelpLead": {
     "route": {
-      "draw": "Glissez depuis l'unité pour tracer sa route ; sur le tracé, glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger.",
+      "draw": "Glissez depuis l'unité pour tracer sa route ; sur le tracé, glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger, et double-cliquez un point (ou Suppr) pour le retirer.",
       "headings": "En ordres par caps, la route se donne en étapes : mesurez le cap à la règle (glissez depuis l'unité), puis ajoutez l'étape mesurée ou tapez-la sous « Nouvelle étape »."
     },
     "rally": {
@@ -2680,24 +2572,60 @@
   "sheetHelp": {
     "ground": "Le délai d'un état d'alerte, c'est le temps pour être en l'air après l'ordre de décoller. Monter d'un cran prend la différence (du repos à l'alerte : 1 h 55) ; descendre est immédiat. Seul le Repos repose vraiment : Disponible repose peu, l'Alerte fatigue un peu, le Cockpit davantage. Un départ programmé donne l'ordre à l'heure saisie : l'escadrille part ensuite selon son état.",
     "groundPlain": "« Programmer » donne l'ordre de décoller à l'heure saisie, une fois ou chaque jour. Tracez la route depuis l'aérodrome, ou préparez des étapes : elles attendent le décollage. Sans route ni étapes, l'escadrille patrouille au-dessus de sa base.",
-    "routeAir": "Un point choisi se règle : ↑ ↓ pour l'altitude visée en y allant, Suppr ou un double-clic pour le retirer. Une étape au cap se donne sous « Nouvelle étape » : un cap, puis une fin (durée, heure, carré ou position) ; sans fin, elle dure jusqu'à nouvel ordre.",
-    "routeWing": "Toutes les escadrilles de la formation suivent la route du chef, à la vitesse de la plus lente. Décollée ensemble, elle se rassemble au-dessus du chef avant de partir. Un point choisi se règle : ↑ ↓ pour son altitude, Suppr ou un double-clic pour le retirer.",
-    "routeEscort": "Au port, la sortie choisie est la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge depuis l'anneau à son bout ou par des étapes au cap. La liste de fin de route dit ce que le groupe fait ensuite : attendre, garder le cap, rejoindre un convoi, chasser, entrer dans un port. Le chenal de sortie et le chenal d'entrée d'un port ne se modifient pas.",
+    "routeAir": "Un point choisi se règle avec ↑ ↓ : c'est l'altitude que l'escadrille vise en y allant. Une étape au cap se donne sous « Nouvelle étape » : un cap, puis une fin (durée, heure, carré ou position) ; sans fin, elle dure jusqu'à nouvel ordre. Au sol, une route tracée depuis l'aérodrome fait décoller l'escadrille prête ; avec un départ programmé, elle attend l'heure.",
+    "routeWing": "Toutes les escadrilles de la formation suivent la route du chef, à la vitesse de la plus lente. Décollée ensemble, elle se rassemble au-dessus du chef avant de partir. Un point choisi se règle avec ↑ ↓ : c'est l'altitude visée en y allant.",
+    "routeEscort": "Au port, la sortie choisie est la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge depuis l'anneau à son bout ou par des étapes au cap. Une étape au cap prend une fin (durée, heure ou position) ; sans fin, elle dure jusqu'à nouvel ordre. La liste de fin de route dit ce que le groupe fait ensuite : attendre, garder le cap, rejoindre un convoi, chasser ou entrer dans un port.",
     "routeGroup": "Les groupes du groupe de soutien suivent le chef en ligne de file. Au port, la sortie choisie est leur première étape : elle attend « Appareiller » ou l'heure programmée. Quand le plus court arrive au bout de son autonomie, tous rentrent.",
-    "routeConvoy": "Sans ordre, un convoi s'arrête au bout d'un tracé et attend ; au bout de ses étapes, il garde le cap. La liste « En fin de tracé » en décide autrement : « Entrer à… » le mène par le large à l'entrée du chenal choisi, où le pilote monte à bord ; « Reprendre la route de l'Amirauté » la rejoint au prochain point devant lui. Un tracé qui passe près de l'entrée d'un chenal et finit vers son port y entre de lui-même.",
+    "routeConvoy": "Sans ordre, un convoi s'arrête au bout d'un tracé et attend ; au bout de ses étapes, il garde le cap. La liste de fin de route en décide autrement, tout de suite s'il n'a plus rien à suivre : « Entrer à… » le mène par le large à l'entrée du chenal choisi, où le pilote monte à bord ; « Reprendre la route de l'Amirauté » la rejoint au prochain point devant lui. Un tracé qui passe près de l'entrée d'un chenal et finit vers son port y entre de lui-même.",
     "mission": "« Couvrir » fait tourner l'escadrille au-dessus du convoi, qu'elle suit. En Arcade, « Intercepter » laisse le contrôleur la guider et la faire monter au-dessus du raid ; sa chance dépend de la couverture radar au point de rencontre. « Rompre », dans la barre de commandes, la désengage d'un raid : elle le laisse tranquille, quelle que soit son attitude, jusqu'à un nouvel ordre sur lui.",
     "formation": "Une big wing est une seule unité : les ordres se donnent à la formation, qui décolle, vole et rentre ensemble. Chaque escadrille garde son état d'alerte et peut partir à sa propre heure.",
     "group": "Un groupe de soutien réunit des groupes d'escorte : les ordres se donnent au groupe de soutien, dont les groupes appareillent, escortent et rentrent ensemble. Quand le plus court arrive au bout de son autonomie, tous rentrent.",
-    "manageAir": "Une big wing est une seule unité : une fiche, les mêmes ordres pour toutes ses escadrilles. Une escadrille à court d'essence ou de munitions la quitte et rentre ; le chef suivant prend la tête. « Gérer » ouvre la page Formations, pour ajouter une escadrille ou changer de chef ; « Dissoudre » rend à chacune ses propres ordres.",
-    "manageSea": "Tracez la route depuis le groupe de soutien : ses groupes suivent le chef en ligne de file. Quand le plus court arrive au bout de son autonomie, tous rentrent. « Gérer » ouvre la page Formations ; « Dissoudre » rend à chaque groupe ses propres ordres.",
-    "convoyPort": "Un convoi au port prépare sa route (un tracé tiré depuis le port, ou des étapes), puis appareille : tout de suite avec « Appareiller », ou à l'heure programmée. Ce qui est préparé attend l'heure. Sans route ni étapes, il n'a nulle part où aller, et l'ordre attend.",
+    "manageAir": "Une big wing est une seule unité : une fiche, les mêmes ordres pour toutes ses escadrilles. Une escadrille à court d'essence ou de munitions la quitte et rentre ; le chef suivant prend la tête. « Composer… » ouvre la page Formations, pour ajouter une escadrille ou changer de chef ; « Dissoudre » rend à chacune ses propres ordres. Dans l'onglet Membres, « Prendre… » fait passer ici toutes les escadrilles d'une autre big wing.",
+    "manageSea": "Tracez la route depuis le groupe de soutien : ses groupes suivent le chef en ligne de file. Quand le plus court arrive au bout de son autonomie, tous rentrent. « Composer… » ouvre la page Formations ; « Dissoudre » rend à chaque groupe ses propres ordres. Dans l'onglet Membres, « Prendre… » fait passer ici tous les groupes d'un autre groupe de soutien.",
+    "convoyPort": "Un tracé tiré depuis le port fait appareiller le convoi tout de suite. Des étapes préparées attendent « Appareiller », dans la barre de commandes. Avec un appareillage programmé, tracé et étapes attendent l'heure dite. Sans rien de préparé à cette heure, le convoi n'a nulle part où aller, et l'ordre attend.",
     "port": "Choisir une sortie en fait la première étape du groupe : en rade, ou par un chenal jusqu'au large. Elle attend « Appareiller » ou l'heure programmée ; sans sortie choisie, un tracé tiré depuis le port part tout de suite. À l'heure dite, le groupe appareille avec ce qui est préparé, ou sort en rade et y attend vos ordres s'il n'y a rien.",
     "comms": "En haute mer, sous silence radio, la position d'un navire est une estimation et vos ordres partent par radio à la relève suivante. D'ici là ils restent sur la carte, en ocre, et se modifient encore. Une route envoyée par radio peut être lue par le B-Dienst ; au projecteur d'un avion en vue, ou portée par un groupe d'escorte, elle ne l'est pas. « Demander la position » fait répondre le navire à la relève : un point sûr pour vous, un relèvement pour les U-Boote.",
     "convoys": "Le groupe prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » calcule lui-même la route d'interception (sauf en Réaliste) et contourne la terre ; « Rentrer au port » aussi. Une route tracée qui finit dans la bulle d'un port y entre.",
     "uboats": "Rester : le groupe garde son poste et n'attaque qu'un U-Boot qu'il peut rejoindre sans lâcher son convoi (30 min et 15 km au plus). Chasser : il quitte le convoi pour un contact frais et revient seul, U-Boot coulé, contact perdu ou grenades tombées au tiers gardé pour le convoi ; le convoi reste sans escorte pendant ce temps. Grenadage plein : dix grenades par passe ; économe : cinq, avec moins de chances mais deux fois plus de passes. À vide, le groupe passe encore, à blanc : le U-Boot reste en plongée et perd le convoi.",
-    "rallyAir": "Sur le chef : les membres décollent à leur heure et rejoignent le chef, qui tourne au-dessus de sa base jusqu'à ce qu'ils l'aient rejoint (15 min au plus). Sur un point : avec une heure de rendez-vous, la formation part à cette heure et les premiers arrivés l'attendent sur place. S'il manque une escadrille, la question vous est posée ; sans réponse, le choix « Si quelqu'un manque » s'applique.",
-    "rallySea": "Sur le chef : le chef appareille à son heure avec ses propres ordres ; chaque groupe appareille à la sienne, le rejoint en mer et prend son poste. Sur un point : avec une heure de rendez-vous, le groupe de soutien part à cette heure et les premiers arrivés l'attendent sur place. S'il manque un groupe, le choix « Si quelqu'un manque » s'applique, et les retardataires suivent le plan en retard.",
+    "rallyAir": "Sur le chef : les membres décollent à leur heure et rejoignent le chef, qui les attend au-dessus de sa base (15 min au plus). Sur un point : avec une heure de rendez-vous, la formation part à cette heure et les premiers arrivés l'attendent ; pour la route d'après, glissez depuis le point RV sur la carte. S'il manque une escadrille à l'heure, la question vous est posée : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans elle ; sans réponse, le choix fait ici s'applique.",
+    "rallySea": "Sur le chef : le chef appareille à son heure avec ses propres ordres ; chaque groupe appareille à la sienne, le rejoint en mer et prend son poste. Sur un point : avec une heure de rendez-vous, le groupe de soutien part à cette heure et les premiers arrivés l'attendent ; pour la route d'après, glissez depuis le point RV sur la carte. S'il manque un groupe à l'heure, le choix fait ici s'applique : attendre (pas plus que le délai saisi), partir lentement pour être rattrapé, ou partir sans lui.",
     "minStock": "Le stock minimum est un ordre permanent : quand le stock (trains en route compris) passe sous ce seuil, un train part du port le mieux placé. Champ vide : pas d'ordre. En Arcade, le seuil est automatique.",
-    "train": "Un train compte au plus {wagons} wagons : citernes de {fuel} t pour le carburant, wagons couverts de {materiel} t pour le reste. Il lui faut au moins {min} t. Un petit train prend quand même un des trains de la ligne."
+    "train": "Un train compte au plus {wagons} wagons : citernes de {fuel} t pour le carburant, wagons couverts de {materiel} t pour le reste. Il lui faut au moins {min} t. Un petit train prend quand même un des trains de la ligne.",
+    "portPlain": "« Appareiller » fait sortir le groupe au large du port, où il attend vos ordres. Un tracé tiré depuis le port part tout de suite. Avec un appareillage programmé, tracé et étapes attendent l'heure dite."
+  },
+  "tips": {
+    "legEnd": {
+      "air": "Fin de l'étape : une durée (6, 1 h 30), une heure (14:20), un carré (J5) ou une position (51N 1E). Vide : jusqu'à nouvel ordre.",
+      "airNoGrid": "Fin de l'étape : une durée (6, 1 h 30), une heure (14:20) ou une position (56N 12O). Vide : jusqu'à nouvel ordre.",
+      "sea": "Fin de l'étape : une durée en heures (30, 6 min), une heure (14:20) ou une position (56N 12O). Vide : jusqu'à nouvel ordre."
+    },
+    "pointDelete": "Retirer ce point du tracé (Suppr, ou double-clic sur le point)",
+    "convoyEndNow": "Le convoi n'a plus rien à suivre : l'ordre choisi ici s'exécute tout de suite.",
+    "intercept": "Le contrôleur guide l'escadrille et la fait monter au-dessus du raid ; la chance affichée dépend de la couverture au point de rencontre.",
+    "cover": "L'escadrille tourne au-dessus du convoi et le suit.",
+    "sailConvoy": "Appareiller avec les étapes préparées. Sans étape, tirez un tracé depuis le port : le convoi part aussitôt.",
+    "sailEscort": "Appareiller : le groupe prend la sortie choisie, puis son tracé ou ses étapes. Sans sortie choisie, il sort en rade et y attend vos ordres.",
+    "sailEscortNoChannel": "Appareiller : le groupe sort au large du port et y attend vos ordres, ou prend votre tracé ou vos étapes.",
+    "behaviour": {
+      "stay": "Rester : le groupe garde son poste et n'attaque qu'un U-Boot qu'il peut rejoindre sans lâcher son convoi (30 min et 15 km au plus).",
+      "hunt": "Chasser : le groupe quitte le convoi pour un contact frais et revient seul. Le convoi reste sans escorte pendant ce temps."
+    },
+    "join": "Rejoindre : le groupe calcule sa route d'interception, contourne la terre et prend station à moins de 15 km du convoi.",
+    "askPosition": "Le navire répond par radio à la relève de {hour} h : un point sûr pour vous, mais aussi un relèvement pour le commandement des U-Boote.",
+    "merge": "Toutes les unités de l'autre formation rejoignent celle-ci, à la suite.",
+    "rallyLeaderAir": "Les membres décollent à leur heure et rejoignent le chef, qui les attend au-dessus de sa base (15 min au plus).",
+    "rallyLeaderSea": "Le chef appareille à son heure avec ses propres ordres ; chaque groupe le rejoint en mer et prend son poste.",
+    "rallyPoint": "Tous se retrouvent sur un point de la carte, à une heure fixée ou au plus tôt.",
+    "missing": {
+      "wait": "Attendre le retardataire au rendez-vous, pas plus longtemps que le délai saisi.",
+      "slow": "Partir à l'heure, mais lentement : le retardataire rattrape la formation en route.",
+      "go": "Partir à l'heure sans lui : le retardataire suit le plan en retard."
+    },
+    "zigzagOn": "Zigzag : oui. Il gêne les U-Boote, mais ralentit le convoi d'environ 15 %.",
+    "zigzagOff": "Zigzag : non. Le zigzag gêne les U-Boote, mais ralentit le convoi d'environ 15 %.",
+    "boostConvoy": "Vitesse maximale ({best} nœuds) : des navires lents décrochent et deviennent des traînards. À {n} nœuds ou moins, le convoi reste groupé.",
+    "minStock": "Ordre permanent : quand le stock (trains en route compris) passe sous ce seuil, un train part du port le mieux placé. Vide : pas d'ordre.",
+    "minStockAuto": "En Arcade, le seuil est automatique : il s'affiche en grisé. Un seuil saisi ici le remplace.",
+    "trainLoad": "Au plus {wagons} wagons par train : citernes de {fuel} t pour le carburant, wagons couverts de {materiel} t pour le reste. Au moins {min} t par train."
   }
 }

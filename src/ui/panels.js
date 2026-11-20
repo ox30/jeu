@@ -28,7 +28,7 @@ import { isDaylight } from '../sim/daylight.js';
 
 import { radarRangeFactor, siteStatus } from '../sim/sites.js';
 import { drawProfile } from '../render/profile.js';
-import { button, options, row, setHtml } from './html.js';
+import { button, options, row, setHtml, tip } from './html.js';
 import { devRaids, isRaidActive, raidLine, uboatLine, uboatReturnText } from './dev.js';
 import {
   chargesText, commsKey, commsLines, convoyCargoRows, coverButtons, escortSheet, exitLines, homePortLine, huntLines, joinLines, nextReliefHour, positionRows, renderLogistics, stockBlock,
@@ -345,8 +345,7 @@ function pointBlock(app, u) {
       altM === null || altM === undefined ? '' : button('point-alt-clear', t('orders.pointAltClear'), { id: u.id, kind: u.kind }),
       `</div>`);
   }
-  parts.push(`<div class="order-line">${button('point-delete', t('orders.pointDelete'), { id: u.id, kind: u.kind })}</div>`,
-    `<p class="hint">${escapeHtml(u.kind === 'squadron' ? t('orders.pointHintAir') : t('orders.pointHintSea'))}</p></div>`);
+  parts.push(`<div class="order-line">${button('point-delete', t('orders.pointDelete'), { id: u.id, kind: u.kind, extra: tip(t('tips.pointDelete')) })}</div></div>`);
   return parts.join('');
 }
 
@@ -368,8 +367,8 @@ function interceptBlock(app, s) {
   const guided = s.intercept ? s.intercept.raidId : null;
   const buttons = list.slice(0, 3).map(({ contact, chance }) => button('intercept',
     chance.p > 0 ? t('orders.intercept', { raid: contact.label, p: Math.round(chance.p * 100) }) : t('orders.interceptNone', { raid: contact.label }),
-    { id: s.id, kind: 'squadron', disabled: chance.p <= 0, active: guided === contact.raidId, extra: ` data-raid="${escapeHtml(contact.raidId)}"` }));
-  return `<div class="order-line intercepts">${buttons.join('')}</div><p class="hint">${escapeHtml(t('orders.interceptHint'))}</p>`;
+    { id: s.id, kind: 'squadron', disabled: chance.p <= 0, active: guided === contact.raidId, extra: ` data-raid="${escapeHtml(contact.raidId)}"${tip(t('tips.intercept'))}` }));
+  return `<div class="order-line intercepts">${buttons.join('')}</div>`;
 }
 
 /**
@@ -395,9 +394,7 @@ function exitStepBlock(app, e) {
     rows.push(`<li><span class="leg-text">${escapeHtml(t('orders.lineStep', { n: line.length, s: line.length > 1 ? 's' : '' }))}</span>
       <span class="leg-status">${escapeHtml(kmText(polylineLength([wayOut[head - 1], ...line])))}</span>${button('line-remove', '×', cross(t('orders.lineRemove')))}</li>`);
   }
-  const headings = app.world.settings.orders === 'headings';
-  return `<div class="sub">${escapeHtml(t('orders.exitTitle'))}</div><ul class="legs steps">${rows.join('')}</ul>
-    ${inPort ? `<p class="hint">${escapeHtml(t(headings ? 'orders.exitStepHintHeadings' : 'orders.exitStepHint'))}</p>` : ''}`;
+  return `<div class="sub">${escapeHtml(t('orders.exitTitle'))}</div><ul class="legs steps">${rows.join('')}</ul>`;
 }
 
 /** The list of legs (or the route being followed) of a unit. */
@@ -417,14 +414,12 @@ function planList(app, u) {
     const n = wait.route.points.length;
     const group = wait.route.via === 'ship' ? w.escorts.find((e) => e.id === wait.route.carrier) : null;
     parts.push(`<p class="state-line awaited">${escapeHtml(group ? t('orders.awaitedRouteShip', { n, s: n > 1 ? 's' : '', group: group.short }) : t('orders.awaitedRoute', { n, s: n > 1 ? 's' : '', hour }))}</p>`);
-    if (!group) parts.push(`<p class="hint">${escapeHtml(t('orders.awaitedRouteHelp'))}</p>`);
   }
   if (own > 0 && !plan.length) {
     // What the unit does: it follows its line, or its line waits for the departure. (With a
     // line on its way, the handles of the map are that line's: the ship's own is only named.)
     const key = wait.route ? 'orders.followingUntilRelief' : moving ? 'orders.followingRoute' : u.kind === 'squadron' ? 'orders.waitingRouteAir' : 'orders.waitingRoute';
     parts.push(`<p class="state-line">${escapeHtml(t(key, { n: own, s: own > 1 ? 's' : '' }))}</p>`);
-    if (!wait.route) parts.push(`<p class="hint">${escapeHtml(t('orders.routeHelp'))}</p>`);
   } else if (!plan.length) {
     parts.push(`<p class="state-line">${escapeHtml(moving ? t('orders.noLeg') : t('orders.noLegReady'))}</p>`);
   } else {
@@ -445,7 +440,7 @@ function planList(app, u) {
     });
     parts.push('</ol>');
   }
-  if (wait.legs) parts.push(`<p class="state-line awaited">${escapeHtml(t('orders.awaitedLegs', { hour }))}</p><p class="hint">${escapeHtml(t('orders.awaitedLegsHelp'))}</p>`);
+  if (wait.legs) parts.push(`<p class="state-line awaited">${escapeHtml(t('orders.awaitedLegs', { hour }))}</p>`);
   // (Checked for good when the order is carried out; the player is warned before it leaves.)
   if ((wait.route || wait.legs) && awaitedLand(w, u)) parts.push(`<p class="message warning">${escapeHtml(t('orders.awaitedLand'))}</p>`);
   return parts.join('');
@@ -467,13 +462,12 @@ function legForm(app, u) {
     `<div class="leg-form${leg ? ' editing' : ''}"><div class="sub">${escapeHtml(leg ? t('orders.editingLeg', { n: editing + 1 }) : t('orders.newLeg'))}</div>`,
     `<div class="order-line">`,
     `<label>${escapeHtml(t('orders.legHeading'))} <input type="number" min="0" max="360" step="1" id="leg-heading" inputmode="numeric"${value(leg && leg.heading)}></label>`,
-    `<label class="grow">${escapeHtml(t('orders.legEnd'))} <input type="text" id="leg-end" autocomplete="off" spellcheck="false" placeholder="${escapeHtml(t(`orders.endExample.${sea ? 'sea' : app.world.grid ? 'air' : 'airNoGrid'}`))}"${value(leg && legEndInput(app.world, leg, sea))}></label>`,
+    `<label class="grow"${tip(t(`tips.legEnd.${sea ? 'sea' : app.world.grid ? 'air' : 'airNoGrid'}`))}>${escapeHtml(t('orders.legEnd'))} <input type="text" id="leg-end" autocomplete="off" spellcheck="false" placeholder="${escapeHtml(t(`orders.endExample.${sea ? 'sea' : app.world.grid ? 'air' : 'airNoGrid'}`))}"${value(leg && legEndInput(app.world, leg, sea))}></label>`,
     sea ? `<label>${escapeHtml(t('orders.legSpeed'))} <input type="number" min="1" max="${u.speedKn}" step="1" id="leg-speed" placeholder="${u.speedKn}"${value(leg && leg.speedKn)}></label>`
       : `<label>${escapeHtml(t('orders.legAlt'))} <input type="number" min="1000" max="32000" step="1000" id="leg-alt" placeholder="—"${value(leg && leg.altFt)}></label>`,
     button('add-leg', leg ? t('orders.applyLeg') : t('orders.addLeg'), { id: u.id, kind: u.kind }),
     leg ? button('cancel-edit-leg', t('orders.cancelEdit'), { id: u.id, kind: u.kind }) : '',
     `</div>`,
-    `<p class="hint">${escapeHtml(t(sea ? 'orders.endHintSea' : app.world.grid ? 'orders.endHintAir' : 'orders.endHintAirNoGrid'))}</p>`,
     `<div class="order-line">`,
     button('add-ruler-leg', t('orders.addMeasured'), { id: u.id, kind: u.kind }),
     button('clear-plan', t('orders.clearPlan'), { id: u.id, kind: u.kind }),
@@ -513,11 +507,10 @@ function convoyEndLine(app, c) {
   const shown = e.waiting || e.current;
   const current = shown ? endValue(shown) : '';
   const told = e.waiting ? `<p class="state-line awaited">${escapeHtml(t('orders.convoyEnd.waiting', { what: convoyEndText(w, e.waiting), hour: nextReliefHour(w) }))}</p>` : '';
-  // Taken into port by the game, told nothing: said (a state), with the way to have it otherwise (help).
+  // Taken into port by the game, told nothing: said (a state; the way to have it otherwise is in the « ? »).
   const own = !e.waiting && e.auto && e.current && e.current.kind === 'port';
-  const hint = e.after === 'now' ? 'orders.convoyEnd.hintNow' : own ? 'orders.convoyEnd.autoPortHelp' : 'orders.convoyEnd.hint';
-  return `<div class="order-line"><label class="grow">${escapeHtml(t(`orders.convoyEnd.after.${e.after}`))} <select id="convoy-end-${escapeHtml(c.id)}" data-change="convoy-end" data-id="${escapeHtml(c.id)}">${options(list, current)}</select></label></div>
-    ${told}${own ? `<p class="state-line">${escapeHtml(t('orders.convoyEnd.autoPort'))}</p>` : ''}<p class="hint">${escapeHtml(t(hint))}</p>`;
+  return `<div class="order-line"><label class="grow"${e.after === 'now' ? tip(t('tips.convoyEndNow')) : ''}>${escapeHtml(t(`orders.convoyEnd.after.${e.after}`))} <select id="convoy-end-${escapeHtml(c.id)}" data-change="convoy-end" data-id="${escapeHtml(c.id)}">${options(list, current)}</select></label></div>
+    ${told}${own ? `<p class="state-line">${escapeHtml(t('orders.convoyEnd.autoPort'))}</p>` : ''}`;
 }
 
 function shipEndLine(app, e) {
@@ -567,8 +560,7 @@ function formationLine(app, u) {
     return `<div class="formation-line"><p>${escapeHtml(t(leader ? 'unit.leaderOf' : 'unit.memberOf', { name: f.name }))}</p>
       <div class="order-line">${button('select', t('unit.showFormation'), { id: f.id, kind: 'formation' })}
       ${button('formation-remove', t('unit.leaveFormation'), { id: u.id, extra: ` data-formation="${escapeHtml(f.id)}"` })}</div>
-      <p class="state-line">${escapeHtml(t('unit.ordersVia', { name: f.name }))}</p>
-      <p class="hint">${escapeHtml(t(u.kind === 'squadron' ? 'unit.memberHintAir' : 'unit.memberHintSea'))}</p></div>`;
+      <p class="state-line">${escapeHtml(t('unit.ordersVia', { name: f.name }))}</p></div>`;
   }
   if (u.state === 'lost' || (u.kind === 'squadron' && u.role !== 'fighter')) return '';
   return `<div class="order-line">${button('formation-new', t(u.kind === 'squadron' ? 'unit.newWing' : 'unit.newGroup'), { id: u.id, kind: u.kind })}</div>`;
@@ -618,18 +610,24 @@ function airBar(app, s, f = null) {
   return `<div class="cmd-bar">${cmdGroup(t('cmd.orders'), acts.join(''))}${roes ? cmdGroup(t('cmd.roeCaption'), roes, 'roe') : ''}${altitudeControl(s, 'squadron', ftText(feetOf(s.targetAlt)))}${speed}</div>`;
 }
 
+/** Whether the port an escort group lies in has channels to choose its way out by. */
+function hasChannels(w, e) {
+  const port = w.byId.port.get(e.portId);
+  return Boolean(port && port.approaches && port.approaches.length);
+}
+
 /** Command bar of an escort group (or of the leader of a support group). */
 function seaBar(app, e) {
   const w = app.world;
   if (e.state === 'lost') return '';
   const acts = [];
   const atSea = ['atSea', 'waiting', 'escorting', 'hunting'].includes(e.state);
-  if (e.state === 'inPort') acts.push(cmdButton('sail', 'sail', t('cmd.sail'), { id: e.id, kind: 'escort', title: t('orders.exitHint') }));
+  if (e.state === 'inPort') acts.push(cmdButton('sail', 'sail', t('cmd.sail'), { id: e.id, kind: 'escort', title: t(hasChannels(w, e) ? 'tips.sailEscort' : 'tips.sailEscortNoChannel') }));
   if (atSea) acts.push(cmdButton('escort-home', 'port', t('cmd.port'), { id: e.id, kind: 'escort', title: t('cmd.portTitle') }));
   if (e.state === 'hunting') acts.push(cmdButton('hunt-stop', 'stop', t('cmd.huntStop'), { id: e.id, kind: 'escort', title: t('orders.huntStop'), danger: true }));
   const behaviour = e.behaviour === 'hunt' ? 'hunt' : 'stay';
   const beh = ['stay', 'hunt'].map((b) => cmdButton('escort-behaviour', b, t(`cmd.behaviour.${b}`), {
-    id: e.id, kind: 'escort', active: behaviour === b, title: t(`orders.behaviours.${b}`), extra: ` data-behaviour="${b}"`,
+    id: e.id, kind: 'escort', active: behaviour === b, title: t(`tips.behaviour.${b}`), extra: ` data-behaviour="${b}"`,
   })).join('');
   const th = shipThrottle(w, e);
   const kn = Math.round((currentSpeed(e) * 3600) / 1.852);
@@ -645,15 +643,17 @@ function convoyBar(app, c) {
   const canOrder = c.state === 'inPort' || c.state === 'waiting' || c.state === 'atSea';
   if (!canOrder) return '';
   const acts = [];
-  if (c.state === 'inPort') acts.push(cmdButton('sail', 'sail', t('cmd.sailConvoy'), { id: c.id, kind: 'convoy', title: t('orders.sailHint'), disabled: !c.plan.length }));
+  if (c.state === 'inPort') acts.push(cmdButton('sail', 'sail', t('cmd.sailConvoy'), { id: c.id, kind: 'convoy', title: t('tips.sailConvoy'), disabled: !c.plan.length }));
   if (c.admiraltyRoute.length && !c.route.length) acts.push(cmdButton('admiralty', 'route', t('cmd.admiralty'), { id: c.id, kind: 'convoy', title: t('orders.admiralty') }));
   if (c.type !== 'coastal' && !c.straggler) {
-    acts.push(cmdButton('zigzag', 'zigzag', t('cmd.zigzag'), { id: c.id, kind: 'convoy', active: c.zigzag, title: c.zigzag ? t('orders.zigzagOn') : t('orders.zigzagOff') }));
+    acts.push(cmdButton('zigzag', 'zigzag', t('cmd.zigzag'), { id: c.id, kind: 'convoy', active: c.zigzag, title: t(c.zigzag ? 'tips.zigzagOn' : 'tips.zigzagOff') }));
   }
   const th = shipThrottle(w, c);
   const kn = Math.round((currentSpeed(c) * 3600) / 1.852);
   const speed = c.type !== 'coastal' && !c.straggler ? speedControl(c, 'convoy', {
     min: w.rules.escortGroups.minSpeedPct, pct: th.pct, boostOn: th.boost, boost: Math.round((c.speedKn / fullKnots(w, c)) * 100), unitText: t('cmd.knotsConvoy', { n: kn, best: c.speedKn }),
+    // (Its risk is not the fuel: at full speed the slow ships fall behind.)
+    boostTitle: t('tips.boostConvoy', { best: c.speedKn, n: formatNumber(c.speedKn * w.rules.asw.stragglerFrom, 1) }),
   }) : '';
   return `<div class="cmd-bar">${cmdGroup(t('cmd.orders'), acts.join(''))}${speed}</div>`;
 }
@@ -727,7 +727,6 @@ function squadronRows(app, s, state) {
   const flying = isFlying(s);
   const grid = flying ? gridRef(w.grid, s.x, s.y) : null;
   return [
-    s.role !== 'fighter' ? `<p class="hint">${escapeHtml(t(`sheet.roleHint.${s.role}`))}</p>` : '',
     row(t('sheet.state'), escapeHtml(state)),
     row(t('sheet.airfield'), escapeHtml(home.name + (field.id !== home.id ? ` → ${field.name}` : ''))),
     row(t('sheet.aircraft'), t('sheet.aircraftOf', { n: s.aircraft, total: s.aircraftStart })),
@@ -951,7 +950,6 @@ function takeoffBlock(app, s, withButton = true) {
     if (!f) {
       // With neither a line nor legs it will patrol over its base: said, it is what it will do.
       if (!s.route.length && !s.plan.length) parts.push(`<p class="state-line">${escapeHtml(t('orders.scheduledNoRoute'))}</p>`);
-      parts.push(`<p class="hint">${escapeHtml(t('orders.scheduledRouteHelp'))}</p>`);
     }
   } else if (grounded) {
     parts.push(scheduleHint(app));
@@ -982,7 +980,7 @@ function letGoLine(app, s) {
     }
   }
   if (!labels.size) return '';
-  return `<p class="state-line">${escapeHtml(t('orders.letGo', { raids: [...labels].join(', ') }))}</p><p class="hint">${escapeHtml(t(labels.size > 1 ? 'orders.letGoHelpMany' : 'orders.letGoHelp'))}</p>`;
+  return `<p class="state-line">${escapeHtml(t('orders.letGo', { raids: [...labels].join(', ') }))}</p>`;
 }
 
 // ---- squadrons ----
@@ -990,7 +988,6 @@ function letGoLine(app, s) {
 function squadronPanel(app, s) {
   const w = app.world;
   const state = squadronStateText(app, s);
-  const headings = app.world.settings.orders === 'headings';
   const member = formationOf(w, s);
   const grounded = s.state === 'ready' || s.state === 'refuelling';
   const up = isFlying(s) || s.state === 'scrambling';
@@ -1005,9 +1002,6 @@ function squadronPanel(app, s) {
       routeSection(app, s),
       section(app, 'mission', t('sec.mission'), ordersBox(up ? coverButtons(app, s) : '', interceptBlock(app, s), letGoLine(app, s)), true, 'mission'),
       section(app, 'formation', t('sec.formation'), ordersBox(formationLine(app, s)), !up, 'formation'),
-      `<p class="hint">${escapeHtml(grounded
-        ? (headings ? t('orders.scrambleHintHeadings') : t('orders.scrambleHint'))
-        : (headings ? t('orders.headingsHint') : t('orders.drawHint')))}</p>`,
     ].join('');
   }
   const where = isFlying(s) ? ftText(feetOf(s.alt)) + climbArrow(s) : w.byId.airfield.get(s.airfield).name;
@@ -1031,8 +1025,7 @@ function sailBlock(app, c) {
   if (c.state !== 'inPort' && c.state !== 'refit') return '';
   if (c.schedule && !c.schedule.join) {
     return `<div class="order-line scheduled"><span class="grow">${escapeHtml(t('orders.sailScheduled', { time: clockText(w, c.schedule.at) }))}${c.schedule.delayed ? ` · ${escapeHtml(t('orders.waiting'))}` : ''}</span>
-      ${button('schedule-cancel', t('orders.cancel'), { id: c.id, kind: c.kind })}</div>
-      <p class="hint">${escapeHtml(t(c.kind === 'escort' ? 'orders.sailScheduledHintEscort' : 'orders.sailScheduledHint'))}</p>`;
+      ${button('schedule-cancel', t('orders.cancel'), { id: c.id, kind: c.kind })}</div>`;
   }
   if (c.schedule && c.schedule.join) {
     const f = formationById(w, c.schedule.join);
@@ -1056,7 +1049,7 @@ function convoyPanel(app, c) {
   const speedKn = Math.round((currentSpeed(c) * 3600) / 1.852);
   const stateText = t(`states.convoy.${c.state === 'arrived' && c.unloading ? 'unloading' : c.state}`);
   const rows = [
-    c.straggler ? `<p class="state-line">${escapeHtml(t('sheet.straggler'))}</p><p class="hint">${escapeHtml(t('sheet.stragglerHint'))}</p>` : '',
+    c.straggler ? `<p class="state-line">${escapeHtml(t('sheet.straggler'))}</p>` : '',
     row(t('sheet.state'), escapeHtml(stateText)),
     c.tankers || c.freighters ? convoyCargoRows(app, c)
       : row(t('sheet.ships'), c.ships === c.shipsStart ? String(c.ships) : t('sheet.aircraftOf', { n: c.ships, total: c.shipsStart })),
@@ -1070,14 +1063,11 @@ function convoyPanel(app, c) {
     remaining !== null && c.state === 'atSea' ? row(t('sheet.eta'), escapeHtml(about(dateTimeText(w.startMs + (w.t + remaining / currentSpeed(c)) * 1000)))) : '',
   ].join('');
   const canOrder = c.state === 'inPort' || c.state === 'waiting' || c.state === 'atSea';
-  const headings = app.world.settings.orders === 'headings';
   const cmd = canOrder ? [
-    c.state === 'inPort' || c.state === 'refit' ? section(app, 'convoyPort', t('sec.port'), ordersBox(sailBlock(app, c),
-      `<p class="hint">${escapeHtml(t('orders.sailHint'))}</p>`), true, 'convoyPort') : '',
+    // (A convoy has no way out to choose: its section in port is its sailing alone.)
+    c.state === 'inPort' || c.state === 'refit' ? section(app, 'convoyPort', t('sec.convoyPort'), ordersBox(sailBlock(app, c)), true, 'convoyPort') : '',
     commsLines(app, c) ? section(app, 'comms', t('sec.comms'), ordersBox(commsLines(app, c)), true, 'comms') : '',
     routeSection(app, c),
-    c.type !== 'coastal' && !c.straggler ? `<p class="hint">${escapeHtml(t('orders.speedHint', { n: formatNumber(c.speedKn * w.rules.asw.stragglerFrom, 1) }))}</p>` : '',
-    c.state !== 'inPort' ? `<p class="hint">${escapeHtml(headings ? t('orders.headingsHint') : t('orders.drawHint'))}</p>` : '',
   ].join('') : '';
   const tabs = [
     // (The choice of the end of its route starts afresh when what it follows changes.)
@@ -1126,11 +1116,12 @@ function escortPanel(app, e) {
     const route = es.planUnit ? routeSection(app, e) : '';
     const inPort = e.state === 'inPort';
     cmd = [
-      inPort || e.state === 'refit' ? section(app, 'port', t('sec.port'), ordersBox(inPort ? exitLines(app, e, { sail: false }) : '', sailBlock(app, e)), true, 'port') : '',
+      // (A port without channels has no way out to choose: its sailing alone.)
+      inPort || e.state === 'refit' ? section(app, 'port', t(hasChannels(w, e) ? 'sec.port' : 'sec.convoyPort'), ordersBox(inPort ? exitLines(app, e) : '', sailBlock(app, e)), true, hasChannels(w, e) ? 'port' : 'portPlain') : '',
       inPort ? route : '',
       commsLines(app, e) ? section(app, 'comms', t('sec.comms'), ordersBox(commsLines(app, e)), true, 'comms') : '',
       section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, e)), true, 'convoys'),
-      e.state === 'refit' ? '' : section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, e, { behaviour: false })), true, 'uboats'),
+      e.state === 'refit' ? '' : section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, e)), true, 'uboats'),
       atSea ? section(app, 'home', t('sec.home'), ordersBox(homePortLine(app, e))) : '',
       inPort ? '' : route,
       section(app, 'group', t('sec.group'), ordersBox(joinGroupBlock(app, e), formationLine(app, e)), false, 'group'),
@@ -1199,8 +1190,7 @@ function memberRows(app, f) {
   });
   const others = w.formations.filter((x) => x !== f && x.kind === f.kind);
   const merge = others.length ? `<div class="orders"><div class="sub">${escapeHtml(t('unit.mergeTitle'))}</div><div class="order-line">${others.map((x) =>
-    button('formation-merge', t('unit.mergeWith', { name: x.name }), { id: f.id, extra: ` data-from="${escapeHtml(x.id)}"` })).join('')}</div>
-    <p class="hint">${escapeHtml(t('unit.mergeHint'))}</p></div>` : '';
+    button('formation-merge', t('unit.mergeWith', { name: x.name }), { id: f.id, extra: ` data-from="${escapeHtml(x.id)}"${tip(t('tips.merge'))}` })).join('')}</div></div>` : '';
   return `<ol class="members">${rows.join('')}</ol>${merge}`;
 }
 
@@ -1243,8 +1233,8 @@ function rallyTab(app, f) {
   const p = r && r.where === 'point' && r.x !== null ? r : null;
   const parts = [`<div class="orders">`, scheduleHint(app)];
   parts.push(`${subTitle(app, t('rally.where'), air ? 'rallyAir' : 'rallySea')}<div class="order-line">
-    ${button('rally-where', t('rally.overLeaderBtn'), { id, kind, active: where === 'leader', extra: ' data-where="leader"' })}
-    ${button('rally-where', t('rally.atPointBtn'), { id, kind, active: where === 'point', extra: ' data-where="point"' })}</div>`);
+    ${button('rally-where', t('rally.overLeaderBtn'), { id, kind, active: where === 'leader', extra: ` data-where="leader"${tip(t(air ? 'tips.rallyLeaderAir' : 'tips.rallyLeaderSea'))}` })}
+    ${button('rally-where', t('rally.atPointBtn'), { id, kind, active: where === 'point', extra: ` data-where="point"${tip(t('tips.rallyPoint'))}` })}</div>`);
   if (where === 'point') {
     const [lon, lat] = p ? unproject(p.x, p.y) : [null, null];
     parts.push(`<div class="order-line"><span class="grow">${escapeHtml(p ? positionText(lat, lon) : t('rally.noPoint'))}</span>
@@ -1254,24 +1244,21 @@ function rallyTab(app, f) {
         <b class="alt-value">${escapeHtml(ftText(feetOf(r.altM)))}</b>${button('rally-alt-up', '+', { id, kind })}</div>`);
     }
     const after = r && r.route ? r.route.length : 0;
-    parts.push(`<p class="state-line">${escapeHtml(t(after ? 'rally.routeAfter' : 'rally.routeNone', { n: after, s: after > 1 ? 's' : '' }))}</p><p class="hint">${escapeHtml(t('rally.routeHint'))}</p>`);
+    parts.push(`<p class="state-line">${escapeHtml(t(after ? 'rally.routeAfter' : 'rally.routeNone', { n: after, s: after > 1 ? 's' : '' }))}</p>`);
     if (r && r.route.length) parts.push(`<div class="order-line">${button('rally-route-clear', t('rally.routeClear'), { id, kind })}</div>`);
     // When: as early as possible, or at a time.
     parts.push(`<div class="sub">${escapeHtml(t('rally.when'))}</div><div class="order-line">
       ${button('rally-asap', t('rally.asap'), { id, kind, active: !r || r.at === null })}
       ${air ? '' : daySelect(w, `rally-day-${id}`)}${timeInput(`rally-time-${id}`, r && r.at !== null ? hhmm(w, r.at) : '')}
       ${button('rally-time', t('rally.setTime'), { id, kind, active: Boolean(r && r.at !== null) })}</div>`);
-    if (r && r.at !== null) parts.push(`<p class="state-line">${escapeHtml(t('rally.timeSet', { time: clockText(w, r.at) }))}</p><p class="hint">${escapeHtml(t('rally.timeHelp'))}</p>`);
+    if (r && r.at !== null) parts.push(`<p class="state-line">${escapeHtml(t('rally.timeSet', { time: clockText(w, r.at) }))}</p>`);
     // Someone missing at the time: wait, slow down, go.
     const missing = r ? r.missing : 'wait';
     parts.push(`<div class="sub">${escapeHtml(t('rally.missingTitle'))}</div><div class="order-line">
-      ${button('rally-missing', t('rally.missing.wait'), { id, kind, active: missing === 'wait', extra: ' data-missing="wait"' })}
+      ${button('rally-missing', t('rally.missing.wait'), { id, kind, active: missing === 'wait', extra: ` data-missing="wait"${tip(t('tips.missing.wait'))}` })}
       <label class="small">${escapeHtml(t('rally.upTo'))} <input type="number" min="1" max="${air ? 60 : 2880}" id="rally-wait-${escapeHtml(id)}" data-change="rally-wait" data-id="${escapeHtml(id)}" value="${r ? r.waitMin : air ? 10 : 360}"> ${escapeHtml(t('units.minShort'))}</label>
-      ${button('rally-missing', t('rally.missing.slow'), { id, kind, active: missing === 'slow', extra: ' data-missing="slow"' })}
-      ${button('rally-missing', t('rally.missing.go'), { id, kind, active: missing === 'go', extra: ' data-missing="go"' })}</div>
-      <p class="hint">${escapeHtml(t(air ? 'rally.missingHintAir' : 'rally.missingHintSea'))}</p>`);
-  } else {
-    parts.push(`<p class="hint">${escapeHtml(t(air ? 'rally.leaderHint' : 'rally.leaderHintSea'))}</p>`);
+      ${button('rally-missing', t('rally.missing.slow'), { id, kind, active: missing === 'slow', extra: ` data-missing="slow"${tip(t('tips.missing.slow'))}` })}
+      ${button('rally-missing', t('rally.missing.go'), { id, kind, active: missing === 'go', extra: ` data-missing="go"${tip(t('tips.missing.go'))}` })}</div>`);
   }
   // The departures: the time each member's order is given.
   const rows = members.map((u, i) => {
@@ -1284,7 +1271,6 @@ function rallyTab(app, f) {
   });
   parts.push(`<div class="sub">${escapeHtml(t(aid === 'auto' ? 'rally.departuresAuto' : 'rally.departures'))}</div>
     <table class="rally-table"><tbody>${rows.join('')}</tbody></table>
-    <p class="hint">${escapeHtml(t(`rally.aid.${aid}`))}</p>
     <div class="order-line">${aid === 'auto' ? button('rally-compute', t('rally.compute'), { id, kind }) : ''}
     ${button('rally-arm', t('rally.arm'), { id, kind, disabled: where === 'point' && !p })}</div>`);
   parts.push(`</div>`);
@@ -1299,7 +1285,6 @@ function formationPanel(app, f) {
   const air = f.kind === 'air';
   const total = members.reduce((n, u) => n + (air ? u.aircraft : u.ships), 0);
   const manage = `<div class="order-line">${toolOffered(app, 'formations') ? button('formation-manage', t('unit.manage'), { id: f.id }) : ''}${button('formation-dissolve', t('unit.dissolve'), { id: f.id })}</div>`;
-  const headings = app.world.settings.orders === 'headings';
   const planned = f.rally && f.rally.phase !== 'plan' && f.rally.phase !== 'gone';
   let cmd;
   if (air) {
@@ -1326,20 +1311,19 @@ function formationPanel(app, f) {
       leader.state === 'lost' ? '' : routeSection(app, leader),
       section(app, 'mission', t('sec.mission'), ordersBox(up ? coverButtons(app, leader) : '', interceptBlock(app, leader), letGoLine(app, leader)), true, 'mission'),
       section(app, 'manage', t('sec.manage'), ordersBox(manage), false, 'manageAir'),
-      `<p class="hint">${escapeHtml(t(up ? (headings ? 'unit.wingHintAirHeadings' : 'unit.wingHintAir') : (headings ? 'unit.wingHintGroundHeadings' : 'unit.wingHintGround')))}</p>`,
     ].join('');
   } else {
     const canMove = leader.state === 'inPort' || leader.state === 'atSea' || leader.state === 'waiting' || leader.state === 'hunting';
     const atSea = members.some((e) => ['atSea', 'waiting', 'escorting', 'hunting'].includes(e.state));
     cmd = [
       planned ? `<p class="state-line">${escapeHtml(t('rally.underWay'))}</p>` : '',
-      !planned && leader.state === 'inPort' ? section(app, 'port', t('sec.port'), ordersBox(exitLines(app, leader, { sail: false }), sailBlock(app, leader)), true, 'port') : '',
+      !planned && leader.state === 'inPort' ? section(app, 'port', t(hasChannels(w, leader) ? 'sec.port' : 'sec.convoyPort'), ordersBox(exitLines(app, leader), sailBlock(app, leader)), true, hasChannels(w, leader) ? 'port' : 'portPlain') : '',
       canMove && leader.state === 'inPort' ? routeSection(app, leader) : '',
       section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, leader)), true, 'convoys'),
-      section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, leader, { behaviour: false })), true, 'uboats'),
+      section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, leader)), true, 'uboats'),
       atSea ? section(app, 'home', t('sec.home'), ordersBox(homePortLine(app, leader))) : '',
       canMove && leader.state !== 'inPort' ? routeSection(app, leader) : '',
-      section(app, 'manage', t('sec.manage'), ordersBox(manage, `<p class="hint">${escapeHtml(t('unit.groupHint'))}</p>`), false, 'manageSea'),
+      section(app, 'manage', t('sec.manage'), ordersBox(manage), false, 'manageSea'),
     ].join('');
   }
   return {
@@ -1475,7 +1459,7 @@ function uboatPlotSheet(app, id) {
     row(t('sheet.position'), escapeHtml(positionText(lat, lon))),
     row(t('sheet.reachSurface'), escapeHtml(kmText(reach.surface))),
     row(t('sheet.reachSubmerged'), escapeHtml(kmText(reach.submerged))),
-    `<p class="state-line">${escapeHtml(t('sheet.uplotLegend'))}</p><p class="hint">${escapeHtml(t('sheet.uplotHint'))}</p>`,
+    `<p class="state-line">${escapeHtml(t('sheet.uplotLegend'))}</p>`,
   ].join('');
   return { group: 'uplot', title: escapeHtml(t('sheet.uplotTitle')), summary: escapeHtml(t(`map.uSource.${p.source}`)), tabs: [tab('state', { pre: body })] };
 }
@@ -1493,7 +1477,6 @@ function uboatContactSheet(app, id) {
     row(t('sheet.ucontactSince'), escapeHtml(formatTime(w.startMs + u.seen.since * 1000))),
     row(t('sheet.depth'), escapeHtml(t(under ? 'sheet.submerged' : 'sheet.surfaced'))),
     row(t('sheet.position'), escapeHtml(positionText(lat, lon))),
-    `<p class="hint">${escapeHtml(t('sheet.ucontactHint'))}</p>`,
   ].join('');
   return { group: 'ucontact', title: escapeHtml(t('sheet.ucontactTitle')), summary: escapeHtml(how), tabs: [tab('state', { pre: body })] };
 }
@@ -1538,8 +1521,7 @@ function sitePanel(app, key) {
     extra = `<div class="sub">${escapeHtml(t('sheet.groundSquadrons'))}</div>${here.length
       ? here.map((s) => row(s.name, escapeHtml(t(`states.squadron.${s.state}`)))).join('')
       : `<p class="state-line">${escapeHtml(t('sheet.noneHere'))}</p>`}`;
-    orders = here.map((s) => `<div class="order-line"><span>${escapeHtml(s.name)}</span>${button('scramble', t('orders.scramble'), { id: s.id, disabled: s.state !== 'ready' })}${button('select', t('sheet.select'), { id: s.id, kind: 'squadron' })}</div>`).join('')
-      + (here.length ? `<p class="hint">${escapeHtml(t('orders.scrambleHint'))}</p>` : '');
+    orders = here.map((s) => `<div class="order-line"><span>${escapeHtml(s.name)}</span>${button('scramble', t('orders.scramble'), { id: s.id, disabled: s.state !== 'ready' })}${button('select', t('sheet.select'), { id: s.id, kind: 'squadron' })}</div>`).join('');
   } else {
     if (site.kind === 'radar') {
       rows.push(row(t('sheet.range'), escapeHtml(t('sheet.rangeNow', { n: Math.round(radarRangeFactor(w, site) * 100) }))));

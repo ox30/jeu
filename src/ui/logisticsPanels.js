@@ -13,7 +13,7 @@ import { carriersFor, isSilent, orderChannel, pendingOrders, shownPosition } fro
 import { WATCH_S, clockHour } from '../sim/watch.js';
 import { capacityFactor, isOperational } from '../sim/sites.js';
 import { lineCost, offerArrival, offerCost, offerInCargo, offers, tonnageForecast } from '../sim/shipping.js';
-import { button, options, row } from './html.js';
+import { button, options, row, tip } from './html.js';
 import { subTitle } from './commands.js';
 import { cargoText, dateTimeText, escortStateText, positionText, resourceName, shortDateText, tonnesText } from './format.js';
 
@@ -222,11 +222,10 @@ function trainForm(app, site) {
   });
   return [
     `<div class="leg-form">${subTitle(app, t('logistics.sendTrain'), 'train', { wagons: R.trainWagons, fuel: R.wagonTonnes.fuel, materiel: R.wagonTonnes.materiel, min: R.trainMinTonnes })}`,
-    `<div class="order-line">${inputs.join('')}</div>`,
+    `<div class="order-line"${tip(t('tips.trainLoad', { wagons: R.trainWagons, fuel: R.wagonTonnes.fuel, materiel: R.wagonTonnes.materiel, min: R.trainMinTonnes }))}>${inputs.join('')}</div>`,
     `<div class="order-line"><label class="grow">${escapeHtml(t('logistics.to'))} <select id="train-to">${options(targets, app.lastTrainTo || null)}</select></label>`,
     button('send-train', t('logistics.send'), { id: site.key, kind: 'site' }),
     `</div>`,
-    `<p class="hint">${escapeHtml(t('logistics.trainHint', { wagons: R.trainWagons, fuel: R.wagonTonnes.fuel, materiel: R.wagonTonnes.materiel, min: R.trainMinTonnes }))}</p>`,
     `</div>`,
   ].join('');
 }
@@ -237,10 +236,10 @@ function minStockForm(app, site, resource) {
   const value = site.minStock[resource];
   return [
     `<div class="leg-form">${subTitle(app, `${t('logistics.minStock')} (${resourceName(resource)})`, 'minStock')}`,
-    `<div class="order-line"><label>${escapeHtml(t('logistics.minStock'))} <input type="number" min="0" step="${resource === 'ammo' ? 2 : 10}" id="min-stock-${resource}" value="${value === null ? '' : value}" placeholder="${auto ? autoMin(w, site, resource) : '—'}"> t</label>`,
+    // (In Arcade the field shows the automatic threshold, greyed.)
+    `<div class="order-line"><label${tip(t(auto ? 'tips.minStockAuto' : 'tips.minStock'))}>${escapeHtml(t('logistics.minStock'))} <input type="number" min="0" step="${resource === 'ammo' ? 2 : 10}" id="min-stock-${resource}" value="${value === null ? '' : value}" placeholder="${auto ? autoMin(w, site, resource) : '—'}"> t</label>`,
     button('set-min', t('logistics.apply'), { id: site.key, kind: 'site', extra: ` data-resource="${resource}"` }),
     `</div>`,
-    `<p class="hint">${escapeHtml(t('logistics.minHint'))}${auto ? ` ${escapeHtml(t('logistics.minAuto', { n: autoMin(w, site, resource) }))}` : ''}</p>`,
     `</div>`,
   ].join('');
 }
@@ -298,11 +297,6 @@ function freshPlots(w, e) {
     .slice(0, 3) : [];
 }
 
-/** « Rester » or « Chasser » as two buttons (the command bar shows them as icons). */
-export function behaviourButtons(e) {
-  return `${button('escort-behaviour', t('orders.behaviours.stay'), { id: e.id, kind: 'escort', active: e.behaviour !== 'hunt', extra: ' data-behaviour="stay"' })}${button('escort-behaviour', t('orders.behaviours.hunt'), { id: e.id, kind: 'escort', active: e.behaviour === 'hunt', extra: ' data-behaviour="hunt"' })}`;
-}
-
 /** The hour of the next relief of the watch, by the clock. */
 export function nextReliefHour(w) {
   return (clockHour(w) - (clockHour(w) % 4) + 4) % 24;
@@ -341,9 +335,8 @@ export function commsLines(app, u) {
   return [
     `<div class="comms">`,
     `<p class="state-line${via === 'radio' ? ' warn' : ''}">${escapeHtml(t(`comms.channel.${via}`, { hour }))}</p>`,
-    via === 'radio' ? `<p class="hint">${escapeHtml(t('comms.channel.radioHelp'))}</p>` : '',
     lines.length ? `<div class="sub">${escapeHtml(t('comms.pending'))}</div><ul class="pending-orders">${lines.join('')}</ul>` : '',
-    via === 'radio' && !asked ? `<div class="order-line">${button('comms-position', t('comms.askPosition'), { id: u.id, kind: u.kind })}</div><p class="hint">${escapeHtml(t('comms.askPositionHint', { hour }))}</p>` : '',
+    via === 'radio' && !asked ? `<div class="order-line">${button('comms-position', t('comms.askPosition'), { id: u.id, kind: u.kind, extra: tip(t('tips.askPosition', { hour })) })}</div>` : '',
     `</div>`,
   ].join('');
 }
@@ -362,10 +355,10 @@ export function patternButtons(e) {
 
 /**
  * Facing the U-boats: the depth charges left and how to spend them, the hunt under way with
- * « Interrompre la chasse », the fresh plots to hunt now. With `behaviour`, the Rester /
- * Chasser buttons too.
+ * « Interrompre la chasse », the fresh plots to hunt now. (Rester and Chasser are in the
+ * command bar.)
  */
-export function huntLines(app, e, { behaviour = true } = {}) {
+export function huntLines(app, e) {
   const w = app.world;
   const fresh = freshPlots(w, e);
   const at = shownPosition(w, e);
@@ -373,10 +366,7 @@ export function huntLines(app, e, { behaviour = true } = {}) {
   const spare = canHunt(w, e);
   const state = e.charges <= 0 ? 'orders.chargesEmpty' : spare ? 'orders.chargesSpare' : 'orders.chargesReserve';
   return [
-    behaviour ? `<div class="order-line">${behaviourButtons(e)}</div>` : '',
-    `<p class="hint">${escapeHtml(t('orders.behaviourHint'))}</p>`,
     `<div class="order-line"><span class="grow${e.charges <= 0 ? ' warn' : ''}">${escapeHtml(chargesText(e))} · ${escapeHtml(t(state))}</span>${patternButtons(e)}</div>`,
-    `<p class="hint">${escapeHtml(t('orders.patternHint'))}</p>`,
     hunting ? `<div class="order-line hunting"><span class="grow">${escapeHtml(huntText(w, e))}</span>${button('hunt-stop', t('orders.huntStop'), { id: e.id, kind: 'escort' })}</div>` : '',
     fresh.length ? `<div class="order-line">${fresh.map((p) => button('hunt-plot', t('orders.huntPlot', {
       time: formatTime(w.startMs + p.t * 1000), km: Math.round(distance(p.x, p.y, at.x, at.y)),
@@ -408,11 +398,6 @@ export function homePortLine(app, e) {
   })), ports[0].port.id)}</select>${button('escort-home', t('orders.go'), { id: e.id, kind: 'escort' })}</div>`;
 }
 
-/** Face aux U-Boote and Rentrer au port, one under the other (for a group or a support group). */
-export function huntAndPortLines(app, e) {
-  return `<div class="sub">${escapeHtml(t('orders.behaviour'))}</div>${huntLines(app, e)}${homePortLine(app, e)}`;
-}
-
 /** Convoys at sea the group can meet, as buttons; « Quitter le convoi » when it is with one. */
 export function joinLines(app, e) {
   const w = app.world;
@@ -422,18 +407,17 @@ export function joinLines(app, e) {
   const convoyName = (c) => (c.straggler ? t('units.straggler', { name: c.name.split('·')[0], n: c.strayIndex }) : c.name);
   return [
     aid && (canMove || e.state === 'escorting') && joinable.length
-      ? `<div class="order-line">${joinable.map((c) => button('join', t('orders.join', { convoy: convoyName(c) }), { id: e.id, kind: 'escort', extra: ` data-convoy="${escapeHtml(c.id)}"` })).join('')}</div>` : '',
+      ? `<div class="order-line">${joinable.map((c) => button('join', t('orders.join', { convoy: convoyName(c) }), { id: e.id, kind: 'escort', extra: ` data-convoy="${escapeHtml(c.id)}"${tip(t('tips.join'))}` })).join('')}</div>` : '',
     e.state === 'escorting' ? `<div class="order-line">${button('leave', t('orders.leave'), { id: e.id, kind: 'escort' })}</div>` : '',
-    `<p class="hint">${escapeHtml(t('orders.joinHint'))}</p>`,
   ].join('');
 }
 
 /**
  * In port: the way out as the first step of the group's orders (none, the roads, a channel).
  * Chosen here, it stands under « Route et étapes », where it is taken away, drawn longer and
- * given its end. `sail`: the « Appareiller » button with it.
+ * given its end. (« Appareiller » is in the command bar.) Nothing for a port without channels.
  */
-export function exitLines(app, e, { sail = true } = {}) {
+export function exitLines(app, e) {
   const w = app.world;
   const port = w.byId.port.get(e.portId);
   const channels = (port && port.approaches) || [];
@@ -442,9 +426,8 @@ export function exitLines(app, e, { sail = true } = {}) {
     { value: 'roads', label: t('orders.exitRoads') },
     ...channels.map((a) => ({ value: a.name, label: t('orders.exitChannel', { name: a.name }) })),
   ];
-  return `<div class="order-line">${sail ? button('sail', t('orders.escortSail'), { id: e.id, kind: 'escort' }) : ''}
-    ${channels.length ? `<label class="small">${escapeHtml(t('orders.exitBy'))} <select id="exit-channel-${escapeHtml(e.id)}" data-change="exit-channel" data-id="${escapeHtml(e.id)}">${options(list, plannedExit(e) || '')}</select></label>` : ''}</div>
-    <p class="hint">${escapeHtml(t(channels.length ? 'orders.exitHint' : 'orders.exitHintNoChannel'))}</p>`;
+  if (!channels.length) return '';
+  return `<div class="order-line"><label class="small">${escapeHtml(t('orders.exitBy'))} <select id="exit-channel-${escapeHtml(e.id)}" data-change="exit-channel" data-id="${escapeHtml(e.id)}">${options(list, plannedExit(e) || '')}</select></label></div>`;
 }
 
 export function escortSheet(app, e) {
@@ -474,19 +457,9 @@ export function escortSheet(app, e) {
   const canMove = e.state === 'inPort' || e.state === 'atSea' || e.state === 'waiting' || e.state === 'hunting';
   const aid = w.settings.interceptAid !== 'none';
   const joinable = w.convoys.filter((c) => c.state === 'atSea' && c.type !== 'coastal' && c.id !== e.escorting);
-  const orders = [
-    `<div class="orders">`,
-    e.state === 'inPort' ? exitLines(app, e) : '',
-    commsLines(app, e),
-    joinLines(app, e),
-    huntAndPortLines(app, e),
-    `</div>`,
-  ].join('');
   return {
     info,
     planUnit: canMove ? e : null,
-    orders,
-    legForm: canMove,
     key: `eg:${e.id}:${e.state}:${e.plan.length > 0}:${e.route.length > 0}:${joinable.map((c) => c.id).join(',')}:${app.world.settings.orders}:${aid}:${app.editingLeg ? app.editingLeg.index : ''}:${e.behaviour}:${e.pattern}:${e.charges}:${commsKey(w, e)}`,
   };
 }
@@ -535,7 +508,7 @@ export function coverButtons(app, s) {
   // Fighters cover the coastal convoys; Coastal Command covers any convoy at sea.
   const list = w.convoys.filter((c) => c.state === 'atSea' && (s.role === 'coastal' || c.type === 'coastal'));
   if (!list.length) return '';
-  return `<div class="order-line">${list.map((c) => button('cover', t('orders.cover', { convoy: c.name }), { id: s.id, kind: 'squadron', active: s.cover === c.id, extra: ` data-convoy="${escapeHtml(c.id)}"` })).join('')}</div><p class="hint">${escapeHtml(t('orders.coverHint'))}</p>`;
+  return `<div class="order-line">${list.map((c) => button('cover', t('orders.cover', { convoy: c.name }), { id: s.id, kind: 'squadron', active: s.cover === c.id, extra: ` data-convoy="${escapeHtml(c.id)}"${tip(t('tips.cover'))}` })).join('')}</div>`;
 }
 
 export function trainEtaText(app, fromKey, toKey) {

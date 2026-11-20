@@ -44,14 +44,15 @@ export function cmdGroup(caption, html, cls = '') {
 
 /**
  * Speed: a slider from `min` to 100 % and a boost button. `boost`: the boost's speed as a share
- * of the 100 % (e.g. 131), or null when the unit has none.
+ * of the 100 % (e.g. 131), or null when the unit has none. `boostTitle`: its tooltip, when the
+ * boost of this unit costs something else than fuel.
  */
-export function speedControl(u, kind, { min, pct, boostOn, boost, unitText }) {
+export function speedControl(u, kind, { min, pct, boostOn, boost, unitText, boostTitle = '' }) {
   const id = `speed-${u.id}`;
   return `<div class="cmd-group speed"><div class="cmd-caption">${escapeHtml(t('cmd.speed'))}</div>
     <div class="cmd-row"><input type="range" id="${escapeHtml(id)}" min="${min}" max="100" step="5" value="${boostOn ? 100 : pct}" data-change="speed-pct" data-id="${escapeHtml(u.id)}" data-kind="${kind}"${boostOn ? ' class="off"' : ''} aria-label="${escapeHtml(t('cmd.speed'))}">
     <b class="speed-value">${escapeHtml(boostOn ? t('cmd.boostOn', { p: boost }) : `${pct} %`)}</b>
-    ${boost ? `<button type="button" class="cmd small${boostOn ? ' active' : ''}" data-action="boost" data-id="${escapeHtml(u.id)}" data-kind="${kind}" title="${escapeHtml(t('cmd.boostTitle', { p: boost }))}">${ICONS.boost}<span>${escapeHtml(t('cmd.boost', { p: boost }))}</span></button>` : ''}</div>
+    ${boost ? `<button type="button" class="cmd small${boostOn ? ' active' : ''}" data-action="boost" data-id="${escapeHtml(u.id)}" data-kind="${kind}" title="${escapeHtml(boostTitle || t('cmd.boostTitle', { p: boost }))}">${ICONS.boost}<span>${escapeHtml(t('cmd.boost', { p: boost }))}</span></button>` : ''}</div>
     ${unitText ? `<div class="speed-text">${escapeHtml(unitText)}</div>` : ''}</div>`;
 }
 

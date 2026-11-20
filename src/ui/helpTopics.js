@@ -23,6 +23,7 @@ export const HELP_TOPICS = {
   manageSea: { tab: 'air', anchor: 'formations' },
   convoyPort: { tab: 'sea', anchor: 'appareiller' },
   port: { tab: 'sea', anchor: 'appareiller' },
+  portPlain: { tab: 'sea', anchor: 'appareiller' },
   comms: { tab: 'sea', anchor: 'silence' },
   convoys: { tab: 'sea', anchor: 'rejoindre' },
   uboats: { tab: 'sea', anchor: 'chasse' },

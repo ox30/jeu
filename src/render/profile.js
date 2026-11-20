@@ -70,7 +70,9 @@ export function drawProfile(canvas, app, s) {
   const climbS = delayS + (Math.abs(targetFt - startFt) / (targetFt >= startFt ? type.climbMpm : R.descentMpm)) * FOOT_M * 60;
 
   // Possible contact with the nearest raid (only with an interception aid).
-  const near = nearestContact(world, s.x, s.y);
+  // (Coastal Command patrols the sea: the raids on the table are not its business.)
+  const fights = s.role !== 'coastal';
+  const near = fights ? nearestContact(world, s.x, s.y) : null;
   let contactS = null;
   const fighting = s.state === 'combat';
   if (near && !fighting && world.settings.interceptAid !== 'none' && s.state !== 'returning' && s.state !== 'refuelling') {
@@ -199,8 +201,22 @@ export function drawProfile(canvas, app, s) {
     ctx.fillStyle = captionColor;
     ctx.font = `bold 11px ${FONTS.serif}`;
     ctx.fillText(caption, 6, textY, W - 12);
-  } else if (!near) {
+  } else if (!near && fights) {
     ctx.fillStyle = 'rgba(70, 58, 36, 0.8)';
     ctx.fillText(t('profile.noRaid'), 6, textY);
+  }
+  // The legend of the bands, when a raid is drawn: the heights a fight is possible from.
+  if (near) {
+    ctx.font = `10px ${FONTS.serif}`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    const legend = t('profile.window');
+    const width = ctx.measureText(legend).width;
+    ctx.fillStyle = 'rgba(46, 107, 58, 0.45)';
+    ctx.fillRect(right - width - 26, 4, 9, 8);
+    ctx.fillStyle = 'rgba(176, 122, 18, 0.45)';
+    ctx.fillRect(right - width - 15, 4, 9, 8);
+    ctx.fillStyle = 'rgba(70, 58, 36, 0.9)';
+    ctx.fillText(legend, right, 2);
   }
 }

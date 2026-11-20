@@ -286,9 +286,11 @@ function shipCards(world) {
 export function unitCardHtml(world, u) {
   const R = world.rules;
   if (u.kind === 'squadron') {
-    if (R.fighters[u.type]) return `<div class="cards one">${fighterCard(u.type, R.fighters[u.type])}</div>`;
-    if (R.patrols[u.type]) return `<div class="cards one">${fighterCard(u.type, R.patrols[u.type], true)}</div>`;
-    return '';
+    // What a squadron that is no fighter is for: said with its card, it describes the unit.
+    const role = u.role && u.role !== 'fighter' ? `<p class="state-line">${escapeHtml(t(`cards.role.${u.role}`))}</p>` : '';
+    if (R.fighters[u.type]) return `${role}<div class="cards one">${fighterCard(u.type, R.fighters[u.type])}</div>`;
+    if (R.patrols[u.type]) return `${role}<div class="cards one">${fighterCard(u.type, R.patrols[u.type], true)}</div>`;
+    return role;
   }
   const all = shipCards(world);
   // Ship cards: convoy, escort, U-boat, in that order.
