@@ -8,9 +8,13 @@ import { knownOutcome, reportTotals } from '../sim/reports.js';
 import { aircraftSpec } from '../sim/squadron.js';
 import { countText, ftText } from './format.js';
 import { toolOffered } from './offered.js';
+import { pageTitle } from './commands.js';
+import { closeBubble } from './helpBubble.js';
 
 /** Opens a dialog as a page; the game pauses while it is open when the setting asks. */
 export function showPage(app, dlg) {
+  // (A « ? » bubble open on the sheet would stay behind the page: it leaves first.)
+  closeBubble();
   if (app.world.settings.pagesPause && !app.paused && !app.world.ended && !dlg.open) {
     app.paused = true;
     app.pausedByPage = true;
@@ -108,7 +112,7 @@ function reportCard(app, rep) {
     });
     lines.push(`<table class="fights"><thead><tr><th>${escapeHtml(t('reports.squadron'))}</th><th>${escapeHtml(t('reports.result'))}</th><th class="n">${escapeHtml(t('reports.down'))}</th><th class="n">${escapeHtml(t('reports.losses'))}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`);
   } else if (outcome !== 'unseen') {
-    lines.push(`<p class="hint">${escapeHtml(t('reports.noSquadron'))}</p>`);
+    lines.push(`<p class="state-line">${escapeHtml(t('reports.noSquadron'))}</p>`);
   }
   if (rep.squadrons.length || hits.length || outcome !== 'unseen') {
     lines.push(`<p class="totals">${escapeHtml(t('reports.totals', { down: totals.down, b: totals.bombers, f: totals.fighters, lost: totals.lost }))}</p>`);
@@ -145,7 +149,7 @@ function navalCard(app, rep) {
     <header><b>${escapeHtml(t('reports.naval.title', { escort: rep.escort }))}</b> <span class="when">${escapeHtml(from)} – ${escapeHtml(to)}</span>
     <span class="tag">${escapeHtml(t(`reports.naval.outcome.${outcome}`))}</span></header>
     <p class="comp">${escapeHtml(t(rep.convoy ? 'reports.naval.context' : 'reports.naval.contextAlone', { ships: rep.ships, convoy: rep.convoy, how: t(`log.engageHow.${rep.how}`) }))}</p>
-    ${passes.length ? `<ol class="passes">${passes.join('')}</ol>` : `<p class="hint">${escapeHtml(t('reports.naval.noPass'))}</p>`}
+    ${passes.length ? `<ol class="passes">${passes.join('')}</ol>` : `<p class="state-line">${escapeHtml(t('reports.naval.noPass'))}</p>`}
     ${used ? `<p class="comp">${escapeHtml(t('reports.naval.chargesTotal', { n: used }))}</p>` : ''}
   </article>`;
 }
@@ -187,7 +191,7 @@ export function openReports(app, focus = null) {
   dlg.innerHTML = `
     <form method="dialog" class="page reports-page">
       <h2>${escapeHtml(t('reports.title'))}</h2>
-      ${sections.length ? sections.join('') : `<p class="hint">${escapeHtml(t('reports.none'))}</p>`}
+      ${sections.length ? sections.join('') : `<p class="state-line">${escapeHtml(t('reports.none'))}</p>`}
       <div class="dialog-buttons"><button value="close">${escapeHtml(t('reports.close'))}</button></div>
     </form>`;
   showPage(app, dlg);
@@ -231,11 +235,11 @@ function fighterCard(key, f, patrol = false) {
     if (f.uboatSightKm) rows.push([t('cards.uboatSight'), t('cards.km', { n: f.uboatSightKm })]);
   }
   return `<article class="card" id="card-${escapeHtml(key.replace(/\s+/g, '-'))}"><h4>${escapeHtml(f.name)}</h4>
-    <p class="hint">${escapeHtml(t(`cards.notes.${key}`))}</p>${cardRows(rows)}</article>`;
+    <p class="state-line">${escapeHtml(t(`cards.notes.${key}`))}</p>${cardRows(rows)}</article>`;
 }
 
 function bomberCard(key, b) {
-  return `<article class="card"><h4>${escapeHtml(b.name)}</h4><p class="hint">${escapeHtml(t(`cards.notes.${key}`))}</p>${cardRows([
+  return `<article class="card"><h4>${escapeHtml(b.name)}</h4><p class="state-line">${escapeHtml(t(`cards.notes.${key}`))}</p>${cardRows([
     [t('cards.cruise'), t('units.kmh', { n: b.cruiseKmh })],
     [t('cards.max'), t('units.kmh', { n: b.maxKmh })],
     [t('cards.ceiling'), ftText(b.ceilingFt)],
@@ -246,7 +250,7 @@ function bomberCard(key, b) {
 }
 
 function escortCard(key, e) {
-  return `<article class="card"><h4>${escapeHtml(e.name)}</h4><p class="hint">${escapeHtml(t(`cards.notes.${key}`))}</p>${cardRows([
+  return `<article class="card"><h4>${escapeHtml(e.name)}</h4><p class="state-line">${escapeHtml(t(`cards.notes.${key}`))}</p>${cardRows([
     [t('cards.max'), t('units.kmh', { n: e.maxKmh })],
     [t('cards.ceiling'), ftText(e.ceilingFt)],
     [t('cards.range'), t('cards.km', { n: formatNumber(e.rangeKm) })],
@@ -260,19 +264,19 @@ function shipCards(world) {
   const S = world.rules.ships;
   const A = world.rules.asw;
   return [
-    `<article class="card"><h4>${escapeHtml(S.convoy.name)}</h4><p class="hint">${escapeHtml(t('cards.notes.convoy'))}</p>${cardRows([
+    `<article class="card"><h4>${escapeHtml(S.convoy.name)}</h4><p class="state-line">${escapeHtml(t('cards.notes.convoy'))}</p>${cardRows([
       [t('cards.speedSea'), t('cards.knots', { n: S.convoy.speedKn })],
       [t('cards.stragglers'), t('cards.stragglersText', { p: Math.round(A.stragglerFrom * 100) })],
       [t('cards.zigzag'), t('cards.zigzagText', { p: Math.round((1 - A.zigzagSpeed) * 100), h: Math.round((1 - A.zigzagHit) * 100) })],
     ])}</article>`,
-    `<article class="card"><h4>${escapeHtml(S.escort.name)}</h4><p class="hint">${escapeHtml(t('cards.notes.escort'))}</p>${cardRows([
+    `<article class="card"><h4>${escapeHtml(S.escort.name)}</h4><p class="state-line">${escapeHtml(t('cards.notes.escort'))}</p>${cardRows([
       [t('cards.speedSea'), t('cards.knots', { n: S.escort.speedKn })],
       [t('cards.asdic'), t('cards.km', { n: A.asdicKm })],
       [t('cards.lookouts'), t('cards.lookoutsText', { day: A.lookoutDayKm, night: A.lookoutNightKm })],
       [t('cards.escortRadar'), t('cards.escortRadarText', { km: A.radar.surfaceKm })],
       [t('cards.charges'), t('cards.chargesText', { n: A.engagement.chargesPerShip, full: A.engagement.patternFull, light: A.engagement.patternLight })],
     ])}</article>`,
-    `<article class="card"><h4>${escapeHtml(S.uboat.name)}</h4><p class="hint">${escapeHtml(t('cards.notes.uboat'))}</p>${cardRows([
+    `<article class="card"><h4>${escapeHtml(S.uboat.name)}</h4><p class="state-line">${escapeHtml(t('cards.notes.uboat'))}</p>${cardRows([
       [t('cards.surface'), t('cards.knots', { n: A.surfaceKn })],
       [t('cards.submerged'), t('cards.knots', { n: A.submergedKn })],
       [t('cards.battery'), t('cards.batteryText', { n: A.batteryNm })],
@@ -286,9 +290,11 @@ function shipCards(world) {
 export function unitCardHtml(world, u) {
   const R = world.rules;
   if (u.kind === 'squadron') {
-    if (R.fighters[u.type]) return `<div class="cards one">${fighterCard(u.type, R.fighters[u.type])}</div>`;
-    if (R.patrols[u.type]) return `<div class="cards one">${fighterCard(u.type, R.patrols[u.type], true)}</div>`;
-    return '';
+    // What a squadron that is no fighter is for: said with its card, it describes the unit.
+    const role = u.role && u.role !== 'fighter' ? `<p class="state-line">${escapeHtml(t(`cards.role.${u.role}`))}</p>` : '';
+    if (R.fighters[u.type]) return `${role}<div class="cards one">${fighterCard(u.type, R.fighters[u.type])}</div>`;
+    if (R.patrols[u.type]) return `${role}<div class="cards one">${fighterCard(u.type, R.patrols[u.type], true)}</div>`;
+    return role;
   }
   const all = shipCards(world);
   // Ship cards: convoy, escort, U-boat, in that order.
@@ -305,8 +311,7 @@ export function openCards(app, focus = null) {
   const section = (title, html) => `<section class="card-section"><h3>${escapeHtml(title)}</h3><div class="cards">${html}</div></section>`;
   dlg.innerHTML = `
     <form method="dialog" class="page cards-page">
-      <h2>${escapeHtml(t('cards.title'))}</h2>
-      <p class="hint">${escapeHtml(t('cards.intro'))}</p>
+      ${pageTitle(app, t('cards.title'), 'cards')}
       ${section(t('cards.fighters'), Object.entries(R.fighters).map(([k, f]) => fighterCard(k, f)).join(''))}
       ${section(t('cards.patrols'), Object.entries(R.patrols).map(([k, f]) => fighterCard(k, f, true)).join(''))}
       ${section(t('cards.bombers'), Object.entries(R.bombers).map(([k, b]) => bomberCard(k, b)).join(''))}

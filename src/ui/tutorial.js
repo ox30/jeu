@@ -32,6 +32,14 @@ const CONDITIONS = {
   // { type, n }: this event has been seen at least n times since the lesson began.
   count: (app, { type, n }, tu) => (tu.counts[type] || 0) >= n,
   flag: (app, name, tu) => tu.flags.has(name) || Boolean(app[name]),
+  // One of these signs of the interface since the step began (a gesture the step teaches:
+  // done earlier in the lesson, it is asked for again).
+  flagSince: (app, names, tu) => [].concat(names).some((name) => (tu.stepFlags || tu.flags).has(name)),
+  // One of these squadrons is in the air, its take-off over.
+  flying: (app, ids) => ids.some((id) => {
+    const s = squadron(app, id);
+    return s && (s.state === 'airborne' || s.state === 'combat');
+  }),
   // The table's estimate of a raid (never the raid itself) is within so many kilometres of an installation.
   contactNear: (app, { raid, site: key, km }) => {
     const contact = app.world.contacts.get(raid);
@@ -122,7 +130,9 @@ export function lessonById(tutorial, id) {
 
 /** A sign from the interface that a lesson may wait for (a page opened, a button pressed). */
 export function tutorialFlag(app, name) {
-  if (app.tutorial) app.tutorial.flags.add(name);
+  if (!app.tutorial) return;
+  app.tutorial.flags.add(name);
+  if (app.tutorial.stepFlags) app.tutorial.stepFlags.add(name);
 }
 
 /**
@@ -154,6 +164,7 @@ function begin(app, step) {
   const tu = app.tutorial;
   tu.stepT = app.world.t;
   tu.stepSeen = new Set();
+  tu.stepFlags = new Set();
   tu.did = new Set();
   if (step.speed) {
     app.speed = step.speed;
@@ -207,7 +218,7 @@ export function startTutorial(app) {
   if (!lesson) return;
   app.tutorial = {
     index: 0, lesson: lesson.id, steps: lesson.steps,
-    seen: new Set(), stepSeen: new Set(), counts: {}, seenAt: {}, flags: new Set(), raids: new Set(), marks: {}, stepT: app.world.t, did: new Set(),
+    seen: new Set(), stepSeen: new Set(), counts: {}, seenAt: {}, flags: new Set(), stepFlags: new Set(), raids: new Set(), marks: {}, stepT: app.world.t, did: new Set(),
   };
   app.reportsOpened = false;
   app.el.coach.hidden = false;
@@ -289,6 +300,15 @@ export function updateTutorial(app) {
   for (let guard = 0; guard < steps.length; guard++) {
     const step = steps[tu.index];
     script(app, step);
+    // A step that teaches a gesture on a stopped clock (`hold`) keeps the clock stopped and
+    // its unit in hand: a route flown away, or a sheet closed, would leave nothing to work on.
+    if (step.hold) {
+      if (!app.paused) pause(app, true);
+      if (step.select && !app.selection) {
+        select(app, step.select.kind, step.select.id);
+        app.dirtyPanels = true;
+      }
+    }
     // A step that shows something keeps its speed whatever the alerts do.
     if (step.keepSpeed && step.speed && !app.paused && app.speed !== step.speed && !app.speedConfirm) {
       app.speed = step.speed;

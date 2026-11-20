@@ -173,15 +173,14 @@ export function reportHtml(app, raw, live = null) {
     return msg ? `<li class="log-${msg.level}"><time>${escapeHtml(formatTime(w.startMs + n.t * 1000))}</time> ${escapeHtml(msg.text)}</li>` : '';
   }).filter(Boolean);
   return [
-    r.decisions.length ? `<h4 class="decide">${escapeHtml(t('watch.decideTitle'))}</h4><ul class="decisions">${r.decisions.map((d) => decisionHtml(w, d, pending)).join('')}</ul>
-      <p class="hint">${escapeHtml(t('watch.decideHint'))}</p>` : '',
+    r.decisions.length ? `<h4 class="decide" title="${escapeHtml(t('tips.decide'))}">${escapeHtml(t('watch.decideTitle'))}</h4><ul class="decisions">${r.decisions.map((d) => decisionHtml(w, d, pending)).join('')}</ul>` : '',
     `<h4>${escapeHtml(t('watch.convoys'))}</h4>`,
-    r.convoys.length ? `<ul class="rows">${r.convoys.map((c) => convoyLine(w, c)).join('')}</ul>` : `<p class="hint">${escapeHtml(t('watch.convoysNone'))}</p>`,
+    r.convoys.length ? `<ul class="rows">${r.convoys.map((c) => convoyLine(w, c)).join('')}</ul>` : `<p class="state-line">${escapeHtml(t('watch.convoysNone'))}</p>`,
     `<h4>${escapeHtml(t('watch.escorts'))}</h4><ul class="rows">${r.escorts.map((e) => escortLine(w, e)).join('')}</ul>`,
     `<h4>${escapeHtml(t('watch.air'))}</h4><p>${escapeHtml(airText(r))}</p>`,
     `<h4>${escapeHtml(t('watch.intel'))}</h4><p>${escapeHtml(intelText(w, r))}</p>`,
     `<h4>${escapeHtml(t('watch.signals'))}</h4>`,
-    signals.length ? `<ol class="log watch-signals">${signals.join('')}</ol>` : `<p class="hint">${escapeHtml(t('watch.signalsNone'))}</p>`,
+    signals.length ? `<ol class="log watch-signals">${signals.join('')}</ol>` : `<p class="state-line">${escapeHtml(t('watch.signalsNone'))}</p>`,
   ].join('');
 }
 
@@ -250,7 +249,7 @@ export function renderSignals(app) {
   const last = W.reports.length ? `<p class="signal-tools"><button type="button" data-watch="last">${escapeHtml(t('watch.openLast', { hour: clockHour(w, W.reports[W.reports.length - 1].toS) }))}</button></p>` : '';
   setHtml(app.el.signals, `${filterBar(app)}${last}
     ${unread ? `<p class="signal-tools"><button type="button" class="link" data-watch="read-all">${escapeHtml(t('watch.readAll', { n: unread }))}</button></p>` : ''}
-    ${groups.length ? `<ol class="log signals-list">${groups.join('')}</ol>` : `<p class="hint">${escapeHtml(t(W.reports.length ? 'watch.noneFiltered' : 'watch.none'))}</p>`}`);
+    ${groups.length ? `<ol class="log signals-list">${groups.join('')}</ol>` : `<p class="state-line">${escapeHtml(t(W.reports.length ? 'watch.noneFiltered' : 'watch.none'))}</p>`}`);
 }
 
 /** Shows the tab chosen and the count of unread reports on the « Signaux » tab. */

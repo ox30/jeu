@@ -1,5 +1,5 @@
 {
-  "note": "Les leçons du tutoriel (I10) : chacune se joue sur son petit scénario (data/scenarios/lecon-*.json, écrit comme un scénario existant avec des changements) et suit ses étapes dans l'ordre. Une étape dit ce qu'elle fait en entrant (pause ou play, speed et keepSpeed, view, select, unitTab : l'onglet de la fiche) et à quoi elle se termine (done) ; « manual » lui donne un bouton pour passer à la suite ; « do » liste les ordres de l'instructeur (order), chacun donné une fois quand sa condition (when) est vraie, et « mark » retient l'heure. « times » et « gaps » remplissent le texte avec des heures de la leçon et des écarts en minutes. Les textes sont dans data/i18n/fr.json (tutorial.lessons.<leçon>.name, .summary et .steps.<étape>.title et .text). Conditions et ordres connus : src/ui/tutorial.js. « settings » : les réglages de la partie de la leçon, par-dessus le préréglage Standard.",
+  "note": "Les leçons du tutoriel (I10) : chacune se joue sur son petit scénario (data/scenarios/lecon-*.json, écrit comme un scénario existant avec des changements) et suit ses étapes dans l'ordre. Une étape dit ce qu'elle fait en entrant (pause ou play, speed et keepSpeed, view, select, unitTab : l'onglet de la fiche) et à quoi elle se termine (done) ; « manual » lui donne un bouton pour passer à la suite ; « do » liste les ordres de l'instructeur (order), chacun donné une fois quand sa condition (when) est vraie, et « mark » retient l'heure. « times » et « gaps » remplissent le texte avec des heures de la leçon et des écarts en minutes. Les textes sont dans data/i18n/fr.json (tutorial.lessons.<leçon>.name, .summary et .steps.<étape>.title et .text). Conditions et ordres connus : src/ui/tutorial.js. « settings » : les réglages de la partie de la leçon, par-dessus le préréglage Standard. « hold » (2.11.0) : l'étape garde le temps arrêté et son unité en main tant qu'elle dure (les gestes de la leçon « Tracer et corriger »).",
   "lessons": [
     {
       "id": "intercept",
@@ -167,6 +167,165 @@
           "id": "end",
           "manual": true,
           "last": true
+        }
+      ]
+    },
+    {
+      "id": "route",
+      "scenario": "lecon-tracer",
+      "minutes": [
+        2,
+        3
+      ],
+      "settings": {
+        "fatigue": "off",
+        "orders": "draw",
+        "interceptAid": "track",
+        "fuel": "unlimited",
+        "falseAlarms": false,
+        "questions": false
+      },
+      "steps": [
+        {
+          "id": "welcome",
+          "manual": true,
+          "pause": true,
+          "view": "england"
+        },
+        {
+          "id": "takeoff",
+          "play": true,
+          "speed": 60,
+          "keepSpeed": true,
+          "handsOff": true,
+          "select": {
+            "kind": "squadron",
+            "id": "32"
+          },
+          "unitTab": {
+            "squadron": "cmd"
+          },
+          "do": [
+            {
+              "order": {
+                "scramble": "32",
+                "toSite": "airfield:kenley",
+                "altitudeFt": 12000
+              }
+            }
+          ],
+          "done": {
+            "flying": [
+              "32"
+            ]
+          }
+        },
+        {
+          "id": "draw",
+          "pause": true,
+          "select": {
+            "kind": "squadron",
+            "id": "32"
+          },
+          "done": {
+            "flagSince": [
+              "routeDrawn"
+            ]
+          },
+          "hold": true
+        },
+        {
+          "id": "move",
+          "pause": true,
+          "done": {
+            "flagSince": [
+              "pointMoved"
+            ]
+          },
+          "hold": true,
+          "select": {
+            "kind": "squadron",
+            "id": "32"
+          }
+        },
+        {
+          "id": "insert",
+          "pause": true,
+          "done": {
+            "flagSince": [
+              "pointInserted"
+            ]
+          },
+          "hold": true,
+          "select": {
+            "kind": "squadron",
+            "id": "32"
+          }
+        },
+        {
+          "id": "extend",
+          "pause": true,
+          "done": {
+            "flagSince": [
+              "routeExtended"
+            ]
+          },
+          "hold": true,
+          "select": {
+            "kind": "squadron",
+            "id": "32"
+          }
+        },
+        {
+          "id": "delete",
+          "pause": true,
+          "done": {
+            "flagSince": [
+              "pointDeleted",
+              "action:point-delete"
+            ]
+          },
+          "hold": true,
+          "select": {
+            "kind": "squadron",
+            "id": "32"
+          }
+        },
+        {
+          "id": "ruler",
+          "pause": true,
+          "done": {
+            "flagSince": [
+              "rulerUsed"
+            ]
+          },
+          "hold": true,
+          "select": {
+            "kind": "squadron",
+            "id": "32"
+          }
+        },
+        {
+          "id": "altitude",
+          "pause": true,
+          "done": {
+            "flagSince": [
+              "pointAltitude",
+              "action:point-alt-up",
+              "action:point-alt-down"
+            ]
+          },
+          "hold": true,
+          "select": {
+            "kind": "squadron",
+            "id": "32"
+          }
+        },
+        {
+          "id": "end",
+          "manual": true,
+          "last": true,
+          "pause": true
         }
       ]
     },

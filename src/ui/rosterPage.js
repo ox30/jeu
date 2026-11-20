@@ -7,8 +7,9 @@
 import { tutorialFlag } from './tutorial.js';
 import { escapeHtml, t } from '../core/i18n.js';
 import { fatigueLevel, fatigueOn } from '../sim/crews.js';
-import { ALERTS, alertButtons, alertStatus, confirmBox, rosterBlock, timelineHtml } from './panels.js';
+import { ALERTS, alertButtons, alertStatus, confirmBox, messageBlock, rosterBlock, timelineHtml } from './panels.js';
 import { button, options } from './html.js';
+import { pageTitle } from './commands.js';
 import { showPage } from './pages.js';
 import { toolOffered } from './offered.js';
 
@@ -39,9 +40,9 @@ export function openRoster(app, { fieldId = null, squadronId = null } = {}) {
   app.rosterPage = { fieldId: field, squadronId: s ? s.id : null };
   const dlg = app.el.dlgRoster;
   dlg.innerHTML = `<form method="dialog" class="page roster-page">
-    <h2>${escapeHtml(t('roster.title'))}</h2>
-    <p class="hint">${escapeHtml(t('roster.intro', { n: Number(app.settings.rosterHours) || 24 }))}</p>
+    ${pageTitle(app, t('roster.title'), 'roster', { n: Number(app.settings.rosterHours) || 24 })}
     ${fatigueOn(w) ? '' : `<p class="message warning">${escapeHtml(t('roster.noFatigue'))}</p>`}
+    <div class="rp-message" role="status" aria-live="polite"></div>
     <div class="rp-columns"><div class="rp-col rp-fields"></div><div class="rp-col rp-squadrons"></div></div>
     <div class="dialog-buttons"><button value="close">${escapeHtml(t('reports.close'))}</button></div>
   </form>`;
@@ -73,6 +74,14 @@ export function renderRosterPage(app, force = false) {
   const left = dlg.querySelector('.rp-fields');
   const right = dlg.querySelector('.rp-squadrons');
   if (!left || !right) return;
+  // What an order of this page answers (« Heure non comprise », « Plan copié vers… ») is said
+  // in the page itself: the sheet it used to be written in is under it.
+  const said = dlg.querySelector('.rp-message');
+  const message = messageBlock(app);
+  if (said && said.__html !== message) {
+    said.innerHTML = message;
+    said.__html = message;
+  }
   const fieldHtml = `<h3>${escapeHtml(t('roster.fields'))}</h3><ul class="rp-list">${fields.map((f) => {
     const list = rosterSquadrons(w, f.id);
     const ready = list.filter((s) => s.state === 'ready').length;
@@ -93,13 +102,13 @@ export function renderRosterPage(app, force = false) {
       <div class="roster-head"><span class="rp-name"><b>${escapeHtml(s.name)}</b> <small>${escapeHtml(s.typeName)}</small></span> <span>${escapeHtml(t(`states.squadron.${s.state}`))} · ${fatigueHtml(w, s)}</span></div>
       ${timelineHtml(w, s)}
       ${grounded ? `${alertButtons(app, s, 'squadron', s.alert || 'min5')}${confirmBox(app, 'squadron', s.id, s.name)}` : ''}
-      <p class="hint">${escapeHtml(alertStatus(w, s))}</p>
+      <p class="state-line">${escapeHtml(alertStatus(w, s))}</p>
       ${s.alertManual ? `<div class="order-line">${button('roster-resume', t('orders.rosterResume'), { id: s.id, kind: 'squadron' })}</div>` : ''}
       ${rosterBlock(app, s, { title: true })}
       ${s.roster && s.roster.daily && s.roster.daily.length ? `<div class="order-line"><span>${escapeHtml(t('roster.copy'))}</span><select id="rp-copy-${escapeHtml(s.id)}">${options(copyList, 'field')}</select>${button('roster-copy', t('roster.copyGo'), { id: s.id, kind: 'squadron' })}</div>` : ''}
     </section>`;
   }).join('');
-  const html = `<div class="legend-line">${legend}</div>${blocks || `<p class="hint">${escapeHtml(t('roster.none'))}</p>`}`;
+  const html = `<div class="legend-line">${legend}</div>${blocks || `<p class="state-line">${escapeHtml(t('roster.none'))}</p>`}`;
   setKeyedPage(right, html, `${st.fieldId}`);
 }
 

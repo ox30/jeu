@@ -7,6 +7,8 @@ import { checkDevPassword } from './dev.js';
 import { markHelpSeen, saveSettings } from '../save/settings.js';
 import { GAME_SETTING_KEYS, applyPreset, canSetGameSetting, matchingPreset, setGameSetting } from '../sim/gameSettings.js';
 import { showPage } from './pages.js';
+import { resetTips } from './tips.js';
+import { helpMark, settingRow } from './commands.js';
 import { fighterCount } from '../sim/objectives.js';
 import { presetStory } from '../sim/gameSettings.js';
 import { ALERT_GROUPS, defaultAlertSpeed } from './alertRules.js';
@@ -15,8 +17,9 @@ import { setVolume } from './sound.js';
 function select(name, value, choices, labelKey) {
   const options = choices.map((c) =>
     `<option value="${c}"${c === value ? ' selected' : ''}>${escapeHtml(t(`${labelKey}.${c}`))}</option>`).join('');
-  return `<select name="${name}">${options}</select>`;
+  return `<select name="${name}" id="set-${name}">${options}</select>`;
 }
+
 
 function checkbox(name, checked, label) {
   return `<label class="check"><input type="checkbox" name="${name}"${checked ? ' checked' : ''}> ${escapeHtml(label)}</label>`;
@@ -81,18 +84,16 @@ export function openSettings(app, { scope = 'game' } = {}) {
         <label>${escapeHtml(t('settings.rosterHours'))} ${select('rosterHours', String(s.rosterHours || '24'), presets.choices.rosterHours, 'settings.rosterHoursChoices')}</label>
         <label>${escapeHtml(t('settings.carry'))} ${select('carry', s.carry || 'none', presets.choices.carry, 'settings.carryChoices')}</label>
         <label>${escapeHtml(t('settings.bdienst'))} ${select('bdienst', String(s.bdienst ?? '25'), presets.choices.bdienst, 'settings.bdienstChoices')}</label>
-        <label>${escapeHtml(t('settings.seaComms'))} ${select('seaComms', s.seaComms || 'direct', presets.choices.seaComms, 'settings.seaCommsChoices')}</label>
-        <p class="hint">${escapeHtml(t('settings.seaCommsHint'))}</p>
+        ${settingRow(t('settings.seaComms'), 'seaComms', 'setSeaComms', select('seaComms', s.seaComms || 'direct', presets.choices.seaComms, 'settings.seaCommsChoices'))}
       </fieldset>`)}
       ${pane('time', `
       <fieldset>
         ${checkbox('slowOnAlert', s.slowOnAlert, t('settings.slowOnAlert'))}
         ${checkbox('confirmSpeed', s.confirmSpeed !== false, t('settings.confirmSpeed'))}
         ${checkbox('questions', s.questions !== false, t('settings.questions'))}
-        <label>${escapeHtml(t('settings.watchStops'))} ${select('watchStops', s.watchStops || 'decision', presets.choices.watchStops, 'settings.watchStopsChoices')}</label>
-        <p class="hint">${escapeHtml(t('settings.watchStopsHint'))}</p>
+        ${settingRow(t('settings.watchStops'), 'watchStops', 'setWatchStops', select('watchStops', s.watchStops || 'decision', presets.choices.watchStops, 'settings.watchStopsChoices'))}
       </fieldset>
-      <p class="hint">${escapeHtml(t('settings.alertSpeedsHint'))}</p>
+      <div class="settings-sub">${escapeHtml(t('settings.alertSpeedsTitle'))}${helpMark('setAlertSpeeds')}</div>
       <table class="alert-speeds">${alertSpeedTable(app)}</table>`)}
       ${pane('map', `
       <fieldset>
@@ -102,12 +103,10 @@ export function openSettings(app, { scope = 'game' } = {}) {
         ${checkbox('patrolZones', s.patrolZones !== false, t('settings.patrolZones'))}
         ${checkbox('autoZoom', s.autoZoom, t('settings.autoZoom'))}
         ${checkbox('lowRes', s.lowRes, t('settings.lowRes'))}
-        <label>${escapeHtml(t('settings.sheetPos'))} ${select('sheetPos', s.sheetPos || 'right', presets.choices.sheetPos, 'settings.sheetPosChoices')}</label>
-        <p class="hint">${escapeHtml(t('settings.sheetHint'))}</p>
-        <label>${escapeHtml(t('settings.sheetHelp'))} ${select('sheetHelp', s.sheetHelp || 'shown', presets.choices.sheetHelp, 'settings.sheetHelpChoices')}</label>
-        <p class="hint">${escapeHtml(t('settings.sheetHelpHint'))}</p>
-        <label>${escapeHtml(t('settings.viewZones'))} ${select('viewZones', s.viewZones || 'selected', presets.choices.viewZones, 'settings.viewZonesChoices')}</label>
-        <p class="hint">${escapeHtml(t('settings.viewZonesHint'))}</p>
+        ${settingRow(t('settings.sheetPos'), 'sheetPos', 'setSheetPos', select('sheetPos', s.sheetPos || 'right', presets.choices.sheetPos, 'settings.sheetPosChoices'))}
+        ${settingRow(t('settings.sheetHelp'), 'sheetHelp', 'setSheetHelp', select('sheetHelp', s.sheetHelp === 'shown' ? 'shown' : 'folded', presets.choices.sheetHelp, 'settings.sheetHelpChoices'))}
+        <div class="settings-line"><button type="button" data-tips="review">${escapeHtml(t('firstTips.review'))}</button>${helpMark('setTips')} <span class="settings-done" role="status"></span></div>
+        ${settingRow(t('settings.viewZones'), 'viewZones', 'setViewZones', select('viewZones', s.viewZones || 'selected', presets.choices.viewZones, 'settings.viewZonesChoices'))}
       </fieldset>`)}
       ${pane('sound', `
       <fieldset>
@@ -116,20 +115,24 @@ export function openSettings(app, { scope = 'game' } = {}) {
       </fieldset>`)}
       ${pane('dev', `
       <fieldset class="dev-settings">
-        <label class="check"><input type="checkbox" data-dev="toggle"${app.dev ? ' checked' : ''}> ${escapeHtml(t('settings.devMode'))}</label>
+        <div class="settings-row check"><label class="check"><input type="checkbox" data-dev="toggle"${app.dev ? ' checked' : ''}> ${escapeHtml(t('settings.devMode'))}</label>${helpMark('setDev')}</div>
         <div class="dev-password" hidden>
           <input type="password" data-dev="password" autocomplete="off" spellcheck="false" placeholder="${escapeHtml(t('settings.devPassword'))}" aria-label="${escapeHtml(t('settings.devPassword'))}">
           <button type="button" data-dev="ok">${escapeHtml(t('settings.devOk'))}</button>
           <button type="button" data-dev="cancel" class="secondary">${escapeHtml(t('settings.devCancel'))}</button>
           <span class="dev-error" role="alert" hidden></span>
         </div>
-        <p class="hint">${escapeHtml(t('settings.devHint'))}</p>
       </fieldset>`)}
       <p class="hint">${escapeHtml(t('settings.note'))}</p>
       <div class="dialog-buttons"><button value="close">${escapeHtml(t('settings.close'))}</button></div>
     </form>`;
   const form = dlg.querySelector('form');
   devSettings(app, form);
+  // « Revoir les astuces »: the tips of a first time come back, each at its next occasion.
+  form.querySelector('[data-tips="review"]').addEventListener('click', (e) => {
+    resetTips(app);
+    e.currentTarget.parentElement.querySelector('.settings-done').textContent = t('firstTips.reviewDone');
+  });
   // The tabs: one pane at a time; the one last opened comes back next time.
   form.querySelector('.settings-tabs').addEventListener('click', (e) => {
     const b = e.target.closest('[data-stab]');
@@ -174,6 +177,8 @@ export function openSettings(app, { scope = 'game' } = {}) {
       } else {
         own[field.name] = field.value;
       }
+      // (A choice made, kept from now on: settings.js, the default of 2.11.0.)
+      if (field.name === 'sheetHelp') own.sheetHelpChosen = true;
       own.preset = matchingPreset(own, presets);
       saveSettings(own);
       if (!inGame) Object.assign(s, own);
@@ -186,6 +191,8 @@ export function openSettings(app, { scope = 'game' } = {}) {
       app.drawing = null;
       app.el.unitKeyed.__key = '';
     }
+    // (The help of the sheet is written in it, or not: the sheet is drawn again.)
+    if (field.name === 'sheetHelp') app.el.unitKeyed.__key = '';
     app.dirtyPanels = true;
     app.dirtyHud = true;
     openSettings.refresh(form, s, presets);
@@ -279,7 +286,21 @@ function helpSteps(app) {
   return t(app.world.rail.enabled ? 'help.steps' : 'help.stepsTraining');
 }
 
-const HELP_TABS = ['scenario', 'sheet', 'air', 'sea', 'time', 'games', 'keys'];
+export const HELP_TABS = ['scenario', 'sheet', 'air', 'sea', 'time', 'games', 'keys'];
+
+/** The rubrics of a tab of the help: [{ id, title, text: [paragraphs], image? }]. */
+export function helpRubrics(tab) {
+  const list = t(`help.rubrics.${tab}`);
+  return Array.isArray(list) ? list : [];
+}
+
+/** A link to a rubric written in a text of the help: [[tab:anchor|words]]. */
+export const HELP_LINK = /\[\[([a-z]+):([a-z-]+)\|([^\]]+)\]\]/g;
+
+/** A paragraph of the help as HTML: its text, and the links to other rubrics as buttons. */
+export function helpParagraph(text) {
+  return escapeHtml(text).replace(HELP_LINK, (all, tab, anchor, words) => `<button type="button" class="link" data-hlink="${tab}:${anchor}">${words}</button>`);
+}
 
 /** A picture from the test bench, beside the text it illustrates (data/help/images.json). */
 function helpImage(app, name) {
@@ -287,40 +308,70 @@ function helpImage(app, name) {
   return src ? `<figure class="help-image"><img src="${src}" alt="${escapeHtml(t(`help.images.${name}`))}"><figcaption>${escapeHtml(t(`help.images.${name}`))}</figcaption></figure>` : '';
 }
 
-/** The help, in tabs: this scenario, the sheet, the air, the sea, time and alerts, games and settings, the keys. */
-export function openHelp(app) {
+/**
+ * The help, in tabs: this scenario, the sheet, the air, the sea, time and alerts, games and
+ * settings, the keys. `wantTab` and `anchor`: the tab and the rubric to open on (the link of
+ * a « ? » bubble); else the tab last read.
+ */
+export function openHelp(app, wantTab = null, anchor = null) {
   const dlg = app.el.dlgHelp;
   // From the main menu with no game in hand there is no « this scenario » to speak of: the
   // help opens on the games and their settings.
   const noGame = Boolean(app.onMenu) && !(app.gameInProgress && app.gameInProgress());
   const tabs = noGame ? HELP_TABS.filter((id) => id !== 'scenario') : HELP_TABS;
+  if (wantTab && tabs.includes(wantTab)) app.helpTab = wantTab;
   const tab = tabs.includes(app.helpTab) ? app.helpTab : noGame ? 'games' : 'scenario';
-  const list = (items) => `<ol>${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
-  const bodies = {
-    scenario: list(helpSteps(app)),
-    sheet: `${helpImage(app, 'sheet')}${list(t('help.sheet'))}`,
-    air: `${list(t('help.air'))}${helpImage(app, 'roster')}`,
-    sea: `${helpImage(app, 'escort')}${list(t('help.sea'))}`,
-    time: list(t('help.time')),
-    games: list(t('help.games')),
-    keys: `<p class="keys">${escapeHtml(t('help.keys'))}</p>`,
+  // This scenario: its steps, numbered. The other tabs: short titled rubrics, each with its
+  // anchor (a « ? » bubble opens the help on one), under the list of their titles.
+  const rubric = (r) => `<section class="help-rubric" data-anchor="${escapeHtml(r.id)}"><h3>${escapeHtml(r.title)}</h3>
+    ${r.text.map((p) => `<p>${helpParagraph(p)}</p>`).join('')}${r.image ? helpImage(app, r.image) : ''}</section>`;
+  const rubrics = (id) => {
+    const list = helpRubrics(id);
+    const contents = list.length > 1 ? `<nav class="help-contents" aria-label="${escapeHtml(t('help.contents'))}">${list.map((r) =>
+      `<button type="button" class="link" data-hlink="${id}:${escapeHtml(r.id)}">${escapeHtml(r.title)}</button>`).join('')}</nav>` : '';
+    return `${contents}${list.map(rubric).join('')}`;
   };
+  const body = (id) => (id === 'scenario' ? `<ol>${helpSteps(app).map((x) => `<li>${helpParagraph(x)}</li>`).join('')}</ol>` : rubrics(id));
   dlg.innerHTML = `
     <form method="dialog" class="help-page">
       <h2>${escapeHtml(t('help.title'))}</h2>
       <nav class="settings-tabs" role="tablist">${tabs.map((id) => `<button type="button" role="tab" data-htab="${id}" class="${id === tab ? 'active' : ''}">${escapeHtml(t(`help.tabs.${id}`))}</button>`).join('')}</nav>
-      ${tabs.map((id) => `<section class="help-pane" data-hpane="${id}"${id === tab ? '' : ' hidden'}>${bodies[id]}</section>`).join('')}
+      ${tabs.map((id) => `<section class="help-pane" data-hpane="${id}"${id === tab ? '' : ' hidden'}>${body(id)}</section>`).join('')}
       <div class="dialog-buttons"><button value="close">${escapeHtml(t('help.close'))}</button></div>
     </form>`;
-  dlg.querySelector('.settings-tabs').addEventListener('click', (e) => {
+  /** Shows a tab, and in it the rubric asked for: in view, and marked. */
+  const go = (id, to = null) => {
+    if (!tabs.includes(id)) return;
+    app.helpTab = id;
+    for (const x of dlg.querySelectorAll('[data-htab]')) x.classList.toggle('active', x.dataset.htab === id);
+    for (const p of dlg.querySelectorAll('[data-hpane]')) p.hidden = p.dataset.hpane !== id;
+    for (const x of dlg.querySelectorAll('.help-target')) x.classList.remove('help-target');
+    const target = to ? dlg.querySelector(`[data-hpane="${id}"] [data-anchor="${to}"]`) : null;
+    if (target) {
+      target.classList.add('help-target');
+      target.scrollIntoView({ block: 'start' });
+      // (A picture above it that has not its height yet would push the rubric down: once
+      // drawn, the rubric is brought back in view.)
+      for (const img of dlg.querySelectorAll(`[data-hpane="${id}"] img`)) {
+        if (!img.complete) img.addEventListener('load', () => target.classList.contains('help-target') && target.scrollIntoView({ block: 'start' }), { once: true });
+      }
+    } else {
+      dlg.scrollTop = 0;
+    }
+  };
+  dlg.querySelector('.help-page').addEventListener('click', (e) => {
     const b = e.target.closest('[data-htab]');
-    if (!b) return;
-    app.helpTab = b.dataset.htab;
-    for (const x of dlg.querySelectorAll('[data-htab]')) x.classList.toggle('active', x === b);
-    for (const p of dlg.querySelectorAll('[data-hpane]')) p.hidden = p.dataset.hpane !== b.dataset.htab;
+    const link = e.target.closest('[data-hlink]');
+    if (b) go(b.dataset.htab);
+    else if (link) go(...link.dataset.hlink.split(':'));
   });
-  dlg.addEventListener('close', markHelpSeen, { once: true });
+  // Read once: the browser remembers it, and the dot leaves the button of the help.
+  dlg.addEventListener('close', () => {
+    markHelpSeen();
+    if (app.el.btnHelp) app.el.btnHelp.classList.remove('fresh');
+  }, { once: true });
   showPage(app, dlg);
+  if (anchor) go(tab, anchor);
 }
 
 export function openSuccess(app) {

@@ -11,6 +11,7 @@ import {
 import { isFlying } from '../sim/squadron.js';
 import { altitudeText, escortStateText, formationDefaultName } from './format.js';
 import { showPage } from './pages.js';
+import { pageTitle } from './commands.js';
 import { toolOffered } from './offered.js';
 
 function unitsOfKind(world, kind) {
@@ -105,7 +106,7 @@ function render(app) {
     const total = members.reduce((n, u) => n + (u.kind === 'squadron' ? u.aircraft : u.ships), 0);
     right = `
       <label class="fm-label">${escapeHtml(t('formations.name'))} <input type="text" data-fm-name maxlength="40" value="${escapeHtml(editing.name)}"></label>
-      <p class="hint">${escapeHtml(t(`formations.total.${editing.kind}`, { n: members.length, total }))}</p>
+      <p class="state-line">${escapeHtml(t(`formations.total.${editing.kind}`, { n: members.length, total }))}</p>
       <ol class="fm-members">${members.map((u, i) => `<li class="fm-row${i === 0 ? ' leader' : ''}">
         <button type="button" class="fm-star" data-fm="lead" data-id="${escapeHtml(u.id)}" title="${escapeHtml(i === 0 ? t('formations.isLeader') : t('formations.makeLeader'))}">${i === 0 ? '★' : '☆'}</button>
         <span class="fm-name">${escapeHtml(u.name)}</span>
@@ -115,19 +116,18 @@ function render(app) {
           <button type="button" data-fm="down" data-id="${escapeHtml(u.id)}" title="${escapeHtml(t('formations.down'))}"${i === 0 || i === members.length - 1 ? ' disabled' : ''}>↓</button>
           <button type="button" data-fm="remove" data-id="${escapeHtml(u.id)}" title="${escapeHtml(t('formations.remove'))}">←</button>
         </span></li>`).join('')}</ol>
-      ${members.length < 2 ? `<p class="hint">${escapeHtml(t('formations.addMore'))}</p>` : ''}
+      ${members.length < 2 ? `<p class="state-line">${escapeHtml(t('formations.addMore'))}</p>` : ''}
       <div class="fm-actions">
         <button type="button" data-fm="show" data-id="${escapeHtml(editing.id)}">${escapeHtml(t('formations.show'))}</button>
         <button type="button" class="danger" data-fm="dissolve" data-id="${escapeHtml(editing.id)}">${escapeHtml(t('formations.dissolve'))}</button>
       </div>`;
   } else {
-    right = `<p class="hint">${escapeHtml(t(`formations.startHint.${st.kind}`))}</p>`;
+    right = `<p class="state-line">${escapeHtml(t(`formations.startHint.${st.kind}`))}</p>`;
   }
 
   dlg.innerHTML = `
     <form method="dialog" class="page formations-page">
-      <h2>${escapeHtml(t('formations.title'))}</h2>
-      <p class="hint">${escapeHtml(t(`formations.intro.${st.kind}`))}</p>
+      ${pageTitle(app, t('formations.title'), st.kind === 'air' ? 'formationsAir' : 'formationsNaval')}
       ${kindTabs}
       <div class="fm-chips">${chips}</div>
       <div class="fm-columns">

@@ -3,6 +3,7 @@
 // its « Commandes » tab, which the player opens or folds (remembered in the settings).
 
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
+import { hasHelp, helpText } from './helpTopics.js';
 
 const S = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${d}</svg>`;
 
@@ -43,14 +44,15 @@ export function cmdGroup(caption, html, cls = '') {
 
 /**
  * Speed: a slider from `min` to 100 % and a boost button. `boost`: the boost's speed as a share
- * of the 100 % (e.g. 131), or null when the unit has none.
+ * of the 100 % (e.g. 131), or null when the unit has none. `boostTitle`: its tooltip, when the
+ * boost of this unit costs something else than fuel.
  */
-export function speedControl(u, kind, { min, pct, boostOn, boost, unitText }) {
+export function speedControl(u, kind, { min, pct, boostOn, boost, unitText, boostTitle = '' }) {
   const id = `speed-${u.id}`;
   return `<div class="cmd-group speed"><div class="cmd-caption">${escapeHtml(t('cmd.speed'))}</div>
     <div class="cmd-row"><input type="range" id="${escapeHtml(id)}" min="${min}" max="100" step="5" value="${boostOn ? 100 : pct}" data-change="speed-pct" data-id="${escapeHtml(u.id)}" data-kind="${kind}"${boostOn ? ' class="off"' : ''} aria-label="${escapeHtml(t('cmd.speed'))}">
     <b class="speed-value">${escapeHtml(boostOn ? t('cmd.boostOn', { p: boost }) : `${pct} %`)}</b>
-    ${boost ? `<button type="button" class="cmd small${boostOn ? ' active' : ''}" data-action="boost" data-id="${escapeHtml(u.id)}" data-kind="${kind}" title="${escapeHtml(t('cmd.boostTitle', { p: boost }))}">${ICONS.boost}<span>${escapeHtml(t('cmd.boost', { p: boost }))}</span></button>` : ''}</div>
+    ${boost ? `<button type="button" class="cmd small${boostOn ? ' active' : ''}" data-action="boost" data-id="${escapeHtml(u.id)}" data-kind="${kind}" title="${escapeHtml(boostTitle || t('cmd.boostTitle', { p: boost }))}">${ICONS.boost}<span>${escapeHtml(t('cmd.boost', { p: boost }))}</span></button>` : ''}</div>
     ${unitText ? `<div class="speed-text">${escapeHtml(unitText)}</div>` : ''}</div>`;
 }
 
@@ -68,10 +70,48 @@ export function sectionOpen(app, id, dflt = true) {
   return mine === undefined ? dflt : Boolean(mine);
 }
 
-/** A section of the Commandes tab, folded or open as the player left it. */
-export function section(app, id, title, body, dflt = true) {
+/**
+ * The « ? » of a section, of a sub-title, of a page or of a setting: it opens the bubble of
+ * `key` (helpBubble.js, helpTopics.js). `args`: the figures its text quotes.
+ */
+export function helpMark(key, args = null) {
+  if (!hasHelp(key)) return '';
+  const extra = args ? ` data-help-args="${escapeHtml(JSON.stringify(args))}"` : '';
+  return `<button type="button" class="help-mark" data-help="${key}"${extra} title="${escapeHtml(t('help.mark'))}" aria-label="${escapeHtml(t('help.mark'))}" aria-expanded="false">?</button>`;
+}
+
+/** With the setting « Aides des fiches : affichées », the text of a bubble under its title. */
+export function helpInline(app, key, args = null) {
+  if (!hasHelp(key) || app.settings.sheetHelp !== 'shown') return '';
+  return `<p class="hint help-inline">${escapeHtml(helpText(key, app.world ? app.world.settings : null, args || {}))}</p>`;
+}
+
+/**
+ * A setting with a « ? »: its name (the label of the field `set-<name>`), the « ? » beside
+ * the name and not inside the label — a button in a label would take the label away from
+ * its field — then the field.
+ */
+export function settingRow(title, name, help, field) {
+  return `<div class="settings-row"><span><label for="set-${name}">${escapeHtml(title)}</label>${helpMark(help)}</span> ${field}</div>`;
+}
+
+/** The title of a page, with the « ? » of the help it carries. */
+export function pageTitle(app, title, help = null, args = null) {
+  return `<h2>${escapeHtml(title)}${help ? helpMark(help, args) : ''}</h2>${help ? helpInline(app, help, args) : ''}`;
+}
+
+/** A sub-title, with the « ? » of the help it carries. */
+export function subTitle(app, title, help = null, args = null) {
+  return `<div class="sub">${escapeHtml(title)}${help ? helpMark(help, args) : ''}</div>${help ? helpInline(app, help, args) : ''}`;
+}
+
+/**
+ * A section of the Commandes tab, folded or open as the player left it. `help`: the key of
+ * its bubble; its « ? » stands in the title.
+ */
+export function section(app, id, title, body, dflt = true, help = null) {
   if (!body) return '';
-  return `<details class="sec" data-sec="${id}"${sectionOpen(app, id, dflt) ? ' open' : ''}><summary>${escapeHtml(title)}</summary><div class="sec-body">${body}</div></details>`;
+  return `<details class="sec" data-sec="${id}"${sectionOpen(app, id, dflt) ? ' open' : ''}><summary>${escapeHtml(title)}${help ? helpMark(help) : ''}</summary><div class="sec-body">${help ? helpInline(app, help) : ''}${body}</div></details>`;
 }
 
 /** km/h of a speed in km/s, rounded for reading. */

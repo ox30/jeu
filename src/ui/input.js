@@ -21,7 +21,7 @@ import {
 } from './actions.js';
 import { toolOffered, viewOffered } from './offered.js';
 import { openWatch } from './watchPanel.js';
-import { handsOff, nudgeCoach } from './tutorial.js';
+import { handsOff, nudgeCoach, tutorialFlag } from './tutorial.js';
 import { membersOf } from '../sim/formations.js';
 import { answerShown } from './questions.js';
 import { speedIndexOfKey } from './keys.js';
@@ -308,14 +308,14 @@ export function attachInput(app) {
         // Several targets where the line ends: a small choice says which one it means.
         const targets = dropTargets(app, gesture.hit, q[0], q[1], e.pointerType === 'touch' ? 14 : 8);
         if (targets.length > 1) openDropChoice(app, gesture.hit, points, targets, q[0], q[1]);
-        else finishDrawing(app, gesture.hit, points, endHit);
+        else if (finishDrawing(app, gesture.hit, points, endHit)) tutorialFlag(app, 'routeDrawn');
       } else if (!gesture.moved) {
         clickSelect(app, gesture.clickHit || gesture.hit);
       }
       app.drawing = null;
     } else if (gesture.type === 'extend') {
       const u = findUnit(app, gesture.hit.unitKind, gesture.hit.id);
-      if (gesture.moved && app.drawing && up && u) extendRoute(app, u, [...app.drawing.points, pos(e)]);
+      if (gesture.moved && app.drawing && up && u && extendRoute(app, u, [...app.drawing.points, pos(e)])) tutorialFlag(app, 'routeExtended');
       app.drawing = null;
     } else if (gesture.type === 'edit') {
       const h = gesture.hit;
@@ -323,10 +323,11 @@ export function attachInput(app) {
       if (u && up) {
         if (gesture.moved) {
           const [x, y] = toWorld(app.camera, ...pos(e));
-          if (h.kind === 'routeMid') insertPoint(app, u, h.index, x, y);
-          else movePoint(app, u, h.index, x, y);
+          if (h.kind === 'routeMid') {
+            if (insertPoint(app, u, h.index, x, y)) tutorialFlag(app, 'pointInserted');
+          } else if (movePoint(app, u, h.index, x, y)) tutorialFlag(app, 'pointMoved');
         } else if (h.kind === 'routeMid') {
-          insertPoint(app, u, h.index, h.wx, h.wy);
+          if (insertPoint(app, u, h.index, h.wx, h.wy)) tutorialFlag(app, 'pointInserted');
         } else {
           setActivePoint(app, u, h.index);
         }
@@ -340,6 +341,10 @@ export function attachInput(app) {
       else if (up) noteByStack(app, gesture.hit);
     } else if (gesture.type === 'measure') {
       if (!gesture.moved) clickSelect(app, gesture.clickHit || gesture.hit);
+      else tutorialFlag(app, 'rulerUsed');
+    } else if (gesture.type === 'ruler') {
+      // (A measure of some length: a lesson may wait for it.)
+      if (up && app.ruler && Math.hypot(app.ruler.b[0] - app.ruler.a[0], app.ruler.b[1] - app.ruler.a[1]) > 1) tutorialFlag(app, 'rulerUsed');
     } else if (gesture.type === 'mru') {
       if (up && app.ruler && Math.hypot(pos(e)[0] - gesture.start[0], pos(e)[1] - gesture.start[1]) > 12) orderMru(app, app.ruler.a, app.ruler.b);
       app.ruler = null;
@@ -364,7 +369,7 @@ export function attachInput(app) {
     const hit = hitTest(app, p[0], p[1], 6);
     if (hit && hit.kind === 'routePoint') {
       const u = findUnit(app, hit.unitKind, hit.id);
-      if (u) deletePoint(app, u, hit.index);
+      if (u && deletePoint(app, u, hit.index)) tutorialFlag(app, 'pointDeleted');
       return;
     }
     if (hit && HANDLE_KINDS.has(hit.kind)) return;
@@ -430,10 +435,11 @@ export function attachInput(app) {
       nudgeCoach(app);
     } else if ((key === 'ArrowUp' || key === 'ArrowDown') && point && point.u.kind === 'squadron') {
       changePointAltitude(app, point.u, point.index, key === 'ArrowUp' ? 1000 : -1000);
+      tutorialFlag(app, 'pointAltitude');
     } else if ((key === 'ArrowUp' || key === 'ArrowDown') && sq) {
       changeAltitude(app, sq, key === 'ArrowUp' ? 1000 : -1000);
     } else if ((key === 'Delete' || key === 'Backspace') && point) {
-      deletePoint(app, point.u, point.index);
+      if (deletePoint(app, point.u, point.index)) tutorialFlag(app, 'pointDeleted');
     } else if (key === 'Enter' && unit && app.ruler) {
       addRulerLeg(app, unit);
     } else if ((key === 's' || key === 'S') && sq && (sq.state === 'ready'

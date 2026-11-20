@@ -110,8 +110,8 @@
       "silence"
     ],
     "sheetHelp": [
-      "shown",
-      "folded"
+      "folded",
+      "shown"
     ]
   },
   "options": {
@@ -133,6 +133,6 @@
     "sheetPos": "right",
     "sheetW": 400,
     "sheetH": 300,
-    "sheetHelp": "shown"
+    "sheetHelp": "folded"
   }
 }

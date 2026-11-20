@@ -24,6 +24,11 @@ test('other keys are left alone', () => {
   assert.equal(speedIndexOfKey(press('a', 'KeyQ'), 6), -1);
   assert.equal(speedIndexOfKey(press('1', 'Digit1', { ctrlKey: true }), 6), -1, 'Ctrl+1 belongs to the browser');
   assert.equal(speedIndexOfKey(press('2', 'Digit2', { metaKey: true }), 6), -1);
+  // « + » zooms the map (2.11.0: the help says so). On a Swiss keyboard it is Shift and the
+  // key of the 1: not the first speed.
+  assert.equal(speedIndexOfKey(press('+', 'Digit1', { shiftKey: true }), 6), -1, 'Swiss « + »');
+  assert.equal(speedIndexOfKey(press('+', 'Equal', { shiftKey: true }), 6), -1);
+  assert.equal(speedIndexOfKey(press('+', 'NumpadAdd'), 6), -1);
   // The keypad with Num Lock off types arrows and keeps them: ↓ lowers the altitude asked.
   assert.equal(speedIndexOfKey(press('ArrowDown', 'Numpad2'), 6), -1);
   assert.equal(speedIndexOfKey(press('ArrowRight', 'Numpad6'), 6), -1);

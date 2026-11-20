@@ -21,8 +21,8 @@ import { openFormations } from './formationsPage.js';
 import { openRoster } from './rosterPage.js';
 import { openCards, openReports } from './pages.js';
 import { onWatchClick } from './watchPanel.js';
-import { toggleSheetHelp } from './sheetHelp.js';
 import { handsOff, nudgeCoach, tutorialFlag } from './tutorial.js';
+import { tipOccasion } from './tips.js';
 
 function inputValue(id) {
   const input = document.getElementById(id);
@@ -41,9 +41,9 @@ function clearLegInputs() {
   }
 }
 
-/** The first time the player schedules anything, a reminder: anticipate the alert state. */
+/** The first time the player schedules anything, a tip: anticipate the alert state (tips.js). */
 function firstSchedule(app) {
-  if (!app.scheduleHintSeen) app.scheduleHintShown = true;
+  tipOccasion(app, 'schedule');
 }
 
 /** The map centred on what is selected (the ⌖ button of the unit panel). */
@@ -177,15 +177,6 @@ export const PANEL_ACTIONS = {
     if (unit) orderScheduleSail(app, unit, Number(inputValue(`sail-day-${id}`) || 0), inputValue(`sail-time-${id}`));
   },
   'schedule-cancel': (app, { unit }) => unit && orderCancelSchedule(app, unit),
-  'hint-seen': (app) => {
-    app.scheduleHintSeen = true;
-    app.scheduleHintShown = false;
-    try {
-      localStorage.setItem('jeu-1940.scheduleHint.v1', '1');
-    } catch {
-      // ignore
-    }
-  },
 
   // ---- the rendezvous of a formation ----
   'rally-where': rally('where', ({ b }) => ({ where: b.dataset.where })),
@@ -284,10 +275,6 @@ export const PANEL_CHANGES = {
 
 /** What a click on the journal, the tabs or the folds does before any `data-action`. */
 function chromeClick(app, e) {
-  if (toggleSheetHelp(app, e)) {
-    app.dirtyPanels = true;
-    return true;
-  }
   if (onWatchClick(app, e)) return true;
   const logTab = e.target.closest('[data-log-tab]');
   if (logTab) {
@@ -329,7 +316,7 @@ function chromeClick(app, e) {
 
 // What a sheet lets one do without giving an order: allowed while the instructor of a lesson
 // has the hand.
-const LOOKING = new Set(['select', 'close-unit', 'centre-selection', 'dev-show', 'cards', 'open-roster', 'hint-seen']);
+const LOOKING = new Set(['select', 'close-unit', 'centre-selection', 'dev-show', 'cards', 'open-roster']);
 
 export function onPanelClick(app, e) {
   if (chromeClick(app, e)) return;
