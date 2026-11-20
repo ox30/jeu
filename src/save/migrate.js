@@ -4,8 +4,8 @@
 // game, comes from a later version, or is damaged is refused before anything is touched, with
 // a reason the game can tell the player (save.errors.<code> in fr.json).
 
-/** The format written today. 1: versions 2.6 to 2.8 · 2: version 2.9. */
-export const SNAP_VERSION = 2;
+/** The format written today. 1: versions 2.6 to 2.8 · 2: versions 2.9 to 2.11 · 3: version 2.12. */
+export const SNAP_VERSION = 3;
 
 /** A save that cannot be loaded: `code` says why (notAGame, tooNew, damaged, unknownScenario, wrongScenario). */
 export class SaveError extends Error {
@@ -41,6 +41,17 @@ export class SaveError extends Error {
 // absent = null, it ends as it always did) and `routeEnded` (a mark that lives within one
 // step; absent = false). An order « endAction » waiting in `signals` for a convoy is new
 // too: an earlier version would refuse it at the relief, as an order it does not know.
+//
+// Format 3 (version 2.12): every scenario with ships lives at the rhythm of the watches,
+// Kanalkampf and Adlertag with the Atlantic. A game of those two saved before kept nothing
+// in `watch` (it was played with the alerts of the sea as they came): it goes on at the
+// rhythm of the watches, from the relief that follows its loading. Its `watch` is left out,
+// so that the world it is put back onto keeps the one it was built with (no report yet, no
+// decision asked); under radio silence its ships on the high seas are placed from where
+// they are, as ships met at sea for the first time. What the game was begun with stays its
+// own: an Adlertag of before has neither Aldergrove's squadrons nor their orders.
+// One field on a convoy too, declared with its default (declareFields, convoy.js): `holding`
+// (told to keep its course; absent = false, and the watch asks about it like any other).
 // A new part of the world, or a field that cannot be defaulted, takes a new number and a
 // migration here (the check of the parts in src/save/game.js refuses a « complete » save
 // that lacks one).
@@ -64,6 +75,10 @@ const MIGRATIONS = {
   1(snap) {
     for (const s of snap.squadrons || []) renameAlertsOf(s);
     snap.version = 2;
+  },
+  2(snap) {
+    if (snap.watch === null) delete snap.watch;
+    snap.version = 3;
   },
 };
 

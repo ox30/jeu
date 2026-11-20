@@ -150,6 +150,13 @@ button {
   .speeds button { font-size: 12px !important; padding: 3px !important; }
 }
 
+/* At 1 024 px the « Quart » button is on the bar from the start of every game with ships
+   (2.12): with the sign of a save that failed, the bar would take a second line. The clock
+   face leaves the bar there; the hour stays, in figures. */
+@media (max-width: 1100px) {
+  #clock { display: none; }
+}
+
 /* ---------- map ---------- */
 
 #table { position: relative; grid-row: 2; grid-column: 1; overflow: hidden; }
@@ -511,6 +518,7 @@ dialog .keys { font-size: 12px; color: var(--ink-soft); }
 .settings-row > span { display: inline-flex; align-items: center; }
 .settings-row label { display: inline; margin: 0; }
 .settings-row.check { justify-content: flex-start; gap: 0; }
+.settings-why { margin: -2px 0 8px; font-size: 12px; text-align: right; }
 .settings-row.check label { display: flex; }
 .settings label.check { justify-content: flex-start; }
 .settings fieldset { border: 1px solid var(--paper-dark); border-radius: 4px; margin: 10px 0; }
@@ -525,7 +533,6 @@ dialog .keys { font-size: 12px; color: var(--ink-soft); }
   .hud-date { min-width: 0; }
   #date { font-size: 11px; }
   #time { font-size: 16px; }
-  #clock { width: 36px; height: 36px; }
   .only-small { display: inline-block !important; }
   #hud button { font-size: 12px; padding: 3px 6px !important; }
   .speeds button { padding: 3px 4px !important; }

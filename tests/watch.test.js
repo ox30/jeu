@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { makeKanalkampf, makeWorld, run, runTo } from './helpers.js';
 import { project } from '../src/sim/geo.js';
 import { emit } from '../src/sim/events.js';
-import { WATCH_S, clockHour, fullReport, markersOnWay, pendingDecisions, watchReport } from '../src/sim/watch.js';
+import { WATCH_S, clockHour, fullReport, markersOnWay, nextReliefHour, noRoute, pendingDecisions, watchReport } from '../src/sim/watch.js';
 import { joinConvoy, routeConvoy } from '../src/sim/orders.js';
 import { alertFor } from '../src/ui/alertRules.js';
 import { restore, snapshot } from '../src/save/game.js';
@@ -30,17 +30,21 @@ function attackOn(w, c, sunk) {
   emit(w, 'uboatAttack', { convoy: c.name, convoyId: c.id, sunk, escorts: 0, x: c.x, y: c.y });
 }
 
-test('the rhythm is the scenario\'s: watches in the Atlantic, live alerts elsewhere', () => {
+test('the rhythm follows the ships: watches wherever there are some, live alerts where there is none', () => {
   const a = atlantic();
   const k = makeKanalkampf();
+  const none = makeWorld('standard', {}, 'quinze-septembre');
   assert.ok(a.watch, 'the Atlantic keeps watch reports');
-  assert.equal(k.watch, null, 'Kanalkampf keeps its live alerts');
+  assert.ok(k.watch, 'Kanalkampf too, since 2.12: it has convoys and escort groups');
+  assert.equal(none.watch, null, '15 September has no ship: nothing changes there');
   const attack = (w) => {
     const c = w.convoys[0] || { id: 'hx1', name: 'HX 1', x: 0, y: 0 };
     return { type: 'uboatAttack', t: w.t, convoy: c.name, convoyId: c.id, sunk: 1, x: c.x, y: c.y };
   };
-  assert.ok(alertFor(k, attack(k), new Map()), 'an attack calls the player in Kanalkampf');
-  assert.equal(alertFor(a, attack(a), new Map()), null, 'in the Atlantic it goes to the watch report');
+  assert.ok(alertFor(none, attack(none), new Map()), 'without a watch, an event of the sea would call the player as before');
+  assert.equal(alertFor(k, attack(k), new Map()), null, 'on the high seas it goes to the watch report, in Kanalkampf as in the Atlantic');
+  assert.equal(alertFor(a, attack(a), new Map()), null);
+  assert.ok(alertFor(k, { ...attack(k), live: true }, new Map()), 'near us it calls the player as it comes (tests/nearus.test.js)');
   // Air raids keep their alerts everywhere.
   const raid = { type: 'raidDetected', t: 0, raid: 'H01', raidId: 'r1', count: 20, approx: true, altFt: 15000, location: null };
   assert.ok(alertFor(a, raid, new Map()));
@@ -262,4 +266,108 @@ test('a report read back has every part, even those left out to keep the saves s
   assert.equal(r.fromS, 0, 'the first watch began with the game');
   assert.equal(r.escorts[0].hunt, false);
   assert.equal(r.escorts[0].max, w.escorts[0].chargesMax);
+});
+
+// ---- 2.12: a convoy with nothing left to follow is a decision; the coastal convoys count ----
+
+test('a convoy at sea without a route is a decision, asked once at the relief where it appears', async () => {
+  const { sendOrder } = await import('../src/sim/comms.js');
+  const { addLeg } = await import('../src/sim/orders.js');
+  const w = makeKanalkampf();
+  const hx55 = w.convoys.find((c) => c.id === 'hx55');
+  const hx57 = w.convoys.find((c) => c.id === 'hx57');
+  const cw = w.convoys.find((c) => c.type === 'coastal');
+  // As the game begins: the two ocean convoys keep the course they came on; CW 7 lies at anchor.
+  assert.ok(noRoute(w, hx55) && noRoute(w, hx57));
+  assert.ok(!noRoute(w, cw), 'at anchor: not at sea');
+  const now = pendingDecisions(w).filter((d) => d.kind === 'adrift');
+  assert.deepEqual(now.map((d) => [d.key, d.unitKind, d.unitId, d.heading, d.admiralty]), [['adrift:hx55', 'convoy', 'hx55', 72, true], ['adrift:hx57', 'convoy', 'hx57', 60, true]]);
+  // The first relief (08:00) asks, and stops the game for it.
+  const events = run(w, 2 * H, (e) => e.type === 'seaStop');
+  const first = watchReport(w);
+  assert.equal(clockHour(w, first.toS), 8);
+  assert.equal(first.stop, 'decision');
+  assert.ok(first.fresh.includes('adrift:hx55') && first.fresh.includes('adrift:hx57'));
+  assert.ok(events.some((e) => e.type === 'seaStop' && e.reason === 'relief'));
+  assert.deepEqual(first.convoys.filter((c) => c.adrift).map((c) => c.id), ['hx55', 'hx57'], 'and their rows say so');
+  // HX 55 gets the Admiralty's route — by radio, under silence: on its way, the question is answered.
+  const sent = sendOrder(w, hx55, 'route', hx55.admiraltyRoute.slice(3));
+  assert.deepEqual([sent.ok, sent.via], [true, 'radio']);
+  assert.equal(hx55.route.length, 0, 'not yet with the convoy');
+  assert.ok(!noRoute(w, hx55));
+  assert.ok(!pendingDecisions(w).some((d) => d.key === 'adrift:hx55'));
+  // HX 57 is left alone: the next relief lists it still, without stopping again.
+  run(w, WATCH_S);
+  const second = watchReport(w);
+  assert.ok(second.decisions.some((d) => d.key === 'adrift:hx57'));
+  assert.ok(!second.fresh.includes('adrift:hx57'), 'asked once');
+  assert.ok(!second.decisions.some((d) => d.key === 'adrift:hx55'));
+  assert.ok(hx55.route.length > 0, 'the order went out at the relief');
+  assert.ok(!second.convoys.find((c) => c.id === 'hx55').adrift);
+  // Legs are something to follow; at their end the convoy keeps its course again, and is asked about again.
+  assert.ok(addLeg(w, hx57, { heading: 80, end: { kind: 'duration', s: 6 * H }, speedKn: null }).ok); // from 12:00 to 18:00
+  assert.ok(!noRoute(w, hx57));
+  run(w, WATCH_S);
+  assert.ok(!watchReport(w).decisions.some((d) => d.key === 'adrift:hx57'));
+  run(w, WATCH_S);
+  const later = watchReport(w);
+  assert.ok(noRoute(w, hx57));
+  assert.ok(later.fresh.includes('adrift:hx57'), 'gone, then back: a new question');
+});
+
+test('left without orders, HX 57 is no longer lost in silence: the reports ask about it from the first morning', () => {
+  const w = makeKanalkampf();
+  run(w, 3 * 86400);
+  const asked = w.watch.reports.filter((r) => (r.decisions || []).some((d) => d.key === 'adrift:hx57'));
+  assert.equal(asked.length, w.watch.reports.length, 'in every report, as long as nobody answers');
+  assert.equal(w.watch.reports.filter((r) => (r.fresh || []).includes('adrift:hx57')).length, 1, 'and the game stopped for it once');
+});
+
+test('the coastal convoys count: stopped, or left without a route, they wait for a decision like the others', () => {
+  const w = makeKanalkampf();
+  const cw = w.convoys.find((c) => c.type === 'coastal');
+  cw.state = 'waiting';
+  assert.ok(pendingDecisions(w).some((d) => d.key === `waiting:${cw.id}`));
+  Object.assign(cw, { state: 'atSea', route: [], plan: [] });
+  const d = pendingDecisions(w).find((x) => x.unitId === cw.id);
+  assert.deepEqual([d.kind, d.admiralty], ['adrift', true]);
+  // No escort to send and no U-boat marker for it: the Channel is closed to the U-boats.
+  assert.ok(!pendingDecisions(w).some((x) => x.unitId === cw.id && (x.kind === 'reach' || x.kind === 'marker')));
+});
+
+test('the hour of the next relief, for the page that waits for the first report', () => {
+  const w = makeKanalkampf(); // 06:00
+  assert.equal(nextReliefHour(w), 8);
+  runTo(w, 2 * H); // 08:00, the second of the relief
+  assert.equal(nextReliefHour(w), 12);
+  runTo(w, 17 * H + 1800); // 23:30
+  assert.equal(nextReliefHour(w), 0);
+  const a = makeWorld('standard', {}, 'hiver-atlantique'); // January 1941: the clock counts from before 1970
+  assert.equal(nextReliefHour(a), 8);
+});
+
+test('« Garder le cap » is an answer: a convoy told to keep its course is not asked about again', async () => {
+  const { setConvoyEndAction } = await import('../src/sim/convoy.js');
+  const w = makeKanalkampf('arcade'); // direct communications: the order is carried out at once
+  const hx57 = w.convoys.find((c) => c.id === 'hx57');
+  assert.ok(noRoute(w, hx57));
+  // The choice of its sheet (« Et maintenant »): nothing to follow, so it is carried out now.
+  setConvoyEndAction(w, hx57, { kind: 'hold' });
+  assert.equal(hx57.state, 'atSea');
+  assert.equal(hx57.holding, true);
+  assert.ok(!noRoute(w, hx57));
+  run(w, 2 * H + 60);
+  assert.ok(!watchReport(w).decisions.some((d) => d.key === 'adrift:hx57'), 'the first relief does not ask');
+  // Saved and restored, the answer holds.
+  const again = makeKanalkampf('arcade');
+  restore(again, JSON.parse(JSON.stringify(snapshot(w))));
+  assert.equal(again.convoys.find((c) => c.id === 'hx57').holding, true);
+  // Given a route, then left at its end with nothing told: the question is a new one.
+  assert.ok(routeConvoy(w, hx57, [[hx57.x + 30, hx57.y + 5]]).ok);
+  run(w, 60);
+  assert.equal(hx57.holding, false);
+  hx57.endAction = { kind: 'hold' };
+  run(w, 3 * H, (e) => e.type === 'convoyEndAction');
+  assert.equal(hx57.holding, true, 'kept on purpose at the end of its line: no question');
+  assert.ok(!noRoute(w, hx57));
 });

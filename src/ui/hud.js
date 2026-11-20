@@ -113,8 +113,9 @@ export function initHud(app) {
 }
 
 /**
- * The « Quart » button: shown from the first report of a watch on, with the number of
- * decisions that wait (looked at twice a second: an order given anywhere answers one).
+ * The « Quart » button: shown in every game at the rhythm of the watches, from its start,
+ * with the number of decisions that wait (looked at twice a second: an order given anywhere
+ * answers one).
  */
 function updateWatchTool(app) {
   const b = app.el.btnWatch;

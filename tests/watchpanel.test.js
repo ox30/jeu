@@ -9,12 +9,13 @@ import { joinConvoy } from '../src/sim/orders.js';
 import { pendingDecisions } from '../src/sim/watch.js';
 import { ORDER_NAMES } from '../src/sim/comms.js';
 import {
-  SIGNAL_FILTERS, createSignals, headlineText, onWatchClick, openWatch, passesFilter, renderSignals, reportHtml, unreadCount, watchLabel,
+  SIGNAL_FILTERS, createSignals, headlineText, onWatchClick, openWatch, passesFilter, renderSignals, reportHtml, reportWritten, unreadCount, watchLabel,
 } from '../src/ui/watchPanel.js';
 import { toolOffered } from '../src/ui/offered.js';
 
 setDictionary(data.fr);
 const H = 3600;
+const WATCH = 4 * H;
 
 function game() {
   const w = makeWorld('standard', {}, 'hiver-atlantique');
@@ -101,9 +102,11 @@ test('the report of a watch closed without an answer opens again as it was: the 
   const { w, app } = game();
   app.el = { dlgWatch: fakeDialog(), signals: {} };
   const dlg = app.el.dlgWatch;
-  // The « Quart » button: from the first report of a watch on, and only where the sea lives by the watches.
-  assert.equal(toolOffered({ world: makeWorld('standard', {}, 'hiver-atlantique') }, 'watch'), false, 'no report yet: no button');
-  assert.equal(toolOffered({ world: makeWorld('standard', {}, 'kanalkampf') }, 'watch'), false, 'no watches in the Channel');
+  // The « Quart » button: from the start of every game at the rhythm of the watches (2.12),
+  // and only there.
+  assert.equal(toolOffered({ world: makeWorld('standard', {}, 'hiver-atlantique') }, 'watch'), true, 'no report yet: the button is there');
+  assert.equal(toolOffered({ world: makeWorld('standard', {}, 'kanalkampf') }, 'watch'), true, 'Kanalkampf has ships');
+  assert.equal(toolOffered({ world: makeWorld('standard', {}, 'quinze-septembre') }, 'watch'), false, 'no ship, no watch');
   run(w, 4 * H, (e) => e.type === 'seaStop');
   assert.equal(toolOffered(app, 'watch'), true);
   const stopped = w.watch.reports[w.watch.reports.length - 1];
@@ -143,6 +146,86 @@ test('the report of a watch closed without an answer opens again as it was: the 
   openWatch(app, stopped.id);
   assert.ok(!/data-watch="send"/.test(dlg.innerHTML));
   assert.match(dlg.innerHTML, /\(réglé\)/);
+});
+
+// ---- 2.12: the « Quart » button from the start, and the convoy without a route ----
+
+test('before the first relief the page says that no report is written yet, when the first will be, and what waits already', () => {
+  const w = makeWorld('standard', {}, 'kanalkampf');
+  const app = { world: w, signals: createSignals(), el: { dlgWatch: fakeDialog(), signals: {} } };
+  const dlg = app.el.dlgWatch;
+  assert.equal(w.watch.reports.length, 0);
+  openWatch(app); // the button, or its key Q
+  assert.equal(dlg.open, true, 'the page opens without a report');
+  assert.match(dlg.innerHTML, /Rapport de quart/);
+  assert.match(dlg.innerHTML, /Aucun rapport n(&#39;|')est encore écrit : le premier viendra à la relève de 8 h\./);
+  // The two ocean convoys came without a route: asked from the first second, with the buttons that answer.
+  assert.match(dlg.innerHTML, /À décider/);
+  assert.match(dlg.innerHTML, /HX 55 n(&#39;|')a pas de route à suivre : il garde son cap \(072°\)/);
+  assert.match(dlg.innerHTML, /HX 57 n(&#39;|')a pas de route à suivre : il garde son cap \(060°\)/);
+  assert.equal((dlg.innerHTML.match(/data-watch="admiralty"/g) || []).length, 2);
+  assert.match(dlg.innerHTML, /data-watch="admiralty" data-id="hx55"[^>]*>Amirauté</);
+  assert.ok((dlg.innerHTML.match(/data-watch="see"/g) || []).length >= 2, '« Voir » on each');
+  assert.ok(!/data-watch="resume"/.test(dlg.innerHTML), 'nothing stopped the game: one button, « Fermer »');
+  // « Amirauté » for HX 55: the order leaves by radio (silence), the question is answered, and the page says so.
+  const hx55 = w.convoys.find((c) => c.id === 'hx55');
+  const b = { dataset: { watch: 'admiralty', id: 'hx55' }, closest: () => null };
+  assert.ok(onWatchClick(app, { target: { closest: (sel) => (sel === '[data-watch]' ? b : null) } }));
+  assert.ok(w.signals.some((x) => x.unitId === 'hx55' && x.name === 'route'), 'on its way, for the relief');
+  assert.match(dlg.innerHTML, /HX 55 n(&#39;|')a pas de route à suivre[^<]*<em>\(réglé\)<\/em>/);
+  assert.equal((dlg.innerHTML.match(/data-watch="admiralty"/g) || []).length, 1, 'HX 57 still waits');
+  dlg.close();
+  // After the first relief the button opens the report, as before; the route has gone out.
+  run(w, 2 * H);
+  assert.ok(hx55.route.length > 0);
+  openWatch(app);
+  assert.match(dlg.innerHTML, /Relève de 8 h/);
+  assert.match(dlg.innerHTML, /HX 57 n(&#39;|')a pas de route à suivre/);
+  assert.match(dlg.innerHTML, /HX 57[^<]*<\/button> : [^<]*sans route, garde son cap/, 'and its row in « Convois » says so');
+  // A game without ships has no page at all.
+  const none = { world: makeWorld('standard', {}, 'quinze-septembre'), signals: createSignals(), el: { dlgWatch: fakeDialog(), signals: {} } };
+  openWatch(none);
+  assert.equal(none.el.dlgWatch.open, false);
+});
+
+test('the page left open before the first relief shows the report when it is written', () => {
+  const w = makeWorld('standard', {}, 'kanalkampf');
+  const app = { world: w, signals: createSignals(), el: { dlgWatch: fakeDialog(), signals: {} } };
+  const dlg = app.el.dlgWatch;
+  reportWritten(app);
+  assert.equal(dlg.open, false, 'nothing open: nothing to do');
+  openWatch(app);
+  assert.match(dlg.innerHTML, /Aucun rapport/);
+  reportWritten(app);
+  assert.match(dlg.innerHTML, /Aucun rapport/, 'still none');
+  run(w, 2 * H); // 08:00
+  reportWritten(app); // (the page does it on the event « watchReport »)
+  assert.match(dlg.innerHTML, /Relève de 8 h/);
+  assert.ok(!/Aucun rapport/.test(dlg.innerHTML));
+  assert.equal(dlg.dataset.reportId, w.watch.reports[0].id);
+  // A report already on the page is left as it is when the next one is written.
+  run(w, WATCH);
+  reportWritten(app);
+  assert.equal(dlg.dataset.reportId, w.watch.reports[0].id);
+});
+
+test('the coastal convoy is in the reports and in the filter of the « Signaux » tab', () => {
+  const w = makeWorld('standard', {}, 'kanalkampf');
+  const app = { world: w, signals: createSignals(), el: { dlgWatch: fakeDialog(), signals: {} } };
+  const cw = w.convoys.find((c) => c.type === 'coastal');
+  run(w, 2 * H);
+  assert.ok(!(w.watch.reports[0].convoys || []).some((c) => c.id === cw.id), 'at anchor: nothing to report');
+  Object.assign(cw, { state: 'atSea', route: cw.admiraltyRoute.slice(1).map(([x, y]) => [x, y]) });
+  run(w, WATCH);
+  const r = w.watch.reports[w.watch.reports.length - 1];
+  assert.ok(r.convoys.some((c) => c.id === cw.id), 'at sea: its row');
+  const row = reportHtml(app, r).match(/CW 7<\/button> : [^<]*/)[0];
+  assert.match(row, /^CW 7<\/button> : \d+ navires, 5\d°/);
+  assert.ok(!/sans escorte/.test(row), 'no escort group is expected with a coastal convoy');
+  assert.ok(passesFilter(r, 'all', cw.id));
+  app.signals.tab = 'signals';
+  renderSignals(app);
+  assert.match(app.el.signals.innerHTML, /<option value="cw"[^>]*>CW 7<\/option>/);
 });
 
 test('every text of the watch reports and of radio silence is in fr.json', () => {

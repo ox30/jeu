@@ -1154,6 +1154,155 @@ async function watches(page, errors) {
     await shot(page, 'watch-attack');
   });
   await convoyEnds(page);
+  // ---- 2.12: the watches wherever there are ships ----
+  await step('watches: wherever there are ships (2.12)', async () => {
+    const begin = async (id) => {
+      await game(page, (sid) => {
+        const a = window.__game;
+        a.campaign.unlockAll = true;
+        a.restart(sid);
+      }, id);
+      await settle(page);
+    };
+    const quart = () => game(page, () => {
+      const d = document.getElementById('dlg-watch');
+      const b = document.getElementById('btn-watch');
+      const count = document.getElementById('watch-count');
+      return {
+        button: Boolean(b.offsetParent), count: count.hidden ? '' : count.textContent, open: d.open,
+        text: d.open ? d.textContent.replace(/\s+/g, ' ').trim() : '',
+        admiralty: d.querySelectorAll('[data-watch="admiralty"]').length, see: d.querySelectorAll('[data-watch="see"]').length,
+        settled: d.querySelectorAll('.decision.settled').length, reports: window.__game.world.watch ? window.__game.world.watch.reports.length : -1,
+      };
+    });
+    // Kanalkampf, the first second: the « Quart » button is there, with what waits already.
+    await begin('kanalkampf');
+    const start0 = await quart();
+    note(start0.button && start0.reports === 0 && Number(start0.count) >= 2, 'quarts: in Kanalkampf the « Quart » button is there from the start, and counts what waits', JSON.stringify({ button: start0.button, count: start0.count }));
+    await page.click('#btn-watch');
+    await sleep(300);
+    const empty = await quart();
+    note(empty.open && /Aucun rapport n'est encore écrit : le premier viendra à la relève de 8 h\./.test(empty.text),
+      'quarts: its page says that no report is written yet, and when the first will be (the relief of 8 h)', empty.text.slice(0, 110));
+    note(empty.admiralty === 2 && empty.see >= 2 && /HX 55 n'a pas de route à suivre/.test(empty.text) && /HX 57 n'a pas de route à suivre/.test(empty.text),
+      'quarts: the two convoys without a route are asked about, with « Amirauté » and « Voir »', JSON.stringify({ admiralty: empty.admiralty, see: empty.see }));
+    await shot(page, 'watch-empty');
+    await page.click('#dlg-watch [data-watch="close"]');
+    await sleep(200);
+    await page.keyboard.press('q');
+    await sleep(300);
+    note((await quart()).open, 'quarts: … and its key Q opens it too, before any report');
+    // « Amirauté »: the order leaves (by radio, under silence), the question is settled.
+    await page.click('#dlg-watch [data-watch="admiralty"][data-id="hx55"]');
+    await sleep(300);
+    const answered = await quart();
+    const sent = await game(page, () => {
+      const w = window.__game.world;
+      return { signals: w.signals.filter((s) => s.unitId === 'hx55' && s.name === 'route').length, route: w.convoys.find((c) => c.id === 'hx55').route.length };
+    });
+    note(answered.settled === 1 && answered.admiralty === 1 && (sent.signals === 1 || sent.route > 0), 'quarts: « Amirauté » gives HX 55 its route, and the page shows the question as settled', JSON.stringify({ answered: answered.settled, sent }));
+    await page.click('#dlg-watch [data-watch="close"]');
+    await sleep(200);
+    // The first relief: the report, with HX 57 still to decide and the route of HX 55 gone out.
+    const relief = await playUntil(page, (a) => a.world.events.some((e) => e.type === 'seaStop' && e.reason === 'relief'), 4);
+    await page.waitForFunction(() => document.getElementById('dlg-watch').open, null, { timeout: 15000 });
+    await sleep(200);
+    const first = await quart();
+    note(relief && /Relève de 8 h/.test(first.text) && /HX 57 n'a pas de route à suivre/.test(first.text) && first.admiralty === 1 && first.reports === 1,
+      'quarts: the relief of 8 h stops Kanalkampf for the convoy still without a route', first.text.slice(0, 90));
+    await shot(page, 'watch-kanalkampf');
+    await page.click('#dlg-watch [data-watch="close"]');
+    await sleep(200);
+    // CW 7 sails by the Admiralty's route: in the waters followed, its bombing calls the player as it comes.
+    await game(page, async () => {
+      const a = window.__game;
+      const C = await import('./src/sim/comms.js');
+      const cw = a.world.convoys.find((c) => c.type === 'coastal');
+      C.sendOrder(a.world, cw, 'route', cw.admiraltyRoute.slice(1));
+      a.speed = 600;
+    });
+    const bombed = await playUntil(page, (a) => a.world.events.some((e) => e.type === 'convoyBombed'), 40);
+    await sleep(600);
+    const alert = await game(page, () => {
+      const a = window.__game;
+      const el = document.getElementById('alert');
+      const notes = a.world.watch.reports.flatMap((r) => r.notes || []).concat(a.world.watch.notes);
+      return {
+        shown: !el.hidden, text: el.hidden ? '' : document.getElementById('alert-text').textContent, speed: a.speed, watchOpen: document.getElementById('dlg-watch').open,
+        noted: notes.filter((n) => n.type === 'convoyBombed').length,
+      };
+    });
+    note(bombed && alert.shown && /CW 7/.test(alert.text) && alert.speed === 1 && alert.noted >= 1,
+      'quarts: CW 7 bombed in the Channel calls the player as it comes (×1), and the watch notes it', JSON.stringify(alert).slice(0, 200));
+    await shot(page, 'watch-live-alert');
+    await settle(page);
+    // The settings of the sea: greyed where there is no ship, with the reason.
+    const seaSettings = async (id, tabName) => {
+      await begin(id);
+      await game(page, async (tab) => {
+        const D = await import('./src/ui/dialogs.js');
+        window.__game.settingsTab = tab;
+        D.openSettings(window.__game);
+      }, tabName);
+      await sleep(250);
+      const s = await game(page, () => {
+        const f = document.querySelector('#dlg-settings form');
+        return {
+          comms: f.elements.seaComms.disabled, stops: f.elements.watchStops.disabled,
+          why: [...f.querySelectorAll('.settings-why')].map((p) => `${p.dataset.why}:${p.textContent}`),
+        };
+      });
+      if (id === 'quinze-septembre') await shot(page, `settings-no-ships-${tabName}`);
+      await closeDialogs(page);
+      return s;
+    };
+    const none = await seaSettings('quinze-septembre', 'game');
+    await seaSettings('quinze-septembre', 'time');
+    note(none.comms && none.stops && none.why.length === 2 && none.why.every((x) => /Ce scénario n'a pas de navire/.test(x)),
+      'quarts: on 15 September, « Communications en mer » and « Arrêt aux relèves » are greyed, each with its reason', JSON.stringify(none));
+    const ships = await seaSettings('adlertag', 'game');
+    note(!ships.comms && !ships.stops && ships.why.length === 0, 'quarts: in Adlertag, which has ships, the two settings answer', JSON.stringify(ships));
+    // Adlertag: the watches, the Atlantic view for HX 62, Aldergrove and its two squadrons.
+    await begin('adlertag');
+    const ad = await game(page, () => {
+      const a = window.__game;
+      const w = a.world;
+      document.getElementById('btn-view').click();
+      const views = [...document.querySelectorAll('#view-menu [data-view]')].map((b) => b.dataset.view);
+      document.getElementById('btn-view').click();
+      return {
+        watch: Boolean(w.watch), button: Boolean(document.getElementById('btn-watch').offsetParent), views,
+        field: Boolean(w.byId.airfield.get('aldergrove')), based: w.squadrons.filter((s) => s.airfield === 'aldergrove').map((s) => `${s.name} ${s.type}`),
+      };
+    });
+    note(ad.watch && ad.button && ad.views.includes('atlantic') && ad.field && ad.based.join(', ') === '502 Sqn Anson, 233 Sqn Hudson',
+      'quarts: Adlertag has the « Quart » button, the Atlantic view, and Aldergrove with the 502 and the 233', JSON.stringify(ad));
+    await page.keyboard.press('a');
+    await sleep(500);
+    const seen = await game(page, () => {
+      const a = window.__game;
+      const c = a.world.convoys.find((x) => x.id === 'hx62');
+      const [sx, sy] = a.toScreen(c.x, c.y);
+      const r = a.canvas.getBoundingClientRect();
+      return { sx: Math.round(sx), sy: Math.round(sy), w: Math.round(r.width), h: Math.round(r.height) };
+    });
+    note(seen.sx > 0 && seen.sx < seen.w && seen.sy > 0 && seen.sy < seen.h, 'quarts: the Atlantic view (A) shows HX 62, out at 21° W', JSON.stringify(seen));
+    await shot(page, 'adlertag-atlantic');
+    // The sheet of the 233 at Aldergrove opens like any patrol's.
+    await game(page, async () => {
+      const actions = await import('./src/ui/actions.js');
+      actions.select(window.__game, 'squadron', '233');
+      window.__game.dirtyPanels = true;
+    });
+    await sleep(400);
+    const sheet = await game(page, () => document.getElementById('unit-panel').textContent.replace(/\s+/g, ' ').slice(0, 200));
+    note(/233 Sqn/.test(sheet) && /Hudson/.test(sheet), 'quarts: the sheet of the 233 Sqn, Hudson, at Aldergrove', sheet.slice(0, 90));
+    await game(page, async () => {
+      const actions = await import('./src/ui/actions.js');
+      actions.select(window.__game, null, null);
+    });
+    await settle(page);
+  });
   note(errors.length === before, 'watches: no console error', errors.slice(before, before + 2).join(' | '));
 }
 
@@ -1373,11 +1522,16 @@ async function menus(page, errors) {
   const before = errors.length;
   const ids = await game(page, () => window.__game.data.campaign.scenarios.concat(window.__game.data.campaign.training));
   await step('menu: every scenario from the menu', async () => {
+    // (The part before may leave a relief on its way: since 2.12 Kanalkampf has watches too,
+    // and the page of a report opens a moment after the stop. Nothing over the menu.)
+    await sleep(400);
+    await closeDialogs(page);
     await game(page, () => {
       const a = window.__game;
       a.campaign.unlockAll = true;
       a.toMainMenu();
     });
+    await closeDialogs(page);
     for (const id of ids) {
       // Launched from the page of the scenarios.
       await game(page, () => window.__game.toMainMenu());
@@ -1782,7 +1936,9 @@ async function interfaceChecks(page, errors) {
   };
   await step('interface: the top bar (C7)', async () => {
     await page.setViewportSize({ width: 1024, height: 700 });
-    for (const id of ['quinze-septembre', 'hiver-atlantique']) {
+    // (Kanalkampf too since 2.12: three views, every tool, and the « Quart » button from the
+    // start. The Atlantic last: the checks that follow are made there.)
+    for (const id of ['quinze-septembre', 'kanalkampf', 'hiver-atlantique']) {
       await start(id);
       const m = await game(page, () => {
         const hud = document.getElementById('hud');

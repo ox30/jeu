@@ -326,8 +326,10 @@ test('the preset a game begins with is named as it will be all along', () => {
 });
 
 test('a tool or a view a scenario does not offer cannot be reached', () => {
-  const w = makeWorld('standard', { fatigue: 'on' }, 'adlertag');
+  // (15 September: Adlertag has the Atlantic view since 2.12, for its convoy HX 62.)
+  const w = makeWorld('standard', { fatigue: 'on' }, 'quinze-septembre');
   const app = { world: w };
+  assert.equal(viewOffered({ world: makeWorld('standard', {}, 'adlertag') }, 'atlantic'), true, 'Adlertag: HX 62 comes from 21° W');
   // As the scenario is written: Britain and England, every tool.
   assert.equal(viewOffered(app, 'atlantic'), false);
   assert.equal(viewOffered(app, 'england'), true);

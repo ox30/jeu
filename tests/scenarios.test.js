@@ -275,12 +275,47 @@ test('Code 6, N8: scenarios, campaign, views and maps are data, and every scenar
     for (const v of m.views) assert.ok(campaign.views[v], `${id}: view ${v}`);
     for (const l of m.layers) assert.ok(campaign.layers.includes(l), `${id}: layer ${l}`);
     for (const tool of m.tools) assert.ok(campaign.tools.includes(tool), `${id}: tool ${tool}`);
-    assert.ok(['watches', 'direct'].includes(sc.seaRhythm), `${id}: sea rhythm ${sc.seaRhythm}`);
     // The grid of the RAF is a layer only where the scenario has one.
     assert.equal(m.layers.includes('grid'), Boolean(sc.grid), `${id}: grid`);
   }
-  assert.equal(json('data/scenarios/hiver-atlantique.json').seaRhythm, 'watches');
   assert.ok(campaign.chain.every((id) => campaign.scenarios.includes(id)));
+});
+
+// ---- the rhythm of the sea (decision of 20 November 2026) ----
+
+test('every scenario with ships lives at the rhythm of the watches, and no other does', async () => {
+  const { readdirSync } = await import('node:fs');
+  const { hasShips } = await import('../src/sim/watch.js');
+  const { isSilent } = await import('../src/sim/comms.js');
+  const json = (p) => JSON.parse(readFileSync(new URL(`../${p}`, import.meta.url), 'utf8'));
+  // Every file of data/scenarios, the lessons too: a scenario added later is judged here
+  // without anyone having to think of it.
+  const ids = readdirSync(new URL('../data/scenarios/', import.meta.url)).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort();
+  assert.ok(ids.length >= 10, `${ids.length} scenarios`);
+  const withWatches = [];
+  for (const id of ids) {
+    // The rule is read on the scenario as the game plays it: a lesson, with the keys of its base.
+    const sc = scenarioData(id);
+    const ships = (sc.convoys || []).length + (sc.escorts || []).length + (sc.convoySchedule || []).length;
+    assert.equal(hasShips(sc), ships > 0, `${id}: ${ships} convoys, groups or sailings`);
+    const w = makeWorld('standard', {}, id);
+    assert.equal(Boolean(w.watch), ships > 0, `${id}: ${ships ? 'ships, so the watches' : 'no ship, so no watch'}`);
+    // Radio silence hangs on the same switch (Standard asks for it).
+    assert.equal(isSilent(w), ships > 0, `${id}: radio silence`);
+    // (Nothing for a scenario to declare, and nothing it could get wrong.)
+    assert.equal(json(`data/scenarios/${id}.json`).seaRhythm, undefined, `${id}: the rhythm is not written, it follows from the ships`);
+    if (w.watch) withWatches.push(id);
+  }
+  // As the game stands: the three battles with convoys, the lesson on escorts and the first
+  // prototype; 15 September and the four lessons of the air have no ship.
+  assert.deepEqual(withWatches, ['adlertag', 'hiver-atlantique', 'kanalkampf', 'lecon-escorter', 'm0-july-1940']);
+  // A lesson does not get the ships of its base by mistake: « Ravitailler » starts from
+  // Kanalkampf, the three lessons of the air from the first prototype and its convoy.
+  for (const [lesson, base] of [['lecon-ravitailler', 'kanalkampf'], ['lecon-intercepter', 'm0-july-1940'], ['lecon-tracer', 'm0-july-1940'], ['lecon-alerte', 'm0-july-1940']]) {
+    assert.equal(json(`data/scenarios/${lesson}.json`).base, base);
+    assert.ok(hasShips(scenarioData(base)), `${base} has ships`);
+    assert.ok(!hasShips(scenarioData(lesson)), `${lesson} has none`);
+  }
 });
 
 test('Code 6, I10: the lessons of the tutorial are data the game can read', async () => {
@@ -347,4 +382,36 @@ test('Code 6, I10: the lessons of the tutorial are data the game can read', asyn
   assert.equal(holds(app, { seen: ['tallyHo', 'combatRound'] }, new Set(['combatRound'])), true);
   assert.equal(holds(app, { flag: 'reportsOpened' }, new Set()), false);
   assert.throws(() => holds(app, { nonsense: true }, new Set()));
+});
+
+test('Adlertag (2.12): the Atlantic view for HX 62, and Aldergrove with the 502 and the 233', () => {
+  const sc = scenarioData('adlertag');
+  const campaign = JSON.parse(readFileSync(new URL('../data/campaign.json', import.meta.url), 'utf8'));
+  // HX 62 starts at 21° W: outside the view of Great Britain, inside the Atlantic one.
+  const hx62 = sc.convoys.find((c) => c.id === 'hx62');
+  assert.ok(hx62.at.lon < campaign.views.britain.lon[0], `${hx62.at.lon}° is west of the view « Grande-Bretagne »`);
+  assert.ok(sc.map.views.includes('atlantic') && hx62.at.lon > campaign.views.atlantic.lon[0]);
+  assert.deepEqual(sc.map.views, ['atlantic', 'britain', 'england']);
+  assert.equal(sc.map.view, 'england', 'the battle still opens on England');
+  // Aldergrove as in Kanalkampf: the same place, the same stocks.
+  const field = sc.airfields.find((a) => a.id === 'aldergrove');
+  assert.deepEqual(field, scenarioData('kanalkampf').airfields.find((a) => a.id === 'aldergrove'));
+  // August 1940: the 502 on Anson (the Whitley comes in the autumn), the 233 on Hudson with
+  // the first ASV radar, come from Leuchars to cover the convoys of Liverpool and the Clyde.
+  const sq = (id) => sc.squadrons.find((s) => s.id === id);
+  assert.deepEqual(sq('502'), { id: '502', name: '502 Sqn', type: 'Anson', airfield: 'aldergrove', aircraft: 6, role: 'coastal' });
+  assert.deepEqual(sq('233'), { id: '233', name: '233 Sqn', type: 'Hudson', airfield: 'aldergrove', aircraft: 6, role: 'coastal', asv: true });
+  assert.deepEqual(sq('502'), scenarioData('kanalkampf').squadrons.find((s) => s.id === '502'), 'the 502 of July');
+  // Their sheets of the Atlantic, brought back to August 1940: the 233 as there, the 502 before its Whitley.
+  const winter = scenarioData('hiver-atlantique').squadrons;
+  assert.deepEqual(sq('233'), winter.find((s) => s.id === '233'));
+  assert.equal(winter.find((s) => s.id === '502').type, 'Whitley');
+  assert.equal(sq('500').airfield, 'detling', 'the 500 stays in Kent');
+  // In the game: both are patrols, they draw no fuel from the fighters' stocks and lose no battle by it.
+  const w = makeWorld('standard', {}, 'adlertag');
+  const based = w.squadrons.filter((s) => s.airfield === 'aldergrove');
+  assert.deepEqual(based.map((s) => [s.id, s.role, s.asv]), [['502', 'coastal', false], ['233', 'coastal', true]]);
+  assert.ok(w.rules.patrols.Anson && w.rules.patrols.Hudson);
+  run(w, 3600);
+  assert.equal(w.ended, false);
 });

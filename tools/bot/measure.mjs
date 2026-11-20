@@ -23,6 +23,14 @@ const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
 const fr = (n, digits = 0) => n.toFixed(digits).replace('.', ',');
 const range = (a, digits = 0) => (a.length ? `${fr(Math.min(...a), digits)} à ${fr(Math.max(...a), digits)}` : '—');
 
+/** What stopped the games, a game on average: « dont relief 31,2, attack 9,5 ». */
+function kindsText(ok) {
+  const sums = {};
+  for (const r of ok) for (const [k, n] of Object.entries(r.stopKinds || {})) sums[k] = (sums[k] || 0) + n;
+  const parts = Object.entries(sums).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${fr(n / ok.length, 1)}`);
+  return parts.length ? ` (dont ${parts.join(', ')})` : '';
+}
+
 export function summarize(rows) {
   const groups = new Map();
   for (const r of rows) {
@@ -46,9 +54,17 @@ export function summarize(rows) {
       for (const r of ok) for (const o of r.objectives) if (!o.done) failed[o.type] = (failed[o.type] || 0) + 1;
       for (const r of ok) if (r.reason) failed[`défaite : ${r.reason}`] = (failed[`défaite : ${r.reason}`] || 0) + 1;
       if (ok.length && ok[0].lossPct !== undefined) {
-        detail = `navires perdus ${range(ok.map((r) => r.lossPct), 1)} % (moy. ${fr(mean(ok.map((r) => r.lossPct)), 1)}) ; U-Boote coulés ${fr(mean(ok.map((r) => r.uboatsSunk)), 1)} ; arrêts ${range(ok.map((r) => r.stops))} (moy. ${fr(mean(ok.map((r) => r.stops)))}) ; carburant ${fr(mean(ok.map((r) => r.fuel)))} t`;
+        detail = `navires perdus ${range(ok.map((r) => r.lossPct), 1)} % (moy. ${fr(mean(ok.map((r) => r.lossPct)), 1)}) ; U-Boote coulés ${fr(mean(ok.map((r) => r.uboatsSunk)), 1)} ; arrêts ${range(ok.map((r) => r.stops))} (moy. ${fr(mean(ok.map((r) => r.stops)))})${kindsText(ok)} ; carburant ${fr(mean(ok.map((r) => r.fuel)))} t`;
       } else if (ok.length) {
         detail = `abattus ${fr(mean(ok.map((r) => r.down)))} (${range(ok.map((r) => r.down))}) ; perdus ${fr(mean(ok.map((r) => r.rafLost)))} ; chasse ${fr(mean(ok.map((r) => r.fighterShare * 100)))} % ; bombardements ${fr(mean(ok.map((r) => r.bombed)))} ; fatigue max ${fr(Math.max(...ok.map((r) => r.maxFatigue)))}`;
+        // The convoys with a delivery objective: games where the bar is reached, and the share brought in.
+        for (const id of [...new Set(ok.flatMap((r) => (r.convoys || []).map((c) => c.id)))]) {
+          const of = ok.map((r) => (r.convoys || []).find((c) => c.id === id)).filter(Boolean);
+          const shares = of.map((c) => (c.state === 'arrived' ? c.share * 100 : 0));
+          detail += ` ; ${id} livré ${of.filter((c) => c.done).length} sur ${of.length} (barre ${fr(of[0].bar * 100)} %, cargaison ${range(shares)} %, moy. ${fr(mean(shares))})`;
+        }
+        if (ok[0].stops !== undefined) detail += ` ; arrêts ${range(ok.map((r) => r.stops))} (moy. ${fr(mean(ok.map((r) => r.stops)))})${kindsText(ok)}`;
+        if (ok.some((r) => r.reports)) detail += ` ; rapports de quart ${fr(mean(ok.map((r) => r.reports || 0)))}`;
       }
       const slow = ok.filter((r) => r.steps);
       if (slow.length) detail += ` ; pas le plus long ${fr(Math.max(...slow.map((r) => r.steps.maxMs)))} ms, ${slow.reduce((n, r) => n + r.steps.over20, 0)} pas de plus de 20 ms`;

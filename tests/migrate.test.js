@@ -34,8 +34,8 @@ test('a snapshot is written in the current format, with its number', () => {
   run(w, 600);
   const snap = snapshot(w);
   assert.equal(snap.version, SNAP_VERSION);
-  assert.equal(SNAP_VERSION, 2);
-  assert.equal(snapVersion(snap), 2);
+  assert.equal(SNAP_VERSION, 3); // (3 since 2.12: the watches wherever there are ships)
+  assert.equal(snapVersion(snap), 3);
   assert.equal(validate(JSON.parse(JSON.stringify(snap)), KNOWN), null, 'sound');
   // The current format is left as it is, but copied: the migration never writes into its input.
   const copy = migrate(snap);
@@ -55,7 +55,7 @@ test('format 1 to 2: the readiness states take their new names wherever a squadr
     mru: { available: 2, pending: [] }, // not a readiness state: left alone
   };
   const snap = migrate(old);
-  assert.equal(snap.version, 2);
+  assert.equal(snap.version, SNAP_VERSION, 'brought to the format in use, one step after the other');
   assert.equal(old.version, 1, 'the input is not touched');
   assert.equal(old.squadrons[0].alert, 'thirty');
   const [a, b, c, d] = snap.squadrons;
@@ -172,4 +172,23 @@ test('every reason a game can be refused for has its sentence', () => {
     const text = data.fr.save.errors[c];
     assert.ok(typeof text === 'string' && text.length > 20, `save.errors.${c}`);
   }
+});
+
+// ---- format 3 (2.12): the watches wherever there are ships ----
+
+test('format 2 to 3: a game that kept no watch lets the world it is restored onto keep its own', () => {
+  // Kanalkampf or Adlertag saved before 2.12: the sea lived as it came, `watch` was nothing.
+  const before = { version: 2, t: 3600, watch: null, squadrons: [], signals: [] };
+  const snap = migrate(before);
+  assert.equal(snap.version, 3);
+  assert.ok(!('watch' in snap), 'left out: the new world has the watch of a game with ships');
+  assert.equal(before.watch, null, 'the input is not touched');
+  // The Atlantic, which lived by the watches already: its reports come back as they were.
+  const atlantic = { version: 2, t: 3600, watch: { notes: [], reports: [{ id: 'W1', toS: 7200 }], nextId: 2, asked: [], told: [], nights: {} }, squadrons: [] };
+  assert.deepEqual(migrate(atlantic).watch, atlantic.watch);
+  // A save of 2.6 goes through both steps.
+  const old = migrate({ version: 1, watch: null, squadrons: [{ id: 'a', alert: 'thirty' }] });
+  assert.equal(old.version, 3);
+  assert.equal(old.squadrons[0].alert, 'min30');
+  assert.ok(!('watch' in old));
 });

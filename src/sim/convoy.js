@@ -22,6 +22,7 @@ import { inClosedWaters, uboatPath } from './uboatnav.js';
 declareFields('convoy', (c) => {
   c.endAction = null;
   c.routeEnded = false;
+  c.holding = false; // told to keep its course (« Garder le cap »), until it has something to follow again
 });
 
 export function createConvoy(world, def) {
@@ -284,6 +285,8 @@ export function updateConvoy(world, c, dt) {
   // An end told for a line or for legs that are no more (erased; or the coast right ahead
   // stopped the convoy before their end): it goes with them.
   if (c.endAction && !c.route.length && !c.plan.length) c.endAction = null;
+  // Told to keep its course: until it is given something to follow, or stops.
+  if (c.holding && (c.route.length || c.plan.length || c.state !== 'atSea')) c.holding = false;
   if (c.state !== 'atSea') return;
   const legs = c.plan.length;
   stepShip(world, c, dt, (port) => arrive(world, c, port));
@@ -480,6 +483,7 @@ function convoyEndAction(world, c) {
   if (a.kind === 'hold') {
     c.state = 'atSea';
     c.course = c.heading;
+    c.holding = true; // its own order: the watch does not ask what to do with it (watch.js, noRoute)
     told('hold', { heading: Math.round(c.course) });
     return;
   }

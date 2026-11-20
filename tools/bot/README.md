@@ -21,7 +21,7 @@ Il vient de l'audit du prototype 2.6.1 et a été versé au dépôt au lot M2.7.
 | Fichier | Rôle |
 | --- | --- |
 | `game.mjs` | charge les données, crée un monde, compte les arrêts, chronomètre les pas |
-| `air.mjs` | les batailles aériennes (`runAir`) et la campagne enchaînée (`runChain`) |
+| `air.mjs` | les batailles aériennes (`runAir`) et la campagne enchaînée (`runChain`) ; ses ordres aux navires passent par la voie qui les atteint (`sendOrder`), comme ceux de `sea.mjs` |
 | `sea.mjs` | l'Atlantique (`runSea`) |
 | `conducts.mjs` | les conduites (façons de jouer) et la matrice de mesure |
 | `run.mjs` | une partie, résultat en une ligne de JSON |
@@ -69,6 +69,12 @@ mesure interrompue reprend où elle s'était arrêtée, et l'on peut y ajouter d
 (`--first`) ou des lignes. **Un réglage se juge sur des graines qu'il n'a pas servi à
 choisir** : au lot M2.10, des seuils réglés sur les graines 1 à 10 ne tenaient plus sur les
 suivantes ; ils ont été repris sur trente graines et vérifiés sur vingt autres.
+
+Depuis la 2.12.0, le tableau donne aussi, pour les batailles aériennes, la livraison de chaque
+convoi à objectif (parties où la barre est atteinte, part de cargaison), les arrêts par
+partie avec ce qui les a causés (`relief`, une relève avec une décision ; `attack`, la
+première attaque d'un convoi en haute mer dans la nuit ; un nom d'alerte, une alerte de mer
+en direct, près de nous) et le nombre de rapports de quart.
 
 Les résultats vont dans `tools/bot/out/<nom>.jsonl` (une ligne par partie, non versé au
 dépôt). La matrice complète, 32 lignes sur dix graines, prend environ quarante minutes sur

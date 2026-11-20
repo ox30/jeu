@@ -50,7 +50,9 @@ test('every alert is either a decision or an information, and the rule says whic
   const raid = alertFor(w, { type: 'raidDetected', raidId: 'r1', raid: 'H01', count: 20, approx: false, altFt: 12000, location: null }, new Map());
   assert.equal(raid.decision, true, 'a raid asks for an order');
   const c = w.convoys[0];
-  const bombed = alertFor(w, { type: 'convoyBombed', convoy: c.name, convoyId: c.id, raid: 'H01', sunk: 1, x: c.x, y: c.y }, new Map());
+  // (At the rhythm of the watches, a sea event calls the player when it happens near us:
+  // the simulation marks it `live`. Kanalkampf lives by the watches since 2.12.)
+  const bombed = alertFor(w, { type: 'convoyBombed', convoy: c.name, convoyId: c.id, raid: 'H01', sunk: 1, x: c.x, y: c.y, live: true }, new Map());
   assert.equal(bombed.decision, false, 'a convoy bombed is an information');
 });
 
@@ -108,7 +110,7 @@ test('a decision is answered when its order is given: an escort sent to the conv
   const w = makeWorld('standard', { seaComms: 'direct' }, 'kanalkampf');
   const app = fakeApp(w);
   const c = w.convoys.find((x) => x.type === 'ocean' && x.state === 'atSea');
-  const a = alertFor(w, { type: 'convoyInEscortRange', convoy: c.name, convoyId: c.id, free: 2, x: c.x, y: c.y }, new Map());
+  const a = alertFor(w, { type: 'convoyInEscortRange', convoy: c.name, convoyId: c.id, free: 2, x: c.x, y: c.y, live: true }, new Map());
   assert.equal(a.decision, true);
   raiseAlert(app, a);
   updateAlerts(app);

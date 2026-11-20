@@ -78,6 +78,16 @@ export function aircraftInSight(world, u) {
   return null;
 }
 
+/**
+ * Is the headquarters with this ship now? In the waters it follows (those closed to the
+ * U-boats, the approaches of the ports, the surface cover of the coastal radars), or with
+ * one of the player's aircraft in sight of it. There a ship keeps its alerts as they come,
+ * at the rhythm of the watches too, whatever the setting of the communications (watch.js).
+ */
+export function followedLive(world, u) {
+  return inTrackedWaters(world, u.x, u.y) || Boolean(aircraftInSight(world, u));
+}
+
 /** Is the ship out of the headquarters' sight now (radio silence, at sea, untracked, unseen)? */
 export function onHighSeas(world, u) {
   return isSilent(world) && atSea(u) && Boolean(u.est);
