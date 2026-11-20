@@ -945,7 +945,7 @@ async function watches(page, errors) {
         mark: at(a.hits.find((h) => h.kind === 'convoy' && h.id === cid)), ring: at(a.hits.find((h) => h.kind === 'routeExtend' && h.id === cid)),
         handles: a.hits.filter((h) => h.kind === 'routePoint' && h.id === cid).length, waiting: route ? route.args[0].length : 0, signal: route ? route.id : '',
         own: a.world.convoys.find((x) => x.id === cid).route.length,
-        hint: document.querySelector('#unit-body .hint.awaited')?.textContent || '',
+        hint: document.querySelector('#unit-body .state-line.awaited')?.textContent || '',
         legs: [...document.querySelectorAll('#unit-body ol.legs li')].map((li) => `${li.className}|${li.textContent.replace(/\s+/g, ' ').trim()}`),
         pending: a.world.signals.filter((s) => s.unitId === cid).map((s) => s.name),
       };
@@ -1001,7 +1001,7 @@ async function watches(page, errors) {
     await page.click('#unit-body [data-action="add-leg"]');
     await sleep(400);
     const legs = await table();
-    note(legs.legs.length === 1 && /^awaited\|Cap 250° pendant 6 h à transmettre/.test(legs.legs[0]) && legs.pending.includes('addLeg') && /pas encore transmis/.test(legs.hint),
+    note(legs.legs.length === 1 && /^awaited\|Cap 250° pendant 6 h à transmettre/.test(legs.legs[0]) && legs.pending.includes('addLeg') && /^En ocre : transmis à la relève de \d+ h\.$/.test(legs.hint),
       'radio silence: a leg typed is listed as on its way', JSON.stringify(legs.legs));
     await shot(page, 'radio-legs-waiting');
     const legSignal = await game(page, (cid) => window.__game.world.signals.find((s) => s.unitId === cid && s.name === 'addLeg').id, id);
@@ -1078,7 +1078,7 @@ async function convoyEnds(page) {
       return {
         label: sel ? sel.closest('label').firstChild.textContent.trim() : '', value: sel ? sel.value : null,
         options: sel ? [...sel.options].map((o) => o.textContent) : [],
-        hints: [...document.querySelectorAll('#unit-body .hint')].map((x) => `${x.classList.contains('awaited') ? 'awaited|' : ''}${x.textContent}`),
+        hints: [...document.querySelectorAll('#unit-body .hint, #unit-body .state-line')].map((x) => `${x.classList.contains('awaited') ? 'awaited|' : ''}${x.textContent}`),
         end: c.endAction ? E.endValue(c.endAction) : '', destination: c.destination || '', state: c.state, route: c.route.length, locked: c.routeLocked || 0,
         pending: a.world.signals.filter((s) => s.unitId === cid).map((s) => `${s.name}:${s.via}`),
         way: way ? { action: E.endValue(way.action), waiting: way.waiting, points: way.points ? way.points.length : 0, toPort: Boolean(port && last && Math.hypot(last[0] - port.x, last[1] - port.y) < 1) } : null,
@@ -1116,7 +1116,7 @@ async function convoyEnds(page) {
     note(Boolean(id), 'convoy end: a convoy on the high seas, bound for a port');
     if (!id) return;
     const own = await sheet(id);
-    note(own.label === 'En fin de tracé' && /^port:(liverpool|clyde):/.test(own.value) && own.end === '' && own.hints.some((h) => /sans autre ordre, le convoi y entre de lui-même/.test(h)),
+    note(own.label === 'En fin de tracé' && /^port:(liverpool|clyde):/.test(own.value) && own.end === '' && own.hints.some((h) => /^Sans autre ordre, le convoi entre de lui-même dans ce port\.$/.test(h)),
       'convoy end: on the route the Admiralty gave it, the list shows the port and the channel it takes by itself', JSON.stringify({ value: own.value, end: own.end }));
     note(['S\'arrêter et attendre', 'Garder le cap', 'Entrer à Liverpool par : Nord de l\'Irlande', 'Entrer à Liverpool par : Canal Saint-Georges', 'Entrer à la Clyde par : Nord de l\'Irlande',
       'Reprendre la route de l\'Amirauté'].every((x) => own.options.includes(x)) && own.options.length === 6, 'convoy end: every port that takes the convoy is offered by each of its channels', own.options.join(' | '));
@@ -1174,7 +1174,7 @@ async function convoyEnds(page) {
       return { ok: sent.ok, via: sent.via, destination: c.destination || '', lon: Math.round(lon), lat: Math.round(lat) };
     }, id);
     const open = await sheet(id);
-    note(routed.ok && routed.via === 'direct' && open.value === 'stop' && open.destination === '' && !open.way && !open.hints.some((h) => /sans autre ordre/.test(h)),
+    note(routed.ok && routed.via === 'direct' && open.value === 'stop' && open.destination === '' && !open.way && !open.hints.some((h) => /Sans autre ordre/.test(h)),
       'convoy end: a line that ends in the open sea ends in a stop, told nothing', JSON.stringify({ routed, value: open.value }));
     await page.selectOption(`#convoy-end-${id}`, SOUTH);
     await sleep(450);
@@ -1804,7 +1804,7 @@ async function interfaceChecks(page, errors) {
     await sleep(300);
     const rested = await game(page, (id) => {
       const s = window.__game.world.squadrons.find((x) => x.id === id);
-      return { alert: s.alert, manual: s.alertManual, hint: document.querySelector('#unit-panel .alert-line + .hint, #unit-panel .hint') ? document.getElementById('unit-panel').textContent : '' };
+      return { alert: s.alert, manual: s.alertManual, hint: document.querySelector('#unit-panel .state-line') ? document.getElementById('unit-panel').textContent : '' };
     }, sea.id);
     note(asked && rested.alert === 'rest' && rested.manual, '« Repos », confirmed, puts the patrol at rest', JSON.stringify({ asked, alert: rested.alert, manual: rested.manual }));
     note(/Retour au planning/.test(rested.hint), 'a state set by hand offers « Retour au planning »');
