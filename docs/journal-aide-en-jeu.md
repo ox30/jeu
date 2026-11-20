@@ -328,7 +328,8 @@ de `main`, et la 2.11.1 a sa propre demande de fusion.
 | 6 | « À transmettre à la relève » | Ma version reste | Rien |
 | 7 | Section « Convois » | Reste absente quand elle est vide | Rien |
 
-Le reste de la liste « laissé tel quel » ne change pas, sauf la touche Espace (plus bas).
+Le reste de la liste « laissé tel quel » ne change pas, sauf deux points : « bulle » n'a plus
+qu'un sens (réponse 5), et la touche Espace (plus bas).
 
 ### « Abords » au lieu de « bulle »
 
@@ -343,7 +344,12 @@ Le reste de la liste « laissé tel quel » ne change pas, sauf la touche Espace
 | Aide, « Chasse aux U-Boote » | … un tracé qui finit dans la bulle d'un port y entre. | … qui finit aux abords d'un port y entre. |
 
 Aucun autre fichier de données ne porte ce mot. Dans le code, les noms anglais ne changent
-pas.
+pas. Le README disait encore « bulle d'un port » à deux endroits : corrigé.
+
+À savoir : le jeu a maintenant deux mots voisins pour deux zones. Les **abords** d'un port
+sont le cercle tireté de 15 km où un tracé « entre au port ». Les **approches** des ports
+sont les 80 km des eaux suivies du silence radio. Aucun texte ne les confond, mais rien ne
+dit au joueur que les abords sont ce cercle.
 
 ### Une astuce ne survit pas à son occasion
 
@@ -367,13 +373,25 @@ quoi qu'il arrive.
 
 Ce que je n'ai pas changé : une astuce affichée dont l'occasion tient toujours garde la
 carte, même si une autre, mieux placée dans la liste, devient possible. Une seule à la fois,
-et pas de carte qui change sous les yeux.
+et pas de carte qui change sous les yeux. Deux conséquences, trouvées à la relecture :
 
-Tests ajoutés (`tests/tips.test.js`) : le groupe au port prend la mer, « Au port : la
+- **Dans un navigateur qui n'a encore vu aucune astuce**, le groupe qui appareille reçoit
+  d'abord « Tracer et corriger » (l'astuce de toute première fiche convient à un groupe en
+  mer), et elle garde la carte jusqu'à « Compris ». « Silence radio » ne vient qu'ensuite,
+  vingt secondes après. Le cas que tu as vu est corrigé : « Au port : la sortie » ne reste
+  plus. Mais « Silence radio » peut encore attendre derrière une autre astuce qui, elle,
+  tombe juste. Un test fixe ce comportement ; voir « Questions », plus bas.
+- **« Programmer un départ »** peut ne jamais s'afficher pour un départ donné : si une autre
+  astuce tient la carte au moment de l'ordre et que l'unité est lâchée avant qu'elle se
+  libère, l'occasion est passée. Le prochain départ programmé la ramène. Programmé depuis la
+  page Effectifs sans rien en main, le départ garde son astuce jusqu'au premier clic sur
+  une unité.
+
+Tests ajoutés (`tests/tips.test.js`, trois) : le groupe au port prend la mer, « Au port : la
 sortie » s'en va sans être notée et « Silence radio » prend la carte ; l'unité lâchée, la
 carte se range ; reprise, l'astuce revient tout de suite ; « Compris » compte toujours et
 demande toujours vingt secondes ; le point qui n'est plus choisi ; le départ programmé et son
-unité. À l'essai de fumée : le même groupe, sorti du port jusqu'à la haute mer (capture
+unité ; le navigateur neuf, où « Tracer et corriger » passe avant « Silence radio ». À l'essai de fumée : le même groupe, sorti du port jusqu'à la haute mer (capture
 `tip-silence`), puis lâché et repris.
 
 ### Espace sur un bouton qui a le clavier
@@ -382,30 +400,78 @@ Espace est la touche de pause. Sur un bouton qui a le clavier, elle actionne mai
 bouton, sans toucher à l'horloge : « Compris », un « ? », une vitesse, le titre d'une section
 repliée, tous les boutons (`spacePressesControl`, dans `src/ui/keys.js`, lue par le
 gestionnaire de touches de `src/ui/input.js`). Le cas particulier du « ? », ajouté à la
-2.11.0 dans `src/ui/helpBubble.js`, est retiré : la règle générale le couvre.
+2.11.0 dans `src/ui/helpBubble.js`, est retiré : la règle générale couvre le « ? » et la
+bulle qu'il ouvre, qui prend le focus (un second appui sur Espace n'y fait rien, comme à la
+2.11.0).
 
-**« Avoir le clavier »** : avoir été atteint au clavier, avec Tab. Un bouton cliqué à la
-souris garde le focus du navigateur, mais Espace y reste la pause : sinon, cliquer « ×10 »
-puis appuyer sur Espace n'arrêterait plus le jeu. Le jeu note donc lui-même comment le focus
-a bougé (Tab, ou un clic). Je n'ai pas pu m'appuyer sur `:focus-visible` du navigateur :
-mesuré dans Chrome, il passe à « clavier » dès la première touche pressée après un clic,
-Espace comprise.
+**« Avoir le clavier »** : avoir le focus, quand le focus a bougé pour la dernière fois au
+clavier (Tab ou Maj + Tab), et non d'un clic. Un bouton cliqué à la souris garde le focus du
+navigateur, mais Espace y reste la pause : sinon, cliquer « ×10 » puis appuyer sur Espace
+n'arrêterait plus le jeu. Le jeu note donc lui-même comment le focus a bougé. Je n'ai pas pu
+m'appuyer sur `:focus-visible` du navigateur : mesuré dans Chrome, il passe à « clavier »
+dès la première touche pressée après un clic, Espace comprise.
+
+Conséquence à connaître : la note vaut pour toute la page, pas bouton par bouton. « Aide »
+cliqué à la souris, Tab dans l'aide, Échap : le navigateur rend le focus à « Aide », son
+anneau est visible, et Espace le presse. Qui joue au clavier seul met en pause par le
+bouton « Pause », le premier dans l'ordre de Tab, ou par Espace quand aucun bouton n'a le
+focus.
+
+**Espace tenue enfoncée** ne fait plus qu'une pause. Avant, chaque répétition de la touche
+basculait l'horloge : une seconde et demie tenue laissait filer une demi-minute de jeu
+(mesuré à la relecture, sur la 2.11.0 comme sur la 2.11.1).
 
 Ce qui ne change pas : dans un message ou une page (une fenêtre ouverte) et au menu
 principal, les touches du jeu ne répondaient déjà pas, et Espace y actionnait déjà le
 bouton ; dans un champ de saisie, Espace écrit un espace.
 
-Tests ajoutés (`tests/keys.test.js`, trois) : un bouton ou un titre de section atteint au
-clavier ; partout ailleurs la pause (bouton cliqué, bouton désactivé, carte, lien) ; Tab
-donne le clavier, un clic le reprend. À l'essai de fumée : Tab jusqu'à « Compris » puis
-Espace (l'astuce est notée, l'horloge n'a pas bougé) ; Tab jusqu'à un « ? » puis Espace (sa
-bulle s'ouvre) ; « ×10 » cliqué à la souris puis Espace deux fois (pause, puis reprise).
+Tests ajoutés (`tests/keys.test.js`, quatre) : un bouton, un titre de section ou la bulle
+d'un « ? » atteints au clavier ; partout ailleurs la pause (bouton cliqué, bouton désactivé,
+carte, lien) ; Tab donne le clavier, un clic le reprend, Tab avec Ctrl, Alt ou Meta ne
+compte pas ; Espace tenue. À l'essai de fumée : Tab jusqu'à « Compris » puis Espace
+(l'astuce est notée, l'horloge n'a pas bougé) ; Tab jusqu'à un « ? » puis Espace deux fois
+(sa bulle s'ouvre, l'horloge ne bouge pas) ; « ×10 » cliqué à la souris puis Espace deux
+fois (pause, puis reprise) ; Espace tenue (une seule pause).
+
+### Relecture par un agent neuf (2.11.1)
+
+Un agent sans mémoire du chantier a relu le commit `c9ff615`, sans rien modifier : les
+tests, le lint, la construction et l'essai de fumée entier rejoués, puis ses propres essais
+dans la page. Rien de bloquant, deux points importants, sept mineurs.
+
+| Gravité | Ce qu'il a trouvé | Ce qui est fait |
+| --- | --- | --- |
+| Important | Navigateur neuf : le groupe qui appareille reçoit « Tracer et corriger », qui retient « Silence radio » en haute mer. Mes tests ne le voyaient pas | Laissé ainsi (une seule astuce à la fois, pas de carte qui change sous les yeux), écrit ici et dans le README, fixé par un test. C'est ta question 1 |
+| Important | Tab jusqu'à un « ? », Espace, Espace : le second appui basculait la pause (la bulle a pris le focus). À la 2.11.0 il ne faisait rien | Corrigé : la bulle ouverte au clavier garde Espace. Second appui ajouté à l'essai de fumée |
+| Mineur | « Programmer un départ » depuis la page Effectifs sans rien en main ; occasion perdue pendant les vingt secondes de silence | Laissé, et écrit plus haut |
+| Mineur | La note « clavier ou souris » vaut pour toute la page : après Tab dans une page ouverte à la souris, Espace presse le bouton qui retrouve le focus | Laissé (son anneau est visible) ; la définition est corrigée ici et dans le README |
+| Mineur | Tab avec Ctrl, Alt ou Meta comptait comme « clavier » | Ignoré désormais, avec un test |
+| Mineur | Espace tenue basculait la pause à chaque répétition (déjà à la 2.11.0) | Corrigé, avec un test et une vérification à l'essai de fumée |
+| Mineur | Après Espace sur un bouton de fiche atteint au clavier, le redessin de la fiche fait perdre le focus | Laissé : c'était déjà le cas avant, et avec Entrée aussi |
+| Mineur | Le README disait encore « bulle d'un port » (deux endroits) | Corrigé |
+| Mineur | « Abords » (15 km) et « approches » (80 km) : deux mots voisins | Écrit plus haut ; rien de changé |
+| Mineur | Une phrase inexacte de ce journal (« sauf la touche Espace ») | Corrigée |
+
+Il a aussi vérifié, sans rien trouver : aucun test ni contrôle retiré ou affaibli, les deux
+nouveaux tests d'astuces échouent bien sur l'ancien code, `src/sim` intact, 187 680 états
+balayés sans erreur dans les occasions des astuces, pas de clignotement de la carte,
+`:focus-visible` qui se comporte comme je l'ai écrit. Il n'a pas vérifié Firefox, Edge ni un
+écran tactile.
+
+### Questions (2.11.1)
+
+1. **Une astuce plus précise doit-elle prendre la carte à une astuce plus générale ?**
+   Aujourd'hui non : « Tracer et corriger », affichée pour un groupe en mer, garde la carte
+   quand le silence radio commence, jusqu'à « Compris ». Je peux laisser « Silence radio »,
+   « Un point choisi » et « Au port : la sortie » la remplacer. La carte changerait alors
+   sous les yeux du joueur, et un test de la 2.11.0 (« une seule à la fois ») dit l'inverse.
+2. **« Abords »** : veux-tu qu'une phrase dise que ce sont les 15 km du cercle tireté ?
 
 ### Vérifications
 
-- `npm test` : 479 tests, tous verts (474 à la 2.11.0). Aucun test existant n'est modifié.
+- `npm test` : 481 tests, tous verts (474 à la 2.11.0). Aucun test existant n'est modifié.
 - `npm run lint` : propre. `npm run build` : `dist/index.html` à jour.
-- Essai de fumée entier : 348 vérifications, toutes vertes (343 à la 2.11.0).
+- Essai de fumée entier : 350 vérifications, toutes vertes (343 à la 2.11.0).
 - `src/sim` n'est pas touché : ni singe, ni joueur automatique.
 - Vérifié dans Chrome sans écran seulement. Pas dans Firefox : la règle ne dépend pas du
   navigateur, mais je ne l'y ai pas essayée.

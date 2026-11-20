@@ -2393,6 +2393,11 @@ async function interfaceChecks(page, errors) {
     await sleep(250);
     const mark = await game(page, (on) => ({ on, bubble: Boolean(document.getElementById('help-bubble')), paused: window.__game.paused }), onMark);
     note(mark.on && mark.bubble && mark.paused === before.paused, 'keys: Space on a « ? » reached with Tab opens its bubble, the clock left alone', JSON.stringify(mark));
+    // (Review of 2.11.1.) The bubble has taken the focus: Space again is still not the pause.
+    await page.keyboard.press(' ');
+    await sleep(200);
+    const again2 = await game(page, () => ({ bubble: Boolean(document.getElementById('help-bubble')), paused: window.__game.paused, on: document.activeElement ? document.activeElement.id || document.activeElement.className : '' }));
+    note(again2.paused === before.paused, 'keys: … and Space again, in the bubble that has the keyboard, does not touch the clock either', JSON.stringify(again2));
     await page.keyboard.press('Escape');
     await sleep(150);
     // A button the mouse has clicked keeps the focus, not the keyboard: Space is the pause.
@@ -2411,6 +2416,13 @@ async function interfaceChecks(page, errors) {
     await sleep(150);
     const resumed = await clock();
     note(/^BUTTON:×10/.test(running.active) && !running.paused && stopped.paused && !resumed.paused, 'keys: a speed clicked with the mouse, then Space: the pause, as ever', JSON.stringify({ running, stopped: stopped.paused, resumed: resumed.paused }));
+    // (Review of 2.11.1.) Space held down repeats: one pause, not one at every repeat.
+    await page.keyboard.down(' ');
+    for (let i = 0; i < 5; i++) await page.keyboard.down(' '); // (a key already down: the browser's own repeats)
+    await page.keyboard.up(' ');
+    await sleep(150);
+    const held = await clock();
+    note(held.paused === true, 'keys: Space held down pauses once, whatever the repeats', JSON.stringify(held));
     await game(page, () => {
       window.__game.paused = true;
     });

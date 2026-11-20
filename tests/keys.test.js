@@ -1,7 +1,7 @@
 // Speed keys by their place on the keyboard (C4 of the audit): AZERTY, QWERTZ, the keypad.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spacePressesControl, speedIndexOfKey, watchFocus } from '../src/ui/keys.js';
+import { isHeldSpace, spacePressesControl, speedIndexOfKey, watchFocus } from '../src/ui/keys.js';
 
 const press = (key, code, more = {}) => ({ key, code, ctrlKey: false, altKey: false, metaKey: false, shiftKey: false, ...more });
 
@@ -42,8 +42,8 @@ test('other keys are left alone', () => {
 // ---- 2.11.1: Space on a button that has the keyboard presses the button ----
 
 /** An element as the key handler reads it. */
-function element(tag, { disabled = false } = {}) {
-  const is = { button: tag === 'BUTTON', summary: tag === 'SUMMARY' };
+function element(tag, { disabled = false, cls = '' } = {}) {
+  const is = { button: tag === 'BUTTON', summary: tag === 'SUMMARY', '.help-bubble': cls === 'help-bubble' };
   return { tagName: tag, disabled, matches: (selector) => selector.split(',').some((part) => is[part.trim()]) };
 }
 
@@ -62,6 +62,10 @@ function fakeWindow() {
 test('Space on a button reached with the keyboard is the button\'s, not the pause', () => {
   assert.equal(spacePressesControl(element('BUTTON'), true), true, 'any button: « Compris », « Décoller », a « ? »');
   assert.equal(spacePressesControl(element('SUMMARY'), true), true, 'the title of a folded section');
+  // (Review of 2.11.1.) The bubble a « ? » opened takes the focus: a second Space is not the pause.
+  assert.equal(spacePressesControl(element('DIV', { cls: 'help-bubble' }), true), true, 'the bubble opened from the keyboard');
+  assert.equal(spacePressesControl(element('DIV', { cls: 'help-bubble' }), false), false, 'opened with the mouse: the pause');
+  assert.equal(spacePressesControl(element('DIV'), true), false, 'any other block');
 });
 
 test('Space stays the pause everywhere else', () => {
@@ -89,4 +93,20 @@ test('the focus is the keyboard\'s after Tab, the pointer\'s after a click', () 
   assert.equal(spacePressesControl(button), false, '« ×3 » clicked, then Space: the pause');
   win.fire('keydown', { key: 'Tab' });
   assert.equal(spacePressesControl(button), true);
+  // (Review of 2.11.1.) Tab with Ctrl, Alt or Meta belongs to the browser or the system.
+  win.fire('pointerdown');
+  for (const mod of ['ctrlKey', 'altKey', 'metaKey']) {
+    win.fire('keydown', { key: 'Tab', [mod]: true });
+    assert.equal(spacePressesControl(button), false, mod);
+  }
+  win.fire('keydown', { key: 'Tab', shiftKey: true });
+  assert.equal(spacePressesControl(button), true, 'Shift + Tab goes backwards: the keyboard still');
+  win.fire('pointerdown');
+});
+
+test('Space held down is one pause, not one at every repeat', () => {
+  assert.equal(isHeldSpace({ key: ' ', repeat: false }), false, 'pressed: the pause');
+  assert.equal(isHeldSpace({ key: ' ', repeat: true }), true, 'held: nothing more');
+  assert.equal(isHeldSpace({ key: ' ' }), false);
+  assert.equal(isHeldSpace({ key: 'ArrowUp', repeat: true }), false, 'the other keys repeat as before (the altitude)');
 });

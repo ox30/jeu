@@ -204,6 +204,38 @@ test('the point no longer chosen, its tip leaves; a departure scheduled is an oc
   }
 });
 
+test('one tip at a time still: in a browser that has seen none, « Tracer et corriger » comes between the port and the high seas', () => {
+  // (Review of 2.11.1.) A tip whose occasion holds keeps the card: the group that sails
+  // through the waters the headquarters follows gets the tip of every first sheet, which
+  // stays until « Compris »; « Silence radio » comes after it. Each is shown when it fits.
+  const { app, w, store, done } = appOn('hiver-atlantique');
+  try {
+    run(w, 12 * 3600);
+    const group = w.escorts.find((x) => x.state === 'inPort' && (w.byId.port.get(x.portId).approaches || []).length);
+    const convoy = w.convoys.find((x) => x.state === 'atSea');
+    app.selection = { kind: 'escort', id: group.id };
+    updateTips(app, 0);
+    assert.equal(app.tips.shown, 'exit');
+    // Out of port, still in the approaches (orders at once, no silence yet).
+    group.state = 'atSea';
+    assert.equal(orderChannel(w, group), 'direct');
+    updateTips(app, 1000);
+    assert.equal(app.tips.shown, 'sheet', 'the tip of a first sheet fits a group at sea');
+    // On the high seas: the card is taken, « Silence radio » waits for « Compris ».
+    group.x = convoy.x;
+    group.y = convoy.y;
+    assert.equal(orderChannel(w, group), 'radio');
+    updateTips(app, 2000);
+    assert.equal(app.tips.shown, 'sheet', 'not changed under the reader\'s eyes');
+    dismissTip(app, 3000);
+    updateTips(app, 3000 + 20000);
+    assert.equal(app.tips.shown, 'silence');
+    assert.deepEqual([...loadTips(store).seen], ['sheet'], 'only « Compris » counts a tip as seen');
+  } finally {
+    done();
+  }
+});
+
 // ---- what the review of 2.11.0 found ----
 
 test('a browser that refuses its storage does not stop the game: the tips are shown for this visit', () => {
