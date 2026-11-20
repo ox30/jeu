@@ -34,6 +34,7 @@ import { createSignals, onWatchClick, openWatch } from './ui/watchPanel.js';
 import { initQuestions } from './ui/questions.js';
 import { loadDev, saveDev } from './ui/dev.js';
 import { openDesktopNotice, openHelp } from './ui/dialogs.js';
+import { installHelpBubble } from './ui/helpBubble.js';
 import { unlockAudio } from './ui/sound.js';
 import { initHud } from './ui/hud.js';
 import { attachInput } from './ui/input.js';
@@ -199,6 +200,7 @@ function wireTopBar(app) {
   el.btnFormations.addEventListener('click', () => openFormations(app));
   el.btnRoster.addEventListener('click', () => openRoster(app));
   el.btnHelp.addEventListener('click', () => openHelp(app));
+  installHelpBubble(app, openHelp);
   el.btnJournal.addEventListener('click', () => openJournal(app));
 }
 

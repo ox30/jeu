@@ -14,6 +14,7 @@ import { WATCH_S, clockHour } from '../sim/watch.js';
 import { capacityFactor, isOperational } from '../sim/sites.js';
 import { lineCost, offerArrival, offerCost, offerInCargo, offers, tonnageForecast } from '../sim/shipping.js';
 import { button, options, row } from './html.js';
+import { subTitle } from './commands.js';
 import { cargoText, dateTimeText, escortStateText, positionText, resourceName, shortDateText, tonnesText } from './format.js';
 
 function isSel(app, kind, id) {
@@ -220,7 +221,7 @@ function trainForm(app, site) {
     return `<label>${escapeHtml(t(`logistics.${res}`))} <input type="number" min="0" max="${fullTrain(w, res)}" step="${R.wagonTonnes[res]}" id="train-${res}" placeholder="0"${value !== '' ? ` value="${value}"` : ''}> t</label>`;
   });
   return [
-    `<div class="leg-form"><div class="sub">${escapeHtml(t('logistics.sendTrain'))}</div>`,
+    `<div class="leg-form">${subTitle(app, t('logistics.sendTrain'), 'train', { wagons: R.trainWagons, fuel: R.wagonTonnes.fuel, materiel: R.wagonTonnes.materiel, min: R.trainMinTonnes })}`,
     `<div class="order-line">${inputs.join('')}</div>`,
     `<div class="order-line"><label class="grow">${escapeHtml(t('logistics.to'))} <select id="train-to">${options(targets, app.lastTrainTo || null)}</select></label>`,
     button('send-train', t('logistics.send'), { id: site.key, kind: 'site' }),
@@ -235,7 +236,7 @@ function minStockForm(app, site, resource) {
   const auto = w.settings.logistics === 'auto';
   const value = site.minStock[resource];
   return [
-    `<div class="leg-form"><div class="sub">${escapeHtml(t('logistics.minStock'))} (${escapeHtml(resourceName(resource))})</div>`,
+    `<div class="leg-form">${subTitle(app, `${t('logistics.minStock')} (${resourceName(resource)})`, 'minStock')}`,
     `<div class="order-line"><label>${escapeHtml(t('logistics.minStock'))} <input type="number" min="0" step="${resource === 'ammo' ? 2 : 10}" id="min-stock-${resource}" value="${value === null ? '' : value}" placeholder="${auto ? autoMin(w, site, resource) : '—'}"> t</label>`,
     button('set-min', t('logistics.apply'), { id: site.key, kind: 'site', extra: ` data-resource="${resource}"` }),
     `</div>`,

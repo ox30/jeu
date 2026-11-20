@@ -104,7 +104,7 @@ export function openSettings(app, { scope = 'game' } = {}) {
         ${checkbox('lowRes', s.lowRes, t('settings.lowRes'))}
         <label>${escapeHtml(t('settings.sheetPos'))} ${select('sheetPos', s.sheetPos || 'right', presets.choices.sheetPos, 'settings.sheetPosChoices')}</label>
         <p class="hint">${escapeHtml(t('settings.sheetHint'))}</p>
-        <label>${escapeHtml(t('settings.sheetHelp'))} ${select('sheetHelp', s.sheetHelp || 'shown', presets.choices.sheetHelp, 'settings.sheetHelpChoices')}</label>
+        <label>${escapeHtml(t('settings.sheetHelp'))} ${select('sheetHelp', s.sheetHelp === 'shown' ? 'shown' : 'folded', presets.choices.sheetHelp, 'settings.sheetHelpChoices')}</label>
         <p class="hint">${escapeHtml(t('settings.sheetHelpHint'))}</p>
         <label>${escapeHtml(t('settings.viewZones'))} ${select('viewZones', s.viewZones || 'selected', presets.choices.viewZones, 'settings.viewZonesChoices')}</label>
         <p class="hint">${escapeHtml(t('settings.viewZonesHint'))}</p>
@@ -174,6 +174,8 @@ export function openSettings(app, { scope = 'game' } = {}) {
       } else {
         own[field.name] = field.value;
       }
+      // (A choice made, kept from now on: settings.js, the default of 2.11.0.)
+      if (field.name === 'sheetHelp') own.sheetHelpChosen = true;
       own.preset = matchingPreset(own, presets);
       saveSettings(own);
       if (!inGame) Object.assign(s, own);
@@ -186,6 +188,8 @@ export function openSettings(app, { scope = 'game' } = {}) {
       app.drawing = null;
       app.el.unitKeyed.__key = '';
     }
+    // (The help of the sheet is written in it, or not: the sheet is drawn again.)
+    if (field.name === 'sheetHelp') app.el.unitKeyed.__key = '';
     app.dirtyPanels = true;
     app.dirtyHud = true;
     openSettings.refresh(form, s, presets);
@@ -279,7 +283,7 @@ function helpSteps(app) {
   return t(app.world.rail.enabled ? 'help.steps' : 'help.stepsTraining');
 }
 
-const HELP_TABS = ['scenario', 'sheet', 'air', 'sea', 'time', 'games', 'keys'];
+export const HELP_TABS = ['scenario', 'sheet', 'air', 'sea', 'time', 'games', 'keys'];
 
 /** A picture from the test bench, beside the text it illustrates (data/help/images.json). */
 function helpImage(app, name) {
@@ -287,13 +291,18 @@ function helpImage(app, name) {
   return src ? `<figure class="help-image"><img src="${src}" alt="${escapeHtml(t(`help.images.${name}`))}"><figcaption>${escapeHtml(t(`help.images.${name}`))}</figcaption></figure>` : '';
 }
 
-/** The help, in tabs: this scenario, the sheet, the air, the sea, time and alerts, games and settings, the keys. */
-export function openHelp(app) {
+/**
+ * The help, in tabs: this scenario, the sheet, the air, the sea, time and alerts, games and
+ * settings, the keys. `wantTab` and `anchor`: the tab and the rubric to open on (the link of
+ * a « ? » bubble); else the tab last read.
+ */
+export function openHelp(app, wantTab = null, anchor = null) {
   const dlg = app.el.dlgHelp;
   // From the main menu with no game in hand there is no « this scenario » to speak of: the
   // help opens on the games and their settings.
   const noGame = Boolean(app.onMenu) && !(app.gameInProgress && app.gameInProgress());
   const tabs = noGame ? HELP_TABS.filter((id) => id !== 'scenario') : HELP_TABS;
+  if (wantTab && tabs.includes(wantTab)) app.helpTab = wantTab;
   const tab = tabs.includes(app.helpTab) ? app.helpTab : noGame ? 'games' : 'scenario';
   const list = (items) => `<ol>${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
   const bodies = {
@@ -321,6 +330,12 @@ export function openHelp(app) {
   });
   dlg.addEventListener('close', markHelpSeen, { once: true });
   showPage(app, dlg);
+  // The rubric asked for: in view, and marked for a moment.
+  const target = anchor ? dlg.querySelector(`[data-hpane="${tab}"] [data-anchor="${anchor}"]`) : null;
+  if (target) {
+    target.classList.add('help-target');
+    target.scrollIntoView({ block: 'start' });
+  }
 }
 
 export function openSuccess(app) {

@@ -21,7 +21,6 @@ import { openFormations } from './formationsPage.js';
 import { openRoster } from './rosterPage.js';
 import { openCards, openReports } from './pages.js';
 import { onWatchClick } from './watchPanel.js';
-import { toggleSheetHelp } from './sheetHelp.js';
 import { handsOff, nudgeCoach, tutorialFlag } from './tutorial.js';
 
 function inputValue(id) {
@@ -284,10 +283,6 @@ export const PANEL_CHANGES = {
 
 /** What a click on the journal, the tabs or the folds does before any `data-action`. */
 function chromeClick(app, e) {
-  if (toggleSheetHelp(app, e)) {
-    app.dirtyPanels = true;
-    return true;
-  }
   if (onWatchClick(app, e)) return true;
   const logTab = e.target.closest('[data-log-tab]');
   if (logTab) {

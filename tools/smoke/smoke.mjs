@@ -1904,8 +1904,11 @@ async function interfaceChecks(page, errors) {
       note(gone, 'alerts: once a squadron is sent against it, the alert closes by itself');
     }
   });
+  // (C8, then 2.11.0) The help of a sheet stands behind a « ? » in the title of each section:
+  // a bubble in front of everything, with a link to the rubric of the help. The setting
+  // « Aides des fiches : affichées » writes the text of each bubble under its title.
   await step('interface: the help of the sheets (C8)', async () => {
-    await start('hiver-atlantique', { sheetHelp: 'shown' });
+    await start('hiver-atlantique');
     const open = async () => {
       await game(page, async () => {
         const a = window.__game;
@@ -1916,28 +1919,69 @@ async function interfaceChecks(page, errors) {
       });
       await sleep(400);
     };
-    const hints = () => game(page, () => {
-      const all = [...document.querySelectorAll('#unit-body p.hint')];
-      return { all: all.length, visible: all.filter((p) => p.offsetParent).length, toggles: document.querySelectorAll('#unit-body .hint-toggle').length };
+    const read = () => game(page, () => {
+      const body = document.getElementById('unit-body');
+      const bubble = document.getElementById('help-bubble');
+      const r = bubble ? bubble.getBoundingClientRect() : null;
+      const front = r ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null;
+      const pane = document.querySelector('#dlg-help .help-pane:not([hidden])');
+      return {
+        setting: window.__game.settings.sheetHelp,
+        help: [...body.querySelectorAll('p.hint')].filter((p) => p.offsetParent).length,
+        inline: [...body.querySelectorAll('p.hint.help-inline')].filter((p) => p.offsetParent).length,
+        sections: [...body.querySelectorAll('details.sec')].map((d) => `${d.dataset.sec}:${d.querySelectorAll(':scope > summary .help-mark').length}:${d.querySelectorAll('.sec-body .help-mark').length}`),
+        open: [...body.querySelectorAll('details.sec')].filter((d) => d.open).length,
+        bubble: bubble ? { key: bubble.dataset.key, text: bubble.querySelector('p').textContent, link: bubble.querySelector('[data-help-link]')?.dataset.helpLink || '', front: Boolean(front && bubble.contains(front)), inWindow: r.left >= 0 && r.top >= 0 && r.right <= window.innerWidth && r.bottom <= window.innerHeight } : null,
+        sheet: !document.getElementById('unit-panel').hidden,
+        helpTab: document.getElementById('dlg-help').open ? document.querySelector('#dlg-help [data-htab].active')?.dataset.htab : null,
+        target: pane ? pane.querySelector('.help-target')?.dataset.anchor || '' : '',
+      };
     });
     await open();
-    const shown = await hints();
-    note(shown.all >= 2 && shown.visible === shown.all && shown.toggles === 0, 'sheet help: shown by default, without a button', JSON.stringify(shown));
+    const dflt = await read();
+    note(dflt.setting === 'folded' && dflt.help === 0, 'sheet help: masked by default, no help sentence in the sheet', JSON.stringify({ setting: dflt.setting, help: dflt.help }));
+    note(dflt.sections.length >= 4 && dflt.sections.filter((x) => /:1:0$/.test(x)).length >= 4 && dflt.sections.every((x) => /:[01]:0$/.test(x)),
+      'sheet help: each section that has help shows one « ? », in its title', dflt.sections.join(' '));
+    await page.click('#unit-body details.sec[data-sec="port"] > summary .help-mark');
+    await sleep(300);
+    const one = await read();
+    note(one.bubble && one.bubble.key === 'port' && /^Choisir une sortie en fait la première étape du groupe/.test(one.bubble.text) && one.bubble.front && one.bubble.inWindow && one.open === dflt.open,
+      'sheet help: a « ? » opens a bubble in front of the sheet, and its section does not fold', JSON.stringify(one.bubble));
+    const sentences = one.bubble ? one.bubble.text.split(/[.!?](?:\s|$)/).filter((x) => x.trim()).length : 99;
+    note(sentences >= 2 && sentences <= 4, 'sheet help: a bubble says it in two to four sentences', String(sentences));
+    await shot(page, 'help-bubble');
+    await page.keyboard.press('Escape');
+    await sleep(250);
+    const closed = await read();
+    note(!closed.bubble && closed.sheet, 'sheet help: Escape closes the bubble, and only the bubble');
+    await page.click('#unit-body details.sec[data-sec="uboats"] > summary .help-mark');
+    await sleep(250);
+    await page.mouse.click(200, 400);
+    await sleep(250);
+    note(!(await read()).bubble, 'sheet help: a click elsewhere closes the bubble');
     await game(page, () => {
-      window.__game.settings.sheetHelp = 'folded';
+      window.__game.paused = true;
+    });
+    await page.click('#unit-body details.sec[data-sec="uboats"] > summary .help-mark');
+    await sleep(250);
+    const link = (await read()).bubble;
+    await page.click('#help-bubble [data-help-link]');
+    await sleep(400);
+    const help = await read();
+    note(link && link.link === 'sea:chasse' && help.helpTab === 'sea' && !help.bubble, 'sheet help: the link of a bubble opens the help on the tab of its rubric', JSON.stringify({ link: link && link.link, tab: help.helpTab, target: help.target }));
+    await closeDialogs(page);
+    await game(page, () => {
+      window.__game.settings.sheetHelp = 'shown';
+      window.__game.el.unitKeyed.__key = '';
       window.__game.dirtyPanels = true;
     });
     await sleep(400);
-    const folded = await hints();
-    note(folded.visible < shown.visible && folded.toggles >= 1, 'sheet help: folded, each section keeps a « ? »', JSON.stringify(folded));
-    await shot(page, 'help-folded');
-    await closeDialogs(page);
-    await page.click('#unit-body .hint-toggle');
-    await sleep(300);
-    const one = await hints();
-    note(one.visible > folded.visible, 'sheet help: a « ? » opens the help of its section', JSON.stringify(one));
+    const shown = await read();
+    note(shown.inline >= 4 && shown.sections.filter((x) => /:1:0$/.test(x)).length >= 4, 'sheet help: « affichées », the text of each bubble stands under the title of its section', JSON.stringify({ inline: shown.inline, help: shown.help }));
+    await shot(page, 'help-shown');
     await game(page, () => {
-      window.__game.settings.sheetHelp = 'shown';
+      window.__game.settings.sheetHelp = 'folded';
+      window.__game.el.unitKeyed.__key = '';
       window.__game.dirtyPanels = true;
     });
   });
@@ -2022,7 +2066,7 @@ async function interfaceChecks(page, errors) {
       await shot(page, 'state-lines-folded');
     }
     await game(page, () => {
-      window.__game.settings.sheetHelp = 'shown';
+      window.__game.settings.sheetHelp = 'folded';
     });
   });
   await step('interface: stacks and tabs (C9)', async () => {

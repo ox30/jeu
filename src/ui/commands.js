@@ -3,6 +3,7 @@
 // its « Commandes » tab, which the player opens or folds (remembered in the settings).
 
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
+import { hasHelp, helpText } from './helpTopics.js';
 
 const S = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${d}</svg>`;
 
@@ -68,10 +69,34 @@ export function sectionOpen(app, id, dflt = true) {
   return mine === undefined ? dflt : Boolean(mine);
 }
 
-/** A section of the Commandes tab, folded or open as the player left it. */
-export function section(app, id, title, body, dflt = true) {
+/**
+ * The « ? » of a section, of a sub-title, of a page or of a setting: it opens the bubble of
+ * `key` (helpBubble.js, helpTopics.js). `args`: the figures its text quotes.
+ */
+export function helpMark(key, args = null) {
+  if (!hasHelp(key)) return '';
+  const extra = args ? ` data-help-args="${escapeHtml(JSON.stringify(args))}"` : '';
+  return `<button type="button" class="help-mark" data-help="${key}"${extra} title="${escapeHtml(t('help.mark'))}" aria-label="${escapeHtml(t('help.mark'))}" aria-expanded="false">?</button>`;
+}
+
+/** With the setting « Aides des fiches : affichées », the text of a bubble under its title. */
+export function helpInline(app, key, args = null) {
+  if (!hasHelp(key) || app.settings.sheetHelp !== 'shown') return '';
+  return `<p class="hint help-inline">${escapeHtml(helpText(key, app.world.settings, args || {}))}</p>`;
+}
+
+/** A sub-title, with the « ? » of the help it carries. */
+export function subTitle(app, title, help = null, args = null) {
+  return `<div class="sub">${escapeHtml(title)}${help ? helpMark(help, args) : ''}</div>${help ? helpInline(app, help, args) : ''}`;
+}
+
+/**
+ * A section of the Commandes tab, folded or open as the player left it. `help`: the key of
+ * its bubble; its « ? » stands in the title.
+ */
+export function section(app, id, title, body, dflt = true, help = null) {
   if (!body) return '';
-  return `<details class="sec" data-sec="${id}"${sectionOpen(app, id, dflt) ? ' open' : ''}><summary>${escapeHtml(title)}</summary><div class="sec-body">${body}</div></details>`;
+  return `<details class="sec" data-sec="${id}"${sectionOpen(app, id, dflt) ? ' open' : ''}><summary>${escapeHtml(title)}${help ? helpMark(help) : ''}</summary><div class="sec-body">${help ? helpInline(app, help) : ''}${body}</div></details>`;
 }
 
 /** km/h of a speed in km/s, rounded for reading. */

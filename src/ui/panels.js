@@ -35,13 +35,14 @@ import {
   stockOrders, trainSheet,
 } from './logisticsPanels.js';
 import { isActive } from '../sim/raid.js';
-import { altitudeControl, cmdButton, cmdGroup, kmhText, section, speedControl } from './commands.js';
+import { altitudeControl, cmdButton, cmdGroup, kmhText, section, speedControl, subTitle } from './commands.js';
 import {
   escortStateText,
   altitudeText, countText, dateTimeText, durationText, endActionText, ftText, headingText, kmText, legEndInput, legText,
   objectiveText, positionText, reportText, siteEffectText, siteRepairText, siteStatusText, siteTitle,
 } from './format.js';
 import { applySheetHelp } from './sheetHelp.js';
+import { bubbleFollows } from './helpBubble.js';
 import { activeMember, memberSelection, stackOfSelection } from './stacks.js';
 import { siteTabs, tabSelection, unitsIn } from './siteUnits.js';
 import { toolOffered } from './offered.js';
@@ -674,7 +675,11 @@ function routeSection(app, u) {
     air ? endActionLine(app, u) : shipEndLine(app, u),
     legForm(app, u),
   ].join('');
-  return section(app, air ? 'route' : 'seaRoute', t('sec.route'), `<div class="orders">${body}</div>`);
+  // Its « ? »: the gestures of a line, then what is its own (a wing follows its leader, an
+  // escort group has its way out of port, a convoy the end of its route).
+  const grouped = Boolean(formationOf(app.world, u));
+  return section(app, air ? 'route' : 'seaRoute', t('sec.route'), `<div class="orders">${body}</div>`, true,
+    air ? (grouped ? 'routeWing' : 'routeAir') : u.kind === 'convoy' ? 'routeConvoy' : grouped ? 'routeGroup' : 'routeEscort');
 }
 
 /** Wrapped in the panel's orders look, or nothing. */
@@ -996,10 +1001,10 @@ function squadronPanel(app, s) {
     cmd = ordersBox(s.schedule ? takeoffBlock(app, s) : '', alertBlock(app, s), formationLine(app, s));
   } else {
     cmd = [
-      grounded || s.schedule ? section(app, 'ground', t('sec.ground'), ordersBox(takeoffBlock(app, s, false), alertBlock(app, s))) : '',
+      grounded || s.schedule ? section(app, 'ground', t('sec.ground'), ordersBox(takeoffBlock(app, s, false), alertBlock(app, s)), true, fatigueOn(w) ? 'ground' : 'groundPlain') : '',
       routeSection(app, s),
-      section(app, 'mission', t('sec.mission'), ordersBox(up ? coverButtons(app, s) : '', interceptBlock(app, s), letGoLine(app, s))),
-      section(app, 'formation', t('sec.formation'), ordersBox(formationLine(app, s)), !up),
+      section(app, 'mission', t('sec.mission'), ordersBox(up ? coverButtons(app, s) : '', interceptBlock(app, s), letGoLine(app, s)), true, 'mission'),
+      section(app, 'formation', t('sec.formation'), ordersBox(formationLine(app, s)), !up, 'formation'),
       `<p class="hint">${escapeHtml(grounded
         ? (headings ? t('orders.scrambleHintHeadings') : t('orders.scrambleHint'))
         : (headings ? t('orders.headingsHint') : t('orders.drawHint')))}</p>`,
@@ -1068,8 +1073,8 @@ function convoyPanel(app, c) {
   const headings = app.world.settings.orders === 'headings';
   const cmd = canOrder ? [
     c.state === 'inPort' || c.state === 'refit' ? section(app, 'convoyPort', t('sec.port'), ordersBox(sailBlock(app, c),
-      `<p class="hint">${escapeHtml(t('orders.sailHint'))}</p>`)) : '',
-    commsLines(app, c) ? section(app, 'comms', t('sec.comms'), ordersBox(commsLines(app, c))) : '',
+      `<p class="hint">${escapeHtml(t('orders.sailHint'))}</p>`), true, 'convoyPort') : '',
+    commsLines(app, c) ? section(app, 'comms', t('sec.comms'), ordersBox(commsLines(app, c)), true, 'comms') : '',
     routeSection(app, c),
     c.type !== 'coastal' && !c.straggler ? `<p class="hint">${escapeHtml(t('orders.speedHint', { n: formatNumber(c.speedKn * w.rules.asw.stragglerFrom, 1) }))}</p>` : '',
     c.state !== 'inPort' ? `<p class="hint">${escapeHtml(headings ? t('orders.headingsHint') : t('orders.drawHint'))}</p>` : '',
@@ -1121,14 +1126,14 @@ function escortPanel(app, e) {
     const route = es.planUnit ? routeSection(app, e) : '';
     const inPort = e.state === 'inPort';
     cmd = [
-      inPort || e.state === 'refit' ? section(app, 'port', t('sec.port'), ordersBox(inPort ? exitLines(app, e, { sail: false }) : '', sailBlock(app, e))) : '',
+      inPort || e.state === 'refit' ? section(app, 'port', t('sec.port'), ordersBox(inPort ? exitLines(app, e, { sail: false }) : '', sailBlock(app, e)), true, 'port') : '',
       inPort ? route : '',
-      commsLines(app, e) ? section(app, 'comms', t('sec.comms'), ordersBox(commsLines(app, e))) : '',
-      section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, e))),
-      e.state === 'refit' ? '' : section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, e, { behaviour: false }))),
+      commsLines(app, e) ? section(app, 'comms', t('sec.comms'), ordersBox(commsLines(app, e)), true, 'comms') : '',
+      section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, e)), true, 'convoys'),
+      e.state === 'refit' ? '' : section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, e, { behaviour: false })), true, 'uboats'),
       atSea ? section(app, 'home', t('sec.home'), ordersBox(homePortLine(app, e))) : '',
       inPort ? '' : route,
-      section(app, 'group', t('sec.group'), ordersBox(joinGroupBlock(app, e), formationLine(app, e)), false),
+      section(app, 'group', t('sec.group'), ordersBox(joinGroupBlock(app, e), formationLine(app, e)), false, 'group'),
     ].join('');
   }
   const tabs = [
@@ -1237,7 +1242,7 @@ function rallyTab(app, f) {
   const where = r ? r.where : 'leader';
   const p = r && r.where === 'point' && r.x !== null ? r : null;
   const parts = [`<div class="orders">`, scheduleHint(app)];
-  parts.push(`<div class="sub">${escapeHtml(t('rally.where'))}</div><div class="order-line">
+  parts.push(`${subTitle(app, t('rally.where'), air ? 'rallyAir' : 'rallySea')}<div class="order-line">
     ${button('rally-where', t('rally.overLeaderBtn'), { id, kind, active: where === 'leader', extra: ' data-where="leader"' })}
     ${button('rally-where', t('rally.atPointBtn'), { id, kind, active: where === 'point', extra: ' data-where="point"' })}</div>`);
   if (where === 'point') {
@@ -1317,10 +1322,10 @@ function formationPanel(app, f) {
     const alerts = fatigueOn(w) && grounded.length ? `${alertButtons(app, f, 'formation', common)}${confirmBox(app, 'formation', f.id, f.name)}
         <p class="state-line">${escapeHtml(alertStatus(w, grounded.reduce((a, b) => (scrambleSeconds(w, b) > scrambleSeconds(w, a) ? b : a))))}</p>` : '';
     cmd = [
-      takeoff || alerts ? section(app, 'ground', t('sec.ground'), ordersBox(takeoff, alerts)) : '',
+      takeoff || alerts ? section(app, 'ground', t('sec.ground'), ordersBox(takeoff, alerts), true, fatigueOn(w) ? 'ground' : 'groundPlain') : '',
       leader.state === 'lost' ? '' : routeSection(app, leader),
-      section(app, 'mission', t('sec.mission'), ordersBox(up ? coverButtons(app, leader) : '', interceptBlock(app, leader), letGoLine(app, leader))),
-      section(app, 'manage', t('sec.manage'), ordersBox(manage), false),
+      section(app, 'mission', t('sec.mission'), ordersBox(up ? coverButtons(app, leader) : '', interceptBlock(app, leader), letGoLine(app, leader)), true, 'mission'),
+      section(app, 'manage', t('sec.manage'), ordersBox(manage), false, 'manageAir'),
       `<p class="hint">${escapeHtml(t(up ? (headings ? 'unit.wingHintAirHeadings' : 'unit.wingHintAir') : (headings ? 'unit.wingHintGroundHeadings' : 'unit.wingHintGround')))}</p>`,
     ].join('');
   } else {
@@ -1328,13 +1333,13 @@ function formationPanel(app, f) {
     const atSea = members.some((e) => ['atSea', 'waiting', 'escorting', 'hunting'].includes(e.state));
     cmd = [
       planned ? `<p class="state-line">${escapeHtml(t('rally.underWay'))}</p>` : '',
-      !planned && leader.state === 'inPort' ? section(app, 'port', t('sec.port'), ordersBox(exitLines(app, leader, { sail: false }), sailBlock(app, leader))) : '',
+      !planned && leader.state === 'inPort' ? section(app, 'port', t('sec.port'), ordersBox(exitLines(app, leader, { sail: false }), sailBlock(app, leader)), true, 'port') : '',
       canMove && leader.state === 'inPort' ? routeSection(app, leader) : '',
-      section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, leader))),
-      section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, leader, { behaviour: false }))),
+      section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, leader)), true, 'convoys'),
+      section(app, 'uboats', t('sec.uboats'), ordersBox(huntLines(app, leader, { behaviour: false })), true, 'uboats'),
       atSea ? section(app, 'home', t('sec.home'), ordersBox(homePortLine(app, leader))) : '',
       canMove && leader.state !== 'inPort' ? routeSection(app, leader) : '',
-      section(app, 'manage', t('sec.manage'), ordersBox(manage, `<p class="hint">${escapeHtml(t('unit.groupHint'))}</p>`), false),
+      section(app, 'manage', t('sec.manage'), ordersBox(manage, `<p class="hint">${escapeHtml(t('unit.groupHint'))}</p>`), false, 'manageSea'),
     ].join('');
   }
   return {
@@ -1740,7 +1745,8 @@ function renderUnitPanel(app) {
   el.unitProfile.hidden = !profile;
   if (profile) drawProfile(el.unitProfile, app, panel.profileUnit);
   // The help sentences: shown, or folded behind a « ? » by section (setting « Aides des fiches »).
-  applySheetHelp(app, el.unitBody, t('sheet.helpToggle'));
+  applySheetHelp(app, el.unitBody);
+  bubbleFollows(app);
 }
 
 export function renderPanels(app) {
