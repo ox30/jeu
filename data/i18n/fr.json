@@ -131,7 +131,8 @@
       "waitingConvoy": "{name} est arrêté et attend des ordres.",
       "charges": "{name} n'a plus de grenades près de {convoy} : il fait encore plonger, mais ne coulera plus rien.",
       "chargesAlone": "{name} n'a plus de grenades : il fait encore plonger, mais ne coulera plus rien.",
-      "marker": "{convoy} : {n} repère(s) U-Boot sur sa route dans les 24 heures ({plots} vu(s), {fixes} relèvement(s) radio). Changer de route, ou la garder."
+      "marker": "{convoy} : {n} repère(s) U-Boot sur sa route dans les 24 heures ({plots} vu(s), {fixes} relèvement(s) radio). Changer de route, ou la garder.",
+      "adrift": "{convoy} n'a plus de route à suivre : il garde son cap au {heading}°, aussi loin que la mer le porte."
     },
     "convoys": "Convois",
     "convoysNone": "Aucun convoi en mer.",
@@ -206,7 +207,11 @@
     },
     "openPage": "Ouvrir",
     "openPageTitle": "Ouvrir ce rapport en grand, comme à la relève",
-    "openLast": "Rouvrir le rapport de la relève de {hour} h"
+    "openLast": "Rouvrir le rapport de la relève de {hour} h",
+    "emptyTitle": "Rapport de quart",
+    "emptyText": "Aucun rapport n'est encore écrit : le premier viendra à la relève de {hour} h.",
+    "emptyWhat": "Un rapport s'écrit à chaque relève (0, 4, 8, 12, 16 et 20 h) : convois, groupes d'escorte, air, renseignement, et ce qui attend une décision.",
+    "convoyAdrift": "sans route, garde son cap"
   },
   "states": {
     "squadron": {
@@ -733,7 +738,8 @@
       "folded": "Masquées (un « ? » par section)",
       "shown": "Affichées"
     },
-    "alertSpeedsTitle": "Vitesse du jeu à chaque alerte"
+    "alertSpeedsTitle": "Vitesse du jeu à chaque alerte",
+    "noShips": "Ce scénario n'a pas de navire : ce réglage n'y change rien."
   },
   "objectives": {
     "convoyArrived": "Amener le convoi {convoy} dans un port britannique",

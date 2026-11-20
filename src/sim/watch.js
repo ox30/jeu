@@ -1,8 +1,9 @@
-// The sea at the rhythm of the watches. In a scenario whose sea rhythm is 'watches' the
-// player commands from a headquarters ashore: what happens at sea no longer calls him event
-// by event. It is noted, and every four hours, at the relief of the watch, a report is
+// The sea at the rhythm of the watches. In a scenario with ships (hasShips) the player
+// commands from a headquarters ashore: what happens on the high seas no longer calls him
+// event by event. It is noted, and every four hours, at the relief of the watch, a report is
 // written whether the game stops or not: the convoys, the escort groups, the air, the
-// intelligence, and what waits for a decision.
+// intelligence, and what waits for a decision. Near us — in the waters the headquarters
+// follows, or under one of its aircraft — a ship keeps its alerts as they come (followedLive).
 //
 // The game stops at a relief when a new decision waits (by default), and on the hours the
 // player asked for (morning and evening, or every relief). Between two reliefs it stops for
@@ -15,15 +16,25 @@ import { emit, onEmit } from './events.js';
 import { currentSpeed } from './convoy.js';
 import { isPatrol } from './patrols.js';
 import { inClosedWaters } from './uboatnav.js';
-import { shownPosition } from './comms.js';
+import { followedLive, inTrackedWaters, pendingOrders, shownPosition, watchesOverAShip } from './comms.js';
 
 export const WATCH_S = 4 * 3600;
 
 /** Stops at the reliefs: on a decision only, morning and evening too, or at every relief. */
 export const WATCH_STOPS = ['decision', 'twice', 'every'];
 
+/**
+ * A scenario with ships lives at the rhythm of the watches (decision of 20 November 2026):
+ * convoys at sea or in port as it begins, escort groups, or convoys that will sail. The rule
+ * is read on the scenario as the game plays it — a lesson with the keys of its base — so
+ * that no scenario has to say it, and none can forget it.
+ */
+export function hasShips(scenario) {
+  return ['convoys', 'escorts', 'convoySchedule'].some((k) => Array.isArray(scenario[k]) && scenario[k].length > 0);
+}
+
 export function createWatch(world) {
-  world.watch = world.scenario.seaRhythm === 'watches'
+  world.watch = hasShips(world.scenario)
     ? { notes: [], reports: [], nextId: 1, asked: [], told: [], nights: {} }
     : null;
 }
@@ -36,6 +47,13 @@ function clockS(world, t = world.t) {
 /** Is this second the relief of a watch (0, 4, 8... by the clock)? */
 export function isRelief(world) {
   return clockS(world) % WATCH_S === 0;
+}
+
+/** The hour of the clock (0, 4, 8…) at which the next report will be written. */
+export function nextReliefHour(world) {
+  const s = clockS(world);
+  const next = (Math.floor(s / WATCH_S) + 1) * WATCH_S;
+  return clockHour(world, world.t + (next - s));
 }
 
 /** The hour of the clock (0 to 23) at game time `t`. */
@@ -95,15 +113,58 @@ function nightOf(world) {
   return Math.floor((clockS(world) - 12 * 3600) / 86400);
 }
 
+/** The ship an event of the sea is about: the group or the convoy it names, or null. */
+function shipOf(world, e) {
+  if (e.escortId) return world.escorts.find((x) => x.id === e.escortId) || null;
+  if (e.type === 'uboatSighted') return e.unitKind === 'escort' ? world.escorts.find((x) => x.id === e.byId) || null : null;
+  if (e.convoyId) return (e.unitKind === 'escort' ? world.escorts : world.convoys).find((x) => x.id === e.convoyId) || null;
+  return null;
+}
+
+/**
+ * Does this event of the sea happen near us? Its ship is in the waters the headquarters
+ * follows, or under one of its aircraft (followedLive). A U-boat seen by an aircraft has no
+ * ship of its own: it is near us when seen in those waters, or by an aircraft that watches
+ * over one of our ships. Such an event calls the player as it comes, as it does without the
+ * watches; elsewhere it waits for the report. Either way the report notes it.
+ */
+export function happensNearUs(world, e) {
+  const u = shipOf(world, e);
+  if (u) return followedLive(world, u);
+  if (e.type === 'uboatSighted' && e.unitKind === 'squadron' && typeof e.x === 'number') {
+    if (inTrackedWaters(world, e.x, e.y)) return true;
+    const s = world.squadrons.find((x) => x.id === e.byId);
+    return Boolean(s && watchesOverAShip(world, s));
+  }
+  return false;
+}
+
+// A decision the player was called for as it came (an alert near us) is asked: the relief
+// lists it without stopping the game for it again.
+const DECISION_OF = {
+  convoyInEscortRange: (e) => `reach:${e.convoyId}`,
+  convoyWaiting: (e) => `waiting:${e.convoyId}`,
+  convoyStopped: (e) => `waiting:${e.convoyId}`,
+  escortChargesOut: (e) => `charges:${e.escortId}`,
+};
+
 /**
  * Every event, as it is emitted — by a step of the world or by an order given between two
  * steps (an aircraft bought, a hunt ordered on a plot): the sea events go to the notes of the
- * watch under way; the first attack on a convoy in the night stops the game at once.
+ * watch under way. One that happens near us is marked `live` (the page gives its alert at
+ * once: alertRules.js). On the high seas, the first attack on a convoy in the night stops
+ * the game at once; near us its alert has called the player, and counts for the night.
  */
 function noteEvent(world, e) {
   const W = world.watch;
   if (!W || !isNoted(world, e)) return;
   W.notes.push(noteOf(e));
+  const live = happensNearUs(world, e);
+  if (live) {
+    e.live = true;
+    const key = DECISION_OF[e.type] ? DECISION_OF[e.type](e) : null;
+    if (key && !W.asked.includes(key)) W.asked.push(key);
+  }
   if (e.type !== 'uboatAttack') return;
   // A straggler counts with its convoy: one stop a convoy and a night.
   const c = world.convoys.find((x) => x.id === e.convoyId);
@@ -111,10 +172,25 @@ function noteEvent(world, e) {
   const night = nightOf(world);
   if (W.nights[id] === night) return;
   W.nights[id] = night;
+  if (live) return;
   emit(world, 'seaStop', { reason: 'attack', convoy: e.convoy, convoyId: e.convoyId, sunk: e.sunk, x: e.x, y: e.y });
 }
 
 // ---- what waits for a decision ----------------------------------------------------------
+
+// Orders that give a convoy something to follow, or say how what it follows ends.
+const ROUTING_ORDERS = new Set(['route', 'editRoute', 'addLeg', 'updateLeg', 'endAction']);
+
+/**
+ * A convoy at sea with nothing left to follow: no line, no legs, no end told for them, and
+ * no such order on its way to it (by radio at the next relief, or carried by a group). It
+ * keeps its course, as far as the sea goes.
+ */
+export function noRoute(world, c) {
+  if (c.state !== 'atSea' || c.route.length || c.plan.length || c.endAction) return false;
+  return !pendingOrders(world, c).some((s) => ROUTING_ORDERS.has(s.name));
+}
+
 
 /** The groups that sail with a convoy, are on their way to it, or hunt for it. */
 export function groupsOf(world, convoyId) {
@@ -186,7 +262,10 @@ export function markersOnWay(world, c) {
  * - waiting: a group at sea that has finished its orders, or ships stopped;
  * - charges: a group at sea with empty racks;
  * - marker: U-boat markers on the way of a convoy within a day. Asked once for each routing
- *   of the convoy: the player who keeps the route has answered; a new route is a new question.
+ *   of the convoy: the player who keeps the route has answered; a new route is a new question;
+ * - adrift: a convoy at sea with nothing left to follow, that keeps its course (noRoute).
+ * The coastal convoys count for what stops them or leaves them without a route; the escort
+ * and the markers are a matter of the ocean.
  */
 export function pendingDecisions(world) {
   const out = [];
@@ -194,12 +273,13 @@ export function pendingDecisions(world) {
   const free = freeGroups(world);
   const bases = free.map((e) => world.byId.port.get(e.portId)).filter(Boolean);
   for (const c of world.convoys) {
-    if (c.type !== 'ocean') continue;
     if (c.state === 'waiting') {
       out.push({ kind: 'waiting', key: `waiting:${c.id}`, unitKind: 'convoy', unitId: c.id });
       continue;
     }
     if (c.state !== 'atSea') continue;
+    if (noRoute(world, c)) out.push({ kind: 'adrift', key: `adrift:${c.id}`, unitKind: 'convoy', unitId: c.id, heading: Math.round(c.course), admiralty: c.admiraltyRoute.length > 0 });
+    if (c.type !== 'ocean') continue;
     // (Once in the waters closed to the U-boats, a convoy needs no escort any more.)
     const at = shownPosition(world, c); // the headquarters decides on what its table shows
     if (!c.straggler && bases.length && !groupsOf(world, c.id).length && !inClosedWaters(world, at.x, at.y)) {
@@ -243,7 +323,8 @@ function lean(row) {
 /**
  * The row of a convoy in a report (stragglers count with their convoy):
  * { id, ships, x, y } and, when they apply, state (when not at sea), lost and attacks (this watch), stragglers,
- * escorts and joining (group ids), markers (on its way), est (the place is an estimate).
+ * escorts and joining (group ids), markers (on its way), est (the place is an estimate),
+ * adrift (nothing left to follow).
  */
 function convoyRow(world, c, notes) {
   const ids = new Set([c.id, ...(c.children || [])]);
@@ -262,8 +343,9 @@ function convoyRow(world, c, notes) {
     stragglers,
     escorts: world.escorts.filter((e) => e.escorting === c.id || e.huntFor === c.id).map((e) => e.id),
     joining: world.escorts.filter((e) => e.joinTarget === c.id).map((e) => e.id),
-    markers: c.state === 'atSea' ? markersOnWay(world, c).length : 0,
+    markers: c.state === 'atSea' && c.type === 'ocean' ? markersOnWay(world, c).length : 0,
     est: at.est, // the place is an estimate (radio silence)
+    adrift: noRoute(world, c), // nothing left to follow: it keeps its course
   });
 }
 
@@ -329,7 +411,7 @@ function writeReport(world) {
   W.notes = [];
   const convoys = [];
   for (const c of world.convoys) {
-    if (c.type !== 'ocean' || c.straggler) continue;
+    if (c.straggler) continue; // (ocean and coastal convoys alike: every convoy of the game)
     const ids = new Set([c.id, ...(c.children || [])]);
     const active = c.state === 'atSea' || c.state === 'waiting' || notes.some((n) => ids.has(n.convoyId));
     if (active) convoys.push(convoyRow(world, c, notes));
@@ -389,7 +471,7 @@ export function fullReport(world, r) {
     id: r.id,
     toS: r.toS,
     fromS: Math.max(0, r.toS - WATCH_S),
-    convoys: (r.convoys || []).map((c) => ({ state: 'atSea', lost: 0, attacks: 0, stragglers: 0, escorts: [], joining: [], markers: 0, est: false, ...c })),
+    convoys: (r.convoys || []).map((c) => ({ state: 'atSea', lost: 0, attacks: 0, stragglers: 0, escorts: [], joining: [], markers: 0, est: false, adrift: false, ...c })),
     escorts: (r.escorts || []).map((e) => {
       const unit = world.escorts.find((x) => x.id === e.id);
       return {

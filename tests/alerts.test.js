@@ -21,7 +21,9 @@ test('a convoy attacked twice in the same night calls the player once', () => {
   const w = makeKanalkampf();
   const memory = new Map();
   const c = w.convoys[0];
-  const e = { type: 'uboatAttack', convoy: c.name, convoyId: c.id, sunk: 2, x: c.x, y: c.y };
+  // (Near us — `live`, as the simulation marks it: watch.js. Kanalkampf lives by the watches since 2.12.)
+  const e = { type: 'uboatAttack', convoy: c.name, convoyId: c.id, sunk: 2, x: c.x, y: c.y, live: true };
+  assert.equal(alertFor(w, { ...e, live: false }, new Map()), null, 'on the high seas the watch report tells it');
   const a = alertFor(w, e, memory);
   assert.equal(a.level, 'danger');
   assert.equal(a.focus.id, c.id);
@@ -31,27 +33,35 @@ test('a convoy attacked twice in the same night calls the player once', () => {
   assert.ok(ALERT_SPEED.danger <= 60 && ALERT_SPEED.raid <= 10 && ALERT_SPEED.warning <= 600);
 });
 
-test('a U-boat seen by an aircraft or an escort calls the player anywhere, once an hour for that boat', () => {
+test('a U-boat seen by an aircraft or an escort near us calls the player, once an hour for that boat', () => {
   const w = makeKanalkampf();
   const memory = new Map();
   const c = w.convoys.find((u) => u.state === 'atSea');
   assert.ok(c);
-  const near = alertFor(w, { type: 'uboatSighted', by: '502 Sqn', source: 'aircraft', uboatId: 'u1', x: c.x + 40, y: c.y }, memory);
+  // (`live`: seen near us, as the simulation marks it — tests/nearus.test.js has the rule.)
+  const near = alertFor(w, { type: 'uboatSighted', by: '502 Sqn', source: 'aircraft', uboatId: 'u1', x: c.x + 40, y: c.y, live: true }, memory);
   assert.equal(near.level, 'warning');
   assert.equal(near.variant, 'near');
   assert.equal(near.params.convoy, c.name);
-  assert.equal(alertFor(w, { type: 'uboatSighted', by: '502 Sqn', source: 'aircraft', uboatId: 'u1', x: c.x + 50, y: c.y }, memory), null, 'quiet a while');
-  const far = alertFor(w, { type: 'uboatSighted', by: '502 Sqn', source: 'asv', uboatId: 'u2', x: c.x + 2000, y: c.y }, memory);
+  assert.equal(alertFor(w, { type: 'uboatSighted', by: '502 Sqn', source: 'aircraft', uboatId: 'u1', x: c.x + 50, y: c.y, live: true }, memory), null, 'quiet a while');
+  const far = alertFor(w, { type: 'uboatSighted', by: '502 Sqn', source: 'asv', uboatId: 'u2', x: c.x + 2000, y: c.y, live: true }, memory);
   assert.ok(far, 'far from any convoy too');
   assert.equal(far.variant, 'text');
-  assert.equal(alertFor(w, { type: 'uboatSighted', by: 'EG 1', source: 'asdic', uboatId: 'u3', x: c.x, y: c.y, attack: true }, memory), null,
+  assert.equal(alertFor(w, { type: 'uboatSighted', by: 'EG 1', source: 'asdic', uboatId: 'u3', x: c.x, y: c.y, attack: true, live: true }, memory), null,
     'a group that attacks at once calls with « Escorte au combat »');
+  // Elsewhere, at the rhythm of the watches, the sighting waits for the report.
+  assert.equal(alertFor(w, { type: 'uboatSighted', by: '502 Sqn', source: 'aircraft', uboatId: 'u4', x: c.x + 40, y: c.y }, new Map()), null);
+  // Without ships there is no watch: the rule of the alerts is the old one (15 September has no sea, the rule has no exception).
+  const none = makeWorld('standard', {}, 'quinze-septembre');
+  assert.equal(none.watch, null);
+  assert.ok(alertFor(none, { type: 'uboatSighted', by: '502 Sqn', source: 'aircraft', uboatId: 'u5', x: 0, y: 0 }, new Map()));
 });
 
 // Until 2.7 a sighting brought the Atlantic down to ×1. Since the watches (2.8, I2) the
-// Coastal Command follows their rhythm there: the sighting goes to the report of the watch.
-// Where the alerts stay live (Kanalkampf), the same sighting still calls the player at ×1.
-test('a coastal patrol that sees a U-boat: in the Atlantic it goes to the watch report; with live alerts it brings the game down to x1', async () => {
+// Coastal Command follows their rhythm: on the high seas the sighting goes to the report of
+// the watch. Near us (2.12: in the waters the headquarters follows, or by an aircraft that
+// watches over one of our ships) the same sighting still calls the player at ×1.
+test('a coastal patrol that sees a U-boat: on the high seas it goes to the watch report; near us it brings the game down to x1', async () => {
   const { alertSpeed } = await import('../src/ui/alertRules.js');
   const { watchReport } = await import('../src/sim/watch.js');
   const w = makeWorld('standard', { fuel: 'unlimited' }, 'hiver-atlantique');
@@ -64,15 +74,15 @@ test('a coastal patrol that sees a U-boat: in the Atlantic it goes to the watch 
   const events = run(w, 3600, (e) => e.type === 'uboatSighted' && e.unitKind === 'squadron');
   const seen = events.find((e) => e.type === 'uboatSighted' && e.unitKind === 'squadron');
   assert.ok(seen, 'the patrol sees the U-boat');
-  assert.equal(alertFor(w, seen, new Map()), null, 'no alert at sea in the Atlantic');
+  assert.ok(!seen.live, 'far from the waters followed and from any of our ships');
+  assert.equal(alertFor(w, seen, new Map()), null, 'no alert on the high seas');
   run(w, 4 * 3600, (e) => e.type === 'watchReport');
   const report = watchReport(w);
   assert.ok(report.notes.some((n) => n.type === 'uboatSighted' && n.byId === s.id), 'the sighting is in the report of the watch');
   // (The patrol circles on: it may see the boat again when it comes back up.)
   assert.ok(report.air.sightings >= 1 && report.intel.plots >= report.air.sightings);
-  // The same sighting where the sea keeps its live alerts.
-  const k = makeKanalkampf();
-  const a = alertFor(k, seen, new Map());
+  // The same sighting near us: the alert as it comes.
+  const a = alertFor(w, { ...seen, live: true }, new Map());
   assert.ok(a);
   assert.equal(alertSpeed({}, a.type, a.level), 1);
   assert.ok(data.fr.alerts.uboatSighted[a.variant].length > 10);

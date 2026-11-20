@@ -511,6 +511,7 @@ dialog .keys { font-size: 12px; color: var(--ink-soft); }
 .settings-row > span { display: inline-flex; align-items: center; }
 .settings-row label { display: inline; margin: 0; }
 .settings-row.check { justify-content: flex-start; gap: 0; }
+.settings-why { margin: -2px 0 8px; font-size: 12px; text-align: right; }
 .settings-row.check label { display: flex; }
 .settings label.check { justify-content: flex-start; }
 .settings fieldset { border: 1px solid var(--paper-dark); border-radius: 4px; margin: 10px 0; }

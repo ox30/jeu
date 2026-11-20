@@ -14,10 +14,10 @@ import { presetStory } from '../sim/gameSettings.js';
 import { ALERT_GROUPS, defaultAlertSpeed } from './alertRules.js';
 import { setVolume } from './sound.js';
 
-function select(name, value, choices, labelKey) {
+function select(name, value, choices, labelKey, { disabled = false } = {}) {
   const options = choices.map((c) =>
     `<option value="${c}"${c === value ? ' selected' : ''}>${escapeHtml(t(`${labelKey}.${c}`))}</option>`).join('');
-  return `<select name="${name}" id="set-${name}">${options}</select>`;
+  return `<select name="${name}" id="set-${name}"${disabled ? ' disabled' : ''}>${options}</select>`;
 }
 
 
@@ -64,6 +64,10 @@ export function openSettings(app, { scope = 'game' } = {}) {
   const presets = app.data.presets;
   const presetChoices = [...Object.keys(presets.presets), 'custom'];
   const tab = SETTINGS_TABS.includes(app.settingsTab) ? app.settingsTab : 'game';
+  // The two settings of the sea serve a game with ships (the rhythm of the watches): in the
+  // settings of a game without one they are greyed, with a line that says why.
+  const noShips = inGame && !app.world.watch;
+  const whyNot = (name) => (noShips ? `<p class="state-line settings-why" data-why="${name}">${escapeHtml(t('settings.noShips'))}</p>` : '');
   const pane = (id, html) => `<section class="settings-pane" data-spane="${id}"${id === tab ? '' : ' hidden'}>${html}</section>`;
   dlg.innerHTML = `
     <form method="dialog" class="settings">
@@ -84,14 +88,16 @@ export function openSettings(app, { scope = 'game' } = {}) {
         <label>${escapeHtml(t('settings.rosterHours'))} ${select('rosterHours', String(s.rosterHours || '24'), presets.choices.rosterHours, 'settings.rosterHoursChoices')}</label>
         <label>${escapeHtml(t('settings.carry'))} ${select('carry', s.carry || 'none', presets.choices.carry, 'settings.carryChoices')}</label>
         <label>${escapeHtml(t('settings.bdienst'))} ${select('bdienst', String(s.bdienst ?? '25'), presets.choices.bdienst, 'settings.bdienstChoices')}</label>
-        ${settingRow(t('settings.seaComms'), 'seaComms', 'setSeaComms', select('seaComms', s.seaComms || 'direct', presets.choices.seaComms, 'settings.seaCommsChoices'))}
+        ${settingRow(t('settings.seaComms'), 'seaComms', 'setSeaComms', select('seaComms', s.seaComms || 'direct', presets.choices.seaComms, 'settings.seaCommsChoices', { disabled: noShips }))}
+        ${whyNot('seaComms')}
       </fieldset>`)}
       ${pane('time', `
       <fieldset>
         ${checkbox('slowOnAlert', s.slowOnAlert, t('settings.slowOnAlert'))}
         ${checkbox('confirmSpeed', s.confirmSpeed !== false, t('settings.confirmSpeed'))}
         ${checkbox('questions', s.questions !== false, t('settings.questions'))}
-        ${settingRow(t('settings.watchStops'), 'watchStops', 'setWatchStops', select('watchStops', s.watchStops || 'decision', presets.choices.watchStops, 'settings.watchStopsChoices'))}
+        ${settingRow(t('settings.watchStops'), 'watchStops', 'setWatchStops', select('watchStops', s.watchStops || 'decision', presets.choices.watchStops, 'settings.watchStopsChoices', { disabled: noShips }))}
+        ${whyNot('watchStops')}
       </fieldset>
       <div class="settings-sub">${escapeHtml(t('settings.alertSpeedsTitle'))}${helpMark('setAlertSpeeds')}</div>
       <table class="alert-speeds">${alertSpeedTable(app)}</table>`)}

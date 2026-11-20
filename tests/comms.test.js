@@ -40,14 +40,25 @@ test('the setting: direct in Arcade, radio silence in Standard and Réaliste; on
   assert.ok(isSilent(atlantic('standard')));
   assert.ok(isSilent(atlantic('realistic')));
   assert.ok(!isSilent(atlantic('standard', { seaComms: 'direct' })));
-  // Kanalkampf keeps its live sea whatever the setting: nothing changes there.
+  // Since 2.12 every scenario with ships lives by the watches: Kanalkampf too, and its
+  // ocean convoys are placed by estimate on the high seas. The coastal convoy sails in the
+  // waters the headquarters follows: nothing changes for it.
   const k = makeKanalkampf('realistic');
-  assert.ok(!isSilent(k));
+  assert.ok(isSilent(k));
   run(k, 2 * H);
-  for (const c of k.convoys) {
-    assert.deepEqual(shownPosition(k, c), { x: c.x, y: c.y, est: false });
-    assert.equal(orderChannel(k, c), 'direct');
-  }
+  const hx = k.convoys.find((c) => c.id === 'hx55');
+  assert.equal(shownPosition(k, hx).est, true, 'HX 55, at 26° W: an estimate');
+  assert.equal(orderChannel(k, hx), 'radio');
+  const cw = k.convoys.find((c) => c.type === 'coastal');
+  assert.deepEqual(shownPosition(k, cw), { x: cw.x, y: cw.y, est: false });
+  assert.equal(orderChannel(k, cw), 'direct');
+  // Arcade keeps direct communications there as in the Atlantic.
+  const easy = makeKanalkampf('arcade');
+  assert.ok(easy.watch && !isSilent(easy));
+  // No ship, no watch, no silence: 15 September, whatever the setting.
+  const none = makeWorld('realistic', {}, 'quinze-septembre');
+  assert.equal(none.settings.seaComms, 'silence');
+  assert.ok(!isSilent(none));
 });
 
 test('tracked waters: the closed waters (St George\'s Channel included), the approaches of the ports, the radars\' surface cover', () => {

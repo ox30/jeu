@@ -66,16 +66,36 @@ export function inTrackedWaters(world, x, y) {
   return false;
 }
 
+/** Does this squadron see the ship now (by day by eye, at night by ASV radar)? */
+function sees(world, s, u, day = isDaylight(world, u.x, u.y)) {
+  if (s.aircraft <= 0 || !isFlying(s)) return false;
+  const R = world.rules.seaComms;
+  const km = day ? R.aircraftDayKm : s.asv ? R.aircraftAsvKm : R.aircraftNightKm;
+  return distance(s.x, s.y, u.x, u.y) <= km;
+}
+
 /** One of the player's aircraft in sight of the ship (by day by eye, at night by ASV radar), or null. */
 export function aircraftInSight(world, u) {
-  const R = world.rules.seaComms;
   const day = isDaylight(world, u.x, u.y);
-  for (const s of world.squadrons) {
-    if (s.aircraft <= 0 || !isFlying(s)) continue;
-    const km = day ? R.aircraftDayKm : s.asv ? R.aircraftAsvKm : R.aircraftNightKm;
-    if (distance(s.x, s.y, u.x, u.y) <= km) return s;
-  }
+  for (const s of world.squadrons) if (sees(world, s, u, day)) return s;
   return null;
+}
+
+/** Is this squadron in sight of one of the player's ships at sea (it watches over it)? */
+export function watchesOverAShip(world, s) {
+  for (const u of world.convoys) if (atSea(u) && sees(world, s, u)) return true;
+  for (const u of world.escorts) if (atSea(u) && sees(world, s, u)) return true;
+  return false;
+}
+
+/**
+ * Is the headquarters with this ship now? In the waters it follows (those closed to the
+ * U-boats, the approaches of the ports, the surface cover of the coastal radars), or with
+ * one of the player's aircraft in sight of it. There a ship keeps its alerts as they come,
+ * at the rhythm of the watches too, whatever the setting of the communications (watch.js).
+ */
+export function followedLive(world, u) {
+  return inTrackedWaters(world, u.x, u.y) || Boolean(aircraftInSight(world, u));
 }
 
 /** Is the ship out of the headquarters' sight now (radio silence, at sea, untracked, unseen)? */

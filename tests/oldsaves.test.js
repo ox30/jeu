@@ -154,7 +154,7 @@ test('a game of the Atlantic saved by 2.10.2: the group that waited sails, the w
   assert.equal(was('eg2').routeLocked, was('eg2').route.length, 'EG 2: every point of its route locked');
   assert.equal(was('eg3').routeLocked, 8, 'EG 3: its channel counted as the end of its route');
   const read = readSave(structuredClone(saved), ['hiver-atlantique']);
-  assert.equal(read.complete, true, 'a save of the format in use');
+  assert.equal(read.complete, SNAP_VERSION === 2, 'a save of format 2 (the format in use until 2.12)');
   const w = resume(saved, 'standard');
   const group = (id) => w.escorts.find((e) => e.id === id);
   const events = [];
@@ -200,4 +200,64 @@ test('a game of the Atlantic saved by 2.10.2: the group that waited sails, the w
   assert.equal(w.ended, false);
   const text = JSON.stringify(snapshot(w));
   assert.equal(JSON.stringify(snapshot(resume({ snap: JSON.parse(text) }, 'standard'))), text);
+});
+
+// ---- 2.12: the watches wherever there are ships ----
+
+test('a game of Kanalkampf saved by 2.11.1, when its sea was lived as it came, goes on at the rhythm of the watches', async () => {
+  const { isSilent, shownPosition } = await import('../src/sim/comms.js');
+  const { clockHour, pendingDecisions, watchReport } = await import('../src/sim/watch.js');
+  const saved = load('kanalkampf', '2.11.1');
+  assert.equal(saved.madeBy, '2.11.1');
+  assert.equal(saved.snap.version, 2);
+  assert.equal(saved.snap.watch, null, 'it kept no watch');
+  const read = readSave(structuredClone(saved), ['kanalkampf']);
+  assert.equal(read.complete, false, 'an older format: brought to the one in use');
+  const w = resume(saved, 'standard');
+  assert.equal(w.t, saved.snap.t);
+  // The watch of a game that begins: nothing written, nothing asked.
+  assert.deepEqual(w.watch, { notes: [], reports: [], nextId: 1, asked: [], told: [], nights: {} });
+  assert.ok(isSilent(w), 'Standard: radio silence, from now on');
+  // What it was doing goes on: HX 55 on the Admiralty's route with EG 1 on its way, HX 57 left to itself.
+  const hx55 = w.convoys.find((c) => c.id === 'hx55');
+  const hx57 = w.convoys.find((c) => c.id === 'hx57');
+  assert.ok(hx55.route.length > 0 && w.escorts.some((e) => e.joinTarget === 'hx55' || e.escorting === 'hx55'));
+  assert.equal(hx57.route.length, 0);
+  assert.ok(pendingDecisions(w).some((d) => d.key === 'adrift:hx57'), 'the convoy nobody routed is asked about at last');
+  const events = [];
+  for (let i = 0; i < 5 * 3600; i++) {
+    step(w, 1);
+    events.push(...w.events);
+    w.events.length = 0;
+  }
+  // The relief that follows the loading writes the first report, and stops for what waits.
+  const first = watchReport(w, w.watch.reports[0].id);
+  assert.equal(clockHour(w, first.toS), 12, 'saved at 08:00: the relief of noon');
+  assert.equal(first.stop, 'decision');
+  assert.ok(first.fresh.includes('adrift:hx57'));
+  assert.ok(first.convoys.some((c) => c.id === 'hx55') && first.convoys.some((c) => c.id === 'hx57'));
+  assert.ok(events.some((e) => e.type === 'seaStop' && e.reason === 'relief'));
+  // Its ships on the high seas are placed by estimate, from where they were met.
+  assert.equal(shownPosition(w, hx57).est, true);
+  assert.ok(hx57.fix && hx57.est);
+  play(w, 2 * 86400);
+  assert.equal(w.ended, false);
+  for (const [k, v] of Object.entries(w.stats)) if (typeof v === 'number') assert.ok(Number.isFinite(v), `stats.${k}`);
+  // Saved by this version, it comes back exactly, with its reports.
+  const text = JSON.stringify(snapshot(w));
+  assert.equal(JSON.parse(text).version, SNAP_VERSION);
+  assert.ok(JSON.parse(text).watch.reports.length >= 12);
+  assert.equal(JSON.stringify(snapshot(resume({ snap: JSON.parse(text) }, 'standard'))), text);
+});
+
+test('a game of Adlertag saved before 2.12 keeps what it was begun with, at the rhythm of the watches', () => {
+  const saved = load('adlertag', '2.9.0');
+  const w = resume(saved, 'standard');
+  assert.ok(w.watch, 'HX 62 and EG 1: ships, so the watches');
+  // Aldergrove is on the map of 2.12, but its two squadrons were not in that game.
+  assert.ok(w.byId.airfield.get('aldergrove'));
+  assert.ok(!w.squadrons.some((s) => s.id === '502' || s.id === '233'));
+  play(w, 86400);
+  assert.ok(w.watch.reports.length >= 6, 'six reliefs a day');
+  assert.equal(w.ended, false);
 });

@@ -745,14 +745,14 @@
   ],
   "id": "adlertag",
   "title": "Adlertag, août 1940",
-  "note": "Inspiré du 12 au 18 août 1940 ; dates, unités et effectifs choisis pour le jeu. La Luftwaffe vise les radars et les aérodromes de la chasse.",
+  "note": "Inspiré du 12 au 18 août 1940 ; dates, unités et effectifs choisis pour le jeu. La Luftwaffe vise les radars et les aérodromes de la chasse. Aldergrove (2.12.0) : en août 1940, le 502 Sqn y vole sur Anson (Whitley à partir de l'automne) ; le 233 Sqn y vient de Leuchars début août, sur Hudson, pour couvrir les convois de Liverpool et de la Clyde, et repart mi-septembre. Quelques Hudson portent le radar ASV Mk I depuis janvier 1940.",
   "start": "1940-08-12T06:00",
   "end": "1940-08-18T21:00",
-  "seaRhythm": "direct",
   "map": {
-    "zone": "britain",
+    "zone": "atlantic",
     "view": "england",
     "views": [
+      "atlantic",
       "britain",
       "england"
     ],
@@ -951,6 +951,16 @@
         "fuel": 20,
         "ammo": 0
       }
+    },
+    {
+      "id": "aldergrove",
+      "name": "Aldergrove",
+      "lon": -6.216,
+      "lat": 54.658,
+      "stocks": {
+        "fuel": 20,
+        "ammo": 0
+      }
     }
   ],
   "convoys": [
@@ -1141,6 +1151,23 @@
       "airfield": "detling",
       "aircraft": 6,
       "role": "coastal"
+    },
+    {
+      "id": "502",
+      "name": "502 Sqn",
+      "type": "Anson",
+      "airfield": "aldergrove",
+      "aircraft": 6,
+      "role": "coastal"
+    },
+    {
+      "id": "233",
+      "name": "233 Sqn",
+      "type": "Hudson",
+      "airfield": "aldergrove",
+      "aircraft": 6,
+      "role": "coastal",
+      "asv": true
     }
   ],
   "raids": [

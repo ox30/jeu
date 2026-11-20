@@ -7,9 +7,9 @@ import { tutorialFlag } from './tutorial.js';
 import { escapeHtml, formatNumber, t } from '../core/i18n.js';
 import { formatDate, formatShortDate, formatTime } from '../core/time.js';
 import { unproject } from '../sim/geo.js';
-import { WATCH_S, clockHour, fullReport, isQuiet, pendingDecisions } from '../sim/watch.js';
+import { WATCH_S, clockHour, fullReport, isQuiet, nextReliefHour, pendingDecisions } from '../sim/watch.js';
 import { shownPosition } from '../sim/comms.js';
-import { centreOn, orderEscortHome, orderJoin, select, togglePause } from './actions.js';
+import { centreOn, orderAdmiraltyRoute, orderEscortHome, orderJoin, select, togglePause } from './actions.js';
 import { positionText } from './format.js';
 import { eventMessage } from './messages.js';
 import { setHtml } from './html.js';
@@ -19,7 +19,7 @@ export const SIGNAL_FILTERS = ['all', 'decide', 'attacks', 'uboats'];
 
 /** What the page remembers of the reports: the tab, the filter, what is unfolded, what was read. */
 export function createSignals() {
-  return { tab: 'journal', filter: 'all', unit: '', open: new Set(), read: new Set(), key: '' };
+  return { tab: 'journal', filter: 'all', unit: '', open: new Set(), read: new Set(), key: '', early: null };
 }
 
 function convoyName(w, id) {
@@ -78,11 +78,14 @@ function convoyLine(w, c) {
   })];
   if (c.attacks) parts.push(t(c.lost ? 'watch.convoyAttackedLost' : 'watch.convoyAttacked', { n: c.attacks, lost: c.lost }));
   if (c.state !== 'arrived') {
+    // (A coastal convoy sails in waters closed to the U-boats: no escort group is expected with it.)
+    const unit = w.convoys.find((x) => x.id === c.id);
     if (c.escorts.length) parts.push(t('watch.convoyEscort', { groups: c.escorts.map((id) => escortShort(w, id)).join(', ') }));
     else if (c.joining.length) parts.push(t('watch.convoyJoining', { groups: c.joining.map((id) => escortShort(w, id)).join(', ') }));
-    else parts.push(t('watch.convoyAlone'));
+    else if (!unit || unit.type !== 'coastal') parts.push(t('watch.convoyAlone'));
     if (c.escorts.length && c.joining.length) parts.push(t('watch.convoyJoining', { groups: c.joining.map((id) => escortShort(w, id)).join(', ') }));
   }
+  if (c.adrift) parts.push(t('watch.convoyAdrift'));
   if (c.stragglers) parts.push(t('watch.convoyStragglers', { n: c.stragglers }));
   if (c.markers) parts.push(t('watch.convoyMarkers', { n: c.markers }));
   return `<li class="${c.attacks ? 'hit' : ''}">${t('watch.unitLine', { name: unitLink('convoy', c.id, convoyName(w, c.id)), text: escapeHtml(parts.join(t('watch.sep'))) })}</li>`;
@@ -156,6 +159,10 @@ function decisionHtml(w, d, live) {
   } else if (d.kind === 'charges') {
     text = t(d.convoyId ? 'watch.decide.charges' : 'watch.decide.chargesAlone', { name, convoy: d.convoyId ? convoyName(w, d.convoyId) : '' });
     if (still) buttons.push(`<button type="button" data-watch="home" data-id="${escapeHtml(d.unitId)}">${escapeHtml(t('watch.rearm'))}</button>`);
+  } else if (d.kind === 'adrift') {
+    // A convoy with nothing left to follow: the Admiralty's route, from the nearest point ahead.
+    text = t('watch.decide.adrift', { convoy: name, heading: d.heading });
+    if (still && d.admiralty) buttons.push(`<button type="button" data-watch="admiralty" data-id="${escapeHtml(d.unitId)}" title="${escapeHtml(t('orders.admiralty'))}">${escapeHtml(t('cmd.admiralty'))}</button>`);
   } else {
     text = t('watch.decide.marker', { convoy: name, plots: d.plots, fixes: d.fixes, n: d.plots + d.fixes });
   }
@@ -210,7 +217,7 @@ function filterBar(app) {
   const s = app.signals;
   const buttons = SIGNAL_FILTERS.map((f) => `<button type="button" data-watch="filter" data-filter="${f}" class="${s.filter === f ? 'active' : ''}">${escapeHtml(t(`watch.filters.${f}`))}</button>`).join('');
   const units = [
-    ...w.convoys.filter((c) => c.type === 'ocean' && !c.straggler).map((c) => ({ id: c.id, name: c.name })),
+    ...w.convoys.filter((c) => !c.straggler).map((c) => ({ id: c.id, name: c.name })),
     ...w.escorts.map((e) => ({ id: e.id, name: e.short })),
   ];
   const options = [`<option value="">${escapeHtml(t('watch.filters.unit'))}</option>`, ...units.map((u) => `<option value="${escapeHtml(u.id)}"${s.unit === u.id ? ' selected' : ''}>${escapeHtml(u.name)}</option>`)].join('');
@@ -314,6 +321,9 @@ export function onWatchClick(app, e) {
   } else if (action === 'home') {
     const group = w.escorts.find((x) => x.id === b.dataset.id);
     if (group) orderEscortHome(app, group);
+  } else if (action === 'admiralty') {
+    const convoy = w.convoys.find((x) => x.id === b.dataset.id);
+    if (convoy) orderAdmiraltyRoute(app, convoy);
   } else if (action === 'resume') {
     const dlg = b.closest('dialog');
     if (dlg) dlg.close();
@@ -348,13 +358,41 @@ function watchPageHtml(app, r) {
     </div></form>`;
 }
 
-/** Opens the page of a report (the last one by default) and marks it read. */
+/**
+ * The page before the first report of a game: none is written yet, and when the first will
+ * be. What waits for a decision already (a convoy without a route as the game begins) is
+ * there with its buttons: the count of the « Quart » button says so from the start.
+ */
+function emptyPageHtml(app, shown = null) {
+  const w = app.world;
+  const live = pendingDecisions(w);
+  // (An order given from this page: what it answered stays on it, marked as settled.)
+  const list = [...(shown || []).filter((d) => !live.some((x) => x.key === d.key)), ...live];
+  app.signals.early = list;
+  return `<form method="dialog" class="page watch-page">
+    <header class="page-head"><h2>${escapeHtml(t('watch.emptyTitle'))}</h2></header>
+    <p class="state-line">${escapeHtml(t('watch.emptyText', { hour: nextReliefHour(w) }))}</p>
+    <p class="watch-why">${escapeHtml(t('watch.emptyWhat'))}</p>
+    ${list.length ? `<div class="watch-body"><h4 class="decide" title="${escapeHtml(t('tips.decide'))}">${escapeHtml(t('watch.decideTitle'))}</h4><ul class="decisions">${list.map((d) => decisionHtml(w, d, live)).join('')}</ul></div>` : ''}
+    <div class="dialog-buttons"><button type="button" data-watch="close">${escapeHtml(t('watch.close'))}</button></div></form>`;
+}
+
+/**
+ * Opens the page of a report (the last one by default) and marks it read. Before the first
+ * relief of a game, the page says that no report is written yet, and when the first will be.
+ */
 export function openWatch(app, reportId = null) {
-  tutorialFlag(app, 'watchOpened');
   const W = app.world.watch;
-  if (!W || !W.reports.length) return;
-  const r = (reportId && W.reports.find((x) => x.id === reportId)) || W.reports[W.reports.length - 1];
+  if (!W) return;
   const dlg = app.el.dlgWatch;
+  if (!W.reports.length) {
+    dlg.dataset.reportId = '';
+    dlg.innerHTML = emptyPageHtml(app);
+    showPage(app, dlg);
+    return;
+  }
+  tutorialFlag(app, 'watchOpened');
+  const r = (reportId && W.reports.find((x) => x.id === reportId)) || W.reports[W.reports.length - 1];
   dlg.dataset.reportId = r.id;
   dlg.innerHTML = watchPageHtml(app, r);
   app.signals.read.add(r.id);
@@ -367,6 +405,10 @@ export function openWatch(app, reportId = null) {
 function refreshWatchPage(app) {
   const dlg = app.el.dlgWatch;
   if (!dlg || !dlg.open) return;
+  if (!dlg.dataset.reportId) {
+    dlg.innerHTML = emptyPageHtml(app, app.signals.early || null);
+    return;
+  }
   const r = app.world.watch.reports.find((x) => x.id === dlg.dataset.reportId);
   if (r) dlg.innerHTML = watchPageHtml(app, r);
 }

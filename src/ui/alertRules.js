@@ -26,7 +26,9 @@ export const ALERT_GROUPS = [
   { id: 'bases', speeds: { siteOut: 600, noFuel: 600, noAmmo: 600, lowFuel: 600, scheduleDelayed: 600 } },
 ];
 const DEFAULT_SPEED = Object.assign({}, ...ALERT_GROUPS.map((g) => g.speeds));
-// At the rhythm of the watches the events of the sea go to the watch report instead.
+// At the rhythm of the watches the events of the high seas go to the watch report instead;
+// near us (the waters the headquarters follows, or under one of its aircraft) they call the
+// player as they come: the simulation marks those `live` (watch.js, happensNearUs).
 const SEA_TYPES = new Set(Object.keys(ALERT_GROUPS.find((g) => g.id === 'sea').speeds));
 
 /** Speed an alert slows the game down to (0: none), from the settings or by default. */
@@ -316,7 +318,7 @@ export function alertAnswered(world, a) {
 export function alertFor(world, e, memory) {
   const rule = RULES[e.type];
   if (!rule) return null;
-  if (world.watch && SEA_TYPES.has(e.type)) return null; // the watch report tells it
+  if (world.watch && SEA_TYPES.has(e.type) && !e.live) return null; // on the high seas: the watch report tells it
   const a = rule(world, e);
   if (!a) return null;
   const last = memory.get(a.key);
