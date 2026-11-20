@@ -1936,8 +1936,9 @@ async function interfaceChecks(page, errors) {
   };
   await step('interface: the top bar (C7)', async () => {
     await page.setViewportSize({ width: 1024, height: 700 });
-    // (Kanalkampf too since 2.12: three views, every tool, and the « Quart » button from the start.)
-    for (const id of ['quinze-septembre', 'hiver-atlantique', 'kanalkampf']) {
+    // (Kanalkampf too since 2.12: three views, every tool, and the « Quart » button from the
+    // start. The Atlantic last: the checks that follow are made there.)
+    for (const id of ['quinze-septembre', 'kanalkampf', 'hiver-atlantique']) {
       await start(id);
       const m = await game(page, () => {
         const hud = document.getElementById('hud');

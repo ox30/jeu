@@ -36,13 +36,14 @@ Décision de Florian du 20 novembre 2026. Elle remplace « Kanalkampf, Adlertag 
   aux U-Boote, approches des ports, couverture de surface des radars côtiers) ou sous un de
   nos avions garde ses alertes comme sans les quarts : le jeu revient à ×1. En haute mer,
   l'événement attend le rapport de la relève. Dans les deux cas, le rapport le note. Le
-  convoi côtier CW 7, bombardé dans la Manche, appelle donc le joueur aussitôt. Les raids,
-  les combats aériens et les questions des escadrilles ne changent pas.
+  convoi côtier CW 7, bombardé dans la Manche, appelle donc le joueur aussitôt. Ce qu'une
+  patrouille voit seule (un U-Boot) attend le rapport, comme avant. Les raids, les combats
+  aériens et les questions des escadrilles ne changent pas.
 - **Le rapport liste aussi les convois côtiers**, et le filtre de l'onglet « Signaux » les
   propose.
 - **Un convoi sans route est une décision**, comme un convoi arrêté : un convoi en mer qui
   n'a plus rien à suivre garde son cap, et la relève le signale une fois, avec les boutons
-  « Amirauté » et « Voir ». À Kanalkampf, les HX 55 et HX 57 arrivent sans route : la
+  « Amirauté » et « Voir ». « Garder le cap », donné par le joueur, y répond. À Kanalkampf, les HX 55 et HX 57 arrivent sans route : la
   question est posée dès la première seconde, dans la page du bouton « Quart ».
 - **Adlertag** : la vue Atlantique (touche A), pour le convoi HX 62 qui vient de 21° O ;
   Aldergrove, avec le 502 Sqn (Anson) et le 233 Sqn (Hudson, radar ASV) du Coastal Command.
@@ -56,6 +57,12 @@ Décision de Florian du 20 novembre 2026. Elle remplace « Kanalkampf, Adlertag 
   elle n'a pas les deux escadrilles d'Aldergrove.
 - **Barre du haut** : sous 1 100 px de large, le cadran de l'horloge laisse sa place (l'heure
   reste, en chiffres), pour que la barre tienne sur une ligne avec le bouton « Quart ».
+- **Mesures du joueur automatique** (dix graines par conduite, avant et après) : la règle
+  d'équilibre tient dans les trois scénarios. À Kanalkampf et à Adlertag, le jeu s'arrête
+  moins souvent qu'avant (4,5 et 2,6 fois par partie jouée simplement, contre 5,4 et 3,4).
+  Dans l'Atlantique, les alertes en direct près de nous ajoutent une dizaine d'arrêts par
+  partie, et une trentaine sous couverture aérienne : la cible de 30 à 60 est dépassée. Les
+  tableaux et la question posée à Florian sont dans `docs/journal-quarts.md`.
 
 ## Nouveautés de la 2.11.1 : trois retouches de l'aide
 
@@ -562,9 +569,9 @@ autonomie 1,6 fois plus vite.
    repère frais à moins de 80 km peut être chassé d'un clic. **Grenades** : 40 par navire
    (120 ou 160 par groupe), refaites au port avec le mazout ; grenadage plein (dix par passe)
    ou économe (cinq, moins de chances de couler) ; à vide, les passes sont à blanc : le
-   U-Boot reste en plongée, sans rien risquer. Près de nous (en eaux suivies, ou sous un de vos avions), un U-Boot vu par un avion ou
-   par une escorte lève l'alerte « U-Boot en vue » et ramène le jeu à ×1
-   (une fois par heure et par U-Boot ; une attaque a sa propre alerte) ; en haute mer,
+   U-Boot reste en plongée, sans rien risquer. Un U-Boot vu par un groupe d'escorte près de nous (en eaux suivies, ou sous un de vos avions)
+   lève l'alerte « U-Boot en vue » et ramène le jeu à ×1
+   (une fois par heure et par U-Boot ; une attaque a sa propre alerte) ; vu par une patrouille, ou par un groupe en haute mer,
    il attend le rapport de la relève (voir plus bas). Un U-Boot tenu
    (ASDIC, ou vu tout près) reçoit une passe de grenades toutes les 10 minutes : coulé,
    touché (il rentre et n'est plus attaqué), perdu ou rien de visible ; chaque attaque a son rapport, avec les grenades lancées. « Au port »
@@ -870,7 +877,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 481 tests, environ quatre minutes
+npm test          # les 501 tests, environ quatre minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : leçons, pages, fiches, corrections, quarts, menu, interface
@@ -906,6 +913,19 @@ Le filet du M2.7 :
   chaque page et chaque sorte de fiche s'ouvre dans chaque scénario, et les corrections du
   M2.7 sont rejouées (plaques empilées, touches d'un clavier AZERTY, bilan de fin, briefing
   de campagne, garde-fou sur une erreur provoquée).
+- Les tests de la 2.12.0 : la règle des quarts vérifiée sur chaque fichier de scénario,
+  leçons comprises (`tests/scenarios.test.js`) ; l'alerte en direct pour un navire en eaux
+  suivies ou sous un de nos avions, le rapport seul en haute mer, et le rapport qui note
+  tout dans les deux cas (`tests/nearus.test.js`) ; le convoi sans route posé une fois, les
+  convois côtiers au rapport, « Garder le cap » qui y répond, l'heure de la prochaine relève
+  (`tests/watch.test.js`) ; la page d'avant le premier rapport (`tests/watchpanel.test.js`) ;
+  une partie de Kanalkampf sauvegardée par la 2.11.1 qui reprend au rythme des quarts
+  (`tests/oldsaves.test.js`) ; le fichier unique porte le numéro de la version
+  (`tests/version.test.js`). L'essai de fumée ouvre le bouton « Quart » de Kanalkampf à la
+  première seconde, donne sa route au HX 55 par « Amirauté », s'arrête à la relève de 8 h
+  pour le HX 57, laisse bombarder le CW 7 (alerte à ×1, et note au quart), trouve les deux
+  réglages grisés le 15 septembre, puis la vue Atlantique, Aldergrove et la fiche du 233 Sqn
+  à Adlertag.
 - Les tests de la 2.11.1 : une astuce dont l'occasion disparaît quitte la carte sans être
   notée, et celle qui tombe juste prend sa place (`tests/tips.test.js`) ; Espace actionne le
   bouton atteint au clavier et reste la pause partout ailleurs, Tab avec Ctrl, Alt ou Meta
