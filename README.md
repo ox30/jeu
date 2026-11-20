@@ -1,4 +1,4 @@
-# Prototype M2 — Acte I, 1940-1941
+# Prototype — Acte I, 1940-1941
 
 Prototype du jeu navigateur sur la Seconde Guerre mondiale : le joueur commande le soutien
 allié (aviation, escortes, logistique), jamais les armées. Le M2 réunit l'Âge I en une
