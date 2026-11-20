@@ -121,7 +121,7 @@ function render(app) {
         <button type="button" class="danger" data-fm="dissolve" data-id="${escapeHtml(editing.id)}">${escapeHtml(t('formations.dissolve'))}</button>
       </div>`;
   } else {
-    right = `<p class="hint">${escapeHtml(t(`formations.startHint.${st.kind}`))}</p>`;
+    right = `<p class="state-line">${escapeHtml(t(`formations.startHint.${st.kind}`))}</p>`;
   }
 
   dlg.innerHTML = `

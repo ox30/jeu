@@ -60,8 +60,10 @@ function currencyBlock(app) {
   const n = (v) => formatNumber(Math.round(v));
   const parts = [`<div class="tote-group">${escapeHtml(t('offers.title'))}</div><div class="currency">`];
   parts.push(`<p>${escapeHtml(t('offers.stock', { n: n(cur.stock), m: formatNumber(cur.start) }))}</p>`);
-  parts.push(`<p class="hint">${escapeHtml(t(lend ? 'offers.lendLease' : 'offers.intro'))}</p>`);
-  if (!lend) parts.push(`<p class="hint warn">${escapeHtml(t('offers.congress'))}</p>`);
+  // Lend-lease voted is the state of things; before it, how the dollars work is help, and
+  // what Congress is doing is news.
+  parts.push(lend ? `<p class="state-line">${escapeHtml(t('offers.lendLease'))}</p>` : `<p class="hint">${escapeHtml(t('offers.intro'))}</p>`);
+  if (!lend) parts.push(`<p class="warn-line">${escapeHtml(t('offers.congress'))}</p>`);
   const forecast = tonnageForecast(w);
   parts.push(`<div class="sub">${escapeHtml(t('offers.forecast'))}</div><ul class="forecast">
     ${forecastLine(t('offers.fuel'), forecast.fuel)}${forecastLine(t('offers.materiel'), forecast.materiel)}</ul>
@@ -183,7 +185,7 @@ export function stockBlock(app, site) {
     if (site.stocks.ammo >= 1) rows.push(row(t('logistics.ammo'), escapeHtml(tonnesText(site.stocks.ammo))));
     for (const c of w.convoys) {
       if (c.state === 'arrived' && c.unloading && c.portId === site.id) {
-        rows.push(`<p class="hint">${escapeHtml(t('logistics.unloading', { convoy: c.name, n: formatNumber(Math.round(c.cargo.fuel + c.cargo.materiel)) }))}</p>`);
+        rows.push(`<p class="state-line">${escapeHtml(t('logistics.unloading', { convoy: c.name, n: formatNumber(Math.round(c.cargo.fuel + c.cargo.materiel)) }))}</p>`);
       }
     }
   } else if (site.kind === 'factory') {
@@ -193,7 +195,7 @@ export function stockBlock(app, site) {
     rows.push(row(t('logistics.production'), escapeHtml(site.starved || rate <= 0
       ? t('logistics.productionStopped')
       : t('logistics.productionRate', { n: formatNumber(rate, 1), type: site.aircraftType }))));
-    rows.push(`<p class="hint">${escapeHtml(t('logistics.perAircraft', { n: site.materielPerAircraft }))}</p>`);
+    rows.push(row(t('logistics.perAircraft'), escapeHtml(tonnesText(site.materielPerAircraft))));
   }
   rows.push(inboundBlock(app, site));
   return rows.join('');
@@ -337,7 +339,8 @@ export function commsLines(app, u) {
   const asked = pending.some((s) => s.name === 'position');
   return [
     `<div class="comms">`,
-    `<p class="hint${via === 'radio' ? ' warn' : ''}">${escapeHtml(t(`comms.channel.${via}`, { hour }))}</p>`,
+    `<p class="state-line${via === 'radio' ? ' warn' : ''}">${escapeHtml(t(`comms.channel.${via}`, { hour }))}</p>`,
+    via === 'radio' ? `<p class="hint">${escapeHtml(t('comms.channel.radioHelp'))}</p>` : '',
     lines.length ? `<div class="sub">${escapeHtml(t('comms.pending'))}</div><ul class="pending-orders">${lines.join('')}</ul>` : '',
     via === 'radio' && !asked ? `<div class="order-line">${button('comms-position', t('comms.askPosition'), { id: u.id, kind: u.kind })}</div><p class="hint">${escapeHtml(t('comms.askPositionHint', { hour }))}</p>` : '',
     `</div>`,

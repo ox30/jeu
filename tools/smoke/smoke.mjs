@@ -1941,6 +1941,90 @@ async function interfaceChecks(page, errors) {
       window.__game.dirtyPanels = true;
     });
   });
+  // (2.11.0) What a unit does or will do is a state line, in its own style: with the help of
+  // the sheets folded away, none of them goes with it.
+  await step('interface: state lines stay with the help folded', async () => {
+    const lines = () => game(page, () => ({
+      state: [...document.querySelectorAll('#unit-body .state-line')].filter((p) => p.offsetParent).map((p) => p.textContent.trim()),
+      help: [...document.querySelectorAll('#unit-body p.hint')].filter((p) => p.offsetParent).length,
+    }));
+    const take = async (kind, id, tab = 'cmd') => {
+      await game(page, async ([k, i, tb]) => {
+        const a = window.__game;
+        const actions = await import('./src/ui/actions.js');
+        a.unitTabs = { [k]: tb };
+        actions.select(a, k, i);
+        a.dirtyPanels = true;
+      }, [kind, id, tab]);
+      await sleep(400);
+    };
+    // A squadron on the ground: how soon it is in the air.
+    await start('kanalkampf', { sheetHelp: 'folded' });
+    await take('squadron', '32');
+    const ground = await lines();
+    note(ground.state.some((x) => /^En l'air .+ après l'ordre de décoller\.$/.test(x)) && ground.help === 0,
+      'state lines: « En l\'air 5 min après l\'ordre de décoller » stays when the help is folded', JSON.stringify(ground));
+    // Sent against a raid, then called off: « Désengagée de H… ».
+    const raidId = await game(page, async () => {
+      const a = window.__game;
+      const O = await import('./src/sim/orders.js');
+      const Q = await import('./src/sim/query.js');
+      for (let i = 0; i < 40000 && !a.world.contacts.size; i++) a.stepWorld(1);
+      const contact = [...a.world.contacts.values()][0];
+      if (!contact) return null;
+      const sq = a.world.squadrons.find((s) => s.id === '32');
+      const est = Q.contactEstimate(a.world, contact);
+      O.scramble(a.world, sq, { route: [[est.x, est.y, 5000]], raidId: contact.raidId });
+      if (!sq.intercept) sq.attackRaid = contact.raidId;
+      for (let i = 0; i < 900 && sq.state !== 'airborne'; i++) a.stepWorld(1);
+      a.dirtyPanels = true;
+      return contact.raidId;
+    });
+    await settle(page);
+    await game(page, () => {
+      const a = window.__game;
+      a.paused = true;
+      if (a.alertBox) a.alertBox.current = null;
+    });
+    await take('squadron', '32');
+    const off = await page.$(`#unit-bar [data-action="break-off"][data-raid="${raidId}"]`);
+    note(Boolean(raidId && off), 'state lines: a squadron sent against a raid can be called off it');
+    if (off) {
+      await off.click();
+      await sleep(400);
+      const called = await lines();
+      note(called.state.some((x) => /^Désengagée de \S+\.$/.test(x)) && called.help === 0, 'state lines: « Désengagée de … » stays when the help is folded', JSON.stringify(called));
+    }
+    // Radio silence: a line on its way to a convoy on the high seas.
+    await start('hiver-atlantique', { sheetHelp: 'folded' });
+    const id = await game(page, async () => {
+      const a = window.__game;
+      const C = await import('./src/sim/comms.js');
+      const actions = await import('./src/ui/actions.js');
+      for (let i = 0; i < 6000 && !a.world.convoys.some((c) => c.state === 'atSea' && C.orderChannel(a.world, c) === 'radio'); i++) a.stepWorld(60);
+      const c = a.world.convoys.find((x) => x.state === 'atSea' && C.orderChannel(a.world, x) === 'radio');
+      if (!c) return null;
+      const at = C.shownPosition(a.world, c);
+      actions.shipOrder(a, c, 'route', [[at.x + 60, at.y + 20], [at.x + 140, at.y + 20]]);
+      return c.id;
+    });
+    await settle(page);
+    await game(page, () => {
+      window.__game.paused = true;
+    });
+    note(Boolean(id), 'state lines: a convoy on the high seas under radio silence');
+    if (id) {
+      await take('convoy', id);
+      const sea = await lines();
+      note(sea.state.some((x) => /^Tracé de 2 points en attente : il part par radio à la relève de \d+ h\.$/.test(x))
+        && sea.state.some((x) => /^Jusque-là, il suit son tracé actuel/.test(x)) && sea.help === 0,
+      'state lines: a line that waits for the relief, and what the ship does meanwhile, stay when the help is folded', JSON.stringify(sea));
+      await shot(page, 'state-lines-folded');
+    }
+    await game(page, () => {
+      window.__game.settings.sheetHelp = 'shown';
+    });
+  });
   await step('interface: stacks and tabs (C9)', async () => {
     await start('hiver-atlantique', { seaComms: 'direct' });
     await page.keyboard.press('l');

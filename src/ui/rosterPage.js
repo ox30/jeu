@@ -93,13 +93,13 @@ export function renderRosterPage(app, force = false) {
       <div class="roster-head"><span class="rp-name"><b>${escapeHtml(s.name)}</b> <small>${escapeHtml(s.typeName)}</small></span> <span>${escapeHtml(t(`states.squadron.${s.state}`))} · ${fatigueHtml(w, s)}</span></div>
       ${timelineHtml(w, s)}
       ${grounded ? `${alertButtons(app, s, 'squadron', s.alert || 'min5')}${confirmBox(app, 'squadron', s.id, s.name)}` : ''}
-      <p class="hint">${escapeHtml(alertStatus(w, s))}</p>
+      <p class="state-line">${escapeHtml(alertStatus(w, s))}</p>
       ${s.alertManual ? `<div class="order-line">${button('roster-resume', t('orders.rosterResume'), { id: s.id, kind: 'squadron' })}</div>` : ''}
       ${rosterBlock(app, s, { title: true })}
       ${s.roster && s.roster.daily && s.roster.daily.length ? `<div class="order-line"><span>${escapeHtml(t('roster.copy'))}</span><select id="rp-copy-${escapeHtml(s.id)}">${options(copyList, 'field')}</select>${button('roster-copy', t('roster.copyGo'), { id: s.id, kind: 'squadron' })}</div>` : ''}
     </section>`;
   }).join('');
-  const html = `<div class="legend-line">${legend}</div>${blocks || `<p class="hint">${escapeHtml(t('roster.none'))}</p>`}`;
+  const html = `<div class="legend-line">${legend}</div>${blocks || `<p class="state-line">${escapeHtml(t('roster.none'))}</p>`}`;
   setKeyedPage(right, html, `${st.fieldId}`);
 }
 

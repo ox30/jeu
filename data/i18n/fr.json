@@ -311,7 +311,6 @@
     "join": "Rejoindre {convoy}",
     "leave": "Quitter le convoi",
     "homePort": "Rentrer au port",
-    "dryHint": "Plus de mazout : le groupe rentre au port le plus proche, à {kn} nœuds au plus. Il ne peut plus escorter ni chasser ; vous pouvez seulement choisir un autre port.",
     "joinHint": "Le groupe prend station dès qu'il est à moins de 15 km d'un convoi. « Rejoindre » calcule lui-même la route d'interception (sauf en Réaliste), et contourne la terre ; « Rentrer au port » aussi. Une route tracée qui finit dans la bulle d'un port y entre.",
     "cover": "Couvrir {convoy}",
     "coverHint": "L'escadrille tourne au-dessus du convoi et le suit.",
@@ -324,7 +323,7 @@
     "pointDelete": "Supprimer ce point",
     "pointHintAir": "↑ ↓ règlent l'altitude que l'escadrille vise en allant vers ce point. Glissez le carré pour le déplacer, double-cliquez-le (ou Suppr) pour le retirer.",
     "pointHintSea": "Glissez le carré pour déplacer le point, double-cliquez-le (ou Suppr) pour le retirer. Le chenal de sortie du port et le chenal d'entrée ne se modifient pas.",
-    "followingRoute": "Suit son tracé ({n} point{s}). Glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger.",
+    "followingRoute": "Suit son tracé · {n} point{s}.",
     "followingUntilRelief": "Jusque-là, il suit son tracé actuel ({n} point{s}).",
     "editLeg": "Modifier cette étape",
     "editingLeg": "Modifier l'étape {n}",
@@ -407,7 +406,6 @@
     "scheduled": "Décollage programmé à {time} (heure de l'ordre)",
     "scheduledDaily": "Décollage programmé chaque jour à {time} (heure de l'ordre)",
     "scheduledJoin": "Départ programmé à {time} pour rejoindre {formation}",
-    "scheduledRouteHint": "Glissez depuis l'aérodrome pour tracer la route : elle attend le décollage. Ou préparez des étapes dans la section « Route et étapes ». Sans route ni étapes, l'escadrille patrouillera au-dessus de sa base.",
     "waiting": "en attente : l'unité n'est pas prête",
     "joinWing": "Rejoindre une formation",
     "sailAt": "Appareillage programmé",
@@ -448,8 +446,7 @@
     },
     "breakOff": "Désengager {raid}",
     "breakOffNone": "Plus rien à rompre : l'unité n'est plus sur ce raid.",
-    "letGo": "Désengagée de {raids} : elle laisse ce raid tranquille, quelle que soit son attitude, jusqu'à un nouvel ordre sur lui (tracé qui finit sur le raid, ou « Intercepter »).",
-    "letGoMany": "Désengagée de {raids} : elle laisse ces raids tranquilles, quelle que soit son attitude, jusqu'à un nouvel ordre sur eux (tracé qui finit sur le raid, ou « Intercepter »).",
+    "letGo": "Désengagée de {raids}.",
     "homePortPick": "Rentrer au port…",
     "exitBy": "Sortie :",
     "exitRoads": "en rade (au large du port)",
@@ -468,16 +465,16 @@
     "exitStepHint": "La sortie attend l'ordre d'appareiller (le bouton, ou l'heure programmée). Pour la prolonger : tirez un tracé depuis l'anneau au bout de la sortie, sur la carte, ou ajoutez des étapes au cap ci-dessous. « Au bout de la sortie » dit ce que le groupe fait ensuite.",
     "exitStepHintHeadings": "La sortie attend l'ordre d'appareiller (le bouton, ou l'heure programmée). Pour la prolonger : ajoutez des étapes au cap ci-dessous, elles partent du bout de la sortie. « Au bout de la sortie » dit ce que le groupe fait ensuite.",
     "exitLineDropped": "Le tracé qui suivait a été effacé : il ne se rejoint pas par la mer depuis cette sortie.",
-    "waitingRoute": "Tracé préparé ({n} point{s} après la sortie) : il attend l'appareillage. Glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger.",
+    "waitingRoute": "Tracé préparé · {n} point{s} : attend l'appareillage.",
     "endActionExit": "Au bout de la sortie",
     "rosterResume": "Retour au planning",
     "openRoster": "Programmation des effectifs…",
     "manual": "à la main",
     "manualNow": "Choisi à la main : il tient jusqu'à « Retour au planning ». En l'air {d} après l'ordre de décoller.",
-    "awaitedRoute": "Tracé de {n} point{s} en attente : il part par radio à la relève de {hour} h. Il reste sur la carte, en ocre : déplacez ses points, ou prolongez-le depuis l'anneau à son bout.",
-    "awaitedRouteShip": "Tracé de {n} point{s} confié à {group} : il sera remis à la rencontre. Il reste sur la carte, en ocre.",
+    "awaitedRoute": "Tracé de {n} point{s} en attente : il part par radio à la relève de {hour} h.",
+    "awaitedRouteShip": "Tracé de {n} point{s} confié à {group} : il sera remis à la rencontre.",
     "awaitedLeg": "à transmettre",
-    "awaitedLegs": "En ocre : pas encore transmis. Ces ordres partent par radio à la relève de {hour} h ; jusque-là le navire suit ses ordres actuels. La carte montre leur tracé, et vous pouvez en ajouter d'autres à la suite.",
+    "awaitedLegs": "En ocre : transmis à la relève de {hour} h.",
     "awaitedLand": "Vu de la position estimée du navire, ce trajet touche terre (cercle rouge sur la carte) : l'ordre serait refusé à l'arrivée. Corrigez-le avant la relève.",
     "convoyEnd": {
       "stop": "S'arrêter et attendre",
@@ -496,8 +493,18 @@
       "intoPort": "Plus de tracé à terminer : le convoi entre à {port}.",
       "intoPortVia": "Plus de tracé à terminer : le convoi rejoint le chenal ({channel}) et entre à {port}.",
       "waiting": "En attente : « {what} », transmis par radio à la relève de {hour} h.",
-      "autoPort": "Ce tracé passe près de l'entrée de ce chenal et finit vers ce port : sans autre ordre, le convoi y entre de lui-même. Avec un autre choix, il suit le tracé jusqu'au bout, sans le chenal, puis fait ce qui est choisi."
-    }
+      "autoPort": "Sans autre ordre, le convoi entre de lui-même dans ce port.",
+      "autoPortHelp": "Ce tracé passe près de l'entrée de ce chenal et finit vers ce port. Avec un autre choix, le convoi suit le tracé jusqu'au bout, sans le chenal, puis fait ce qui est choisi."
+    },
+    "waitingRouteAir": "Tracé préparé · {n} point{s} : attend le décollage.",
+    "routeHelp": "Glissez un point pour le déplacer, un « + » pour en ajouter, l'anneau du bout pour prolonger.",
+    "awaitedRouteHelp": "Il reste sur la carte, en ocre : déplacez ses points, ou prolongez-le depuis l'anneau à son bout.",
+    "awaitedLegsHelp": "Jusque-là le navire suit ses ordres actuels. La carte montre le tracé des étapes en attente, et vous pouvez en ajouter d'autres à la suite.",
+    "scheduledNoRoute": "Sans route ni étapes : patrouillera au-dessus de sa base.",
+    "scheduledRouteHelp": "Glissez depuis l'aérodrome pour tracer la route : elle attend le décollage. Ou préparez des étapes dans la section « Route et étapes ».",
+    "letGoHelp": "Elle laisse ce raid tranquille, quelle que soit son attitude, jusqu'à un nouvel ordre sur lui (tracé qui finit sur le raid, ou « Intercepter »).",
+    "letGoHelpMany": "Elle laisse ces raids tranquilles, quelle que soit son attitude, jusqu'à un nouvel ordre sur eux (tracé qui finit sur le raid, ou « Intercepter »).",
+    "dry": "À sec : rentre au port le plus proche, {kn} nœuds au plus. Seul le port peut changer."
   },
   "sheet": {
     "type": "Appareil",
@@ -547,7 +554,7 @@
     "shipsInPort": "Navires au port",
     "supportGroupHere": "{state} · groupe de soutien de {n} groupes",
     "select": "Choisir",
-    "detectedAt": "Détecté à {time}",
+    "detectedAt": "Détecté",
     "orbiting": "orbite",
     "returningTo": "retour vers {name}",
     "inCombatWith": "au combat avec {raid}",
@@ -623,8 +630,8 @@
     "uplotTitle": "Contact sous-marin",
     "reachSurface": "Peut être, en surface, jusqu'à",
     "reachSubmerged": "En plongée, jusqu'à",
-    "uplotHint": "Les deux cercles grandissent avec l'âge du plot : en tirets, ce que le U-Boot peut avoir parcouru en surface (17 nœuds) ; en pointillé, sous l'eau (5 nœuds, au plus 70 milles avant de devoir refaire surface).",
-    "stragglerHint": "Un navire tombé derrière son convoi : seul, sans escorte, une proie facile. Il suit la même route, plus lentement. Un groupe d'escorte peut le rejoindre.",
+    "uplotHint": "Les deux cercles grandissent avec l'âge du plot : ce que le U-Boot peut avoir parcouru en surface (17 nœuds) et sous l'eau (5 nœuds, au plus 70 milles avant de devoir refaire surface).",
+    "stragglerHint": "Un navire tombé derrière son convoi est une proie facile. Il suit la même route, plus lentement. Un groupe d'escorte peut le rejoindre.",
     "huntingUntil": "cherche un contact jusqu'à {time}",
     "huntingHeld": "attaque un U-Boot",
     "radarFitted": "radar",
@@ -642,7 +649,9 @@
     "ucontactHint": "Le U-Boot est suivi tant qu'il reste en vue ou au contact de l'ASDIC. Perdu, il laisse un repère à sa dernière position.",
     "gathering": "rassemblement",
     "speedPct": "{p} % de la croisière ({n} km/h)",
-    "helpToggle": "Aide de cette section"
+    "helpToggle": "Aide de cette section",
+    "straggler": "Traînard : seul, sans escorte.",
+    "uplotLegend": "Tirets : en surface · pointillé : en plongée."
   },
   "settings": {
     "title": "Réglages",
@@ -1532,7 +1541,7 @@
     "production": "Production",
     "productionRate": "{n} {type} par jour",
     "productionStopped": "arrêtée : plus de matériel",
-    "perAircraft": "{n} t de matériel par avion",
+    "perAircraft": "Matériel par avion",
     "unloading": "Déchargement en cours : {convoy}, reste {n} t",
     "inbound": "Trains attendus",
     "inboundLine": "{what}, {when}",
@@ -2330,7 +2339,8 @@
     "stackTab": "{name} : ouvrir sa fiche (les unités superposées sur la carte ont chacune leur onglet)",
     "siteTab": "{name} : la fiche de l'installation (les unités qui s'y trouvent ont chacune leur onglet)",
     "siteUnitTab": "{name} : ouvrir sa fiche ({site})",
-    "tired": "{level} ({n} %)"
+    "tired": "{level} ({n} %)",
+    "ordersVia": "Ordres : par {name}."
   },
   "question": {
     "title": {
@@ -2365,12 +2375,12 @@
     "noPoint": "Point à placer sur la carte",
     "place": "Placer sur la carte",
     "placing": "Cliquez sur la carte…",
-    "routeHint": "Route après le rendez-vous : glissez depuis le point RV sur la carte ({n} point(s) tracé(s)). Sans route, la formation tourne au-dessus du point.",
+    "routeHint": "Pour tracer la route d'après le rendez-vous, glissez depuis le point RV sur la carte.",
     "routeClear": "Effacer la route",
     "when": "Heure du rendez-vous",
     "asap": "Au plus tôt",
     "setTime": "Fixer l'heure",
-    "timeSet": "Rendez-vous à {time} : la formation part à cette heure ; les premiers arrivés l'attendent sur place.",
+    "timeSet": "Rendez-vous à {time}.",
     "missingTitle": "Si quelqu'un manque à l'heure",
     "missing": {
       "wait": "Attendre",
@@ -2414,7 +2424,10 @@
     "errors": {
       "arm": "Placez d'abord le point de rendez-vous sur la carte."
     },
-    "leaderHintSea": "Sur le chef : le chef appareille à son heure avec ses propres ordres (étapes ou route tracée depuis le port) ; chaque groupe appareille à la sienne, rejoint le chef en mer et prend son poste."
+    "leaderHintSea": "Sur le chef : le chef appareille à son heure avec ses propres ordres (étapes ou route tracée depuis le port) ; chaque groupe appareille à la sienne, rejoint le chef en mer et prend son poste.",
+    "routeAfter": "Route après le rendez-vous : {n} point{s}.",
+    "routeNone": "Pas de route après le rendez-vous : la formation tournera au-dessus du point.",
+    "timeHelp": "La formation part à cette heure ; les premiers arrivés l'attendent sur place."
   },
   "cmd": {
     "orders": "Ordres",
@@ -2483,7 +2496,8 @@
     "channel": {
       "direct": "En eaux suivies : position en direct, ordres immédiats.",
       "lamp": "Un de vos avions est en vue : les ordres passent au projecteur, tout de suite et sans radio.",
-      "radio": "En haute mer, sous silence radio : la position est une estimation, et un ordre part par radio à la relève de {hour} h. Une nouvelle route peut être lue par le B-Dienst."
+      "radio": "En haute mer, sous silence radio : position estimée, ordres par radio à la relève de {hour} h.",
+      "radioHelp": "Une nouvelle route envoyée par radio peut être lue par le B-Dienst."
     },
     "pending": "Ordres en route",
     "byRadio": "par radio, à la relève de {hour} h",

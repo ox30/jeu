@@ -415,13 +415,17 @@ function planList(app, u) {
   if (wait.route) {
     const n = wait.route.points.length;
     const group = wait.route.via === 'ship' ? w.escorts.find((e) => e.id === wait.route.carrier) : null;
-    parts.push(`<p class="hint awaited">${escapeHtml(group ? t('orders.awaitedRouteShip', { n, s: n > 1 ? 's' : '', group: group.short }) : t('orders.awaitedRoute', { n, s: n > 1 ? 's' : '', hour }))}</p>`);
+    parts.push(`<p class="state-line awaited">${escapeHtml(group ? t('orders.awaitedRouteShip', { n, s: n > 1 ? 's' : '', group: group.short }) : t('orders.awaitedRoute', { n, s: n > 1 ? 's' : '', hour }))}</p>`);
+    if (!group) parts.push(`<p class="hint">${escapeHtml(t('orders.awaitedRouteHelp'))}</p>`);
   }
   if (own > 0 && !plan.length) {
-    // (With a line on its way, the handles of the map are that line's: the hint says only what the ship does meanwhile.)
-    parts.push(`<p class="hint">${escapeHtml(t(wait.route ? 'orders.followingUntilRelief' : moving ? 'orders.followingRoute' : 'orders.waitingRoute', { n: own, s: own > 1 ? 's' : '' }))}</p>`);
+    // What the unit does: it follows its line, or its line waits for the departure. (With a
+    // line on its way, the handles of the map are that line's: the ship's own is only named.)
+    const key = wait.route ? 'orders.followingUntilRelief' : moving ? 'orders.followingRoute' : u.kind === 'squadron' ? 'orders.waitingRouteAir' : 'orders.waitingRoute';
+    parts.push(`<p class="state-line">${escapeHtml(t(key, { n: own, s: own > 1 ? 's' : '' }))}</p>`);
+    if (!wait.route) parts.push(`<p class="hint">${escapeHtml(t('orders.routeHelp'))}</p>`);
   } else if (!plan.length) {
-    parts.push(`<p class="hint">${escapeHtml(moving ? t('orders.noLeg') : t('orders.noLegReady'))}</p>`);
+    parts.push(`<p class="state-line">${escapeHtml(moving ? t('orders.noLeg') : t('orders.noLegReady'))}</p>`);
   } else {
     const track = planTrack(w, u, plan);
     const editing = editingLegIndex(app, u);
@@ -440,7 +444,7 @@ function planList(app, u) {
     });
     parts.push('</ol>');
   }
-  if (wait.legs) parts.push(`<p class="hint awaited">${escapeHtml(t('orders.awaitedLegs', { hour }))}</p>`);
+  if (wait.legs) parts.push(`<p class="state-line awaited">${escapeHtml(t('orders.awaitedLegs', { hour }))}</p><p class="hint">${escapeHtml(t('orders.awaitedLegsHelp'))}</p>`);
   // (Checked for good when the order is carried out; the player is warned before it leaves.)
   if ((wait.route || wait.legs) && awaitedLand(w, u)) parts.push(`<p class="message warning">${escapeHtml(t('orders.awaitedLand'))}</p>`);
   return parts.join('');
@@ -499,7 +503,7 @@ function convoyEndLine(app, c) {
   const e = convoyEnd(w, c);
   if (!e) return '';
   if (e.mode === 'port') {
-    return `<p class="hint">${escapeHtml(t(e.channel ? 'orders.convoyEnd.intoPortVia' : 'orders.convoyEnd.intoPort', { port: e.port, channel: e.channel }))}</p>`;
+    return `<p class="state-line">${escapeHtml(t(e.channel ? 'orders.convoyEnd.intoPortVia' : 'orders.convoyEnd.intoPort', { port: e.port, channel: e.channel }))}</p>`;
   }
   const list = e.choices.map((a) => ({ value: endValue(a), label: convoyEndText(w, a) }));
   // (With nothing to follow the choice is an order to carry out now: it starts on no choice.)
@@ -507,12 +511,12 @@ function convoyEndLine(app, c) {
   // An order on its way is what the list shows: it is the last thing the player chose.
   const shown = e.waiting || e.current;
   const current = shown ? endValue(shown) : '';
-  const told = e.waiting ? `<p class="hint awaited">${escapeHtml(t('orders.convoyEnd.waiting', { what: convoyEndText(w, e.waiting), hour: nextReliefHour(w) }))}</p>` : '';
-  // Taken into port by the game, told nothing: said, with the way to have it otherwise.
+  const told = e.waiting ? `<p class="state-line awaited">${escapeHtml(t('orders.convoyEnd.waiting', { what: convoyEndText(w, e.waiting), hour: nextReliefHour(w) }))}</p>` : '';
+  // Taken into port by the game, told nothing: said (a state), with the way to have it otherwise (help).
   const own = !e.waiting && e.auto && e.current && e.current.kind === 'port';
-  const hint = e.after === 'now' ? 'orders.convoyEnd.hintNow' : own ? 'orders.convoyEnd.autoPort' : 'orders.convoyEnd.hint';
+  const hint = e.after === 'now' ? 'orders.convoyEnd.hintNow' : own ? 'orders.convoyEnd.autoPortHelp' : 'orders.convoyEnd.hint';
   return `<div class="order-line"><label class="grow">${escapeHtml(t(`orders.convoyEnd.after.${e.after}`))} <select id="convoy-end-${escapeHtml(c.id)}" data-change="convoy-end" data-id="${escapeHtml(c.id)}">${options(list, current)}</select></label></div>
-    ${told}<p class="hint">${escapeHtml(t(hint))}</p>`;
+    ${told}${own ? `<p class="state-line">${escapeHtml(t('orders.convoyEnd.autoPort'))}</p>` : ''}<p class="hint">${escapeHtml(t(hint))}</p>`;
 }
 
 function shipEndLine(app, e) {
@@ -562,6 +566,7 @@ function formationLine(app, u) {
     return `<div class="formation-line"><p>${escapeHtml(t(leader ? 'unit.leaderOf' : 'unit.memberOf', { name: f.name }))}</p>
       <div class="order-line">${button('select', t('unit.showFormation'), { id: f.id, kind: 'formation' })}
       ${button('formation-remove', t('unit.leaveFormation'), { id: u.id, extra: ` data-formation="${escapeHtml(f.id)}"` })}</div>
+      <p class="state-line">${escapeHtml(t('unit.ordersVia', { name: f.name }))}</p>
       <p class="hint">${escapeHtml(t(u.kind === 'squadron' ? 'unit.memberHintAir' : 'unit.memberHintSea'))}</p></div>`;
   }
   if (u.state === 'lost' || (u.kind === 'squadron' && u.role !== 'fighter')) return '';
@@ -854,11 +859,11 @@ export function rosterBlock(app, s, { title = true } = {}) {
       const remove = g.entry ? button('roster-remove', '×', { id: s.id, kind: 'squadron', cls: 'icon', extra: ` data-entry="${escapeHtml(g.entry.id)}" title="${escapeHtml(t('orders.remove'))}"` }) : '';
       return `<li class="${g.to <= w.t ? 'past' : ''}"><span>${escapeHtml(`${mark(g.from)} – ${mark(g.to)} · ${what}`)} <small>${escapeHtml(clock)}</small></span>${remove}</li>`;
     });
-    parts.push(`<p class="hint">${escapeHtml(t('orders.rosterOverrideUntil', { start: `${hhmm(w, o.from)}${dayWord(w, o.from)}`, n: hours, time: `${hhmm(w, o.until)}${dayWord(w, o.until)}` }))}</p>`);
+    parts.push(`<p class="state-line">${escapeHtml(t('orders.rosterOverrideUntil', { start: `${hhmm(w, o.from)}${dayWord(w, o.from)}`, n: hours, time: `${hhmm(w, o.until)}${dayWord(w, o.until)}` }))}</p>`);
     parts.push(`<ul class="roster-list override">${lines.join('')}</ul>`);
     if (r.daily.length) {
       const plan = r.daily.map((e) => `${todText(e.tod)} ${t(`orders.alertShort.${e.alert}`)}`).join(' · ');
-      parts.push(`<p class="hint">${escapeHtml(t('orders.rosterDailyAfter', { plan }))}</p>`);
+      parts.push(`<p class="state-line">${escapeHtml(t('orders.rosterDailyAfter', { plan }))}</p>`);
     }
     parts.push(
       `<div class="order-line roster-form"><span class="at">${escapeHtml(t('orders.fromH'))}</span>`,
@@ -869,7 +874,7 @@ export function rosterBlock(app, s, { title = true } = {}) {
     );
   } else {
     const daily = r.daily.map((e) => item(e.id, todText(e.tod), e.alert));
-    parts.push(daily.length ? `<ul class="roster-list">${daily.join('')}</ul>` : `<p class="hint">${escapeHtml(t('orders.rosterNone'))}</p>`);
+    parts.push(daily.length ? `<ul class="roster-list">${daily.join('')}</ul>` : `<p class="state-line">${escapeHtml(t('orders.rosterNone'))}</p>`);
     parts.push(
       `<div class="order-line roster-form">${stateSelect}`,
       `<span class="at">${escapeHtml(t('orders.at'))}</span>${timeInput(`roster-time-${s.id}`)}`,
@@ -901,7 +906,7 @@ function alertBlock(app, s) {
   if (!fatigueOn(w) || (s.state !== 'ready' && s.state !== 'refuelling')) return '';
   return [
     alertButtons(app, s, 'squadron', s.alert || 'min5'),
-    `<p class="hint">${escapeHtml(alertStatus(w, s))}</p>`,
+    `<p class="state-line">${escapeHtml(alertStatus(w, s))}</p>`,
     confirmBox(app, 'squadron', s.id, s.name),
     rosterLinks(app, s),
   ].join('');
@@ -938,7 +943,11 @@ function takeoffBlock(app, s, withButton = true) {
       : t(s.schedule.daily ? 'orders.scheduledDaily' : 'orders.scheduled', { time: clockText(w, s.schedule.at) });
     parts.push(`<div class="order-line scheduled"><span class="grow">${escapeHtml(text)}${s.schedule.delayed ? ` · ${escapeHtml(t('orders.waiting'))}` : ''}</span>
       ${s.schedule.rally ? '' : button('schedule-cancel', t('orders.cancel'), { id: s.id, kind: 'squadron' })}</div>`);
-    if (!f) parts.push(`<p class="hint">${escapeHtml(t('orders.scheduledRouteHint'))}</p>`);
+    if (!f) {
+      // With neither a line nor legs it will patrol over its base: said, it is what it will do.
+      if (!s.route.length && !s.plan.length) parts.push(`<p class="state-line">${escapeHtml(t('orders.scheduledNoRoute'))}</p>`);
+      parts.push(`<p class="hint">${escapeHtml(t('orders.scheduledRouteHelp'))}</p>`);
+    }
   } else if (grounded) {
     parts.push(scheduleHint(app));
     parts.push(`<div class="order-line"><span>${escapeHtml(t('orders.scheduleAt'))}</span>${timeInput(`sched-time-${s.id}`)}
@@ -968,7 +977,7 @@ function letGoLine(app, s) {
     }
   }
   if (!labels.size) return '';
-  return `<p class="hint">${escapeHtml(t(labels.size > 1 ? 'orders.letGoMany' : 'orders.letGo', { raids: [...labels].join(', ') }))}</p>`;
+  return `<p class="state-line">${escapeHtml(t('orders.letGo', { raids: [...labels].join(', ') }))}</p><p class="hint">${escapeHtml(t(labels.size > 1 ? 'orders.letGoHelpMany' : 'orders.letGoHelp'))}</p>`;
 }
 
 // ---- squadrons ----
@@ -1022,7 +1031,7 @@ function sailBlock(app, c) {
   }
   if (c.schedule && c.schedule.join) {
     const f = formationById(w, c.schedule.join);
-    return `<p class="hint">${escapeHtml(t('orders.sailJoin', { time: clockText(w, c.schedule.at), formation: f ? f.name : '' }))}</p>`;
+    return `<p class="state-line">${escapeHtml(t('orders.sailJoin', { time: clockText(w, c.schedule.at), formation: f ? f.name : '' }))}</p>`;
   }
   return [
     scheduleHint(app),
@@ -1042,7 +1051,7 @@ function convoyPanel(app, c) {
   const speedKn = Math.round((currentSpeed(c) * 3600) / 1.852);
   const stateText = t(`states.convoy.${c.state === 'arrived' && c.unloading ? 'unloading' : c.state}`);
   const rows = [
-    c.straggler ? `<p class="hint">${escapeHtml(t('sheet.stragglerHint'))}</p>` : '',
+    c.straggler ? `<p class="state-line">${escapeHtml(t('sheet.straggler'))}</p><p class="hint">${escapeHtml(t('sheet.stragglerHint'))}</p>` : '',
     row(t('sheet.state'), escapeHtml(stateText)),
     c.tankers || c.freighters ? convoyCargoRows(app, c)
       : row(t('sheet.ships'), c.ships === c.shipsStart ? String(c.ships) : t('sheet.aircraftOf', { n: c.ships, total: c.shipsStart })),
@@ -1103,7 +1112,7 @@ function escortPanel(app, e) {
   else if (e.dry && atSea) {
     // Out of fuel: into port at a crawl; only the port can still be chosen.
     cmd = [
-      `<p class="hint warn">${escapeHtml(t('orders.dryHint', { kn: e.dryKn }))}</p>`,
+      `<p class="warn-line">${escapeHtml(t('orders.dry', { kn: e.dryKn }))}</p>`,
       section(app, 'home', t('sec.home'), ordersBox(homePortLine(app, e))),
     ].join('');
   } else {
@@ -1239,14 +1248,15 @@ function rallyTab(app, f) {
       parts.push(`<div class="order-line"><span>${escapeHtml(t('orders.altitude'))}</span>${button('rally-alt-down', '−', { id, kind })}
         <b class="alt-value">${escapeHtml(ftText(feetOf(r.altM)))}</b>${button('rally-alt-up', '+', { id, kind })}</div>`);
     }
-    parts.push(`<p class="hint">${escapeHtml(t('rally.routeHint', { n: r && r.route ? r.route.length : 0 }))}</p>`);
+    const after = r && r.route ? r.route.length : 0;
+    parts.push(`<p class="state-line">${escapeHtml(t(after ? 'rally.routeAfter' : 'rally.routeNone', { n: after, s: after > 1 ? 's' : '' }))}</p><p class="hint">${escapeHtml(t('rally.routeHint'))}</p>`);
     if (r && r.route.length) parts.push(`<div class="order-line">${button('rally-route-clear', t('rally.routeClear'), { id, kind })}</div>`);
     // When: as early as possible, or at a time.
     parts.push(`<div class="sub">${escapeHtml(t('rally.when'))}</div><div class="order-line">
       ${button('rally-asap', t('rally.asap'), { id, kind, active: !r || r.at === null })}
       ${air ? '' : daySelect(w, `rally-day-${id}`)}${timeInput(`rally-time-${id}`, r && r.at !== null ? hhmm(w, r.at) : '')}
       ${button('rally-time', t('rally.setTime'), { id, kind, active: Boolean(r && r.at !== null) })}</div>`);
-    if (r && r.at !== null) parts.push(`<p class="hint">${escapeHtml(t('rally.timeSet', { time: clockText(w, r.at) }))}</p>`);
+    if (r && r.at !== null) parts.push(`<p class="state-line">${escapeHtml(t('rally.timeSet', { time: clockText(w, r.at) }))}</p><p class="hint">${escapeHtml(t('rally.timeHelp'))}</p>`);
     // Someone missing at the time: wait, slow down, go.
     const missing = r ? r.missing : 'wait';
     parts.push(`<div class="sub">${escapeHtml(t('rally.missingTitle'))}</div><div class="order-line">
@@ -1293,7 +1303,7 @@ function formationPanel(app, f) {
     const grounded = members.filter((s) => s.state === 'ready' || s.state === 'refuelling');
     const common = grounded.length && grounded.every((s) => s.alert === grounded[0].alert) ? grounded[0].alert : null;
     let takeoff = '';
-    if (planned) takeoff = `<p class="hint">${escapeHtml(t('rally.underWay'))}</p>`;
+    if (planned) takeoff = `<p class="state-line">${escapeHtml(t('rally.underWay'))}</p>`;
     else if (!up) {
       if (f.schedule) {
         takeoff = `<div class="order-line scheduled"><span class="grow">${escapeHtml(t(f.schedule.daily ? 'orders.scheduledDaily' : 'orders.scheduled', { time: clockText(w, f.schedule.at) }))}${f.schedule.delayed ? ` · ${escapeHtml(t('orders.waiting'))}` : ''}</span>
@@ -1305,7 +1315,7 @@ function formationPanel(app, f) {
       }
     } else if (waiting) takeoff = button('formation-launch', t('unit.launchWaiting', { n: waiting }), { id: f.id });
     const alerts = fatigueOn(w) && grounded.length ? `${alertButtons(app, f, 'formation', common)}${confirmBox(app, 'formation', f.id, f.name)}
-        <p class="hint">${escapeHtml(alertStatus(w, grounded.reduce((a, b) => (scrambleSeconds(w, b) > scrambleSeconds(w, a) ? b : a))))}</p>` : '';
+        <p class="state-line">${escapeHtml(alertStatus(w, grounded.reduce((a, b) => (scrambleSeconds(w, b) > scrambleSeconds(w, a) ? b : a))))}</p>` : '';
     cmd = [
       takeoff || alerts ? section(app, 'ground', t('sec.ground'), ordersBox(takeoff, alerts)) : '',
       leader.state === 'lost' ? '' : routeSection(app, leader),
@@ -1317,7 +1327,7 @@ function formationPanel(app, f) {
     const canMove = leader.state === 'inPort' || leader.state === 'atSea' || leader.state === 'waiting' || leader.state === 'hunting';
     const atSea = members.some((e) => ['atSea', 'waiting', 'escorting', 'hunting'].includes(e.state));
     cmd = [
-      planned ? `<p class="hint">${escapeHtml(t('rally.underWay'))}</p>` : '',
+      planned ? `<p class="state-line">${escapeHtml(t('rally.underWay'))}</p>` : '',
       !planned && leader.state === 'inPort' ? section(app, 'port', t('sec.port'), ordersBox(exitLines(app, leader, { sail: false }), sailBlock(app, leader))) : '',
       canMove && leader.state === 'inPort' ? routeSection(app, leader) : '',
       section(app, 'convoys', t('sec.convoys'), ordersBox(joinLines(app, leader))),
@@ -1438,7 +1448,7 @@ function raidSheet(app, raidId) {
       : last ? row(t('sheet.source'), escapeHtml(t(`sheet.${last.source}`))) : '',
     last ? row(t('sheet.lastPlot'), escapeHtml(formatTime(w.startMs + last.t * 1000))) : '',
     row(t('sheet.composition'), escapeHtml(composition)),
-    `<p class="hint">${escapeHtml(t('sheet.detectedAt', { time: formatTime(w.startMs + contact.firstSeen * 1000) }))}</p>`,
+    row(t('sheet.detectedAt'), escapeHtml(formatTime(w.startMs + contact.firstSeen * 1000))),
   ].join('');
   return {
     group: 'raid',
@@ -1460,7 +1470,7 @@ function uboatPlotSheet(app, id) {
     row(t('sheet.position'), escapeHtml(positionText(lat, lon))),
     row(t('sheet.reachSurface'), escapeHtml(kmText(reach.surface))),
     row(t('sheet.reachSubmerged'), escapeHtml(kmText(reach.submerged))),
-    `<p class="hint">${escapeHtml(t('sheet.uplotHint'))}</p>`,
+    `<p class="state-line">${escapeHtml(t('sheet.uplotLegend'))}</p><p class="hint">${escapeHtml(t('sheet.uplotHint'))}</p>`,
   ].join('');
   return { group: 'uplot', title: escapeHtml(t('sheet.uplotTitle')), summary: escapeHtml(t(`map.uSource.${p.source}`)), tabs: [tab('state', { pre: body })] };
 }
@@ -1487,7 +1497,7 @@ function attacksBlock(app, site) {
   const w = app.world;
   const lines = site.attacks.slice(-6).reverse().map((a) =>
     `<li>${escapeHtml(t('sheet.attackLine', { date: dateTimeText(w.startMs + a.t * 1000), raid: a.raid, n: a.damage }))}</li>`);
-  return `<div class="sub">${escapeHtml(t('sheet.attacks'))}</div>${lines.length ? `<ul class="attacks">${lines.join('')}</ul>` : `<p class="hint">${escapeHtml(t('sheet.noAttack'))}</p>`}`;
+  return `<div class="sub">${escapeHtml(t('sheet.attacks'))}</div>${lines.length ? `<ul class="attacks">${lines.join('')}</ul>` : `<p class="state-line">${escapeHtml(t('sheet.noAttack'))}</p>`}`;
 }
 
 /** What a ship lying in a port is doing: a group at its quay or refitting, a convoy waiting or unloading. */
@@ -1522,7 +1532,7 @@ function sitePanel(app, key) {
     const here = w.squadrons.filter((s) => s.airfield === site.id && !isFlying(s) && s.state !== 'lost');
     extra = `<div class="sub">${escapeHtml(t('sheet.groundSquadrons'))}</div>${here.length
       ? here.map((s) => row(s.name, escapeHtml(t(`states.squadron.${s.state}`)))).join('')
-      : `<p class="hint">${escapeHtml(t('sheet.noneHere'))}</p>`}`;
+      : `<p class="state-line">${escapeHtml(t('sheet.noneHere'))}</p>`}`;
     orders = here.map((s) => `<div class="order-line"><span>${escapeHtml(s.name)}</span>${button('scramble', t('orders.scramble'), { id: s.id, disabled: s.state !== 'ready' })}${button('select', t('sheet.select'), { id: s.id, kind: 'squadron' })}</div>`).join('')
       + (here.length ? `<p class="hint">${escapeHtml(t('orders.scrambleHint'))}</p>` : '');
   } else {

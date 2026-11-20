@@ -231,11 +231,11 @@ function fighterCard(key, f, patrol = false) {
     if (f.uboatSightKm) rows.push([t('cards.uboatSight'), t('cards.km', { n: f.uboatSightKm })]);
   }
   return `<article class="card" id="card-${escapeHtml(key.replace(/\s+/g, '-'))}"><h4>${escapeHtml(f.name)}</h4>
-    <p class="hint">${escapeHtml(t(`cards.notes.${key}`))}</p>${cardRows(rows)}</article>`;
+    <p class="state-line">${escapeHtml(t(`cards.notes.${key}`))}</p>${cardRows(rows)}</article>`;
 }
 
 function bomberCard(key, b) {
-  return `<article class="card"><h4>${escapeHtml(b.name)}</h4><p class="hint">${escapeHtml(t(`cards.notes.${key}`))}</p>${cardRows([
+  return `<article class="card"><h4>${escapeHtml(b.name)}</h4><p class="state-line">${escapeHtml(t(`cards.notes.${key}`))}</p>${cardRows([
     [t('cards.cruise'), t('units.kmh', { n: b.cruiseKmh })],
     [t('cards.max'), t('units.kmh', { n: b.maxKmh })],
     [t('cards.ceiling'), ftText(b.ceilingFt)],
@@ -246,7 +246,7 @@ function bomberCard(key, b) {
 }
 
 function escortCard(key, e) {
-  return `<article class="card"><h4>${escapeHtml(e.name)}</h4><p class="hint">${escapeHtml(t(`cards.notes.${key}`))}</p>${cardRows([
+  return `<article class="card"><h4>${escapeHtml(e.name)}</h4><p class="state-line">${escapeHtml(t(`cards.notes.${key}`))}</p>${cardRows([
     [t('cards.max'), t('units.kmh', { n: e.maxKmh })],
     [t('cards.ceiling'), ftText(e.ceilingFt)],
     [t('cards.range'), t('cards.km', { n: formatNumber(e.rangeKm) })],
@@ -260,19 +260,19 @@ function shipCards(world) {
   const S = world.rules.ships;
   const A = world.rules.asw;
   return [
-    `<article class="card"><h4>${escapeHtml(S.convoy.name)}</h4><p class="hint">${escapeHtml(t('cards.notes.convoy'))}</p>${cardRows([
+    `<article class="card"><h4>${escapeHtml(S.convoy.name)}</h4><p class="state-line">${escapeHtml(t('cards.notes.convoy'))}</p>${cardRows([
       [t('cards.speedSea'), t('cards.knots', { n: S.convoy.speedKn })],
       [t('cards.stragglers'), t('cards.stragglersText', { p: Math.round(A.stragglerFrom * 100) })],
       [t('cards.zigzag'), t('cards.zigzagText', { p: Math.round((1 - A.zigzagSpeed) * 100), h: Math.round((1 - A.zigzagHit) * 100) })],
     ])}</article>`,
-    `<article class="card"><h4>${escapeHtml(S.escort.name)}</h4><p class="hint">${escapeHtml(t('cards.notes.escort'))}</p>${cardRows([
+    `<article class="card"><h4>${escapeHtml(S.escort.name)}</h4><p class="state-line">${escapeHtml(t('cards.notes.escort'))}</p>${cardRows([
       [t('cards.speedSea'), t('cards.knots', { n: S.escort.speedKn })],
       [t('cards.asdic'), t('cards.km', { n: A.asdicKm })],
       [t('cards.lookouts'), t('cards.lookoutsText', { day: A.lookoutDayKm, night: A.lookoutNightKm })],
       [t('cards.escortRadar'), t('cards.escortRadarText', { km: A.radar.surfaceKm })],
       [t('cards.charges'), t('cards.chargesText', { n: A.engagement.chargesPerShip, full: A.engagement.patternFull, light: A.engagement.patternLight })],
     ])}</article>`,
-    `<article class="card"><h4>${escapeHtml(S.uboat.name)}</h4><p class="hint">${escapeHtml(t('cards.notes.uboat'))}</p>${cardRows([
+    `<article class="card"><h4>${escapeHtml(S.uboat.name)}</h4><p class="state-line">${escapeHtml(t('cards.notes.uboat'))}</p>${cardRows([
       [t('cards.surface'), t('cards.knots', { n: A.surfaceKn })],
       [t('cards.submerged'), t('cards.knots', { n: A.submergedKn })],
       [t('cards.battery'), t('cards.batteryText', { n: A.batteryNm })],

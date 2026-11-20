@@ -270,7 +270,6 @@ button {
 .forecast { margin: 2px 0 4px; padding-left: 18px; }
 .forecast li { margin: 2px 0; }
 .forecast li.short { color: #8a3b1c; }
-.currency .hint.warn { color: #8a3b1c; font-style: normal; }
 
 /* ---------- side panel ---------- */
 
@@ -349,7 +348,6 @@ button {
 .legs li.current .leg-text { color: var(--raf-blue); }
 /* Radio silence: a leg, or a line, that has not reached its ship yet (the ochre of its pencil on the map). */
 .legs li.awaited .leg-text, .legs li.awaited .leg-status { color: var(--amber); }
-.hint.awaited { color: var(--amber); font-style: normal; }
 /* The way out of port at the head of a group's orders, and the line after it: not numbered legs. */
 ul.legs.steps { list-style: none; padding-left: 0; }
 .orders button.icon, .legs button.icon { padding: 0 6px; margin-left: 4px; font-size: 13px; line-height: 16px; background: transparent; border: 1px solid #b9a77f; border-radius: 3px; }
@@ -413,9 +411,16 @@ dialog h3 { font-size: 14px; margin: 10px 0 4px; }
 .orders button.active { background: var(--raf-blue); color: #fff; border-color: var(--raf-blue); }
 .orders button[disabled] { opacity: 0.45; cursor: default; }
 .orders input[type="number"] { width: 64px; font: 14px "Courier New", Courier, monospace; padding: 3px; }
+/* Two voices in a sheet. Help (.hint) explains: italic, and folded away by the setting « Aides
+   des fiches ». A state line says what the unit does or will do: upright, never folded; in
+   ochre when it is an order on its way (radio silence). A warning line is news: never folded. */
 .hint { color: var(--ink-soft); font-style: italic; font-size: 12px; margin: 4px 0; }
+.state-line { color: var(--ink-soft); font-size: 12px; margin: 4px 0; }
+.state-line.awaited { color: var(--amber); }
+.state-line.warn, .warn-line { color: #8a3b1c; }
+.warn-line { font-size: 12px; margin: 4px 0; }
 /* Help folded away (setting « Aides des fiches »): a « ? » by section shows it again. */
-.help-folded p.hint:not(.warn):not(.show) { display: none; }
+.help-folded p.hint:not(.show) { display: none; }
 .hint-toggle, #unit-panel .hint-toggle {
   display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
   margin: 0 0 0 6px; width: 18px; height: 18px; min-width: 0; min-height: 0; padding: 0; border-radius: 50%;
@@ -538,7 +543,7 @@ dialog.page-dialog { max-width: min(900px, 94vw); width: 900px; max-height: 88vh
 .card { border: 1px solid var(--paper-dark); border-radius: 4px; padding: 6px 10px; background: rgba(255, 252, 240, 0.55); font-size: 12.5px; }
 .card.focus { box-shadow: 0 0 0 2px var(--brass); }
 .card h4 { margin: 0 0 2px; font-size: 14px; }
-.card .hint { margin: 2px 0 4px; }
+.card .hint, .card .state-line { margin: 2px 0 4px; }
 .card-table { width: 100%; border-collapse: collapse; }
 .card-table th { text-align: left; font-weight: normal; color: var(--ink-soft); padding: 1px 4px 1px 0; width: 48%; vertical-align: top; }
 .card-table td { font-weight: bold; padding: 1px 0; }
@@ -929,7 +934,6 @@ dialog#dlg-watch { width: 760px; }
 .comms .pending-orders li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 3px 0; border-bottom: 1px dotted var(--paper-dark); }
 .comms .pending-orders .grow { flex: 1 1 140px; }
 .comms .pending-orders small { color: var(--ink-soft); }
-.comms .hint.warn { color: #8a3b1c; font-style: normal; }
 
 /* ---- main menu: a full page, outside the map (M2.9) ---- */
 .menu-page { position: fixed; inset: 0; z-index: 40; overflow-y: auto; background: #2b241a; color: var(--ink); display: flex; justify-content: center; padding: 28px 16px; }
