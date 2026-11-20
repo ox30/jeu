@@ -1195,6 +1195,7 @@
       "Kanalkampf, 10-24 juillet 1940. Trois choses à tenir : les convois, les stocks, la défense aérienne. Vue Atlantique (A), Grande-Bretagne (L) et Angleterre (G).",
       "Convois : les HX 55 et HX 57 sont en mer. Tracez leur route (ou donnez-leur des étapes en Réaliste) jusqu'au chenal du nord de l'Irlande ou au canal Saint-Georges, où un pilote les conduit à Liverpool ou à la Clyde. La fiche du convoi dit par quel chenal et dans quel port il entre, et vous laisse en choisir un autre (« En fin de tracé »). Les cercles hachurés sont des U-Boote probables, repérés par radiogoniométrie : contournez-les, ou envoyez un groupe d'escorte au-devant du convoi.",
       "Le convoi côtier CW 7 attend dans la Tamise avec du matériel pour Southampton. Faites-le appareiller quand vous pourrez le couvrir : de jour, la Luftwaffe l'attaque dans la Manche. Une escadrille peut « Couvrir » le convoi.",
+      "Dès qu'il y a des navires, la mer vit au rythme des quarts : un rapport à chaque relève (0, 4, 8, 12, 16 et 20 h), et un arrêt seulement quand une décision vous attend — à la première relève, vos deux convois HX, qui n'ont pas encore de route. Le bouton « Quart » de la barre du haut (touche Q) y répond : « Amirauté » leur donne la route de l'Amirauté. En haute mer, sous silence radio (Standard et Réaliste), ils ne sont vus que par estimation et vos ordres partent à la relève. Près de nous, dans la Manche comme sous un de vos avions, les alertes restent en direct : le CW 7 bombardé vous appelle aussitôt. Voir [[time:quarts|Le rythme des quarts]] et [[sea:silence|Silence radio]].",
       "Logistique : les convois déchargent carburant et matériel dans les ports. Envoyez des trains vers les bases (carburant) et les usines (matériel), ou fixez un stock minimum dans la fiche d'une base : les trains partent seuls. Sans carburant, une escadrille ne refait pas le plein. Les usines remplacent les avions perdus.",
       "Défense : à l'alerte, faites décoller une escadrille vers le raid, réglez son altitude (↑ ↓) pour arriver au-dessus. En Arcade, « Intercepter » (ou glisser jusqu'au raid) laisse le contrôleur la guider : sa chance dépend de la couverture radar. Le trait pointillé d'un raid manqué donne l'écart ; chaque raid finit par un rapport, rangé dans « Rapports ».",
       "Tracés : glissez depuis une unité pour tracer sa route, puis corrigez-la sur la carte. Tous les gestes sont dans [[sheet:traces|Tracés et ordres sur la carte]].",
@@ -1213,6 +1214,7 @@
         "Adlertag, 12-18 août 1940. La Luftwaffe vise d'abord les radars de la côte (Dover, Rye, Pevensey, Ventnor), puis les aérodromes. Un radar détruit ouvre un trou dans la couverture : placez la station mobile (onglet Installations, « Déployer ») quand elle arrive.",
         "Les raids sans bombardiers, très haut et rapides, sont des chasses libres de Bf 109 : elles cherchent à user vos escadrilles. Gardez vos forces pour les bombardiers. L'état d'alerte (repos 2 h, disponible 30 min, alerte 5 min, cockpit 2 min) règle le délai de décollage et la fatigue ; la page Effectifs le programme.",
         "Les bases de secteur (Biggin Hill, Kenley, Hornchurch, North Weald, Tangmere, Middle Wallop, Northolt) doivent rester en service. Sans munitions ni carburant, une base ne réarme plus : surveillez les stocks et les trains depuis Chilmark et les ports.",
+        "Le convoi HX 62 vient de l'ouest, à 21° O : vue Atlantique (touche A). Il n'a pas encore de route : le bouton « Quart » de la barre du haut (touche Q) vous le rappelle, et « Amirauté » lui donne celle de l'Amirauté. Envoyez le groupe d'escorte de Liverpool au-devant de lui. À Aldergrove, en Irlande du Nord, le 502 Sqn (Anson) et le 233 Sqn (Hudson) du Coastal Command peuvent le couvrir à son approche. La mer vit au rythme des quarts, avec le silence radio en Standard et en Réaliste : voir [[time:quarts|Le rythme des quarts]] et [[sea:silence|Silence radio]].",
         "Victoire si les sept bases de secteur restent moins de 10 heures hors service au total et les neuf radars moins de 36 heures, si 90 avions ennemis sont abattus, si la chasse garde 45 % de ses avions et si le HX 62 livre 60 % de sa cargaison. Chaque raid qui passe compte : une base est réparée en quelques heures, un radar en plus d'un jour. En campagne, le nombre d'avions à abattre suit la chasse reportée de la bataille précédente : avec les trois quarts de ses avions, les trois quarts du compte.",
         "Le carburant des bases ne tient pas la semaine : commandez des trains depuis les ports ou fixez un stock minimum dans la fiche de chaque base (onglet Installations). Une base à sec ne fait plus décoller personne."
       ],
@@ -1223,7 +1225,7 @@
       ],
       "hiver-atlantique": [
         "Hiver 1941, du 10 janvier au 31 mars. Les convois HX (Halifax, tous les cinq jours) et SC (Sydney, tous les huit jours, plus lents) partent seuls sur la route de l'Amirauté. Changez-la pour contourner les U-Boote repérés ; mais le commandement allemand apprend où passent vos convois, et une route trop au sud est vite guettée à son tour, sous les Condor de Bordeaux.",
-        "Vous commandez depuis un QG à terre, au rythme des quarts : à chaque relève (0, 4, 8, 12, 16 et 20 h) un rapport s'écrit, et le jeu ne s'arrête que si une décision nouvelle vous attend. Le bouton « Quart » de la barre du haut (touche Q) rouvre le dernier rapport. Voir [[time:quarts|Le rythme des quarts]].",
+        "Vous commandez depuis un QG à terre, au rythme des quarts : à chaque relève (0, 4, 8, 12, 16 et 20 h) un rapport s'écrit, et le jeu ne s'arrête que si une décision nouvelle vous attend. Près de nous — en eaux suivies, ou sous un de vos avions — un navire garde ses alertes en direct. Le bouton « Quart » de la barre du haut (touche Q) rouvre le dernier rapport. Voir [[time:quarts|Le rythme des quarts]].",
         "Silence radio (Standard et Réaliste) : en haute mer, vos navires ne sont vus que par estimation, et vos ordres partent par radio à la relève suivante ; d'ici là ils restent sur la carte, en ocre. Voir [[sea:silence|Silence radio]].",
         "Envoyez un groupe d'escorte au-devant de chaque convoi qui approche : vos groupes ont sept ou huit jours d'autonomie et rentrent se ravitailler. Chaque groupe emporte 40 grenades par navire (120 ou 160) ; « Rester » ou « Chasser » règle ce qu'il en fait ([[sea:chasse|Chasse aux U-Boote]]). Un U-Boot coulé est remplacé par un autre trois semaines plus tard : couler soulage, sans vider la mer. En mars, deux groupes reçoivent un premier radar. Les nuits d'hiver sont longues (seize heures en janvier, onze fin mars) : c'est alors que les meutes attaquent, chacune à son heure. L'ombre sur la carte montre où il fait nuit.",
         "Le Coastal Command patrouille de jour au-dessus des convois et oblige les U-Boote à plonger ; le radar ASV voit aussi un sous-marin en surface, et un convoi de nuit. Un avion qui surprend un U-Boot de près l'attaque, une fois par sortie : il coule rarement, mais le journal le dit, et son repère lance la chasse d'un groupe en « Chasser » à moins de 30 km de son convoi. Les deux cercles d'un repère U-Boot montrent où il peut être, en surface et en plongée. Les équipages se fatiguent en vol et ne récupèrent qu'au Repos : la fiche d'une escadrille au sol donne son état d'alerte, la page Effectifs (barre du haut) son planning, par exemple au repos la nuit et disponible avant l'aube. Depuis le Repos, il faut deux heures pour être en l'air.",
@@ -1478,7 +1480,7 @@
           "id": "reperes",
           "title": "Repères et contacts U-Boot",
           "text": [
-            "Un U-Boot vu par un avion ou par une escorte lève une alerte « U-Boot en vue » et ramène le jeu à ×1 ; dans l'Atlantique, au rythme des quarts, il est noté au rapport de la relève et le temps continue. Les cercles hachurés sont des U-Boote probables, repérés par radiogoniométrie : contournez-les, ou envoyez un groupe d'escorte au-devant du convoi.",
+            "Un U-Boot vu près de nous — en eaux suivies, par un groupe qui s'y trouve, ou par un avion qui veille sur un de vos navires — lève une alerte « U-Boot en vue » et ramène le jeu à ×1 ; en haute mer, il est noté au rapport de la relève et le temps continue ([[time:quarts|Le rythme des quarts]]). Les cercles hachurés sont des U-Boote probables, repérés par radiogoniométrie : contournez-les, ou envoyez un groupe d'escorte au-devant du convoi.",
             "Un repère garde la dernière position connue. Ses deux cercles grandissent avec l'âge du plot : en tirets, ce que le U-Boot peut avoir parcouru en surface (17 nœuds) ; en pointillé, sous l'eau (5 nœuds, au plus 70 milles avant de devoir refaire surface).",
             "Un U-Boot au contact est suivi tant qu'il reste en vue ou au contact de l'ASDIC ; perdu, il laisse un repère à sa dernière position. Une escorte qui tient un U-Boot à l'ASDIC annonce sa profondeur et son cap estimés.",
             "Réglages, onglet Carte et fiche, « Zones de vue des unités », montre ce que voient vos navires et vos avions."
@@ -1504,7 +1506,7 @@
           "id": "silence",
           "title": "Silence radio",
           "text": [
-            "Silence radio (Standard et Réaliste ; réglage « Communications en mer ») : hors des eaux suivies — mer d'Irlande, canal du Nord, Minch, Manche, canal de Bristol, approches des ports, couverture des radars de Downhill et de Glenarm — vos navires ne sont vus que par estimation : un repère en tirets, marqué « ? », déplacé à chaque relève, avec un cercle de doute qui grandit depuis le dernier point sûr.",
+            "Silence radio (Standard et Réaliste ; réglage « Communications en mer »), dès qu'un scénario a des navires : hors des eaux suivies — mer d'Irlande, canal du Nord, Minch, Manche, canal de Bristol, approches des ports, couverture de surface des radars côtiers (Downhill et Glenarm, l'hiver 1941) — vos navires ne sont vus que par estimation : un repère en tirets, marqué « ? », déplacé à chaque relève, avec un cercle de doute qui grandit depuis le dernier point sûr.",
             "Un point sûr vient d'un de vos avions en vue du navire, d'une attaque (le convoi émet alors), de ce qu'un groupe vous signale (un U-Boot vu ou attaqué, la fin d'une chasse), ou de « Demander la position » : le navire répond à la relève, ce qui donne aussi un relèvement au commandement des U-Boote. Un groupe en haute mer ne peut pas être mis dans un groupe de soutien : il faut le joindre au port ou en eaux suivies.",
             "Un ordre part par radio à la relève suivante (une nouvelle route peut alors être lue par le B-Dienst), au projecteur si un avion est en vue, ou confié à un groupe qui part rejoindre le convoi. Jusque-là le navire suit ses ordres actuels.",
             "En attendant la relève, un tracé ou des étapes donnés à un navire restent sur la carte, en ocre, et sur sa fiche : déplacez les points du tracé, prolongez-le depuis l'anneau à son bout, ajoutez d'autres étapes à la suite ; un seul ordre part. Si ce trajet touche terre, vu de la position estimée, la fiche et la carte le disent avant le départ de l'ordre."
@@ -1547,7 +1549,7 @@
           "id": "alertes",
           "title": "Les alertes ralentissent le temps",
           "text": [
-            "Les alertes ralentissent le temps : un raid ramène à ×10 ; en mer, toute alerte ramène à ×1 (on décide, puis on accélère) ; une base à ×600. Chaque vitesse se règle dans Réglages, onglet Temps et alertes. Pendant une action ennemie, une vitesse élevée demande confirmation (réglable)."
+            "Les alertes ralentissent le temps : un raid ramène à ×10 ; en mer, une alerte près de nous ramène à ×1 (on décide, puis on accélère) et le reste attend le rapport de la relève ([[time:quarts|Le rythme des quarts]]) ; une base à ×600. Chaque vitesse se règle dans Réglages, onglet Temps et alertes. Pendant une action ennemie, une vitesse élevée demande confirmation (réglable)."
           ]
         },
         {
@@ -1568,9 +1570,10 @@
           "id": "quarts",
           "title": "Le rythme des quarts",
           "text": [
-            "Dans l'Atlantique, vous commandez depuis un QG à terre, au rythme des quarts. La mer ne vous appelle plus événement par événement : à chaque relève (0, 4, 8, 12, 16 et 20 h) un rapport s'écrit, onglet « Signaux » du journal — convois, groupes d'escorte, air, renseignement, et ce qui attend une décision.",
-            "Le jeu ne s'arrête à une relève que si une décision nouvelle vous attend (un convoi à escorter, un groupe qui a fini ses ordres, des grenades épuisées, des repères U-Boote sur une route) ; entre deux relèves, seulement pour la première attaque d'un convoi dans la nuit. Un arrêt est une pause : « Reprendre » repart à la vitesse d'avant. Une décision laissée de côté reste dans les rapports suivants, sans arrêter le jeu une seconde fois.",
-            "Le rapport fermé sans réponse, pour regarder la carte d'abord, se rouvre tel quel : bouton « Quart » de la barre du haut (touche Q), qui compte les décisions en attente, ou « Rouvrir le rapport » et « Ouvrir » dans l'onglet « Signaux ». Réglages, onglet Temps et alertes : arrêt aussi matin et soir, ou à chaque relève."
+            "Dès qu'un scénario a des navires — convois ou groupes d'escorte, dans la Manche comme dans l'Atlantique —, vous commandez la mer depuis un QG à terre, au rythme des quarts. En haute mer, elle ne vous appelle plus événement par événement : à chaque relève (0, 4, 8, 12, 16 et 20 h) un rapport s'écrit, onglet « Signaux » du journal — convois, groupes d'escorte, air, renseignement, et ce qui attend une décision.",
+            "Près de nous, les alertes restent en direct : un navire en eaux suivies (eaux fermées aux U-Boote, approches des ports, couverture des radars côtiers) ou sous un de vos avions vous appelle dès qu'il lui arrive quelque chose, et le jeu revient à ×1. Le rapport de la relève note l'événement dans les deux cas. Les raids, les combats aériens et les questions des escadrilles gardent leurs alertes partout.",
+            "Le jeu ne s'arrête à une relève que si une décision nouvelle vous attend (un convoi à escorter, un convoi qui n'a plus de route à suivre, un groupe qui a fini ses ordres, des grenades épuisées, des repères U-Boote sur une route) ; entre deux relèves, seulement pour la première attaque d'un convoi en haute mer dans la nuit. Un arrêt est une pause : « Reprendre » repart à la vitesse d'avant. Une décision laissée de côté reste dans les rapports suivants, sans arrêter le jeu une seconde fois.",
+            "Le bouton « Quart » de la barre du haut (touche Q) est là dès le début de la partie et compte les décisions en attente ; avant la première relève, sa page dit quand viendra le premier rapport. Un rapport fermé sans réponse, pour regarder la carte d'abord, se rouvre tel quel par ce bouton, ou par « Rouvrir le rapport » et « Ouvrir » dans l'onglet « Signaux ». Réglages, onglet Temps et alertes : arrêt aussi matin et soir, ou à chaque relève."
           ]
         }
       ],
@@ -1635,7 +1638,7 @@
           "text": [
             "Temps : Espace, pause · 1 à 6, vitesse.",
             "Carte : A, Atlantique · L, Grande-Bretagne · G, Angleterre · + et −, zoom · C, couverture radar · R ou Maj + glisser, règle (la croix de son encart l'efface).",
-            "Pages : J, journal (sur les alertes non lues, s'il y en a) · Q, rapport de quart (Atlantique) · ?, aide · Échap, annuler, puis fermer la fiche.",
+            "Pages : J, journal (sur les alertes non lues, s'il y en a) · Q, rapport de quart (dès qu'il y a des navires) · ?, aide · Échap, annuler, puis fermer la fiche.",
             "Unité choisie : ↑ ↓, altitude (de l'unité, ou du point choisi) · Suppr, retirer le point choisi · Entrée, ajouter l'étape mesurée à la règle · S, décoller · B, boost (avion ou navire) · O, orbiter · P, rentrer · D, rompre le combat (désengager le raid en cours).",
             "Question à l'écran : Entrée, oui (au rendez-vous : le choix du plan) · Échap, non (au rendez-vous : partir)."
           ]
@@ -2047,7 +2050,7 @@
       "Spitfire guet": "Une section qui patrouille haut au-dessus de la Manche pour signaler les raids, comme la 421 Flight créée en septembre 1940.",
       "Anson": "Le patrouilleur côtier de 1940 : lent, peu armé, mais il oblige les U-Boote à plonger.",
       "Whitley": "Un bombardier de nuit passé au Coastal Command fin 1940 : lent, mais il tient l'air neuf heures et porte loin au large.",
-      "Hudson": "Plus rapide et mieux armé que l'Anson ; certains reçoivent le premier radar ASV fin 1940.",
+      "Hudson": "Plus rapide et mieux armé que l'Anson ; quelques-uns portent dès 1940 le premier radar ASV, de courte portée.",
       "Sunderland": "Hydravion à très grande autonomie : il va loin au-dessus de l'Atlantique.",
       "Do 17": "Le « crayon volant » : rapide pour un bombardier, vulnérable aux attaques de face.",
       "Ju 87": "Le bombardier en piqué : précis, mais lent et très vulnérable sans escorte.",
@@ -2111,7 +2114,7 @@
     "adlertag": {
       "intro": {
         "title": "Adlertag",
-        "text": "Prise de service, 12 août 1940. Ce matin, des Bf 110 chargés de bombes ont été vus au-dessus de Calais : les stations radar de la côte sont menacées. Le convoi HX 62 approche du nord de l'Irlande : tracez sa route."
+        "text": "Prise de service, 12 août 1940. Ce matin, des Bf 110 chargés de bombes ont été vus au-dessus de Calais : les stations radar de la côte sont menacées. Le convoi HX 62 approche du nord de l'Irlande, à 21° O (vue Atlantique, touche A) : donnez-lui sa route. Le 502 et le 233 Squadron, à Aldergrove, peuvent le couvrir."
       },
       "mru": {
         "title": "Station radar mobile",
@@ -2367,7 +2370,7 @@
           },
           "end": {
             "title": "Leçon terminée",
-            "text": "Le convoi a son escorte. Dans la partie complète s'ajoutent le silence radio (positions estimées en haute mer, ordres à la relève), le mazout des groupes et les avions de Coastal Command : l'aide de « Hiver dans l'Atlantique » les explique."
+            "text": "Le convoi a son escorte. Dans une partie complète s'ajoutent le silence radio (positions estimées en haute mer, ordres à la relève), le mazout des groupes et les avions de Coastal Command. Les quarts et le silence radio valent dès qu'une bataille a des navires, Kanalkampf et Adlertag compris : l'aide les explique, onglets « Mer » et « Temps et alertes »."
           }
         }
       },
@@ -3035,8 +3038,8 @@
     "formationsNaval": "Un groupe de soutien réunit des groupes d'escorte : ils appareillent, escortent et chassent ensemble. Quand le plus court d'entre eux arrive au bout de son autonomie, tout le groupe rentre au port.",
     "cards": "Les chiffres que le jeu utilise, proches de ceux de l'époque. Le plafond limite l'altitude qu'on peut ordonner.",
     "load": "La partie en cours, ses cinq dernières sauvegardes automatiques (une par jour de jeu, toutes les deux heures de jeu dans une bataille d'une journée), la dernière de chacune des parties d'avant (cinq au plus) et vos sauvegardes manuelles. Charger une sauvegarde remplace la partie en cours, qui est d'abord gardée parmi les sauvegardes automatiques.",
-    "setSeaComms": "Silence radio (dans l'Atlantique) : hors des eaux suivies — eaux fermées aux U-Boote, approches des ports, couverture des radars côtiers — vos navires ne sont vus que par estimation. Un ordre part par radio à la relève suivante, au projecteur si un de vos avions est en vue, ou confié à un groupe qui rejoint le convoi.",
-    "setWatchStops": "Dans l'Atlantique, un rapport s'écrit à chaque relève de quart (0, 4, 8, 12, 16 et 20 h), que le jeu s'arrête ou non : onglet « Signaux » du journal. Entre deux relèves, le jeu ne s'arrête que pour la première attaque d'un convoi dans la nuit.",
+    "setSeaComms": "Silence radio, dès qu'un scénario a des navires : hors des eaux suivies — eaux fermées aux U-Boote, approches des ports, couverture des radars côtiers — vos navires ne sont vus que par estimation. Un ordre part par radio à la relève suivante, au projecteur si un de vos avions est en vue, ou confié à un groupe qui rejoint le convoi.",
+    "setWatchStops": "Dès qu'un scénario a des navires, un rapport s'écrit à chaque relève de quart (0, 4, 8, 12, 16 et 20 h), que le jeu s'arrête ou non : onglet « Signaux » du journal. Entre deux relèves, le jeu ne s'arrête que pour la première attaque d'un convoi en haute mer dans la nuit ; près de nous, les alertes restent en direct.",
     "setAlertSpeeds": "Avec « Ralentir le temps à chaque alerte », chaque alerte ramène le jeu au plus à la vitesse choisie ici. En mer, tout passe à ×1 par défaut : on décide, puis on accélère soi-même.",
     "setSheetPos": "Tirez le bord de la fiche pour l'élargir (ou la grandir en bas). Ses sections se replient d'un clic sur leur titre et restent comme vous les laissez.",
     "setSheetHelp": "Masquées, les aides d'une fiche s'ouvrent section par section avec le « ? ». Affichées, leur texte reste écrit sous le titre de chaque section : utile pour débuter.",

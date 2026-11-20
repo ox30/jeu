@@ -150,6 +150,13 @@ button {
   .speeds button { font-size: 12px !important; padding: 3px !important; }
 }
 
+/* At 1 024 px the « Quart » button is on the bar from the start of every game with ships
+   (2.12): with the sign of a save that failed, the bar would take a second line. The clock
+   face leaves the bar there; the hour stays, in figures. */
+@media (max-width: 1100px) {
+  #clock { display: none; }
+}
+
 /* ---------- map ---------- */
 
 #table { position: relative; grid-row: 2; grid-column: 1; overflow: hidden; }

@@ -371,8 +371,8 @@ function emptyPageHtml(app, shown = null) {
   app.signals.early = list;
   return `<form method="dialog" class="page watch-page">
     <header class="page-head"><h2>${escapeHtml(t('watch.emptyTitle'))}</h2></header>
-    <p class="state-line">${escapeHtml(t('watch.emptyText', { hour: nextReliefHour(w) }))}</p>
-    <p class="watch-why">${escapeHtml(t('watch.emptyWhat'))}</p>
+    <p class="watch-why">${escapeHtml(t('watch.emptyText', { hour: nextReliefHour(w) }))}</p>
+    <p class="state-line">${escapeHtml(t('watch.emptyWhat'))}</p>
     ${list.length ? `<div class="watch-body"><h4 class="decide" title="${escapeHtml(t('tips.decide'))}">${escapeHtml(t('watch.decideTitle'))}</h4><ul class="decisions">${list.map((d) => decisionHtml(w, d, live)).join('')}</ul></div>` : ''}
     <div class="dialog-buttons"><button type="button" data-watch="close">${escapeHtml(t('watch.close'))}</button></div></form>`;
 }
