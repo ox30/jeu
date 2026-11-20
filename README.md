@@ -3,15 +3,79 @@
 Prototype du jeu navigateur sur la Seconde Guerre mondiale : le joueur commande le soutien
 allié (aviation, escortes, logistique), jamais les armées. Le M2 réunit l'Âge I en une
 campagne de quatre scénarios, de la bataille de la Manche à l'hiver 1941 dans l'Atlantique,
-avec un menu principal, un tutoriel en quatre leçons et une aide illustrée.
+avec un menu principal, un tutoriel en cinq leçons et une aide illustrée.
 
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.10.5** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit et
-les retours des premières parties d'essai, en quatre tours). Les décisions qui guident les lots M2.7 à M2.10
-sont dans `claude/decisions-audit-m2.md` (fichier du projet) ; le journal des travaux est dans
-`docs/journal-m2.7-m2.10.md`.
+**Version 2.11.0** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit,
+les retours des premières parties d'essai en quatre tours, et le rangement des textes d'aide).
+Les décisions qui guident les lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md`
+(fichier du projet) ; le journal des travaux est dans `docs/journal-m2.7-m2.10.md`. Le
+rangement de l'aide suit `claude/textes-aide-plan-rangement.md` ; son journal, avec la table
+« ancienne clé → nouvelle place », est dans `docs/journal-aide-en-jeu.md`.
+
+## Nouveautés de la 2.11.0 : l'aide rangée, des fiches épurées
+
+Une fiche ne montre plus que **l'état de l'unité, ses ordres et ses alertes**. Les phrases
+d'aide, qui prenaient jusqu'à 42 % de la hauteur des fiches les plus chargées, sont allées là
+où elles servent ; aucune n'est perdue. Rien ne change dans les règles du jeu : `src/sim`
+n'est pas touché.
+
+- **L'état n'est plus de l'aide.** Ce que l'unité fait ou fera (« En l'air 5 min après
+  l'ordre de décoller », « Suit son tracé · 3 points », « Désengagée de H03 ») a son propre
+  style, en texte droit, et reste toujours visible.
+- **Un « ? » par section.** Dans le titre de chaque section qui a une aide, un « ? » ouvre
+  une bulle au premier plan : deux à quatre phrases, puis « Plus dans l'aide : « rubrique » »,
+  qui ouvre l'aide au bon endroit. Échap ou un clic ailleurs la ferme. Le même « ? » se
+  trouve dans le titre des pages Effectifs, Formations, Fiches techniques et Charger, du
+  bloc « Achats en Amérique », et à côté de chaque réglage qui avait une phrase.
+- **Des infobulles d'une ligne** sur les boutons et les champs : Fin d'une étape, Stock
+  minimum, chargement d'un train, Rester, Chasser, Rejoindre, Couvrir, Intercepter,
+  Appareiller, Demander la position, Prendre, Attendre, Ralentir, Partir, le zigzag, et la
+  vitesse maximale d'un convoi, qui parle enfin des traînards.
+- **Réglage « Aides des fiches »** (Carte et fiche) : *masquées* par défaut. *Affichées*
+  écrit le texte de chaque bulle sous le titre de sa section, pour qui débute. Les réglages
+  enregistrés avant la 2.11.0 prennent le nouveau défaut ; un choix fait depuis est gardé.
+- **L'aide générale en rubriques** : 42 rubriques courtes et titrées dans six onglets,
+  chacune avec son ancre, la liste des titres en tête d'onglet et des liens d'une rubrique à
+  l'autre. Rubriques nouvelles : « Tracés et ordres sur la carte » (tous les gestes), « La
+  carte » (la déplacer, zoomer), « Lire une fiche ». Les leçons ont leur propre « Ce
+  scénario ». Les trois images sont refaites. Touches ajoutées à la liste : Q, + et −.
+- **Cinq astuces de première fois**, dans une petite carte au coin de la carte, sous la
+  fiche et à côté d'elle : la première fiche d'une unité qui se déplace, le premier point
+  choisi, le premier groupe d'escorte au port, le premier navire sous silence radio, le
+  premier départ programmé. Une seule à la fois, jamais pendant une leçon ; « Compris » est
+  gardé par le navigateur, et « Revoir les astuces » (Réglages) les fait revenir.
+- **Une cinquième leçon, « Tracer et corriger »** (deux à trois minutes), juste après la
+  première : tracer une route, déplacer un point, en ajouter un, prolonger depuis l'anneau,
+  en retirer un, mesurer à la règle, régler l'altitude d'un point.
+- **Panneau de droite** : « Cliquez sur une unité… » ne s'affiche que tant qu'aucune fiche
+  n'a été ouverte. **Page Effectifs** : la réponse à un ordre (« Heure non comprise »,
+  « Plan copié vers… ») s'écrit dans la page, et non plus dans la fiche restée dessous.
+- **Petites corrections** : un convoi au port a sa section « Au port : appareillage » (la
+  sortie ne concerne que les groupes d'escorte) ; un port sans chenal n'offre plus de liste
+  de sortie vide ; le profil de montée d'une patrouille de Coastal Command n'affiche plus
+  « Aucun raid sur la table », et ses bandes ont une légende ; la section « Convois » d'un
+  groupe n'apparaît que s'il y a un convoi à rejoindre ou à quitter ; la leçon sur le
+  carburant nomme l'alerte « Carburant bas » ; 37 textes jamais affichés et le code mort qui
+  les appelait sont retirés.
+
+Mesuré dans une fenêtre de 1440 × 900 en Standard (`tools/smoke/sheets.mjs`), contenu de
+l'onglet ouvert :
+
+| Fiche | 2.10.5 | 2.11.0 |
+| --- | --- | --- |
+| Groupe d'escorte en mer (Atlantique) | 972 px | 614 px |
+| Groupe d'escorte au port (Atlantique) | 923 px | 493 px |
+| Escadrille au sol (Kanalkampf) | 753 px | 681 px |
+| Big wing, onglet Commandes | 692 px | 645 px |
+| Patrouille Whitley au sol (Atlantique) | 683 px | 611 px |
+| Convoi en haute mer (Atlantique) | 528 px | 347 px |
+| Convoi HX 55 en mer (Kanalkampf) | 433 px | 253 px |
+| Convoi côtier au port (Kanalkampf) | 412 px | 330 px |
+| Big wing, onglet Rassemblement | 270 px | 182 px |
+| Biggin Hill, onglet Ordres | 294 px | 174 px |
 
 ## Nouveautés de la 2.10.5 : la fin de route d'un convoi se choisit
 
@@ -148,7 +212,7 @@ l'ancien affichage.
 
 ## Nouveautés du M2.10
 
-- **Tutoriel en quatre leçons** de trois à cinq minutes (menu principal, Entraînement) :
+- **Tutoriel en quatre leçons** (cinq depuis la 2.11.0) de trois à cinq minutes (menu principal, Entraînement) :
   *intercepter* (un raid perdu en démonstration, l'instructeur faisant décoller trop tard,
   avec le bilan des heures ; puis un raid à gagner, une douzaine de bombardiers sans
   escorte), *ravitailler* (un train de carburant et un stock minimum), *escorter* (un
@@ -321,7 +385,7 @@ d'entrée.
 ## Scénarios et campagne
 
 Le jeu s'ouvre sur le **menu principal**, une page à part : Continuer (la partie en cours),
-Campagne, Scénarios, Entraînement (les quatre leçons du tutoriel), Charger, Réglages et Aide. En jeu, le
+Campagne, Scénarios, Entraînement (les cinq leçons du tutoriel), Charger, Réglages et Aide. En jeu, le
 bouton ☰ du bandeau ouvre le menu de la partie (Reprendre, Sauvegarder, Exporter, Réglages de
 la partie, Aide, Recommencer, Menu principal) ; le jeu est en pause tant qu'il est ouvert.
 « Campagne » montre la chaîne de l'acte I : une victoire ouvre le scénario suivant, et la
@@ -334,7 +398,7 @@ Standard, Réaliste) se choisit sur les pages Campagne et Scénarios.
 | Adlertag | 12-18 août 1940 | raids sur les radars et les aérodromes, chasses libres, station radar mobile, relève |
 | 15 septembre | une journée | deux grandes vagues sur les docks de Londres, Big Wing de Duxford |
 | Hiver dans l'Atlantique | 10 janvier - 31 mars 1941 | convois réguliers HX et SC, meutes de U-Boote, dollars, prêt-bail |
-| Entraînement | juillet 1940 | les quatre leçons du **tutoriel**, puis un scénario d'essai : un convoi, quelques raids |
+| Entraînement | juillet 1940 | les cinq leçons du **tutoriel**, puis un scénario d'essai : un convoi, quelques raids |
 
 Entre les batailles aériennes, le réglage « Campagne » reporte une partie des pertes : en
 Standard, la chasse commence la bataille suivante avec la moitié des avions perdus en moins
@@ -357,8 +421,10 @@ outils de la barre sont des pictogrammes, avec leur nom et leur touche en bulle 
 (R) ») et un mot dessous quand la place le permet : Vue, Règle, Radar, Formations, Effectifs
 (seulement quand les pilotes fatiguent), Rapports, Fiches, Journal (J, avec le compte des
 alertes non lues), Aide (?) et le menu ☰. L'**aide** tient en onglets — Ce scénario, La
-fiche, Air, Mer, Temps et alertes, Parties et réglages, Touches — avec quelques images prises
-sur le banc d'essai (`data/help/images.json`).
+fiche, Air, Mer, Temps et alertes, Parties et réglages, Touches — et, dans chacun, en
+rubriques courtes et titrées, avec quelques images prises sur le banc d'essai
+(`data/help/images.json`, refaites par `tools/smoke/help-images.mjs`). Dans une fiche, le
+« ? » d'une section ouvre une bulle de quelques phrases, dont le lien mène à sa rubrique.
 
 Quand plusieurs unités sont au même endroit (deux groupes dans le même port), leur pion porte
 le nombre d'unités : un clic ouvre la pile en onglets sur le bord gauche de la fiche ; l'unité
@@ -661,8 +727,10 @@ Le réglage **B-Dienst** (Partie) dit quelle part des messages de routage des co
 marine allemande lit : 0 % en Arcade, 25 % en Standard, 50 % en Réaliste (0, 10, 25, 50, 75
 ou 100 %). **Communications en mer** (Partie) : directes en Arcade, silence radio en Standard
 et en Réaliste (il ne joue que dans l'Atlantique). **Arrêt aux relèves** (Temps et alertes) :
-sur décision seulement, matin et soir aussi, ou à chaque relève. **Ombre de la nuit** et
-**Aides des fiches** (affichées, ou repliées derrière un « ? » par section) : Carte et fiche.
+sur décision seulement, matin et soir aussi, ou à chaque relève. **Ombre de la nuit**,
+**Aides des fiches** (masquées derrière un « ? » par section, le défaut, ou affichées sous le
+titre de chaque section) et **Revoir les astuces** : Carte et fiche. Chaque réglage qui
+demande une explication a son « ? ».
 
 Options : pause pendant les pages et durée du plan d'exception des Effectifs (Partie) ;
 ralenti à l'alerte avec une vitesse pour chaque alerte, confirmation des vitesses élevées
@@ -706,7 +774,7 @@ ou en bas de la carte) et l'affichage économe, un peu moins net mais plus fluid
 │   │                          m0-july-1940 (entraînement), lecon-* (les leçons, écrites
 │   │                          comme une bataille avec des changements : « base »)
 │   ├── campaign.json          chaîne de campagne, vues, cartes de scénario, couches et outils
-│   ├── tutorial.json          les quatre leçons du tutoriel : scénario, réglages, étapes
+│   ├── tutorial.json          les cinq leçons du tutoriel : scénario, réglages, étapes
 │   ├── rules.json             équilibrage (avions, combat, détection, logistique, U-Boote)
 │   ├── presets.json           préréglages Arcade, Standard, Réaliste
 │   ├── help/images.json       images de l'aide, prises sur le banc d'essai
@@ -731,7 +799,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 406 tests, environ quatre minutes
+npm test          # les 472 tests, environ quatre minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : leçons, pages, fiches, corrections, quarts, menu, interface
@@ -756,7 +824,7 @@ Le filet du M2.7 :
   aucun texte français dans le code, chaque clé de texte citée existe, aucune règle morte
   dans `data/rules.json`.
 - **Test de fumée** (`tools/smoke/smoke.mjs`) : la version de développement et le fichier
-  unique démarrent, les quatre leçons du tutoriel sont jouées à la souris et au clavier
+  unique démarrent, les cinq leçons du tutoriel sont jouées à la souris et au clavier
   jusqu'à leur dernière étape, la barre du haut tient sur une ligne à 1 024 px, les alertes,
   les aides des fiches et les piles d'unités sont essayées, comme les états d'alerte d'une
   patrouille et les onglets d'un port et d'un aérodrome (2.10.2), la sortie du port posée
@@ -767,6 +835,15 @@ Le filet du M2.7 :
   chaque page et chaque sorte de fiche s'ouvre dans chaque scénario, et les corrections du
   M2.7 sont rejouées (plaques empilées, touches d'un clavier AZERTY, bilan de fin, briefing
   de campagne, garde-fou sur une erreur provoquée).
+- Les tests de la 2.11.0 : chaque « ? » écrit par les pages nomme une bulle qui existe, de
+  deux à quatre phrases quels que soient les réglages, et chaque bulle a son « ? » ; les
+  fiches n'écrivent plus de phrase d'aide ; chaque infobulle tient en une ligne ; le réglage
+  « Aides des fiches » et la reprise des réglages enregistrés (`tests/sheethelp.test.js`) ;
+  les rubriques de l'aide, leurs ancres, les liens des bulles et de l'aide, l'aide propre
+  aux leçons, les cinq leçons numérotées (`tests/help.test.js`) ; les astuces de première
+  fois (`tests/tips.test.js`) ; la leçon « Tracer et corriger » (`tests/tutorial.test.js`).
+  L'essai de fumée joue les cinq leçons, la deuxième à la souris, et vérifie la bulle, les
+  astuces, le panneau de droite, les pages et les réglages.
 - Les tests de la 2.10.5 (`tests/convoyend.test.js`) : sans ordre, rien ne change ; les
   choix de chaque scénario ; garder le cap, s'arrêter, entrer à Liverpool par chacun de ses
   chenaux et à la Clyde, jusqu'à l'arrivée ; la route de l'Amirauté reprise en contournant
@@ -848,6 +925,8 @@ npm run bot -- campagne masse-le-15 realistic 1
 npm run measure -- --name essai --seeds 10     # toute la matrice, dix graines par ligne
 node tools/bot/perf.mjs                        # durée des pas de simulation (machine au repos)
 node tools/smoke/fps.mjs                       # images par seconde à ×14 400 dans Chrome
+node tools/smoke/sheets.mjs --name essai --gate  # hauteur de dix fiches (dist/index.html, 1440 × 900)
+node tools/smoke/help-images.mjs               # refait les trois images de l'aide
 ```
 
 ## Données et sources
