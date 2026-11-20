@@ -14,7 +14,7 @@ import { contactEstimate } from './sim/query.js';
 import { addMobileRadar } from './sim/mru.js';
 import { createCamera, toScreen } from './render/camera.js';
 import { createMapRenderer } from './render/map.js';
-import { loadSettings, saveSettings } from './save/settings.js';
+import { helpSeen, loadSettings, saveSettings } from './save/settings.js';
 import { createStore, CURRENT } from './save/store.js';
 import { collectElements } from './ui/elements.js';
 import { centreOn, select } from './ui/actions.js';
@@ -35,6 +35,7 @@ import { initQuestions } from './ui/questions.js';
 import { loadDev, saveDev } from './ui/dev.js';
 import { openDesktopNotice, openHelp } from './ui/dialogs.js';
 import { installHelpBubble } from './ui/helpBubble.js';
+import { attachTips } from './ui/tips.js';
 import { unlockAudio } from './ui/sound.js';
 import { initHud } from './ui/hud.js';
 import { attachInput } from './ui/input.js';
@@ -173,11 +174,8 @@ function createApp(el, data, settings, terrain) {
   app.toMainMenu = () => goToMainMenu(app);
   app.reloadCurrent = () => loadEntry(app, CURRENT);
   app.gameInProgress = () => gameInProgress(app);
-  try {
-    app.scheduleHintSeen = localStorage.getItem('jeu-1940.scheduleHint.v1') === '1';
-  } catch {
-    app.scheduleHintSeen = false;
-  }
+  // The tips of a first time: what this browser has already shown (tips.js).
+  attachTips(app, openHelp);
   return app;
 }
 
@@ -200,6 +198,8 @@ function wireTopBar(app) {
   el.btnFormations.addEventListener('click', () => openFormations(app));
   el.btnRoster.addEventListener('click', () => openRoster(app));
   el.btnHelp.addEventListener('click', () => openHelp(app));
+  // Never read in this browser: the button of the help says so with a dot, until it is.
+  el.btnHelp.classList.toggle('fresh', !helpSeen());
   installHelpBubble(app, openHelp);
   el.btnJournal.addEventListener('click', () => openJournal(app));
 }

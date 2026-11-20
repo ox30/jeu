@@ -105,8 +105,18 @@ test('the help speaks of the sheet as it is now (no old tabs)', () => {
 
 test('every step of every lesson has a title and a text, and every lesson its name and summary', () => {
   const tutorial = JSON.parse(readFileSync(new URL('../data/tutorial.json', import.meta.url), 'utf8'));
-  // Four lessons since 2.10 (I10): intercept, supply, escort, alert states and fatigue.
-  assert.deepEqual(tutorial.lessons.map((l) => l.id), ['intercept', 'supply', 'escort', 'alert']);
+  // Four lessons since 2.10 (I10): intercept, supply, escort, alert states and fatigue; a
+  // fifth, short, since 2.11.0, right after the first: draw a route and correct it.
+  assert.deepEqual(tutorial.lessons.map((l) => l.id), ['intercept', 'route', 'supply', 'escort', 'alert']);
+  // Their names are numbered in that order, and the scenarios they are played on too.
+  tutorial.lessons.forEach((l, i) => {
+    assert.ok(fr.tutorial.lessons[l.id].name.startsWith(`Leçon ${i + 1} · `), fr.tutorial.lessons[l.id].name);
+    assert.ok(fr.scenarios[l.scenario].title.startsWith(`Leçon ${i + 1} : `), fr.scenarios[l.scenario].title);
+    assert.ok(read(`data/scenarios/${l.scenario}.json`).title.startsWith(`Leçon ${i + 1} : `), l.scenario);
+  });
+  // No text counts four lessons any more.
+  for (const key of ['trainingText', 'trainingFirst', 'trainingIntro']) assert.ok(/cinq leçons/i.test(fr.menu[key]), fr.menu[key]);
+  assert.ok(!/quatre (leçons|gestes)/i.test(JSON.stringify(fr)), 'a text still counts four');
   for (const lesson of tutorial.lessons) {
     const texts = fr.tutorial.lessons[lesson.id];
     assert.ok(texts && texts.name.length > 5 && texts.summary.length > 20, lesson.id);

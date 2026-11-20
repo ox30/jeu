@@ -51,13 +51,13 @@ async function coachNext(page) {
 }
 
 /**
- * The four lessons of the tutorial, played from the menu to their last step (I10 of the audit;
+ * The five lessons of the tutorial, played from the menu to their last step (I10 of the audit;
  * the gate of the lot: « tutoriel joué de bout en bout »).
  */
 async function tutorial(page) {
   await page.click('#menu [data-menu="training"]');
   await sleep(200);
-  note(await game(page, () => document.querySelectorAll('#menu [data-lesson]').length === 4 && window.__game.menuPage === 'training'), 'tutorial: the training page lists the four lessons');
+  note(await game(page, () => document.querySelectorAll('#menu [data-lesson]').length === 5 && window.__game.menuPage === 'training'), 'tutorial: the training page lists the five lessons');
   await shot(page, 'lessons-menu');
 
   // The time a lesson takes (the document asks for three to five minutes): its texts read
@@ -72,13 +72,16 @@ async function tutorial(page) {
     }
     return out;
   });
-  const ORDERS = { intercept: 2, supply: 3, escort: 2, alert: 3 };
+  const ORDERS = { intercept: 2, route: 7, supply: 3, escort: 2, alert: 3 };
+  // (The lesson on the gestures of a route is the short one: two to three minutes.)
+  const BOUNDS = { route: [2, 3.5, 1] };
   let began = Date.now();
   const length = (id, name) => {
     const played = (Date.now() - began) / 1000;
     const first = (words[id] / 120 * 60 + played + ORDERS[id] * 12) / 60;
     const again = (words[id] / 200 * 60 + played + ORDERS[id] * 5) / 60;
-    note(first >= 3 && first <= 5 && again >= 1.5, `${name}: three to five minutes at a first reading`,
+    const [low, high, replayed] = BOUNDS[id] || [3, 5, 1.5];
+    note(first >= low && first <= high && again >= replayed, `${name}: ${id === 'route' ? 'two to three' : 'three to five'} minutes at a first reading`,
       `${words[id]} words, ${Math.round(played)} s of game and script, ${ORDERS[id]} orders: ${first.toFixed(1)} min at first, ${again.toFixed(1)} min replayed`);
     began = Date.now();
   };
@@ -172,7 +175,87 @@ async function tutorial(page) {
   note(await game(page, () => !window.__game.store.current()), 'lesson 1: a lesson finished is no game to continue');
   length('intercept', 'lesson 1');
 
-  // ---- lesson 2: a train and a minimum stock ----
+  // ---- lesson 2 (2.11.0): draw a route and correct it, every gesture with the mouse ----
+  await page.click('#menu [data-lesson="route"]');
+  await page.waitForSelector('#coach:not([hidden])');
+  await coachNext(page);
+  note(await untilStep(page, 'draw', 60000), 'lesson 2: the instructor sends 32 Sqn up, then the clock stops');
+  await page.waitForFunction(() => !window.__game.camera.anim, null, { timeout: 15000 });
+  await sleep(300);
+  await closeDialogs(page);
+  const sq32 = () => game(page, () => {
+    const a = window.__game;
+    const s = a.world.squadrons.find((x) => x.id === '32');
+    return { state: s.state, paused: a.paused, route: s.route.map((p) => [Math.round(p[0]), Math.round(p[1]), p[2] === null || p[2] === undefined ? null : Math.round(p[2])]), selected: a.selection && a.selection.id };
+  });
+  /** The handles of the route on the screen: its squares, its « + », its ring. */
+  const handles = async () => {
+    await sleep(250);
+    return game(page, () => {
+      // (The places of the table are counted from the corner of the map.)
+      const box = window.__game.canvas.getBoundingClientRect();
+      const out = { routePoint: [], routeMid: [], routeExtend: [] };
+      for (const h of window.__game.hits) if (out[h.kind] && h.id === '32') out[h.kind].push([box.left + h.x, box.top + h.y]);
+      return out;
+    });
+  };
+  const drag = async (a, b, { shift = false } = {}) => {
+    if (shift) await page.keyboard.down('Shift');
+    await page.mouse.move(a[0], a[1]);
+    await page.mouse.down();
+    await page.mouse.move((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, { steps: 5 });
+    await page.mouse.move(b[0], b[1], { steps: 5 });
+    await page.mouse.up();
+    if (shift) await page.keyboard.up('Shift');
+    await sleep(250);
+  };
+  const up0 = await sq32();
+  note(up0.state === 'airborne' && up0.paused && up0.selected === '32', 'lesson 2: the squadron is in the air, in hand, the clock stopped', JSON.stringify(up0).slice(0, 120));
+  // Draw: a drag from the squadron, to the west of it (clear of the sheet).
+  const at = await screenOf(page, 'squadron', '32');
+  await drag(at, [at[0] - 170, at[1] - 60]);
+  const drawn = await sq32();
+  note(drawn.route.length === 1 && await untilStep(page, 'move', 5000), 'lesson 2: a drag from the squadron is its route', JSON.stringify(drawn.route));
+  await shot(page, 'lesson2-route');
+  // Move: the square at the end of the line.
+  let h = await handles();
+  await drag(h.routePoint[0], [h.routePoint[0][0] - 20, h.routePoint[0][1] + 70]);
+  const moved = await sq32();
+  note(moved.route.length === 1 && (moved.route[0][0] !== drawn.route[0][0] || moved.route[0][1] !== drawn.route[0][1]) && await untilStep(page, 'insert', 5000), 'lesson 2: a square dragged moves its point');
+  // Insert: the « + » in the middle of the line.
+  h = await handles();
+  await drag(h.routeMid[0], [h.routeMid[0][0] - 10, h.routeMid[0][1] - 60]);
+  note((await sq32()).route.length === 2 && await untilStep(page, 'extend', 5000), 'lesson 2: a « + » dragged adds a point');
+  // Extend: from the ring at the end.
+  h = await handles();
+  note(h.routeExtend.length === 1, 'lesson 2: the route ends on its ring');
+  await drag(h.routeExtend[0], [h.routeExtend[0][0] - 90, h.routeExtend[0][1] + 40]);
+  note((await sq32()).route.length === 3 && await untilStep(page, 'delete', 5000), 'lesson 2: a drag from the ring makes the route longer');
+  // Delete: a double click on a square.
+  h = await handles();
+  await page.mouse.dblclick(h.routePoint[1][0], h.routePoint[1][1]);
+  await sleep(250);
+  note((await sq32()).route.length === 2 && await untilStep(page, 'ruler', 5000), 'lesson 2: a double click takes a point away');
+  // The ruler: Shift and a drag, anywhere; no order is given.
+  const before = await sq32();
+  await drag([at[0] - 260, at[1] + 120], [at[0] - 120, at[1] + 170], { shift: true });
+  const ruled = await game(page, () => Boolean(window.__game.ruler));
+  note(ruled && JSON.stringify((await sq32()).route) === JSON.stringify(before.route) && await untilStep(page, 'altitude', 5000), 'lesson 2: Shift and a drag measure, and give no order');
+  // The altitude of a point: a click on its square, then the arrow.
+  h = await handles();
+  await page.mouse.click(h.routePoint[0][0], h.routePoint[0][1]);
+  await sleep(250);
+  await page.keyboard.press('ArrowUp');
+  await sleep(250);
+  const high = await sq32();
+  note(high.route[0][2] !== null && await untilStep(page, 'end', 5000), 'lesson 2: ↑ on a chosen square sets the altitude of its point', JSON.stringify(high.route[0]));
+  await shot(page, 'lesson2-end');
+  await coachNext(page);
+  await sleep(300);
+  note(await game(page, () => window.__game.onMenu && document.querySelectorAll('#menu .mm-step.won').length === 2), 'lesson 2: played to its end, it is marked done');
+  length('route', 'lesson 2');
+
+  // ---- lesson 3: a train and a minimum stock ----
   await page.click('#menu [data-lesson="supply"]');
   await page.waitForSelector('#coach:not([hidden])');
   await coachNext(page);
@@ -181,43 +264,43 @@ async function tutorial(page) {
   await untilStep(page, 'train');
   await sleep(300);
   await closeDialogs(page);
-  await shot(page, 'lesson2-train');
+  await shot(page, 'lesson3-train');
   await page.fill('#train-fuel', '20');
   await page.selectOption('#train-to', 'airfield:biggin_hill');
   await page.click('#unit-panel [data-action="send-train"]');
-  note(await untilStep(page, 'minimum', 10000), 'lesson 2: a train sent to Biggin Hill moves the lesson on');
+  note(await untilStep(page, 'minimum', 10000), 'lesson 3: a train sent to Biggin Hill moves the lesson on');
   await sleep(300);
   await page.fill('#min-stock-fuel', '30');
   await page.click('#unit-panel [data-action="set-min"]');
-  note(await untilStep(page, 'wait', 10000), 'lesson 2: so does the minimum stock');
+  note(await untilStep(page, 'wait', 10000), 'lesson 3: so does the minimum stock');
   await page.keyboard.press('4');
   await sleep(150);
   await game(page, () => {
     window.__game.paused = false;
   });
-  note(await game(page, () => window.__game.speed === 600), 'lesson 2: key 4 sets ×600');
-  note(await untilStep(page, 'end', 120000) && await game(page, () => window.__game.world.sites.get('airfield:biggin_hill').stocks.fuel >= 20), 'lesson 2: the fuel arrives at Biggin Hill');
+  note(await game(page, () => window.__game.speed === 600), 'lesson 3: key 4 sets ×600');
+  note(await untilStep(page, 'end', 120000) && await game(page, () => window.__game.world.sites.get('airfield:biggin_hill').stocks.fuel >= 20), 'lesson 3: the fuel arrives at Biggin Hill');
   await coachNext(page);
   await sleep(300);
-  length('supply', 'lesson 2');
+  length('supply', 'lesson 3');
 
-  // ---- lesson 3: a watch report, a group sent, the depth charges ----
+  // ---- lesson 4: a watch report, a group sent, the depth charges ----
   await page.click('#menu [data-lesson="escort"]');
   await page.waitForSelector('#coach:not([hidden])');
   await coachNext(page);
-  note(await untilStep(page, 'send', 90000), 'lesson 3: the relief of 8 o\'clock stops the game');
+  note(await untilStep(page, 'send', 90000), 'lesson 4: the relief of 8 o\'clock stops the game');
   await page.waitForSelector('#dlg-watch[open]', { timeout: 10000 }).catch(() => {});
-  await shot(page, 'lesson3-report');
+  await shot(page, 'lesson4-report');
   const sent = await game(page, () => {
     const b = [...document.querySelectorAll('#dlg-watch button')].find((x) => /Envoyer/.test(x.textContent));
     if (b) b.click();
     return Boolean(b);
   });
-  note(sent && await untilStep(page, 'orders', 15000), 'lesson 3: « Envoyer », in the watch report, sends the group');
+  note(sent && await untilStep(page, 'orders', 15000), 'lesson 4: « Envoyer », in the watch report, sends the group');
   await closeDialogs(page);
   await sleep(300);
   await page.click('#unit-panel [data-action="escort-pattern"][data-pattern="light"]');
-  note(await untilStep(page, 'sail', 10000), 'lesson 3: a standing order chosen moves the lesson on');
+  note(await untilStep(page, 'sail', 10000), 'lesson 4: a standing order chosen moves the lesson on');
   for (let i = 0; i < 300 && !(await lessonStep(page)).endsWith(':end'); i++) {
     await closeDialogs(page);
     // (A relief or a night attack stops the game: the pupil sets it going again.)
@@ -230,17 +313,17 @@ async function tutorial(page) {
     });
     await sleep(250);
   }
-  note((await lessonStep(page)).endsWith(':end') && await game(page, () => window.__game.world.escorts[0].state === 'escorting'), 'lesson 3: the group joins its convoy');
+  note((await lessonStep(page)).endsWith(':end') && await game(page, () => window.__game.world.escorts[0].state === 'escorting'), 'lesson 4: the group joins its convoy');
   await coachNext(page);
   await sleep(300);
-  length('escort', 'lesson 3');
+  length('escort', 'lesson 4');
 
-  // ---- lesson 4: alert states and fatigue ----
+  // ---- lesson 5: alert states and fatigue ----
   await page.click('#menu [data-lesson="alert"]');
   await page.waitForSelector('#coach:not([hidden])');
   // (The lesson before is played without fatigue, and so without this button: the bar is redrawn with the next image.)
   await sleep(300);
-  note(await game(page, () => !document.getElementById('btn-roster').hidden), 'lesson 4: with fatigue on, the Effectifs button is there');
+  note(await game(page, () => !document.getElementById('btn-roster').hidden), 'lesson 5: with fatigue on, the Effectifs button is there');
   await coachNext(page);
   await untilStep(page, 'rest');
   await sleep(300);
@@ -248,27 +331,27 @@ async function tutorial(page) {
   await page.click('#unit-panel [data-action="alert"][data-alert="rest"]');
   // (The confirmation shows as the press ends, not at the next quarter-second refresh.)
   const asked = await page.waitForSelector('#unit-panel [data-action="confirm-rest"]', { timeout: 120 }).then(() => true, () => false);
-  note(asked, 'lesson 4: « Repos » asks for its confirmation at once');
+  note(asked, 'lesson 5: « Repos » asks for its confirmation at once');
   await page.click('#unit-panel [data-action="confirm-rest"]');
-  note(await untilStep(page, 'ready', 10000), 'lesson 4: the tired squadron is stood down');
+  note(await untilStep(page, 'ready', 10000), 'lesson 5: the tired squadron is stood down');
   await sleep(300);
   await page.click('#unit-panel [data-action="alert"][data-alert="min5"]');
-  note(await untilStep(page, 'roster', 10000), 'lesson 4: the fresh squadron is recalled');
+  note(await untilStep(page, 'roster', 10000), 'lesson 5: the fresh squadron is recalled');
   await page.click('#btn-roster');
   await sleep(300);
-  note(await game(page, () => document.getElementById('dlg-roster').open), 'lesson 4: the Effectifs page opens');
-  await shot(page, 'lesson4-roster');
+  note(await game(page, () => document.getElementById('dlg-roster').open), 'lesson 5: the Effectifs page opens');
+  await shot(page, 'lesson5-roster');
   await closeDialogs(page);
   await untilStep(page, 'night', 10000);
   await game(page, () => {
     window.__game.speed = 600;
     window.__game.paused = false;
   });
-  note(await untilStep(page, 'end', 90000), 'lesson 4: a night at rest brings the fatigue down');
+  note(await untilStep(page, 'end', 90000), 'lesson 5: a night at rest brings the fatigue down');
   await coachNext(page);
   await sleep(300);
-  length('alert', 'lesson 4');
-  note(await game(page, () => document.querySelectorAll('#menu .mm-step.won').length === 4), 'tutorial: the four lessons are played to their end and marked done');
+  length('alert', 'lesson 5');
+  note(await game(page, () => document.querySelectorAll('#menu .mm-step.won').length === 5), 'tutorial: the five lessons are played to their end and marked done');
   await page.click('#menu [data-menu="home"]');
   await sleep(150);
   note(await game(page, () => {
@@ -2088,6 +2171,132 @@ async function interfaceChecks(page, errors) {
     }
     await game(page, () => {
       window.__game.settings.sheetHelp = 'folded';
+    });
+  });
+  // (2.11.0) The tips of a first time: a small card at the corner of the map when its occasion
+  // comes — once, never in front of the sheet, never during a lesson.
+  await step('interface: the tips of a first time', async () => {
+    const fresh = (seen = []) => game(page, async (list) => {
+      const tips = await import('./src/ui/tips.js');
+      localStorage.setItem('jeu-1940.tips.v1', JSON.stringify(list));
+      localStorage.removeItem('jeu-1940.scheduleHint.v1');
+      // (What a page loaded again reads from the browser.)
+      window.__game.tips = tips.loadTips();
+    }, seen);
+    const read = () => game(page, () => {
+      const a = window.__game;
+      const tip = document.getElementById('tip');
+      const panel = document.getElementById('unit-panel');
+      const r = tip.getBoundingClientRect();
+      const p = panel.getBoundingClientRect();
+      const m = document.getElementById('table').getBoundingClientRect();
+      const apart = tip.hidden || panel.hidden || r.right <= p.left || r.left >= p.right || r.bottom <= p.top || r.top >= p.bottom;
+      return {
+        shown: tip.hidden ? null : a.tips.shown, title: tip.hidden ? '' : tip.querySelector('b').textContent, text: tip.hidden ? '' : tip.querySelector('p').textContent,
+        apart, inMap: tip.hidden || (r.left >= m.left && r.right <= m.right && r.top >= m.top && r.bottom <= m.bottom),
+        under: Number(getComputedStyle(tip).zIndex) < Number(getComputedStyle(panel).zIndex), small: tip.hidden || (r.width <= 300 && r.height <= 150),
+        kept: JSON.parse(localStorage.getItem('jeu-1940.tips.v1') || '[]'),
+      };
+    });
+    const take = (kind, pick) => game(page, async ([k, p]) => {
+      const a = window.__game;
+      const actions = await import('./src/ui/actions.js');
+      const list = k === 'squadron' ? a.world.squadrons : k === 'escort' ? a.world.escorts : a.world.convoys;
+      const u = p === 'fighter' ? list.find((x) => x.role === 'fighter' && x.state === 'ready') : list[0];
+      actions.select(a, k, u.id);
+      a.dirtyPanels = true;
+      return u.id;
+    }, [kind, pick]);
+    await start('kanalkampf');
+    await fresh();
+    await sleep(300);
+    note((await read()).shown === null, 'tips: nothing in hand, no tip');
+    const id = await take('squadron', 'fighter');
+    await sleep(400);
+    const first = await read();
+    note(first.shown === 'sheet' && first.title === 'Tracer et corriger' && /^Glissez depuis l'unité pour tracer sa route/.test(first.text), 'tips: the first sheet of a unit that moves brings its tip', JSON.stringify(first).slice(0, 150));
+    note(first.apart && first.inMap && first.under && first.small, 'tips: a small card at the corner of the map, under the sheet and beside it', JSON.stringify({ apart: first.apart, inMap: first.inMap, under: first.under, small: first.small }));
+    await shot(page, 'tip-sheet');
+    // The sheet on the left, then at the bottom: the card keeps clear of it.
+    const sides = [];
+    for (const pos of ['left', 'bottom', 'right']) {
+      await game(page, (where) => {
+        window.__game.settings.sheetPos = where;
+        window.__game.applySheet();
+      }, pos);
+      await sleep(250);
+      const r = await read();
+      sides.push(`${pos}:${r.apart && r.inMap}`);
+    }
+    note(sides.every((x) => x.endsWith(':true')), 'tips: wherever the sheet stands, the card does not hide it', sides.join(' '));
+    // The « ? » of a section opens in front of everything; the tip stays where it is.
+    await page.click('#unit-body details.sec > summary .help-mark');
+    await sleep(250);
+    const both = await game(page, () => {
+      const b = document.getElementById('help-bubble');
+      const tip = document.getElementById('tip');
+      return Boolean(b) && !tip.hidden && Number(getComputedStyle(b).zIndex) > Number(getComputedStyle(tip).zIndex);
+    });
+    note(both, 'tips: the tip is not the bubble of a « ? »: it does not come to the front');
+    await page.keyboard.press('Escape');
+    await sleep(150);
+    await page.click('#tip [data-tip="seen"]');
+    await sleep(250);
+    const gone = await read();
+    note(gone.shown === null && gone.kept.includes('sheet'), 'tips: « Compris » closes the tip, and the browser remembers it', JSON.stringify(gone.kept));
+    // A page loaded again: the tip seen does not come back.
+    await game(page, async () => {
+      const tips = await import('./src/ui/tips.js');
+      window.__game.tips = tips.loadTips();
+    });
+    await sleep(400);
+    note((await read()).shown === null, 'tips: « Compris » holds after the page is loaded again');
+    // The next occasion: a point of the route chosen.
+    await game(page, async (sid) => {
+      const a = window.__game;
+      const O = await import('./src/sim/orders.js');
+      const actions = await import('./src/ui/actions.js');
+      const s = a.world.squadrons.find((x) => x.id === sid);
+      O.scramble(a.world, s, { route: [[s.x + 60, s.y - 20, null], [s.x + 90, s.y + 30, null]] });
+      a.stepWorld(8 * 60);
+      actions.setActivePoint(a, s, 0);
+    }, id);
+    await sleep(400);
+    const point = await read();
+    note(point.shown === 'point' && /↑ ↓ règlent l'altitude/.test(point.text), 'tips: a point chosen on a route brings the next tip, once the first is read', JSON.stringify(point).slice(0, 140));
+    // Never during a lesson: the instructor has the word.
+    await fresh();
+    await game(page, () => window.__game.restart('lecon-alerte', { tutorial: true }));
+    await sleep(900);
+    await closeDialogs(page);
+    await take('squadron', null);
+    await sleep(500);
+    const lesson = await game(page, () => ({ lesson: Boolean(window.__game.tutorial), tip: !document.getElementById('tip').hidden, coach: !document.getElementById('coach').hidden, shown: window.__game.tips.shown }));
+    note(lesson.lesson && lesson.coach && !lesson.tip && lesson.shown === null, 'tips: no tip during a lesson', JSON.stringify(lesson));
+    // « Revoir les astuces », in the settings: each comes back at its next occasion.
+    await start('hiver-atlantique');
+    await fresh(['sheet', 'point', 'exit', 'silence', 'schedule']);
+    await take('escort', null);
+    await sleep(400);
+    note((await read()).shown === null, 'tips: all seen, none is shown');
+    await game(page, async () => {
+      const D = await import('./src/ui/dialogs.js');
+      window.__game.settingsTab = 'map';
+      D.openSettings(window.__game);
+    });
+    await sleep(250);
+    await page.click('#dlg-settings [data-tips="review"]');
+    await sleep(150);
+    const said = await game(page, () => document.querySelector('#dlg-settings .settings-done').textContent);
+    await closeDialogs(page);
+    await sleep(500);
+    const again = await read();
+    note(/reviendront/.test(said) && again.kept.length === 0 && again.shown === 'exit' && again.title === 'Au port : la sortie', 'tips: « Revoir les astuces » brings them back (here the way out of a group in port)', JSON.stringify({ said, shown: again.shown }));
+    await shot(page, 'tip-exit');
+    await fresh(['sheet', 'point', 'exit', 'silence', 'schedule']);
+    await game(page, async () => {
+      const T = await import('./src/ui/tutorial.js');
+      T.stopTutorial(window.__game);
     });
   });
   await step('interface: stacks and tabs (C9)', async () => {

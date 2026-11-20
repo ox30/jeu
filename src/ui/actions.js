@@ -657,6 +657,8 @@ function legOrder(app, u, name, ...args) {
 export function finishDrawing(app, hit, screenPoints, endHit = null) {
   const cam = app.camera;
   const world = app.world;
+  // (Returns whether the line became the route of a unit.)
+  let given = false;
   // Arcade: a line drawn from a squadron (or its aerodrome) onto a raid asks the controller
   // to guide it there.
   if (endHit && endHit.kind === 'raid' && world.settings.interceptAid === 'auto' && (hit.kind === 'squadron' || hit.kind === 'airfield')) {
@@ -700,9 +702,11 @@ export function finishDrawing(app, hit, screenPoints, endHit = null) {
       // A wing on the ground takes off along the line.
       scrambleFormation(world, f, { route: points });
       select(app, 'formation', f.id);
+      given = true;
     } else if (sq && setRoute(world, sq, points)) {
       if (onRaid) clearFor(app, sq, onRaid);
       selectUnit(app, sq);
+      given = true;
     }
   } else if (hit.kind === 'airfield') {
     // The selected squadron if it is on this field, otherwise the first one ready, otherwise
@@ -741,6 +745,7 @@ export function finishDrawing(app, hit, screenPoints, endHit = null) {
       if (onRaid) clearFor(app, sq, onRaid);
       select(app, 'squadron', sq.id);
     }
+    given = true;
   } else if (hit.kind === 'convoy' || hit.kind === 'escort') {
     const ship = findUnit(app, hit.kind, hit.id);
     const sent = shipOrder(app, ship, 'route', points);
@@ -748,8 +753,10 @@ export function finishDrawing(app, hit, screenPoints, endHit = null) {
     if (!result.ok && result.at) app.flash = { x: result.at[0], y: result.at[1], until: performance.now() + 2500 };
     selectUnit(app, ship);
     if (!result.ok && result.reason === 'dry') sheetMessage(app, t('orders.errors.dry'));
+    given = Boolean(result.ok);
   }
   app.dirtyPanels = true;
+  return given;
 }
 
 // ---- route editing -----------------------------------------------------------------

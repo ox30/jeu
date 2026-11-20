@@ -356,8 +356,6 @@
     "today": "aujourd'hui",
     "tomorrow": "demain",
     "roster": "Planning des effectifs",
-    "scheduleHint": "Programmer un départ : l'heure saisie est celle de l'ordre. L'unité part ensuite selon son état : 2 min au cockpit, 5 min en alerte, 30 min disponible, 2 h au repos (le temps de rappeler le personnel). Anticipez l'état d'alerte, ou programmez-le dans les effectifs.",
-    "understood": "Compris",
     "scrambleIn": "Décoller (en l'air dans {d})",
     "scheduleAt": "Décollage programmé à",
     "schedule": "Programmer",
@@ -1236,6 +1234,11 @@
         "L'instructeur donne chaque étape dans son encadré ; « Quitter la leçon » y est aussi. Une leçon ne s'enregistre pas : elle se joue d'une traite, et se rejoue depuis Entraînement, au menu principal.",
         "Pour aller plus loin : [[air:interception|Intercepter un raid, couvrir un convoi]] et [[sheet:traces|Tracés et ordres sur la carte]]."
       ],
+      "lecon-tracer": [
+        "Leçon « Tracer et corriger ». Une escadrille en l'air, le temps arrêté : tracer sa route, déplacer un point, en ajouter un, prolonger, en retirer un, mesurer à la règle, régler l'altitude d'un point.",
+        "L'instructeur donne chaque étape dans son encadré ; « Quitter la leçon » y est aussi. Une leçon ne s'enregistre pas : elle se joue d'une traite, et se rejoue depuis Entraînement, au menu principal.",
+        "Pour aller plus loin : [[sheet:traces|Tracés et ordres sur la carte]], [[sheet:carte|La carte]] et [[sheet:caps|Cap direct et étapes au cap]]."
+      ],
       "lecon-ravitailler": [
         "Leçon « Ravitailler ». Une base presque à sec : envoyer un train de carburant depuis un port, puis fixer un stock minimum pour que les trains partent seuls.",
         "L'instructeur donne chaque étape dans son encadré ; « Quitter la leçon » y est aussi. Une leçon ne s'enregistre pas : elle se joue d'une traite, et se rejoue depuis Entraînement, au menu principal.",
@@ -1559,7 +1562,7 @@
           "id": "menu",
           "title": "Le menu principal",
           "text": [
-            "Le jeu s'ouvre sur le menu principal. Continuer reprend la dernière partie ; Campagne montre la chaîne de l'Âge I et ce qui est gagné ; Scénarios donne une carte par bataille, avec son enjeu, ses dates et sa durée estimée ; Entraînement propose les quatre leçons du tutoriel (intercepter, ravitailler, escorter, états d'alerte et fatigue) et un scénario d'essai ; Charger retrouve les parties gardées."
+            "Le jeu s'ouvre sur le menu principal. Continuer reprend la dernière partie ; Campagne montre la chaîne de l'Âge I et ce qui est gagné ; Scénarios donne une carte par bataille, avec son enjeu, ses dates et sa durée estimée ; Entraînement propose les cinq leçons du tutoriel (intercepter, tracer et corriger, ravitailler, escorter, états d'alerte et fatigue) et un scénario d'essai ; Charger retrouve les parties gardées."
           ]
         },
         {
@@ -1854,18 +1857,23 @@
       "stake": "Décoller au premier plot.",
       "text": "Une leçon du tutoriel : un raid que l'instructeur laisse passer, puis un raid à intercepter."
     },
+    "lecon-tracer": {
+      "title": "Leçon 2 : tracer et corriger",
+      "stake": "Tracer une route, puis la corriger.",
+      "text": "Une leçon du tutoriel : une escadrille en l'air, sa route à tracer et à corriger sur la carte, la règle, l'altitude d'un point."
+    },
     "lecon-ravitailler": {
-      "title": "Leçon 2 : ravitailler",
+      "title": "Leçon 3 : ravitailler",
       "stake": "Un train de carburant et un stock minimum.",
       "text": "Une leçon du tutoriel : une base presque à sec, un train depuis Southampton, un stock minimum."
     },
     "lecon-escorter": {
-      "title": "Leçon 3 : escorter",
+      "title": "Leçon 4 : escorter",
       "stake": "Un groupe d'escorte pour un convoi, au rythme des quarts.",
       "text": "Une leçon du tutoriel : un rapport de quart, un groupe envoyé au-devant d'un convoi, les consignes et les grenades."
     },
     "lecon-alerte": {
-      "title": "Leçon 4 : états d'alerte et fatigue",
+      "title": "Leçon 5 : états d'alerte et fatigue",
       "stake": "Reposer une escadrille fatiguée, rappeler une escadrille reposée.",
       "text": "Une leçon du tutoriel : les états d'alerte, la fatigue et la page Effectifs."
     }
@@ -2230,12 +2238,58 @@
           },
           "end": {
             "title": "Leçon terminée",
-            "text": "L'essentiel tient en une phrase : décoller au premier plot, et monter au-dessus. La leçon suivante montre ce qui fait voler les escadrilles : le carburant."
+            "text": "L'essentiel tient en une phrase : décoller au premier plot, et monter au-dessus. La leçon suivante reprend la route d'une escadrille : la tracer, puis la corriger."
+          }
+        }
+      },
+      "route": {
+        "name": "Leçon 2 · Tracer et corriger",
+        "summary": "Tracer une route, puis la corriger sur la carte : déplacer, ajouter ou retirer un point, prolonger, mesurer",
+        "steps": {
+          "welcome": {
+            "title": "Tracer et corriger",
+            "text": "Une route se trace à la souris, puis se corrige sur la carte. L'instructeur fait d'abord décoller le 32 Sqn."
+          },
+          "takeoff": {
+            "title": "Décollage",
+            "text": "Dès que le 32 Sqn est en l'air, le temps s'arrête : à vous."
+          },
+          "draw": {
+            "title": "Tracer",
+            "text": "Glissez depuis l'escadrille jusqu'où vous voulez l'envoyer, puis relâchez : ce trait est sa route."
+          },
+          "move": {
+            "title": "Déplacer un point",
+            "text": "Glissez un carré de la route pour le déplacer."
+          },
+          "insert": {
+            "title": "Ajouter un point",
+            "text": "Glissez un « + », au milieu d'un trait : un point de plus."
+          },
+          "extend": {
+            "title": "Prolonger",
+            "text": "Glissez depuis l'anneau, au bout du tracé, pour prolonger la route."
+          },
+          "delete": {
+            "title": "Retirer un point",
+            "text": "Double-cliquez un carré pour le retirer (ou cliquez-le, puis Suppr)."
+          },
+          "ruler": {
+            "title": "Mesurer",
+            "text": "Maj + glisser mesure un cap et une distance, sans donner d'ordre."
+          },
+          "altitude": {
+            "title": "L'altitude d'un point",
+            "text": "Cliquez un carré, puis ↑ ou ↓ : l'altitude visée en allant vers ce point."
+          },
+          "end": {
+            "title": "Leçon terminée",
+            "text": "Convois et groupes d'escorte se tracent et se corrigent de même. L'aide (?) réunit ces gestes sous « Tracés et ordres sur la carte ». Leçon suivante : le carburant."
           }
         }
       },
       "supply": {
-        "name": "Leçon 2 · Ravitailler",
+        "name": "Leçon 3 · Ravitailler",
         "summary": "Un train de carburant et un stock minimum : sans eux, la chasse reste au sol",
         "steps": {
           "welcome": {
@@ -2265,7 +2319,7 @@
         }
       },
       "escort": {
-        "name": "Leçon 3 · Escorter",
+        "name": "Leçon 4 · Escorter",
         "summary": "Un convoi, un groupe d'escorte, un rapport de quart et les grenades",
         "steps": {
           "welcome": {
@@ -2295,7 +2349,7 @@
         }
       },
       "alert": {
-        "name": "Leçon 4 · États d'alerte et fatigue",
+        "name": "Leçon 5 · États d'alerte et fatigue",
         "summary": "Mettre au repos une escadrille fatiguée, rappeler une escadrille reposée, programmer les effectifs",
         "steps": {
           "welcome": {
@@ -2320,7 +2374,7 @@
           },
           "end": {
             "title": "Leçon terminée",
-            "text": "Une escadrille reposée la nuit reste fraîche toute une semaine ; laissée en alerte jour et nuit, elle finit fatiguée. Vous avez les quatre gestes : intercepter, ravitailler, escorter, reposer. La campagne commence avec Kanalkampf."
+            "text": "Une escadrille reposée la nuit reste fraîche toute une semaine ; laissée en alerte jour et nuit, elle finit fatiguée. Vous avez les cinq gestes : intercepter, tracer, ravitailler, escorter, reposer. La campagne commence avec Kanalkampf."
           }
         }
       }
@@ -2787,8 +2841,8 @@
     "scenarios": "Scénarios",
     "scenariosText": "Choisir une bataille : enjeu, dates et durée de chacune",
     "training": "Entraînement",
-    "trainingText": "Les quatre leçons (toutes faites), et le scénario d'essai",
-    "trainingFirst": "Commencez ici : quatre leçons de trois à cinq minutes apprennent les gestes",
+    "trainingText": "Les cinq leçons (toutes faites), et le scénario d'essai",
+    "trainingFirst": "Commencez ici : cinq leçons de deux à cinq minutes apprennent les gestes",
     "load": "Charger",
     "loadText": "{n} sauvegarde(s) dans ce navigateur, ou un fichier exporté",
     "loadNone": "Depuis un fichier exporté (aucune sauvegarde dans ce navigateur)",
@@ -2861,7 +2915,7 @@
       "custom": "Personnalisé : les réglages choisis dans Réglages, au menu principal. Un des trois boutons les remplace par ceux du préréglage."
     },
     "trainingNext": "{n} leçon(s) sur {total} faites : continuez par la suivante",
-    "trainingIntro": "Quatre leçons courtes, chacune sur sa petite situation. Elles se jouent avec leurs propres réglages (Standard), sans toucher aux vôtres ni à votre partie en cours.",
+    "trainingIntro": "Cinq leçons courtes, chacune sur sa petite situation. Elles se jouent avec leurs propres réglages (Standard), sans toucher aux vôtres ni à votre partie en cours.",
     "lessonPlay": "Commencer",
     "lessonAgain": "Refaire",
     "lessonDone": "Faite",
@@ -2966,5 +3020,34 @@
     "minStock": "Ordre permanent : quand le stock (trains en route compris) passe sous ce seuil, un train part du port le mieux placé. Vide : pas d'ordre.",
     "minStockAuto": "En Arcade, le seuil est automatique : il s'affiche en grisé. Un seuil saisi ici le remplace.",
     "trainLoad": "Au plus {wagons} wagons par train : citernes de {fuel} t pour le carburant, wagons couverts de {materiel} t pour le reste. Au moins {min} t par train."
+  },
+  "firstTips": {
+    "understood": "Compris",
+    "more": "Plus dans l'aide",
+    "review": "Revoir les astuces",
+    "reviewDone": "Les astuces reviendront, chacune à son heure.",
+    "reviewHint": "Cinq astuces courtes s'affichent une seule fois, au coin de la carte, la première fois qu'elles servent : jamais pendant une leçon.",
+    "sheet": {
+      "title": "Tracer et corriger",
+      "text": "Glissez depuis l'unité pour tracer sa route. Sur le tracé, glissez un carré pour le déplacer, un « + » pour ajouter un point, l'anneau du bout pour prolonger.",
+      "textHeadings": "En ordres par caps, glissez depuis l'unité pour mesurer un cap à la règle, puis ajoutez l'étape mesurée (Entrée) : la route se donne en étapes."
+    },
+    "point": {
+      "title": "Un point choisi",
+      "text": "↑ ↓ règlent l'altitude que l'escadrille vise en allant vers ce point. Suppr, ou un double-clic sur le carré, le retire.",
+      "textSea": "Glissez le carré pour déplacer ce point. Suppr, ou un double-clic sur le carré, le retire."
+    },
+    "exit": {
+      "title": "Au port : la sortie",
+      "text": "La sortie choisie devient la première étape du groupe : elle attend « Appareiller » ou l'heure programmée, et se prolonge depuis l'anneau à son bout."
+    },
+    "silence": {
+      "title": "Silence radio",
+      "text": "En haute mer, la position de ce navire est une estimation. Vos ordres partent par radio à la relève suivante : d'ici là ils restent sur la carte, en ocre, et se modifient encore."
+    },
+    "schedule": {
+      "title": "Programmer un départ",
+      "text": "L'heure saisie est celle de l'ordre. L'unité part ensuite selon son état : 2 min au cockpit, 5 min en alerte, 30 min disponible, 2 h au repos. Anticipez l'état d'alerte, ou programmez-le dans les effectifs."
+    }
   }
 }

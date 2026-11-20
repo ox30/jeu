@@ -113,7 +113,57 @@ test('lesson 1: the scramble of the demonstration, when the raid crosses the coa
   }
 });
 
-test('lesson 2: a train to the base, a minimum stock, and the fuel arrives', () => {
+test('lesson 2 (2.11.0): the instructor sends the squadron up; each gesture is asked for since its own step', () => {
+  const { lesson, w } = lessonWorld('route');
+  const app = { world: w };
+  const step = (id) => lesson.steps.find((s) => s.id === id);
+  assert.equal(tutorial.lessons.indexOf(lesson), 1, 'right after the first lesson');
+  assert.deepEqual(lesson.minutes, [2, 3]);
+  assert.equal(w.raids.length, 0, 'a quiet sky');
+  // The take-off: an order of the instructor's, in a step where the pupil looks.
+  const takeoff = step('takeoff');
+  const order = takeoff.do[0].order;
+  const sq = w.squadrons.find((s) => s.id === order.scramble);
+  const to = w.sites.get(order.toSite);
+  assert.ok(sq && to && takeoff.handsOff);
+  assert.equal(holds(app, takeoff.done, state(w)), false, 'on the ground');
+  assert.ok(scramble(w, sq, { route: [[to.x, to.y, order.altitudeFt * FOOT_M]] }));
+  assert.equal(holds(app, takeoff.done, state(w)), false, 'taking off is not flying yet');
+  let waited = 0;
+  while (!holds(app, takeoff.done, state(w)) && waited < 1200) {
+    run(w, 10);
+    waited += 10;
+  }
+  assert.ok(holds(app, takeoff.done, state(w)) && waited <= 600, `in the air after ${waited} s`);
+  // From there the clock is stopped, and each step waits for its gesture.
+  const gestures = { draw: 'routeDrawn', move: 'pointMoved', insert: 'pointInserted', extend: 'routeExtended', delete: 'pointDeleted', ruler: 'rulerUsed', altitude: 'pointAltitude' };
+  assert.deepEqual(lesson.steps.map((s) => s.id), ['welcome', 'takeoff', ...Object.keys(gestures), 'end']);
+  for (const [id, flag] of Object.entries(gestures)) {
+    const s = step(id);
+    assert.ok(s.pause && !s.handsOff, `${id}: the clock stopped, the pupil's hand`);
+    const tu = { ...state(w), stepFlags: new Set() };
+    assert.equal(holds(app, s.done, tu), false, id);
+    // Done earlier in the lesson (a « + » dragged when a square was asked for): asked for again.
+    tu.flags.add(flag);
+    assert.equal(holds(app, s.done, tu), false, `${id}: a gesture made before the step does not count`);
+    tu.stepFlags.add(flag);
+    assert.equal(holds(app, s.done, tu), true, id);
+  }
+  // The buttons of the sheet do as well as the keys.
+  for (const [id, action] of [['delete', 'action:point-delete'], ['altitude', 'action:point-alt-up'], ['altitude', 'action:point-alt-down']]) {
+    const tu = { ...state(w), stepFlags: new Set([action]) };
+    assert.equal(holds(app, step(id).done, tu), true, `${id}: ${action}`);
+  }
+  // Every setting of a lesson is one the game knows, with a value it offers.
+  for (const l of tutorial.lessons) {
+    for (const [k, v] of Object.entries(l.settings)) {
+      assert.ok(k in data.presets.options || k in data.presets.presets.standard, `${l.id}: setting ${k}`);
+      if (data.presets.choices[k]) assert.ok(data.presets.choices[k].map(String).includes(String(v)), `${l.id}: ${k} = ${v}`);
+    }
+  }
+});
+
+test('lesson 3: a train to the base, a minimum stock, and the fuel arrives', () => {
   const { lesson, w } = lessonWorld('supply');
   const app = { world: w };
   const key = 'airfield:biggin_hill';
@@ -132,7 +182,7 @@ test('lesson 2: a train to the base, a minimum stock, and the fuel arrives', () 
   assert.equal(holds(app, step('wait').done, state(w)), true, `the fuel is there within the day (${base.stocks.fuel} t)`);
 });
 
-test('lesson 3: the first relief stops for the convoy in reach; a group sent, the lesson goes on', () => {
+test('lesson 4: the first relief stops for the convoy in reach; a group sent, the lesson goes on', () => {
   const { lesson, w } = lessonWorld('escort');
   const app = { world: w };
   const step = (id) => lesson.steps.find((s) => s.id === id);
@@ -156,7 +206,7 @@ test('lesson 3: the first relief stops for the convoy in reach; a group sent, th
   assert.ok(holds(app, { escorting: true }, state(w)), `the group has joined after ${((w.t - t0) / 3600).toFixed(0)} h`);
 });
 
-test('lesson 4: a tired squadron stood down rests in a night; the fresh one is recalled', () => {
+test('lesson 5: a tired squadron stood down rests in a night; the fresh one is recalled', () => {
   const { lesson, w } = lessonWorld('alert');
   const app = { world: w };
   const step = (id) => lesson.steps.find((s) => s.id === id);

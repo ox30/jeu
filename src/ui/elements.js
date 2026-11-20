@@ -18,6 +18,7 @@ export function collectElements() {
     saveProblem: $('save-problem'),
     menu: $('menu'),
     coach: $('coach'),
+    tip: $('tip'),
     devBadge: $('dev-badge'),
     tabEnemies: $('tab-enemies'),
     subtitle: $('hud-subtitle'),

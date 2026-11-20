@@ -249,6 +249,8 @@ function renderSites(app) {
   if (w.mru && (w.mru.available > 0 || w.mru.pending.length || w.mobileRadars.length)) {
     parts.push(`<div class="tote-group">${escapeHtml(t('mru.title'))}</div>`);
     parts.push(`<div class="order-line mru-line"><span>${escapeHtml(t('mru.available', { n: w.mru.available }))}</span>${button('mru-deploy', app.tool === 'mru' ? t('mru.placing') : t('mru.deploy'), { disabled: w.mru.available <= 0, active: app.tool === 'mru' })}</div>`);
+    // (While it is being placed: the gesture, from the land toward the sea to watch.)
+    if (app.tool === 'mru') parts.push(`<p class="state-line">${escapeHtml(t('mru.hint'))}</p>`);
     for (const def of w.mru.pending) {
       parts.push(`<div class="tote-empty">${escapeHtml(t('mru.pending', { name: def.name, time: formatTime(w.startMs + def.readyAt * 1000) }))}</div>`);
     }
@@ -925,12 +927,6 @@ export function rosterLinks(app, s, field = null) {
   return `<div class="order-line">${s && s.alertManual ? button('roster-resume', t('orders.rosterResume'), { id: s.id, kind: 'squadron' }) : ''}${page}</div>`;
 }
 
-/** The first time the player schedules something: a word on the alert states. */
-function scheduleHint(app) {
-  if (app.scheduleHintSeen || !app.scheduleHintShown) return '';
-  return `<div class="first-hint"><p>${escapeHtml(t('orders.scheduleHint'))}</p>${button('hint-seen', t('orders.understood'))}</div>`;
-}
-
 /** Take-off now, or at a time; or at a time to join a formation. */
 function takeoffBlock(app, s, withButton = true) {
   const w = app.world;
@@ -952,7 +948,6 @@ function takeoffBlock(app, s, withButton = true) {
       if (!s.route.length && !s.plan.length) parts.push(`<p class="state-line">${escapeHtml(t('orders.scheduledNoRoute'))}</p>`);
     }
   } else if (grounded) {
-    parts.push(scheduleHint(app));
     parts.push(`<div class="order-line"><span>${escapeHtml(t('orders.scheduleAt'))}</span>${timeInput(`sched-time-${s.id}`)}
       <label class="check"><input type="checkbox" id="sched-daily-${escapeHtml(s.id)}"> ${escapeHtml(t('orders.daily'))}</label>
       ${button('schedule-takeoff', t('orders.schedule'), { id: s.id, kind: 'squadron' })}</div>`);
@@ -1032,7 +1027,6 @@ function sailBlock(app, c) {
     return `<p class="state-line">${escapeHtml(t('orders.sailJoin', { time: clockText(w, c.schedule.at), formation: f ? f.name : '' }))}</p>`;
   }
   return [
-    scheduleHint(app),
     `<div class="order-line"><span>${escapeHtml(t('orders.sailAt'))}</span>${daySelect(w, `sail-day-${c.id}`)}${timeInput(`sail-time-${c.id}`)}`,
     button('schedule-sail', t('orders.schedule'), { id: c.id, kind: c.kind }),
     `</div>`,
@@ -1224,14 +1218,14 @@ function rallyTab(app, f) {
       return `<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml(status)}</td></tr>`;
     });
     const when = r.at !== null ? clockText(w, r.at) : r.rvT ? t('rally.asapAround', { time: aid === 'none' ? '—' : clockText(w, r.rvT) }) : t('rally.asap');
-    return `<div class="orders">${scheduleHint(app)}
+    return `<div class="orders">
       <p class="rally-status">${escapeHtml(t(`rally.phase.${r.phase}`))} · ${escapeHtml(p ? t('rally.atPoint', { time: when }) : t('rally.overLeader'))}</p>
       <table class="rally-table"><tbody>${rows.join('')}</tbody></table>
       <div class="order-line">${button('rally-cancel', t('rally.cancel'), { id, kind })}</div></div>`;
   }
   const where = r ? r.where : 'leader';
   const p = r && r.where === 'point' && r.x !== null ? r : null;
-  const parts = [`<div class="orders">`, scheduleHint(app)];
+  const parts = [`<div class="orders">`];
   parts.push(`${subTitle(app, t('rally.where'), air ? 'rallyAir' : 'rallySea')}<div class="order-line">
     ${button('rally-where', t('rally.overLeaderBtn'), { id, kind, active: where === 'leader', extra: ` data-where="leader"${tip(t(air ? 'tips.rallyLeaderAir' : 'tips.rallyLeaderSea'))}` })}
     ${button('rally-where', t('rally.atPointBtn'), { id, kind, active: where === 'point', extra: ` data-where="point"${tip(t('tips.rallyPoint'))}` })}</div>`);
@@ -1299,7 +1293,7 @@ function formationPanel(app, f) {
         takeoff = `<div class="order-line scheduled"><span class="grow">${escapeHtml(t(f.schedule.daily ? 'orders.scheduledDaily' : 'orders.scheduled', { time: clockText(w, f.schedule.at) }))}${f.schedule.delayed ? ` · ${escapeHtml(t('orders.waiting'))}` : ''}</span>
           ${button('schedule-cancel', t('orders.cancel'), { id: f.id, kind: 'formation' })}</div>`;
       } else {
-        takeoff = `${scheduleHint(app)}<div class="order-line"><span>${escapeHtml(t('orders.scheduleAt'))}</span>${timeInput(`sched-time-${f.id}`)}
+        takeoff = `<div class="order-line"><span>${escapeHtml(t('orders.scheduleAt'))}</span>${timeInput(`sched-time-${f.id}`)}
           <label class="check"><input type="checkbox" id="sched-daily-${escapeHtml(f.id)}"> ${escapeHtml(t('orders.daily'))}</label>
           ${button('schedule-wing', t('orders.schedule'), { id: f.id, kind: 'formation' })}</div>`;
       }

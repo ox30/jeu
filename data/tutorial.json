@@ -171,6 +171,134 @@
       ]
     },
     {
+      "id": "route",
+      "scenario": "lecon-tracer",
+      "minutes": [
+        2,
+        3
+      ],
+      "settings": {
+        "fatigue": "off",
+        "orders": "draw",
+        "interceptAid": "track",
+        "fuel": "unlimited",
+        "falseAlarms": false,
+        "questions": false
+      },
+      "steps": [
+        {
+          "id": "welcome",
+          "manual": true,
+          "pause": true,
+          "view": "england"
+        },
+        {
+          "id": "takeoff",
+          "play": true,
+          "speed": 60,
+          "keepSpeed": true,
+          "handsOff": true,
+          "select": {
+            "kind": "squadron",
+            "id": "32"
+          },
+          "unitTab": {
+            "squadron": "cmd"
+          },
+          "do": [
+            {
+              "order": {
+                "scramble": "32",
+                "toSite": "airfield:kenley",
+                "altitudeFt": 12000
+              }
+            }
+          ],
+          "done": {
+            "flying": [
+              "32"
+            ]
+          }
+        },
+        {
+          "id": "draw",
+          "pause": true,
+          "select": {
+            "kind": "squadron",
+            "id": "32"
+          },
+          "done": {
+            "flagSince": [
+              "routeDrawn"
+            ]
+          }
+        },
+        {
+          "id": "move",
+          "pause": true,
+          "done": {
+            "flagSince": [
+              "pointMoved"
+            ]
+          }
+        },
+        {
+          "id": "insert",
+          "pause": true,
+          "done": {
+            "flagSince": [
+              "pointInserted"
+            ]
+          }
+        },
+        {
+          "id": "extend",
+          "pause": true,
+          "done": {
+            "flagSince": [
+              "routeExtended"
+            ]
+          }
+        },
+        {
+          "id": "delete",
+          "pause": true,
+          "done": {
+            "flagSince": [
+              "pointDeleted",
+              "action:point-delete"
+            ]
+          }
+        },
+        {
+          "id": "ruler",
+          "pause": true,
+          "done": {
+            "flagSince": [
+              "rulerUsed"
+            ]
+          }
+        },
+        {
+          "id": "altitude",
+          "pause": true,
+          "done": {
+            "flagSince": [
+              "pointAltitude",
+              "action:point-alt-up",
+              "action:point-alt-down"
+            ]
+          }
+        },
+        {
+          "id": "end",
+          "manual": true,
+          "last": true,
+          "pause": true
+        }
+      ]
+    },
+    {
       "id": "supply",
       "scenario": "lecon-ravitailler",
       "minutes": [

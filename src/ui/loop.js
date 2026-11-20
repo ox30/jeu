@@ -11,6 +11,7 @@ import { tickSaves } from './game.js';
 import { updateAlerts } from './alerts.js';
 import { renderQuestion } from './questions.js';
 import { updateTutorial } from './tutorial.js';
+import { updateTips } from './tips.js';
 import { updateHud } from './hud.js';
 import { renderPanels } from './panels.js';
 import { updateSignalsChrome } from './watchPanel.js';
@@ -49,6 +50,7 @@ function display(app, now, state) {
   updateAlerts(app);
   renderQuestion(app);
   updateTutorial(app);
+  updateTips(app, now);
   tickSaves(app, now);
   drawScene(app.ctx, app, app.paused ? 1 : Math.max(0, Math.min(1, app.accumulator)));
   updateHud(app, world.startMs + world.t * 1000);

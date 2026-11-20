@@ -7,6 +7,7 @@ import { checkDevPassword } from './dev.js';
 import { markHelpSeen, saveSettings } from '../save/settings.js';
 import { GAME_SETTING_KEYS, applyPreset, canSetGameSetting, matchingPreset, setGameSetting } from '../sim/gameSettings.js';
 import { showPage } from './pages.js';
+import { resetTips } from './tips.js';
 import { fighterCount } from '../sim/objectives.js';
 import { presetStory } from '../sim/gameSettings.js';
 import { ALERT_GROUPS, defaultAlertSpeed } from './alertRules.js';
@@ -106,6 +107,8 @@ export function openSettings(app, { scope = 'game' } = {}) {
         <p class="hint">${escapeHtml(t('settings.sheetHint'))}</p>
         <label>${escapeHtml(t('settings.sheetHelp'))} ${select('sheetHelp', s.sheetHelp === 'shown' ? 'shown' : 'folded', presets.choices.sheetHelp, 'settings.sheetHelpChoices')}</label>
         <p class="hint">${escapeHtml(t('settings.sheetHelpHint'))}</p>
+        <div class="settings-line"><button type="button" data-tips="review">${escapeHtml(t('firstTips.review'))}</button> <span class="settings-done" role="status"></span></div>
+        <p class="hint">${escapeHtml(t('firstTips.reviewHint'))}</p>
         <label>${escapeHtml(t('settings.viewZones'))} ${select('viewZones', s.viewZones || 'selected', presets.choices.viewZones, 'settings.viewZonesChoices')}</label>
         <p class="hint">${escapeHtml(t('settings.viewZonesHint'))}</p>
       </fieldset>`)}
@@ -130,6 +133,11 @@ export function openSettings(app, { scope = 'game' } = {}) {
     </form>`;
   const form = dlg.querySelector('form');
   devSettings(app, form);
+  // « Revoir les astuces »: the tips of a first time come back, each at its next occasion.
+  form.querySelector('[data-tips="review"]').addEventListener('click', (e) => {
+    resetTips(app);
+    e.currentTarget.nextElementSibling.textContent = t('firstTips.reviewDone');
+  });
   // The tabs: one pane at a time; the one last opened comes back next time.
   form.querySelector('.settings-tabs').addEventListener('click', (e) => {
     const b = e.target.closest('[data-stab]');
@@ -357,7 +365,11 @@ export function openHelp(app, wantTab = null, anchor = null) {
     if (b) go(b.dataset.htab);
     else if (link) go(...link.dataset.hlink.split(':'));
   });
-  dlg.addEventListener('close', markHelpSeen, { once: true });
+  // Read once: the browser remembers it, and the dot leaves the button of the help.
+  dlg.addEventListener('close', () => {
+    markHelpSeen();
+    if (app.el.btnHelp) app.el.btnHelp.classList.remove('fresh');
+  }, { once: true });
   showPage(app, dlg);
   if (anchor) go(tab, anchor);
 }

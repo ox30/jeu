@@ -287,7 +287,8 @@ test('Code 6, I10: the lessons of the tutorial are data the game can read', asyn
   const { readFileSync: read } = await import('node:fs');
   const tutorial = JSON.parse(read(new URL('../data/tutorial.json', import.meta.url), 'utf8'));
   const { CONDITION_NAMES, ORDER_NAMES, holds, lessonById, lessonFor } = await import('../src/ui/tutorial.js');
-  assert.equal(tutorial.lessons.length, 4);
+  // (Five since 2.11.0: a short lesson on the gestures of a route, right after the first.)
+  assert.equal(tutorial.lessons.length, 5);
   const known = new Set(CONDITION_NAMES);
   const check = (c) => {
     for (const [name, arg] of Object.entries(c)) {
@@ -306,7 +307,10 @@ test('Code 6, I10: the lessons of the tutorial are data the game can read', asyn
       const choices = data.presets.choices[key];
       assert.ok(choices ? choices.includes(value) : typeof value === 'boolean', `${lesson.id}: setting ${key} = ${value}`);
     }
-    assert.ok(lesson.minutes[0] >= 3 && lesson.minutes[1] <= 5, `${lesson.id}: three to five minutes`);
+    // Three to five minutes each; the lesson on the gestures of a route is the short one,
+    // two to three (decided on 20 November 2026).
+    if (lesson.id === 'route') assert.deepEqual(lesson.minutes, [2, 3], 'route: two to three minutes');
+    else assert.ok(lesson.minutes[0] >= 3 && lesson.minutes[1] <= 5, `${lesson.id}: three to five minutes`);
     assert.ok(lesson.steps.length >= 5);
     assert.ok(lesson.steps[lesson.steps.length - 1].last, 'the last step ends the lesson');
     for (const step of lesson.steps) {
