@@ -1184,7 +1184,7 @@ async function watches(page, errors) {
     const empty = await quart();
     note(empty.open && /Aucun rapport n'est encore écrit : le premier viendra à la relève de 8 h\./.test(empty.text),
       'quarts: its page says that no report is written yet, and when the first will be (the relief of 8 h)', empty.text.slice(0, 110));
-    note(empty.admiralty === 2 && empty.see >= 2 && /HX 55 n'a plus de route à suivre/.test(empty.text) && /HX 57 n'a plus de route à suivre/.test(empty.text),
+    note(empty.admiralty === 2 && empty.see >= 2 && /HX 55 n'a pas de route à suivre/.test(empty.text) && /HX 57 n'a pas de route à suivre/.test(empty.text),
       'quarts: the two convoys without a route are asked about, with « Amirauté » and « Voir »', JSON.stringify({ admiralty: empty.admiralty, see: empty.see }));
     await shot(page, 'watch-empty');
     await page.click('#dlg-watch [data-watch="close"]');
@@ -1208,7 +1208,7 @@ async function watches(page, errors) {
     await page.waitForFunction(() => document.getElementById('dlg-watch').open, null, { timeout: 15000 });
     await sleep(200);
     const first = await quart();
-    note(relief && /Relève de 8 h/.test(first.text) && /HX 57 n'a plus de route à suivre/.test(first.text) && first.admiralty === 1 && first.reports === 1,
+    note(relief && /Relève de 8 h/.test(first.text) && /HX 57 n'a pas de route à suivre/.test(first.text) && first.admiralty === 1 && first.reports === 1,
       'quarts: the relief of 8 h stops Kanalkampf for the convoy still without a route', first.text.slice(0, 90));
     await shot(page, 'watch-kanalkampf');
     await page.click('#dlg-watch [data-watch="close"]');
@@ -1936,7 +1936,8 @@ async function interfaceChecks(page, errors) {
   };
   await step('interface: the top bar (C7)', async () => {
     await page.setViewportSize({ width: 1024, height: 700 });
-    for (const id of ['quinze-septembre', 'hiver-atlantique']) {
+    // (Kanalkampf too since 2.12: three views, every tool, and the « Quart » button from the start.)
+    for (const id of ['quinze-septembre', 'hiver-atlantique', 'kanalkampf']) {
       await start(id);
       const m = await game(page, () => {
         const hud = document.getElementById('hud');

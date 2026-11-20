@@ -166,6 +166,8 @@ export function runAir(cfg = {}) {
         else if (e.type === 'squadronTired') tired++;
         else if (e.type === 'squadronExhausted') exhausted++;
         else if (e.type === 'siteOut') log.push(`${gameClock(w)} out of service: ${e.siteName}`);
+        // (An order sent by radio is carried out at the relief: refused there, it says so here.)
+        else if (e.type === 'orderFailed') log.push(`${gameClock(w)} order ${e.order} refused for ${e.unit} at the relief: ${e.reason || '?'}`);
       }
       w.events.length = 0;
     }

@@ -18,6 +18,7 @@ const [checkout] = process.argv.slice(2);
 if (!checkout) throw new Error('usage: make-save-2.11.1.mjs <checkout of version 2.11.1>');
 const load = (path) => import(pathToFileURL(resolve(checkout, path)).href);
 const { sim, orders: O, makeWorld } = await load('tools/bot/game.mjs');
+const { admiraltyAhead } = await load('src/sim/convoy.js');
 const { VERSION } = await load('src/core/version.js');
 if (VERSION !== '2.11.1') throw new Error(`this checkout is version ${VERSION}, not 2.11.1`);
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -34,7 +35,7 @@ const run = (seconds) => {
 const H = 3600;
 
 const hx55 = convoy('hx55');
-const routed = O.routeConvoy(w, hx55, hx55.admiraltyRoute.slice(sim.convoy.admiraltyAhead(hx55)));
+const routed = O.routeConvoy(w, hx55, hx55.admiraltyRoute.slice(admiraltyAhead(hx55)));
 const joined = O.joinConvoy(w, w.escorts.find((e) => e.id === 'eg1'), 'hx55');
 const cw = convoy('cw');
 const sailed = O.routeConvoy(w, cw, cw.admiraltyRoute.slice(1));

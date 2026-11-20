@@ -55,14 +55,18 @@ test('on the high seas an attack waits for the report and stops the game once; n
   const a = alertFor(w, near[0], new Map());
   assert.ok(a && a.level === 'danger' && a.focus.id === 'hx57');
   assert.equal(alertSpeed({}, a.type, a.level), 1, 'at ×1, as without the watches');
-  // The alert counted for the night: back on the high seas, a second attack goes to the report.
+  // Near us again within the hour: the page keeps the alert quiet (as ever), and still no stop.
+  assert.deepEqual(attack(w, hx57).map((e) => e.type), ['uboatAttack']);
+  // The alert does not count for the night (whether it was shown is the page's business):
+  // back on the high seas, the first attack there stops the game — and only the first.
   place(hx57, -30, 50);
+  assert.deepEqual(attack(w, hx57).map((e) => e.type), ['uboatAttack', 'seaStop']);
   assert.deepEqual(attack(w, hx57).map((e) => e.type), ['uboatAttack']);
   // Either way the report notes it: it stays complete.
   run(w, 2 * H, (e) => e.type === 'watchReport');
   const r = watchReport(w);
-  assert.equal(r.notes.filter((n) => n.type === 'uboatAttack').length, 3);
-  assert.equal(r.convoys.find((c) => c.id === 'hx57').attacks, 2);
+  assert.equal(r.notes.filter((n) => n.type === 'uboatAttack').length, 5);
+  assert.equal(r.convoys.find((c) => c.id === 'hx57').attacks, 4);
   assert.equal(r.convoys.find((c) => c.id === 'hx55').attacks, 1);
   assert.ok(r.notes.every((n) => !('live' in n)), 'the mark is the event\'s, not the report\'s');
 });
@@ -94,24 +98,25 @@ test('one of our aircraft in sight of a ship: its alerts as they come, on the hi
   assert.deepEqual(attack(easy, c).map((e) => e.type), ['uboatAttack', 'seaStop']);
 });
 
-test('a U-boat seen by an aircraft: near us in the waters followed, or when the aircraft watches over one of our ships', () => {
+test('the ship of the event decides: a U-boat seen by a patrol waits for the report, seen by a group near us it calls the player', () => {
   const w = makeKanalkampf();
   runTo(w, 8 * H);
   drainEvents(w);
   const hx55 = w.convoys.find((c) => c.id === 'hx55');
   const patrol = w.squadrons.find((s) => s.role === 'coastal' && s.airfield === 'aldergrove');
   const sighting = (x, y) => ({ type: 'uboatSighted', by: patrol.name, byId: patrol.id, source: 'aircraft', unitKind: 'squadron', uboatId: 'u1', x, y, attack: false });
-  // Alone over the ocean: nothing of ours near, the sighting waits for the relief.
+  // The patrols of Coastal Command follow the rhythm of the watches, wherever they fly:
+  // alone over the ocean, in the North Channel, over a convoy — what they see has no ship.
   const [ox, oy] = project(-20, 50);
   fly(w, patrol, ox, oy);
   assert.equal(happensNearUs(w, sighting(ox + 5, oy)), false);
-  // In the North Channel: waters the headquarters follows.
   const [nx, ny] = project(-5.6, 55.2);
   fly(w, patrol, nx, ny);
-  assert.equal(happensNearUs(w, sighting(nx + 3, ny)), true);
-  // Over HX 55, on the high seas: what the escorting aircraft sees is told at once.
+  assert.equal(happensNearUs(w, sighting(nx + 3, ny)), false);
   fly(w, patrol, hx55.x + 8, hx55.y);
-  assert.equal(happensNearUs(w, sighting(hx55.x + 20, hx55.y)), true);
+  assert.equal(happensNearUs(w, sighting(hx55.x + 20, hx55.y)), false);
+  // … but the convoy it watches over is followed: what happens to the convoy is told at once.
+  assert.equal(happensNearUs(w, { type: 'uboatAttack', convoy: hx55.name, convoyId: hx55.id, sunk: 0, x: hx55.x, y: hx55.y }), true);
   // Seen by a group: the group's own place decides.
   const group = w.escorts[0];
   Object.assign(group, { state: 'atSea' });
@@ -119,8 +124,17 @@ test('a U-boat seen by an aircraft: near us in the waters followed, or when the 
   assert.equal(happensNearUs(w, { ...sighting(group.x, group.y), unitKind: 'escort', byId: group.id }), false);
   place(group, -5.2, 53.6);
   assert.equal(happensNearUs(w, { ...sighting(group.x, group.y), unitKind: 'escort', byId: group.id }), true);
-  // What a group signals about itself.
+  // On the high seas under one of our aircraft: followed too.
+  place(group, -22, 52);
+  fly(w, patrol, group.x + 5, group.y);
+  assert.equal(happensNearUs(w, { ...sighting(group.x, group.y), unitKind: 'escort', byId: group.id }), true);
+  // What a group signals about itself; an event that names a group and a convoy follows the group.
   assert.equal(happensNearUs(w, { type: 'escortChargesOut', escort: group.name, escortId: group.id, convoy: '', convoyId: null, x: group.x, y: group.y }), true);
+  fly(w, patrol, ox, oy);
+  assert.equal(happensNearUs(w, { type: 'escortEngaged', escort: group.name, escortId: group.id, convoy: hx55.name, convoyId: hx55.id, x: group.x, y: group.y }), false);
+  // An event without a ship, or about a ship that is no more: the report.
+  assert.equal(happensNearUs(w, { type: 'dfFix', x: nx, y: ny }), false);
+  assert.equal(happensNearUs(w, { type: 'uboatAttack', convoy: 'HX 0', convoyId: 'none', sunk: 1 }), false);
 });
 
 test('CW 7 on the Admiralty\'s route never leaves the waters followed: its bombings call the player, and the report has them', () => {
@@ -151,7 +165,7 @@ test('CW 7 on the Admiralty\'s route never leaves the waters followed: its bombi
   assert.ok(rows.length >= 2, `${rows.length} reports list CW 7`);
 });
 
-test('a decision the player was called for as it came is not asked again at the relief', () => {
+test('a decision left unanswered is asked at the relief, whether its alert came or not', () => {
   const w = makeKanalkampf();
   drainEvents(w);
   const cw = w.convoys.find((c) => c.type === 'coastal');
@@ -164,13 +178,15 @@ test('a decision the player was called for as it came is not asked again at the 
   const [near, far] = drainEvents(w);
   assert.equal(near.live, true);
   assert.ok(!far.live);
-  assert.ok(alertFor(w, near, new Map()).decision, 'the alert asks for the order, and stays until it is given');
+  assert.ok(alertFor(w, near, new Map()).decision, 'near us: the alert asks for the order');
+  assert.equal(alertFor(w, far, new Map()), null, 'on the high seas: nothing before the relief');
+  // The relief asks for both. (The alert may have been closed, kept quiet, or told with the
+  // game left at its speed: only the order given answers a decision.)
   run(w, 2 * H, (e) => e.type === 'watchReport');
   const r = watchReport(w);
-  const keys = r.decisions.map((d) => d.key);
-  assert.ok(keys.includes(`waiting:${cw.id}`) && keys.includes(`waiting:${hx55.id}`), 'both are in « À décider »');
-  assert.ok(!r.fresh.includes(`waiting:${cw.id}`), 'CW 7: asked already, the relief does not stop for it');
-  assert.ok(r.fresh.includes(`waiting:${hx55.id}`), 'HX 55: the relief asks');
+  assert.equal(r.stop, 'decision');
+  assert.ok(r.fresh.includes(`waiting:${cw.id}`) && r.fresh.includes(`waiting:${hx55.id}`));
+  assert.deepEqual(w.watch.asked.filter((k) => k.startsWith('waiting:')).sort(), [`waiting:${cw.id}`, `waiting:${hx55.id}`].sort());
 });
 
 test('the raids and the questions of the squadrons keep their alerts, watches or not', () => {

@@ -13,3 +13,10 @@ test('the version of the game is that of the package, and the README tells it', 
   const readme = readFileSync(new URL('README.md', root), 'utf8');
   assert.ok(readme.includes(`Version ${VERSION}`), `README.md tells version ${VERSION}`);
 });
+
+// (Review of 2.12.0: the version was changed and the single file left as it was — it showed
+// 2.11.1 and signed its saves with it.)
+test('the single file dist/index.html was built from this version', () => {
+  const page = readFileSync(new URL('dist/index.html', root), 'utf8');
+  assert.ok(page.includes(`"${VERSION}"`), `dist/index.html carries ${VERSION}: run « npm run build »`);
+});

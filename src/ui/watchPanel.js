@@ -10,7 +10,7 @@ import { unproject } from '../sim/geo.js';
 import { WATCH_S, clockHour, fullReport, isQuiet, nextReliefHour, pendingDecisions } from '../sim/watch.js';
 import { shownPosition } from '../sim/comms.js';
 import { centreOn, orderAdmiraltyRoute, orderEscortHome, orderJoin, select, togglePause } from './actions.js';
-import { positionText } from './format.js';
+import { headingText, positionText } from './format.js';
 import { eventMessage } from './messages.js';
 import { setHtml } from './html.js';
 import { showPage } from './pages.js';
@@ -161,7 +161,7 @@ function decisionHtml(w, d, live) {
     if (still) buttons.push(`<button type="button" data-watch="home" data-id="${escapeHtml(d.unitId)}">${escapeHtml(t('watch.rearm'))}</button>`);
   } else if (d.kind === 'adrift') {
     // A convoy with nothing left to follow: the Admiralty's route, from the nearest point ahead.
-    text = t('watch.decide.adrift', { convoy: name, heading: d.heading });
+    text = t('watch.decide.adrift', { convoy: name, heading: headingText(d.heading) });
     if (still && d.admiralty) buttons.push(`<button type="button" data-watch="admiralty" data-id="${escapeHtml(d.unitId)}" title="${escapeHtml(t('orders.admiralty'))}">${escapeHtml(t('cmd.admiralty'))}</button>`);
   } else {
     text = t('watch.decide.marker', { convoy: name, plots: d.plots, fixes: d.fixes, n: d.plots + d.fixes });
@@ -399,6 +399,20 @@ export function openWatch(app, reportId = null) {
   app.signals.key = '';
   app.dirtyHud = true;
   showPage(app, dlg);
+}
+
+/**
+ * A report has just been written. The page that waited for the first one (opened before the
+ * relief, and left open while the clock ran) shows it, instead of saying that none is written.
+ */
+export function reportWritten(app) {
+  const dlg = app.el.dlgWatch;
+  const W = app.world.watch;
+  if (!dlg || !dlg.open || dlg.dataset.reportId || !W || !W.reports.length) return;
+  const r = W.reports[W.reports.length - 1];
+  dlg.dataset.reportId = r.id;
+  dlg.innerHTML = watchPageHtml(app, r);
+  app.signals.read.add(r.id);
 }
 
 /** After an order given from the page: the decisions answered show as settled. */

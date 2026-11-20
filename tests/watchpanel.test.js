@@ -9,7 +9,7 @@ import { joinConvoy } from '../src/sim/orders.js';
 import { pendingDecisions } from '../src/sim/watch.js';
 import { ORDER_NAMES } from '../src/sim/comms.js';
 import {
-  SIGNAL_FILTERS, createSignals, headlineText, onWatchClick, openWatch, passesFilter, renderSignals, reportHtml, unreadCount, watchLabel,
+  SIGNAL_FILTERS, createSignals, headlineText, onWatchClick, openWatch, passesFilter, renderSignals, reportHtml, reportWritten, unreadCount, watchLabel,
 } from '../src/ui/watchPanel.js';
 import { toolOffered } from '../src/ui/offered.js';
 
@@ -161,8 +161,8 @@ test('before the first relief the page says that no report is written yet, when 
   assert.match(dlg.innerHTML, /Aucun rapport n(&#39;|')est encore écrit : le premier viendra à la relève de 8 h\./);
   // The two ocean convoys came without a route: asked from the first second, with the buttons that answer.
   assert.match(dlg.innerHTML, /À décider/);
-  assert.match(dlg.innerHTML, /HX 55 n(&#39;|')a plus de route à suivre : il garde son cap au 72°/);
-  assert.match(dlg.innerHTML, /HX 57 n(&#39;|')a plus de route à suivre : il garde son cap au 60°/);
+  assert.match(dlg.innerHTML, /HX 55 n(&#39;|')a pas de route à suivre : il garde son cap \(072°\)/);
+  assert.match(dlg.innerHTML, /HX 57 n(&#39;|')a pas de route à suivre : il garde son cap \(060°\)/);
   assert.equal((dlg.innerHTML.match(/data-watch="admiralty"/g) || []).length, 2);
   assert.match(dlg.innerHTML, /data-watch="admiralty" data-id="hx55"[^>]*>Amirauté</);
   assert.ok((dlg.innerHTML.match(/data-watch="see"/g) || []).length >= 2, '« Voir » on each');
@@ -172,7 +172,7 @@ test('before the first relief the page says that no report is written yet, when 
   const b = { dataset: { watch: 'admiralty', id: 'hx55' }, closest: () => null };
   assert.ok(onWatchClick(app, { target: { closest: (sel) => (sel === '[data-watch]' ? b : null) } }));
   assert.ok(w.signals.some((x) => x.unitId === 'hx55' && x.name === 'route'), 'on its way, for the relief');
-  assert.match(dlg.innerHTML, /HX 55 n(&#39;|')a plus de route à suivre[^<]*<em>\(réglé\)<\/em>/);
+  assert.match(dlg.innerHTML, /HX 55 n(&#39;|')a pas de route à suivre[^<]*<em>\(réglé\)<\/em>/);
   assert.equal((dlg.innerHTML.match(/data-watch="admiralty"/g) || []).length, 1, 'HX 57 still waits');
   dlg.close();
   // After the first relief the button opens the report, as before; the route has gone out.
@@ -180,12 +180,33 @@ test('before the first relief the page says that no report is written yet, when 
   assert.ok(hx55.route.length > 0);
   openWatch(app);
   assert.match(dlg.innerHTML, /Relève de 8 h/);
-  assert.match(dlg.innerHTML, /HX 57 n(&#39;|')a plus de route à suivre/);
+  assert.match(dlg.innerHTML, /HX 57 n(&#39;|')a pas de route à suivre/);
   assert.match(dlg.innerHTML, /HX 57[^<]*<\/button> : [^<]*sans route, garde son cap/, 'and its row in « Convois » says so');
   // A game without ships has no page at all.
   const none = { world: makeWorld('standard', {}, 'quinze-septembre'), signals: createSignals(), el: { dlgWatch: fakeDialog(), signals: {} } };
   openWatch(none);
   assert.equal(none.el.dlgWatch.open, false);
+});
+
+test('the page left open before the first relief shows the report when it is written', () => {
+  const w = makeWorld('standard', {}, 'kanalkampf');
+  const app = { world: w, signals: createSignals(), el: { dlgWatch: fakeDialog(), signals: {} } };
+  const dlg = app.el.dlgWatch;
+  reportWritten(app);
+  assert.equal(dlg.open, false, 'nothing open: nothing to do');
+  openWatch(app);
+  assert.match(dlg.innerHTML, /Aucun rapport/);
+  reportWritten(app);
+  assert.match(dlg.innerHTML, /Aucun rapport/, 'still none');
+  run(w, 2 * H); // 08:00
+  reportWritten(app); // (the page does it on the event « watchReport »)
+  assert.match(dlg.innerHTML, /Relève de 8 h/);
+  assert.ok(!/Aucun rapport/.test(dlg.innerHTML));
+  assert.equal(dlg.dataset.reportId, w.watch.reports[0].id);
+  // A report already on the page is left as it is when the next one is written.
+  run(w, WATCH);
+  reportWritten(app);
+  assert.equal(dlg.dataset.reportId, w.watch.reports[0].id);
 });
 
 test('the coastal convoy is in the reports and in the filter of the « Signaux » tab', () => {

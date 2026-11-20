@@ -66,26 +66,16 @@ export function inTrackedWaters(world, x, y) {
   return false;
 }
 
-/** Does this squadron see the ship now (by day by eye, at night by ASV radar)? */
-function sees(world, s, u, day = isDaylight(world, u.x, u.y)) {
-  if (s.aircraft <= 0 || !isFlying(s)) return false;
-  const R = world.rules.seaComms;
-  const km = day ? R.aircraftDayKm : s.asv ? R.aircraftAsvKm : R.aircraftNightKm;
-  return distance(s.x, s.y, u.x, u.y) <= km;
-}
-
 /** One of the player's aircraft in sight of the ship (by day by eye, at night by ASV radar), or null. */
 export function aircraftInSight(world, u) {
+  const R = world.rules.seaComms;
   const day = isDaylight(world, u.x, u.y);
-  for (const s of world.squadrons) if (sees(world, s, u, day)) return s;
+  for (const s of world.squadrons) {
+    if (s.aircraft <= 0 || !isFlying(s)) continue;
+    const km = day ? R.aircraftDayKm : s.asv ? R.aircraftAsvKm : R.aircraftNightKm;
+    if (distance(s.x, s.y, u.x, u.y) <= km) return s;
+  }
   return null;
-}
-
-/** Is this squadron in sight of one of the player's ships at sea (it watches over it)? */
-export function watchesOverAShip(world, s) {
-  for (const u of world.convoys) if (atSea(u) && sees(world, s, u)) return true;
-  for (const u of world.escorts) if (atSea(u) && sees(world, s, u)) return true;
-  return false;
 }
 
 /**

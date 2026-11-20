@@ -50,6 +50,8 @@ export class SaveError extends Error {
 // decision asked); under radio silence its ships on the high seas are placed from where
 // they are, as ships met at sea for the first time. What the game was begun with stays its
 // own: an Adlertag of before has neither Aldergrove's squadrons nor their orders.
+// One field on a convoy too, declared with its default (declareFields, convoy.js): `holding`
+// (told to keep its course; absent = false, and the watch asks about it like any other).
 // A new part of the world, or a field that cannot be defaulted, takes a new number and a
 // migration here (the check of the parts in src/save/game.js refuses a « complete » save
 // that lacks one).

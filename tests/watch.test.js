@@ -345,3 +345,29 @@ test('the hour of the next relief, for the page that waits for the first report'
   const a = makeWorld('standard', {}, 'hiver-atlantique'); // January 1941: the clock counts from before 1970
   assert.equal(nextReliefHour(a), 8);
 });
+
+test('« Garder le cap » is an answer: a convoy told to keep its course is not asked about again', async () => {
+  const { setConvoyEndAction } = await import('../src/sim/convoy.js');
+  const w = makeKanalkampf('arcade'); // direct communications: the order is carried out at once
+  const hx57 = w.convoys.find((c) => c.id === 'hx57');
+  assert.ok(noRoute(w, hx57));
+  // The choice of its sheet (« Et maintenant »): nothing to follow, so it is carried out now.
+  setConvoyEndAction(w, hx57, { kind: 'hold' });
+  assert.equal(hx57.state, 'atSea');
+  assert.equal(hx57.holding, true);
+  assert.ok(!noRoute(w, hx57));
+  run(w, 2 * H + 60);
+  assert.ok(!watchReport(w).decisions.some((d) => d.key === 'adrift:hx57'), 'the first relief does not ask');
+  // Saved and restored, the answer holds.
+  const again = makeKanalkampf('arcade');
+  restore(again, JSON.parse(JSON.stringify(snapshot(w))));
+  assert.equal(again.convoys.find((c) => c.id === 'hx57').holding, true);
+  // Given a route, then left at its end with nothing told: the question is a new one.
+  assert.ok(routeConvoy(w, hx57, [[hx57.x + 30, hx57.y + 5]]).ok);
+  run(w, 60);
+  assert.equal(hx57.holding, false);
+  hx57.endAction = { kind: 'hold' };
+  run(w, 3 * H, (e) => e.type === 'convoyEndAction');
+  assert.equal(hx57.holding, true, 'kept on purpose at the end of its line: no question');
+  assert.ok(!noRoute(w, hx57));
+});

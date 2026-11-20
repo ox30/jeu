@@ -16,7 +16,7 @@ import { emit, onEmit } from './events.js';
 import { currentSpeed } from './convoy.js';
 import { isPatrol } from './patrols.js';
 import { inClosedWaters } from './uboatnav.js';
-import { followedLive, inTrackedWaters, pendingOrders, shownPosition, watchesOverAShip } from './comms.js';
+import { followedLive, pendingOrders, shownPosition } from './comms.js';
 
 export const WATCH_S = 4 * 3600;
 
@@ -123,47 +123,32 @@ function shipOf(world, e) {
 
 /**
  * Does this event of the sea happen near us? Its ship is in the waters the headquarters
- * follows, or under one of its aircraft (followedLive). A U-boat seen by an aircraft has no
- * ship of its own: it is near us when seen in those waters, or by an aircraft that watches
- * over one of our ships. Such an event calls the player as it comes, as it does without the
- * watches; elsewhere it waits for the report. Either way the report notes it.
+ * follows, or under one of its aircraft (followedLive). Such an event calls the player as it
+ * comes, as it does without the watches; elsewhere it waits for the report. Either way the
+ * report notes it. What has no ship of its own waits for the report: a U-boat seen by a
+ * patrol (the patrols of Coastal Command follow the rhythm of the watches, wherever they fly).
  */
 export function happensNearUs(world, e) {
   const u = shipOf(world, e);
-  if (u) return followedLive(world, u);
-  if (e.type === 'uboatSighted' && e.unitKind === 'squadron' && typeof e.x === 'number') {
-    if (inTrackedWaters(world, e.x, e.y)) return true;
-    const s = world.squadrons.find((x) => x.id === e.byId);
-    return Boolean(s && watchesOverAShip(world, s));
-  }
-  return false;
+  return Boolean(u) && followedLive(world, u);
 }
-
-// A decision the player was called for as it came (an alert near us) is asked: the relief
-// lists it without stopping the game for it again.
-const DECISION_OF = {
-  convoyInEscortRange: (e) => `reach:${e.convoyId}`,
-  convoyWaiting: (e) => `waiting:${e.convoyId}`,
-  convoyStopped: (e) => `waiting:${e.convoyId}`,
-  escortChargesOut: (e) => `charges:${e.escortId}`,
-};
 
 /**
  * Every event, as it is emitted — by a step of the world or by an order given between two
  * steps (an aircraft bought, a hunt ordered on a plot): the sea events go to the notes of the
  * watch under way. One that happens near us is marked `live` (the page gives its alert at
- * once: alertRules.js). On the high seas, the first attack on a convoy in the night stops
- * the game at once; near us its alert has called the player, and counts for the night.
+ * once: alertRules.js), and the watch stops nothing for it. On the high seas, the first
+ * attack on a convoy in the night stops the game at once. (An attack near us does not count
+ * for the night: whether its alert was shown is the page's business — it keeps quiet for a
+ * while after the one before — and a night must never pass with nobody called.)
  */
 function noteEvent(world, e) {
   const W = world.watch;
   if (!W || !isNoted(world, e)) return;
   W.notes.push(noteOf(e));
-  const live = happensNearUs(world, e);
-  if (live) {
+  if (happensNearUs(world, e)) {
     e.live = true;
-    const key = DECISION_OF[e.type] ? DECISION_OF[e.type](e) : null;
-    if (key && !W.asked.includes(key)) W.asked.push(key);
+    return;
   }
   if (e.type !== 'uboatAttack') return;
   // A straggler counts with its convoy: one stop a convoy and a night.
@@ -172,7 +157,6 @@ function noteEvent(world, e) {
   const night = nightOf(world);
   if (W.nights[id] === night) return;
   W.nights[id] = night;
-  if (live) return;
   emit(world, 'seaStop', { reason: 'attack', convoy: e.convoy, convoyId: e.convoyId, sunk: e.sunk, x: e.x, y: e.y });
 }
 
@@ -184,10 +168,11 @@ const ROUTING_ORDERS = new Set(['route', 'editRoute', 'addLeg', 'updateLeg', 'en
 /**
  * A convoy at sea with nothing left to follow: no line, no legs, no end told for them, and
  * no such order on its way to it (by radio at the next relief, or carried by a group). It
- * keeps its course, as far as the sea goes.
+ * keeps its course, as far as the sea goes — unless it was told to, which is an order.
  */
 export function noRoute(world, c) {
   if (c.state !== 'atSea' || c.route.length || c.plan.length || c.endAction) return false;
+  if (c.holding) return false; // told to keep its course (« Garder le cap »): the question has its answer
   return !pendingOrders(world, c).some((s) => ROUTING_ORDERS.has(s.name));
 }
 

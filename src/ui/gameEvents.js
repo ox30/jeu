@@ -10,7 +10,7 @@ import { alertForEvent, raiseAlert } from './alerts.js';
 import { ALERT_TYPES } from './alertRules.js';
 import { goView } from './actions.js';
 import { viewOffered } from './offered.js';
-import { openWatch } from './watchPanel.js';
+import { openWatch, reportWritten } from './watchPanel.js';
 import { questionAsked } from './questions.js';
 import { tutorialEvent } from './tutorial.js';
 import { openEnd, openEvent, openLessonOver, openSuccess } from './dialogs.js';
@@ -47,6 +47,7 @@ export function handleEvents(app, events) {
     } else if (e.type === 'watchReport') {
       app.signals.key = '';
       app.dirtyHud = true;
+      reportWritten(app);
     } else if (e.type === 'question') {
       questionAsked(app);
     } else if (e.type === 'scenarioEvent' && e.important) {

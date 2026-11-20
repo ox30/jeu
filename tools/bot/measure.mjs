@@ -54,8 +54,7 @@ export function summarize(rows) {
       for (const r of ok) for (const o of r.objectives) if (!o.done) failed[o.type] = (failed[o.type] || 0) + 1;
       for (const r of ok) if (r.reason) failed[`défaite : ${r.reason}`] = (failed[`défaite : ${r.reason}`] || 0) + 1;
       if (ok.length && ok[0].lossPct !== undefined) {
-        detail = `navires perdus ${range(ok.map((r) => r.lossPct), 1)} % (moy. ${fr(mean(ok.map((r) => r.lossPct)), 1)}) ; U-Boote coulés ${fr(mean(ok.map((r) => r.uboatsSunk)), 1)} ; arrêts ${range(ok.map((r) => r.stops))} (moy. ${fr(mean(ok.map((r) => r.stops)))}) ; carburant ${fr(mean(ok.map((r) => r.fuel)))} t`;
-        detail += kindsText(ok);
+        detail = `navires perdus ${range(ok.map((r) => r.lossPct), 1)} % (moy. ${fr(mean(ok.map((r) => r.lossPct)), 1)}) ; U-Boote coulés ${fr(mean(ok.map((r) => r.uboatsSunk)), 1)} ; arrêts ${range(ok.map((r) => r.stops))} (moy. ${fr(mean(ok.map((r) => r.stops)))})${kindsText(ok)} ; carburant ${fr(mean(ok.map((r) => r.fuel)))} t`;
       } else if (ok.length) {
         detail = `abattus ${fr(mean(ok.map((r) => r.down)))} (${range(ok.map((r) => r.down))}) ; perdus ${fr(mean(ok.map((r) => r.rafLost)))} ; chasse ${fr(mean(ok.map((r) => r.fighterShare * 100)))} % ; bombardements ${fr(mean(ok.map((r) => r.bombed)))} ; fatigue max ${fr(Math.max(...ok.map((r) => r.maxFatigue)))}`;
         // The convoys with a delivery objective: games where the bar is reached, and the share brought in.
