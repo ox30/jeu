@@ -55,6 +55,40 @@ test('the help has its rubrics on the gestures of the map and on reading a sheet
   for (const word of ['Q, rapport de quart', '+ et −, zoom', 'Espace, pause', 'Suppr']) assert.ok(keys.includes(word), `the keys: ${word}`);
 });
 
+test('the help says what the « abords » of a port are: its circle on the map, by the figure of the rules', () => {
+  // (2.12.1.) Two words live side by side: the « abords » of a port, the dashed circle a route
+  // that ends inside enters the port from, and the « approches » of the ports, the tracked
+  // waters of the radio silence. The help gives each its distance, read here from the rules.
+  const rules = read('data/rules.json');
+  const km = rules.navigation.portBubbleKm;
+  const traces = helpRubrics('sheet').find((r) => r.id === 'traces').text.join(' ');
+  const said = traces.match(/Les abords d'un port sont [^.]*\./);
+  assert.ok(said, '« Tracés et ordres sur la carte » does not say what the abords are');
+  assert.ok(said[0].includes(`cercle en tirets de ${km} km de rayon`), said[0]);
+  // The name the map writes under that circle.
+  assert.ok(said[0].includes(`« ${fr.map.portBubble} »`), said[0]);
+  // Seen from too far the circle is not drawn (the Atlantic view): the sentence says so.
+  assert.ok(/de trop loin, la carte ne le dessine pas/.test(said[0]), said[0]);
+  // « Chasse aux U-Boote » and the bubble « Convois » of an escort group use the word too:
+  // they point to the circle, without a figure (each has another « 15 km » of its own).
+  const hunt = helpRubrics('sea').find((r) => r.id === 'chasse').text.join(' ');
+  const where = "aux abords d'un port (son cercle en tirets sur la carte)";
+  assert.ok(hunt.includes(where), 'sea:chasse');
+  assert.ok(fr.sheetHelp.convoys.includes(where), 'sheetHelp.convoys');
+  // No text shown to the player uses the word for a port without one or the other: outside
+  // the paragraph that defines it, every « abords d'un port » points to the circle.
+  const defining = helpRubrics('sheet').find((r) => r.id === 'traces').text.find((p) => p.includes(said[0]));
+  const elsewhere = JSON.stringify(fr).split(JSON.stringify(defining).slice(1, -1)).join('');
+  const uses = elsewhere.match(/abords d'un port/g) || [];
+  const pointed = elsewhere.split(where).length - 1;
+  assert.equal(uses.length, 2, 'the hunt rubric and the bubble');
+  assert.equal(pointed, uses.length, 'a new « abords d\'un port »: say what they are, or point to the circle');
+  // The approaches keep their own distance, where the help gives one.
+  const alerts = helpRubrics('time').flatMap((r) => r.text).join(' ');
+  assert.ok(alerts.includes(`approches des ports à moins de ${rules.seaComms.portKm} km`), 'time: the approaches');
+  assert.notEqual(km, rules.seaComms.portKm);
+});
+
 test('every « ? » bubble links to a rubric that exists, by its title', () => {
   for (const key of Object.keys(HELP_TOPICS)) {
     const link = helpLink(key);

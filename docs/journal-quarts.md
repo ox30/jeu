@@ -523,3 +523,26 @@ la règle ; une version 2.11 refusera une sauvegarde de la 2.12.
    te va-t-il ?
 8. **Une partie d'Adlertag sauvegardée avant la 2.12.0** reprend sans le 502 ni le 233.
    Faut-il les lui ajouter au chargement ?
+
+## Version 2.12.1 : les réponses de Florian
+
+26 novembre 2026. Florian a testé la 2.12.0 et répondu aux huit questions ci-dessus. Aucune
+ne change le jeu.
+
+| Question | Réponse de Florian | Ce qui en découle |
+| --- | --- | --- |
+| 1. Atlantique : les arrêts dépassent la cible de 30 à 60 | « On les garde comme elles sont. Ce scénario est long et demande plus d'investissement, alors s'il a plus d'arrêts, ce n'est pas grave. » | Rien ne change. Les Condor restent en direct près de nous. La cible de 30 à 60 du M2.8 ne borne plus l'Atlantique : 60 arrêts par partie en jouant simple, 85 en jouant soigné |
+| 2. « Abords des côtes » | Les eaux suivies suffisent | Aucune des trois façons d'aller plus loin n'est faite |
+| 3. L'ASV du 233 Sqn | Le 233 reste à Aldergrove, avec l'ASV | Rien ne change |
+| 4. Une alerte, puis la relève pour la même chose | Oui | Rien ne change |
+| 5. La clé `seaRhythm` disparue | Oui : un rythme déduit des navires, sans clé | Rien ne change |
+| 6. L'entraînement aux quarts | Oui | Rien ne change |
+| 7. Le cadran de l'horloge sous 1 100 px | Oui | Rien ne change |
+| 8. Une partie d'Adlertag d'avant la 2.12.0 | Elle reste sans le 502 ni le 233 | Rien ne change |
+
+Le seul changement de la 2.12.1 vient d'une réponse sur l'aide : la phrase sur les abords
+d'un port. Voir `docs/journal-aide-en-jeu.md`, « Version 2.12.1 », avec les vérifications.
+
+**Ce que disent encore les fichiers du projet.** `claude/decisions-audit-m2.md` garde, pour
+l'Atlantique, « Cible : 30 à 60 arrêts par partie » et « les Condor suivent le rythme des
+quarts ». La réponse 1 remplace ces deux lignes. Je n'ai pas modifié ce fichier.

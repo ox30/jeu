@@ -476,6 +476,99 @@ balayés sans erreur dans les occasions des astuces, pas de clignotement de la c
 - Vérifié dans Chrome sans écran seulement. Pas dans Firefox : la règle ne dépend pas du
   navigateur, mais je ne l'y ai pas essayée.
 
+## Version 2.12.1 : les abords d'un port
+
+26 novembre 2026. Florian a répondu aux deux questions de la 2.11.1.
+
+| Question | Réponse de Florian | Ce qui est fait |
+| --- | --- | --- |
+| 1. Une astuce plus précise doit-elle prendre la carte à une plus générale ? | Non : une astuce ne remplace pas celle qui est affichée | Rien ne change : c'est le comportement de la 2.11.1 |
+| 2. Une phrase qui dise que les abords d'un port sont son cercle de 15 km ? | Oui | Fait, ci-dessous |
+
+### La phrase
+
+- **Rubrique « Tracés et ordres sur la carte »** (`sheet:traces`), premier paragraphe, juste
+  après la phrase où le mot paraît : « Les abords d'un port sont son cercle en tirets de
+  15 km de rayon, marqué « entrée au port » sur la carte quand un navire est choisi ; de
+  trop loin, la carte ne le dessine pas. »
+- **Les deux autres endroits où le joueur lit le mot** renvoient à ce cercle, sans chiffre :
+  « aux abords d'un port (son cercle en tirets sur la carte) ». Ce sont la rubrique
+  « Chasse aux U-Boote » (`sea:chasse`) et la bulle « Convois » d'un groupe d'escorte. Tu
+  demandais une phrase ; ces deux parenthèses s'y ajoutent, parce que le lien de la bulle
+  mène à « Rejoindre un convoi », qui ne définit pas le mot.
+- **Pourquoi sans chiffre** : chacun de ces deux textes a déjà un autre « 15 km » (une
+  chasse de « 30 min et 15 km au plus » ; le groupe qui prend station « à moins de 15 km
+  d'un convoi »). Le même nombre deux fois, pour deux choses, aurait prêté à confusion.
+- **Les approches des ports gardent leurs 80 km**, dits dans la rubrique « Le rythme des
+  quarts » de l'onglet « Temps et alertes ». Les deux mots ont maintenant chacun leur
+  distance dans l'aide.
+- Les deux nombres viennent de `data/rules.json` (`navigation.portBubbleKm`,
+  `seaComms.portKm`). Un test lit la phrase et la compare aux règles : si une règle change,
+  le test tombe et rappelle de corriger l'aide. Il tombe aussi si un nouveau texte parle
+  des « abords d'un port » sans renvoyer au cercle.
+
+### Quand le cercle se voit
+
+Lu dans `src/render/scene.js` (`drawPortBubbles`), puis calculé par la relecture :
+
+- le cercle est dessiné quand un convoi, un groupe d'escorte ou un groupe de soutien est
+  choisi (et toujours avec les ordres par caps), autour des ports qui acceptent ce navire :
+  Liverpool et la Clyde pour un groupe ou un convoi océanique, Southampton pour un convoi
+  côtier ;
+- il n'est pas dessiné quand ses 15 km font moins de 6 pixels, et son nom n'est écrit qu'à
+  partir de 14 pixels.
+
+| Vue | Fenêtre de 1 280 × 720 | 1 920 × 1 080 | 2 560 × 1 440 |
+| --- | --- | --- | --- |
+| Atlantique | rien | rien | cercle sans nom |
+| Grande-Bretagne | cercle sans nom | cercle et nom | cercle et nom |
+| Angleterre | cercle et nom | cercle et nom | cercle et nom |
+
+(Calculé en prenant toute la fenêtre pour la carte ; la carte réelle est un peu plus petite.
+Rien n'a été regardé à l'écran.)
+
+D'où la fin de la phrase, « de trop loin, la carte ne le dessine pas » : la vue Atlantique
+est celle où s'ouvrent « Hiver dans l'Atlantique », la leçon « Escorter » et
+l'entraînement.
+
+### Relecture par un agent neuf
+
+Un agent sans mémoire du chantier a relu le commit, sans rien modifier. Rien de bloquant.
+
+| Gravité | Ce qu'il a trouvé | Ce qui est fait |
+| --- | --- | --- |
+| Important | Le README disait que l'essai de fumée lisait la phrase « dans la page construite », alors que la vérification tournait sur la version de développement | Une vérification de plus lit la phrase dans l'aide de `dist/index.html` ; le README dit les deux |
+| Mineur | La phrase taisait la condition de zoom : dans la vue Atlantique, le joueur qui choisit un groupe ne voit aucun cercle | « de trop loin, la carte ne le dessine pas » ajouté ; le tableau ci-dessus |
+| Mineur | La raison donnée pour laisser la bulle « Convois » (un autre « 15 km ») valait aussi pour « Chasse aux U-Boote », qui a le sien | Les deux textes renvoient au cercle, sans chiffre |
+| Mineur | Le test acceptait « 15 km de rayon » même si la règle passait à 5 ; l'essai de fumée comparait à un 15 écrit en dur | Le test lit « de 15 km de rayon » en entier ; l'essai de fumée compare au chiffre des règles de la page |
+| Mineur | « Florian a joué la 2.12.0 » : ses mots sont « j'ai testé » | Corrigé dans `docs/journal-quarts.md` |
+
+Relevé par la relecture, hors de cette demande, et laissé tel quel :
+
+- **« Aux abords d'un aérodrome »** (même rubrique) reste sans définition : c'est un cercle
+  en tirets de 12 km, sans nom sur la carte (question 1).
+- **Le tracé d'un convoi qui finit dans le cercle entre au port**, même avec un ordre de
+  fin, qui tombe alors. La rubrique « Fin de route d'un convoi » ne le dit pas.
+- « Silence radio » et la bulle « Communications en mer » disent « approches des ports »
+  sans les 80 km ; seule « Le rythme des quarts » les donne. Rien ne se contredit.
+
+### Vérifications
+
+- `npm test` : 502 tests verts (501 à la 2.12.0). Aucun test existant n'est modifié.
+- `npm run lint` : propre. `npm run build` : `dist/index.html` reconstruit.
+- `npm run smoke`, en entier : 366 vérifications vertes (364 à la 2.12.0). Les deux
+  nouvelles lisent la phrase dans l'aide du jeu, puis dans celle de `dist/index.html`.
+- Ni singe ni joueur automatique : `src/sim`, `data/scenarios` et `data/rules.json` ne sont
+  pas touchés (`git diff origin/main --stat` sur ces chemins est vide).
+- GitHub rejoue les tests, le lint, la construction et l'essai de fumée à chaque envoi.
+- Vérifié dans Chrome sans écran seulement.
+
+### Questions
+
+1. **« Aux abords d'un aérodrome »** : veux-tu la même phrase pour lui ? C'est un cercle en
+   tirets de 12 km, sans nom sur la carte ; un tracé d'escadrille qui finit dedans peut
+   finir par un atterrissage.
+
 ## Table « ancienne clé → nouvelle place »
 
 Toutes les clés de `data/i18n/fr.json` retirées ou récrites par ce chantier. Les textes des

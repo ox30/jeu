@@ -2233,6 +2233,18 @@ async function interfaceChecks(page, errors) {
     await sleep(400);
     const help = await read();
     note(link && link.link === 'sea:chasse' && help.helpTab === 'sea' && help.target === 'chasse' && !help.bubble, 'sheet help: the link of a bubble opens the help on its rubric', JSON.stringify({ link: link && link.link, tab: help.helpTab, target: help.target }));
+    // (2.12.1.) The « abords » of a port are its circle of 15 km: the rubric the bubble
+    // opened says so in passing, and « Tracés et ordres sur la carte » in a sentence.
+    const abords = await page.evaluate(() => {
+      const dlg = document.getElementById('dlg-help');
+      const hunt = dlg.querySelector('[data-hpane="sea"] [data-anchor="chasse"]');
+      dlg.querySelector('[data-htab="sheet"]').click();
+      const traces = dlg.querySelector('[data-hpane="sheet"] [data-anchor="traces"]');
+      const said = (traces.textContent.match(/Les abords d'un port sont [^.]*\./) || [''])[0];
+      return { hunt: hunt.textContent.includes("aux abords d'un port (son cercle en tirets sur la carte)"), said, shown: Boolean(traces.offsetParent), km: window.__game.world.rules.navigation.portBubbleKm };
+    });
+    note(abords.hunt && abords.shown && abords.km > 0 && abords.said.includes(`cercle en tirets de ${abords.km} km de rayon`) && abords.said.includes('« entrée au port »'),
+      'help: the « abords » of a port are its dashed circle, by the figure of the rules, said where the word is used', JSON.stringify(abords));
     await closeDialogs(page);
     await game(page, () => {
       window.__game.settings.sheetHelp = 'shown';
@@ -3228,6 +3240,24 @@ async function main() {
       note(await game(one.page, () => window.__game.onMenu && !document.getElementById('menu').hidden), 'dist/index.html from the disk: starts on the main menu');
       await step('dist adlertag', () => scenario(one.page, 'adlertag', one.errors));
       await step('dist hiver-atlantique', () => scenario(one.page, 'hiver-atlantique', one.errors));
+      // (2.12.1.) The built page carries the texts of the day: its help says what the
+      // « abords » of a port are, by the figure of its own rules.
+      await step('dist help', async () => {
+        await closeDialogs(one.page);
+        const built = await one.page.evaluate(() => {
+          const visible = (sel) => { const el = document.querySelector(sel); return el && el.offsetParent ? el : null; };
+          const button = visible('#btn-help') || visible('#menu [data-menu="help"]');
+          if (!button) return { opened: false };
+          button.click();
+          const dlg = document.getElementById('dlg-help');
+          const traces = dlg.querySelector('[data-hpane="sheet"] [data-anchor="traces"]');
+          const said = traces ? (traces.textContent.match(/Les abords d'un port sont [^.]*\./) || [''])[0] : '';
+          return { opened: dlg.open, said, km: window.__game.world ? window.__game.world.rules.navigation.portBubbleKm : null };
+        });
+        note(built.opened && built.km > 0 && built.said.includes(`cercle en tirets de ${built.km} km de rayon`) && built.said.includes('la carte ne le dessine pas'),
+          'dist/index.html: its help says what the « abords » of a port are', JSON.stringify(built));
+        await closeDialogs(one.page);
+      });
       note(one.errors.length === 0, 'dist/index.html: no console error', one.errors.slice(0, 3).join(' | '));
       await one.browser.close();
     }
