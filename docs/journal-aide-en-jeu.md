@@ -509,7 +509,7 @@ balayés sans erreur dans les occasions des astuces, pas de clignotement de la c
 
 ### Quand le cercle se voit
 
-Lu dans `src/render/scene.js` (`drawPortBubbles`), puis calculé par la relecture :
+Lu dans `src/render/scene.js` (`drawPortBubbles`) :
 
 - le cercle est dessiné quand un convoi, un groupe d'escorte ou un groupe de soutien est
   choisi (et toujours avec les ordres par caps), autour des ports qui acceptent ce navire :
@@ -518,18 +518,18 @@ Lu dans `src/render/scene.js` (`drawPortBubbles`), puis calculé par la relectur
 - il n'est pas dessiné quand ses 15 km font moins de 6 pixels, et son nom n'est écrit qu'à
   partir de 14 pixels.
 
-| Vue | Fenêtre de 1 280 × 720 | 1 920 × 1 080 | 2 560 × 1 440 |
-| --- | --- | --- | --- |
-| Atlantique | rien | rien | cercle sans nom |
-| Grande-Bretagne | cercle sans nom | cercle et nom | cercle et nom |
-| Angleterre | cercle et nom | cercle et nom | cercle et nom |
+Mesuré ensuite dans `dist/index.html` (Chrome sans écran, un navire choisi, sa fiche
+ouverte) : la taille des 15 km à l'écran, dans chaque vue.
 
-(Calculé en prenant toute la fenêtre pour la carte ; la carte réelle est un peu plus petite.
-Rien n'a été regardé à l'écran.)
+| Vue | Fenêtre de 1 280 × 720 | 1 440 × 900 | 1 920 × 1 080 | 2 560 × 1 440 |
+| --- | --- | --- | --- | --- |
+| Atlantique (touche A) | 1,7 px : rien | 2,1 px : rien | 2,9 px : rien | 4,6 px : rien |
+| Grande-Bretagne (L), à Kanalkampf | 10,9 px : cercle sans nom | 14,6 px : cercle et nom | 19,9 px : cercle et nom | 27,4 px : cercle et nom |
+| Angleterre (G), à Kanalkampf | 14,6 px : cercle et nom | 19,5 px : cercle et nom | 34,1 px : cercle et nom | 53,5 px : cercle et nom |
 
-D'où la fin de la phrase, « de trop loin, la carte ne le dessine pas » : la vue Atlantique
-est celle où s'ouvrent « Hiver dans l'Atlantique », la leçon « Escorter » et
-l'entraînement.
+« Hiver dans l'Atlantique » n'offre que la vue Atlantique (L et G n'y changent rien) : le
+cercle n'y paraît qu'en rapprochant la carte, de deux à quatre fois selon la fenêtre.
+D'où la fin de la phrase, « de trop loin, la carte ne le dessine pas ».
 
 ### Relecture par un agent neuf
 
@@ -538,7 +538,7 @@ Un agent sans mémoire du chantier a relu le commit, sans rien modifier. Rien de
 | Gravité | Ce qu'il a trouvé | Ce qui est fait |
 | --- | --- | --- |
 | Important | Le README disait que l'essai de fumée lisait la phrase « dans la page construite », alors que la vérification tournait sur la version de développement | Une vérification de plus lit la phrase dans l'aide de `dist/index.html` ; le README dit les deux |
-| Mineur | La phrase taisait la condition de zoom : dans la vue Atlantique, le joueur qui choisit un groupe ne voit aucun cercle | « de trop loin, la carte ne le dessine pas » ajouté ; le tableau ci-dessus |
+| Mineur | La phrase taisait la condition de zoom : dans la vue Atlantique, le joueur qui choisit un groupe ne voit aucun cercle | « de trop loin, la carte ne le dessine pas » ajouté ; mesuré ensuite dans la page (tableau ci-dessus) |
 | Mineur | La raison donnée pour laisser la bulle « Convois » (un autre « 15 km ») valait aussi pour « Chasse aux U-Boote », qui a le sien | Les deux textes renvoient au cercle, sans chiffre |
 | Mineur | Le test acceptait « 15 km de rayon » même si la règle passait à 5 ; l'essai de fumée comparait à un 15 écrit en dur | Le test lit « de 15 km de rayon » en entier ; l'essai de fumée compare au chiffre des règles de la page |
 | Mineur | « Florian a joué la 2.12.0 » : ses mots sont « j'ai testé » | Corrigé dans `docs/journal-quarts.md` |
@@ -561,7 +561,7 @@ Relevé par la relecture, hors de cette demande, et laissé tel quel :
 - Ni singe ni joueur automatique : `src/sim`, `data/scenarios` et `data/rules.json` ne sont
   pas touchés (`git diff origin/main --stat` sur ces chemins est vide).
 - GitHub rejoue les tests, le lint, la construction et l'essai de fumée à chaque envoi.
-- Vérifié dans Chrome sans écran seulement.
+- Vérifié dans Chrome sans écran seulement, pas dans Firefox ni Edge.
 
 ### Questions
 
