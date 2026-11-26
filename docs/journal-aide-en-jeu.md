@@ -476,6 +476,295 @@ balayés sans erreur dans les occasions des astuces, pas de clignotement de la c
 - Vérifié dans Chrome sans écran seulement. Pas dans Firefox : la règle ne dépend pas du
   navigateur, mais je ne l'y ai pas essayée.
 
+## Version 2.12.1 : les abords d'un port
+
+26 novembre 2026. Florian a répondu aux deux questions de la 2.11.1.
+
+| Question | Réponse de Florian | Ce qui est fait |
+| --- | --- | --- |
+| 1. Une astuce plus précise doit-elle prendre la carte à une plus générale ? | Non : une astuce ne remplace pas celle qui est affichée | Rien ne change : c'est le comportement de la 2.11.1 |
+| 2. Une phrase qui dise que les abords d'un port sont son cercle de 15 km ? | Oui | Fait, ci-dessous |
+
+### La phrase
+
+- **Rubrique « Tracés et ordres sur la carte »** (`sheet:traces`), premier paragraphe, juste
+  après la phrase où le mot paraît : « Les abords d'un port sont son cercle en tirets de
+  15 km de rayon, marqué « entrée au port » sur la carte quand un navire est choisi ; de
+  trop loin, la carte ne le dessine pas. »
+- **Les deux autres endroits où le joueur lit le mot** renvoient à ce cercle, sans chiffre :
+  « aux abords d'un port (son cercle en tirets sur la carte) ». Ce sont la rubrique
+  « Chasse aux U-Boote » (`sea:chasse`) et la bulle « Convois » d'un groupe d'escorte. Tu
+  demandais une phrase ; ces deux parenthèses s'y ajoutent, parce que le lien de la bulle
+  mène à « Rejoindre un convoi », qui ne définit pas le mot.
+- **Pourquoi sans chiffre** : chacun de ces deux textes a déjà un autre « 15 km » (une
+  chasse de « 30 min et 15 km au plus » ; le groupe qui prend station « à moins de 15 km
+  d'un convoi »). Le même nombre deux fois, pour deux choses, aurait prêté à confusion.
+- **Les approches des ports gardent leurs 80 km**, dits dans la rubrique « Le rythme des
+  quarts » de l'onglet « Temps et alertes ». Les deux mots ont maintenant chacun leur
+  distance dans l'aide.
+- Les deux nombres viennent de `data/rules.json` (`navigation.portBubbleKm`,
+  `seaComms.portKm`). Un test lit la phrase et la compare aux règles : si une règle change,
+  le test tombe et rappelle de corriger l'aide. Il tombe aussi si un nouveau texte parle
+  des « abords d'un port » sans renvoyer au cercle.
+
+### Quand le cercle se voit
+
+Lu dans `src/render/scene.js` (`drawPortBubbles`) :
+
+- le cercle est dessiné quand un convoi, un groupe d'escorte ou un groupe de soutien est
+  choisi (et toujours avec les ordres par caps), autour des ports qui acceptent ce navire :
+  Liverpool et la Clyde pour un groupe ou un convoi océanique, Southampton pour un convoi
+  côtier ;
+- il n'est pas dessiné quand ses 15 km font moins de 6 pixels, et son nom n'est écrit qu'à
+  partir de 14 pixels.
+
+Mesuré ensuite dans `dist/index.html` (Chrome sans écran, un navire choisi, sa fiche
+ouverte) : la taille des 15 km à l'écran, dans chaque vue.
+
+| Vue | Fenêtre de 1 280 × 720 | 1 440 × 900 | 1 920 × 1 080 | 2 560 × 1 440 |
+| --- | --- | --- | --- | --- |
+| Atlantique (touche A) | 1,7 px : rien | 2,1 px : rien | 2,9 px : rien | 4,6 px : rien |
+| Grande-Bretagne (L), à Kanalkampf | 10,9 px : cercle sans nom | 14,6 px : cercle et nom | 19,9 px : cercle et nom | 27,4 px : cercle et nom |
+| Angleterre (G), à Kanalkampf | 14,6 px : cercle et nom | 19,5 px : cercle et nom | 34,1 px : cercle et nom | 53,5 px : cercle et nom |
+
+« Hiver dans l'Atlantique » n'offre que la vue Atlantique (L et G n'y changent rien) : le
+cercle n'y paraît qu'en rapprochant la carte, de deux à quatre fois selon la fenêtre.
+D'où la fin de la phrase, « de trop loin, la carte ne le dessine pas ».
+
+### Relecture par un agent neuf
+
+Un agent sans mémoire du chantier a relu le commit, sans rien modifier. Rien de bloquant.
+
+| Gravité | Ce qu'il a trouvé | Ce qui est fait |
+| --- | --- | --- |
+| Important | Le README disait que l'essai de fumée lisait la phrase « dans la page construite », alors que la vérification tournait sur la version de développement | Une vérification de plus lit la phrase dans l'aide de `dist/index.html` ; le README dit les deux |
+| Mineur | La phrase taisait la condition de zoom : dans la vue Atlantique, le joueur qui choisit un groupe ne voit aucun cercle | « de trop loin, la carte ne le dessine pas » ajouté ; mesuré ensuite dans la page (tableau ci-dessus) |
+| Mineur | La raison donnée pour laisser la bulle « Convois » (un autre « 15 km ») valait aussi pour « Chasse aux U-Boote », qui a le sien | Les deux textes renvoient au cercle, sans chiffre |
+| Mineur | Le test acceptait « 15 km de rayon » même si la règle passait à 5 ; l'essai de fumée comparait à un 15 écrit en dur | Le test lit « de 15 km de rayon » en entier ; l'essai de fumée compare au chiffre des règles de la page |
+| Mineur | « Florian a joué la 2.12.0 » : ses mots sont « j'ai testé » | Corrigé dans `docs/journal-quarts.md` |
+
+Relevé par la relecture, hors de cette demande, et laissé tel quel :
+
+- **« Aux abords d'un aérodrome »** (même rubrique) reste sans définition : c'est un cercle
+  en tirets de 12 km, sans nom sur la carte (question 1).
+- **Le tracé d'un convoi qui finit dans le cercle entre au port**, même avec un ordre de
+  fin, qui tombe alors. La rubrique « Fin de route d'un convoi » ne le dit pas.
+- « Silence radio » et la bulle « Communications en mer » disent « approches des ports »
+  sans les 80 km ; seule « Le rythme des quarts » les donne. Rien ne se contredit.
+
+### Vérifications
+
+- `npm test` : 502 tests verts (501 à la 2.12.0). Aucun test existant n'est modifié.
+- `npm run lint` : propre. `npm run build` : `dist/index.html` reconstruit.
+- `npm run smoke`, en entier : 366 vérifications vertes (364 à la 2.12.0). Les deux
+  nouvelles lisent la phrase dans l'aide du jeu, puis dans celle de `dist/index.html`.
+- Ni singe ni joueur automatique : `src/sim`, `data/scenarios` et `data/rules.json` ne sont
+  pas touchés (`git diff origin/main --stat` sur ces chemins est vide).
+- GitHub rejoue les tests, le lint, la construction et l'essai de fumée à chaque envoi.
+- Vérifié dans Chrome sans écran seulement, pas dans Firefox ni Edge.
+
+### Questions
+
+1. **« Aux abords d'un aérodrome »** : veux-tu la même phrase pour lui ? C'est un cercle en
+   tirets de 12 km, sans nom sur la carte ; un tracé d'escadrille qui finit dedans peut
+   finir par un atterrissage.
+
+## Version 2.12.2 : les abords d'un aérodrome
+
+26 novembre 2026, soir. Florian a répondu aux trois questions du compte rendu de la 2.12.1
+(`claude/compte-rendu-quarts.md`, fichier du projet). Ses mots : « 1) les aérodrome aussi.
+Ou circuit d'approche. Qu'est ce qui est aéronautique ? Sans devoir recontroler tout le jeu
+et chaque document ? 2) oui on ajoute. 3) oui ».
+
+| Question | Ce qui est fait |
+| --- | --- |
+| 1. La même phrase pour les abords d'un aérodrome ? | La phrase est ajoutée. Le mot reste « abords » : voir « Quel mot est aéronautique » |
+| 2. Dire, dans « Fin de route d'un convoi », qu'un tracé qui finit dans le cercle d'un port y entre même avec un ordre de fin ? | Fait, en un paragraphe, parce que la règle a trois cas |
+| 3. Porter la décision du 26 novembre sur les arrêts de l'Atlantique dans les deux fichiers du projet ? | Pas fait : voir « Les fichiers du projet » |
+
+### Quel mot est aéronautique
+
+- **« Abords d'un aérodrome » est le mot des textes aéronautiques français** pour ce qui
+  entoure un terrain. La réglementation de la circulation aérienne a un chapitre sur les
+  séparations « aux abords des aérodromes ». Selon aeroVFR, le règlement européen des
+  règles de l'air demande, de nuit, un plan de vol dès que le vol quitte « les abords d'un
+  aérodrome ».
+- **Le circuit d'aérodrome** (ou tour de piste, ou circuit de piste) est autre chose : le
+  trajet qu'un avion suit aux abords de l'aérodrome pour se poser, avec ses branches (vent
+  traversier, vent arrière…). C'est un trajet autour de la piste, pas une zone.
+- **« Circuit d'approche »** n'apparaît dans aucune de ces sources.
+- **Dans le jeu**, le cercle de 12 km est la zone où un tracé peut finir par un
+  atterrissage : ce sont bien les abords. Le jeu ne dessine aucun circuit.
+- **Une coïncidence** : selon aeroVFR, la pratique française compte 6,5 milles nautiques,
+  soit 12 km, pour un vol de nuit « aux abords d'un aérodrome ». C'est le chiffre du jeu.
+
+Le mot ne change donc pas, et il n'y a rien à renommer. Contrôlé par recherche, sans
+relire le jeu :
+
+| Où | « abords d'un aérodrome » | « circuit » |
+| --- | --- | --- |
+| Textes du jeu (`data/i18n/fr.json`) | deux fois, dans le seul paragraphe qui le définit | jamais |
+| Leçons (`data/tutorial.json`), images de l'aide (`data/help`) | jamais | jamais |
+| `README.md` | les nouveautés de la 2.11.1 et de la 2.12.2, la liste des tests | les nouveautés de la 2.12.2 |
+| Journaux du dépôt (`docs/`) | ce journal seulement (2.11.1, 2.12.1, 2.12.2) | cette section seulement |
+| Documents du projet (recherche dans le projet) | les comptes rendus de l'aide et des quarts | jamais |
+
+« Bulle d'un aérodrome », le mot d'avant la 2.11.1, ne reste que dans l'historique de ce
+journal. Un test refuse tout nouvel emploi du mot (« abords d'un aérodrome », « de
+l'aérodrome », « des aérodromes ») hors du paragraphe qui le définit.
+
+Sources, lues par la recherche le 26 novembre 2026 (extraits, pas les textes entiers) :
+
+- [Arrêté du 12 juillet 2019, procédures générales de circulation aérienne (SIA)](https://www.sia.aviation-civile.gouv.fr/pub/media/reglementation/file/r/d/rda_ta_gen_061.pdf) :
+  le circuit d'aérodrome et ses positions.
+- [Annexe RCA 3 consolidée (ministère chargé des transports)](https://www.ecologie.gouv.fr/sites/default/files/documents/Annexe%20consolid%C3%A9e%20RCA3%20maj%20SERA%20v0.44_clean.pdf) :
+  un titre « aux abords des aérodromes ».
+- [Les aérodromes, cahier du BIA (CIRAS de Nancy-Metz)](https://sites.ac-nancy-metz.fr/ciras/cahierdubia/NRS_laerodrome/aerodromes.html) :
+  le circuit de piste, trajet suivi « aux abords d'un aérodrome » pour atterrir.
+- [Les règles de l'air à la mode européenne, aeroVFR, 2014](https://aerovfr.com/2014/10/les-regles-de-lair-a-la-mode-europeenne) :
+  le plan de vol hors des « abords d'un aérodrome », et les 6,5 milles nautiques.
+
+Ce sont des sources de vocabulaire, d'aujourd'hui. Je n'ai pas lu le règlement européen
+lui-même, ni cherché l'usage de la RAF en 1940 : le jeu est écrit en français. Elles ne
+vont pas dans `claude/sources.md`, qui est la liste des dates, des unités et de leurs
+capacités.
+
+### La phrase
+
+- **Rubrique « Tracés et ordres sur la carte »** (`sheet:traces`), paragraphe « La fin du
+  tracé », juste après l'endroit où le mot paraît : « Les abords d'un aérodrome sont son
+  cercle en tirets de 12 km de rayon, sans légende, montré quand une escadrille est choisie
+  (pas pendant son ravitaillement) ; de trop loin, la carte ne le dessine pas. »
+- Le même paragraphe disait déjà ce que le cercle permet : « se poser si le tracé finit aux
+  abords d'un aérodrome ». Ce n'est pas automatique, à la différence d'un port :
+  l'escadrille orbite au bout de son tracé, et « Se poser à… » se choisit dans sa fiche,
+  section « Route et étapes ».
+- Les 12 km viennent de `data/rules.json` (`squadron.landBubbleKm`). Un test compare la
+  phrase à la règle.
+
+Lu dans `src/render/scene.js` (`drawAirfieldBubbles`, `drawRouteEditor`) :
+
+- le cercle est dessiné autour de chaque aérodrome quand une escadrille est choisie et
+  qu'elle est prête (quel que soit son état d'alerte), au décollage, en vol, au combat ou
+  sur le retour ; pas pendant son ravitaillement ; une big wing compte par son chef ;
+- tracer depuis un aérodrome sans escadrille choisie ne le montre pas ;
+- il n'est pas dessiné quand ses 12 km font moins de 7 pixels ; aucune légende n'est écrite.
+
+Mesuré dans `dist/index.html` (Chrome sans écran, une escadrille prête choisie, sa fiche
+ouverte) :
+
+| Vue | Fenêtre de 1 280 × 720 | 1 440 × 900 | 1 920 × 1 080 | 2 560 × 1 440 |
+| --- | --- | --- | --- | --- |
+| Atlantique (touche A) | 1,4 px : rien | 1,6 px : rien | 2,4 px : rien | 3,7 px : rien |
+| Grande-Bretagne (L), à Kanalkampf | 8,8 px : cercle | 11,7 px : cercle | 15,9 px : cercle | 21,9 px : cercle |
+| Angleterre (G), à Kanalkampf | 11,7 px : cercle | 15,6 px : cercle | 27,3 px : cercle | 42,8 px : cercle |
+
+### Fin de route d'un convoi
+
+La rubrique (`sea:fin-de-route`) a un quatrième paragraphe :
+
+> Un tracé qui finit aux abords d'un port (son cercle en tirets sur la carte) y entre ; si
+> le convoi avait déjà reçu un ordre de fin, cet ordre est abandonné. Un ordre donné après
+> ce tracé reprend la main, et le convoi n'entre plus au port. Sous silence radio, un ordre
+> de fin parti à la même relève que le tracé s'applique après lui.
+
+Ma question disait seulement « y entre, même avec un ordre de fin, qui tombe alors ». La
+relecture a montré que ce n'est vrai que dans un sens. Mesuré sur « Hiver dans
+l'Atlantique », avec un tracé qui finit à 4,4 km de la Clyde :
+
+| Communications | Ce que le joueur fait | Ce que fait le convoi |
+| --- | --- | --- |
+| En direct ou par radio | le tracé seul | il entre à la Clyde |
+| En direct | l'ordre « S'arrêter », puis le tracé | il entre à la Clyde ; l'ordre est abandonné |
+| En direct | le tracé, puis l'ordre | il n'entre plus : l'ordre reste, la route s'arrête à l'entrée du chenal |
+| Par radio | l'ordre à une relève, le tracé au quart suivant | il entre à la Clyde ; l'ordre est abandonné |
+| Par radio | l'ordre et le tracé dans le même quart, dans un sens ou dans l'autre | il n'entre plus : l'ordre reste, la route s'arrête à l'entrée du chenal |
+
+- Rien ne change dans la simulation. Ces règles datent de la 2.10.5 et
+  `tests/convoyend.test.js` les tient déjà (« the order goes with what it was the end of »,
+  « a line the game took into port can be told to end otherwise », « by radio the order
+  waits for the relief »). Par radio, c'est voulu : `src/sim/comms.js` lit l'ordre de fin
+  d'une relève après les routes de cette relève.
+- La règle vaut pour un tracé, pas pour des étapes au cap : des étapes qui finissent dans le
+  cercle n'entrent pas au port.
+- Le paragraphe dit aussi le cas sans ordre, que la rubrique taisait : un tracé qui finit
+  dans le cercle entre au port, même s'il ne passe pas par l'entrée d'un chenal.
+- La bulle « Route et étapes » d'un convoi ne change pas : elle a déjà ses quatre phrases.
+
+### Les fichiers du projet
+
+La décision à porter est la réponse 1 de Florian sur les quarts
+(`docs/journal-quarts.md`, « Version 2.12.1 ») : l'Atlantique garde ses alertes en direct
+près de nous, et ses arrêts dépassent la cible de 30 à 60, ce qui est accepté. Elle
+remplace deux lignes de `claude/decisions-audit-m2.md`, et complète la ligne « Quarts et
+navires » de `claude/cahier-des-charges.md`.
+
+Ce n'est pas fait, pour trois raisons.
+
+- **Ces deux fichiers sont des copies.** Chacun renvoie à un document en ligne de Florian.
+  Le premier dit : « En cas d'écart, le document en ligne fait foi. » Le second se présente
+  comme la copie, au 26 novembre, de sa « version de référence modifiable ».
+- **Une ligne changée dans la copie seule serait perdue** à la prochaine copie.
+- **Je ne peux pas corriger une ligne d'un fichier du projet** : je dois le renvoyer en
+  entier, donc retaper 40 000 signes de chaque document, au risque d'en altérer un chiffre.
+
+La décision est déjà notée dans le projet, dans `claude/compte-rendu-quarts.md`. Je propose
+de modifier les deux documents en ligne, deux lignes chacun, si Florian le veut : ce sont
+ses documents (question 1). Le texte proposé est dans le compte rendu.
+
+### Relecture par un agent neuf
+
+Un agent sans mémoire du chantier a relu le commit, sans rien modifier. Rien de bloquant,
+deux points importants, onze mineurs.
+
+| Gravité | Ce qu'il a trouvé | Ce qui est fait |
+| --- | --- | --- |
+| Important | « Y entre, et l'ordre tombe » n'était vrai que si l'ordre précède le tracé. Un ordre donné après, ou parti par radio dans le même quart, reste, et le convoi n'entre plus | Le paragraphe dit les trois cas ; les mesures sont refaites (tableau ci-dessus) |
+| Important | En insérant le nouveau test, j'avais déplacé la fin du test de la 2.12.1 : la vérification « 15 km n'est pas 80 km » comparait les 12 km de l'aérodrome | Les trois lignes sont revenues à leur place ; le test de la 2.12.1 est de nouveau entier |
+| Mineur | « Sans nom » se lisait mal : un aérodrome a son nom sur la carte | « sans légende » |
+| Mineur | « Prête ou en vol » : avec la fatigue, une escadrille « Au repos » montre aussi le cercle ; en ravitaillement, non | « quand une escadrille est choisie (pas pendant son ravitaillement) » |
+| Mineur | « L'ordre tombe » peut se lire « l'ordre est donné » | « cet ordre est abandonné » |
+| Mineur | Le README attribuait le mot aux règles de l'air, et ce journal au règlement européen, au-delà de ce que disent les sources ; « circuit d'approche n'est pas le terme en usage » ne se prouve pas | Reformulé : textes aéronautiques français, « selon aeroVFR », « n'apparaît dans aucune de ces sources » |
+| Mineur | Le tableau de recherche comptait mal (deux emplois dans `fr.json`, la liste des tests du README, les journaux) | Corrigé |
+| Mineur | Le test du mot ne refusait que « abords d'un aérodrome » ; il interdisait aussi de donner un jour le même rayon aux deux cercles | Il refuse les autres formes ; l'interdiction est retirée |
+| Mineur | Le README annonçait trois réponses et n'en rapportait que deux | La troisième y est, avec sa raison |
+| Mineur | Cette section était peu claire pour qui n'y était pas (quelle décision, quel outil, qui modifie) | Réécrite |
+
+Laissé tel quel, et posé à Florian :
+
+- **Un ordre de fin donné après un tracé qui entrait au port** arrête le convoi à l'entrée
+  du chenal, et non au bout du tracé dessiné : dans la mesure, à 220 km de la Clyde. La fin
+  du tracé avait été remplacée par le chenal (question 2).
+- **Le cercle dessiné d'un aérodrome est un rond**, alors que la zone se mesure en vraie
+  distance : d'est en ouest, elle dépasse le dessin d'environ 3 % près de Londres et 16 % à
+  Oban (calcul de la relecture). Le cercle d'un port, lui, est dessiné en ellipse
+  (question 3).
+
+### Vérifications
+
+- `npm test` : 504 tests verts (502 à la 2.12.1). Deux tests de plus. Celui de la 2.12.1
+  sur les abords d'un port est modifié, sans être affaibli : il compte un emploi de plus du
+  mot (trois au lieu de deux), tous tenus de renvoyer au cercle.
+- `npm run lint` : propre. `npm run build` : `dist/index.html` reconstruit.
+- `npm run smoke`, en entier : 367 vérifications vertes (366 à la 2.12.1). La nouvelle lit
+  les deux phrases dans l'aide du jeu ; celle de `dist/index.html` lit aussi la phrase de
+  l'aérodrome.
+- Ni singe ni joueur automatique : `src/sim`, `data/scenarios` et `data/rules.json` ne sont
+  pas touchés.
+- GitHub rejoue les tests, le lint, la construction et l'essai de fumée à chaque envoi.
+- Vérifié dans Chrome sans écran seulement, pas dans Firefox ni Edge.
+
+### Questions
+
+1. **Les deux documents en ligne** (cahier des charges, décisions de l'audit) : veux-tu que
+   j'y porte moi-même ta décision sur les arrêts de l'Atlantique, deux lignes chacun ? Tu
+   peux aussi les coller toi-même : le texte est dans le compte rendu.
+2. **Un ordre de fin donné après un tracé qui entrait au port** : le convoi s'arrête à
+   l'entrée du chenal, pas au bout de ton tracé. Veux-tu qu'il aille au bout du tracé
+   dessiné ? C'est un changement de la simulation.
+3. **Le cercle d'un aérodrome** est dessiné rond, un peu plus étroit que la zone réelle
+   d'est en ouest. Veux-tu que je le dessine en ellipse, comme celui d'un port ?
+
 ## Table « ancienne clé → nouvelle place »
 
 Toutes les clés de `data/i18n/fr.json` retirées ou récrites par ce chantier. Les textes des
