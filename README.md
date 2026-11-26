@@ -8,7 +8,7 @@ avec un menu principal, un tutoriel en cinq leçons et une aide illustrée.
 Le cahier des charges complet se trouve dans le projet claude.ai « Jeu navigateur seconde
 guerre mondiale ».
 
-**Version 2.12.1** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit,
+**Version 2.12.2** (lot M2.10, interface, équilibre et tutoriel ; puis l'idée B de l'audit,
 les retours des premières parties d'essai en quatre tours, le rangement des textes d'aide, et
 les quarts dès qu'il y a des navires).
 Les décisions qui guident les lots M2.7 à M2.10 sont dans `claude/decisions-audit-m2.md`
@@ -17,6 +17,30 @@ rangement de l'aide suit `claude/textes-aide-plan-rangement.md` ; son journal, a
 « ancienne clé → nouvelle place », est dans `docs/journal-aide-en-jeu.md`. Les quarts dès
 qu'il y a des navires (décision du 20 novembre 2026) ont leur journal dans
 `docs/journal-quarts.md`, avec les mesures du joueur automatique.
+
+## Nouveautés de la 2.12.2 : les abords d'un aérodrome
+
+Les réponses de Florian du 26 novembre 2026 (soir) aux trois questions de la 2.12.1. Deux
+changent l'aide ; la simulation ne change pas.
+
+- **L'aide dit aussi ce que sont les abords d'un aérodrome** (rubrique « Tracés et ordres
+  sur la carte ») : « Les abords d'un aérodrome sont son cercle en tirets de 12 km de rayon,
+  sans légende, montré quand une escadrille est choisie (pas pendant son ravitaillement) ;
+  de trop loin, la carte ne le dessine pas. » Un tracé d'escadrille qui finit dedans peut
+  finir par un atterrissage, à choisir dans sa fiche.
+- **Le mot reste « abords »** : c'est celui des textes aéronautiques français pour ce qui
+  entoure un aérodrome. Le circuit d'aérodrome (ou tour de piste) est le trajet qu'un avion
+  y suit pour se poser ; le jeu n'en dessine pas. Les sources sont dans
+  `docs/journal-aide-en-jeu.md`.
+- **Fin de route d'un convoi** : la rubrique a un paragraphe de plus. « Un tracé qui finit
+  aux abords d'un port (son cercle en tirets sur la carte) y entre ; si le convoi avait déjà
+  reçu un ordre de fin, cet ordre est abandonné. Un ordre donné après ce tracé reprend la
+  main, et le convoi n'entre plus au port. Sous silence radio, un ordre de fin parti à la
+  même relève que le tracé s'applique après lui. » Le jeu le faisait déjà.
+- **La troisième réponse** (porter la décision du 26 novembre sur les arrêts de
+  l'Atlantique dans le cahier des charges et dans les décisions de l'audit) n'est pas
+  faite : ces deux fichiers du projet sont des copies de documents en ligne de Florian. Voir
+  le journal.
 
 ## Nouveautés de la 2.12.1 : les abords d'un port
 
@@ -901,7 +925,7 @@ facilite les tests et l'équilibrage.
 ## Tests
 
 ```
-npm test          # les 502 tests, environ quatre minutes
+npm test          # les 504 tests, environ quatre minutes
 npm run lint      # ESLint (outils de développement : npm ci --prefix tools)
 npm run fuzz      # 10 000 ordres au hasard par scénario, environ quatre minutes
 npm run smoke     # le jeu dans Chrome sans écran : leçons, pages, fiches, corrections, quarts, menu, interface
@@ -937,6 +961,11 @@ Le filet du M2.7 :
   chaque page et chaque sorte de fiche s'ouvre dans chaque scénario, et les corrections du
   M2.7 sont rejouées (plaques empilées, touches d'un clavier AZERTY, bilan de fin, briefing
   de campagne, garde-fou sur une erreur provoquée).
+- Les tests de la 2.12.2 : l'aide dit ce que sont les abords d'un aérodrome, avec le
+  chiffre des règles, et la rubrique « Fin de route d'un convoi » dit ce que fait un tracé
+  qui finit aux abords d'un port, avec ou sans ordre de fin (`tests/help.test.js`). L'essai
+  de fumée lit les deux phrases dans l'aide du jeu, et la première dans celle de
+  `dist/index.html`.
 - Le test de la 2.12.1 : l'aide dit ce que sont les abords d'un port, avec le chiffre des
   règles, et tout autre emploi du mot renvoie au cercle (`tests/help.test.js`) ; l'essai de
   fumée lit la phrase dans l'aide du jeu, puis dans celle de `dist/index.html`.

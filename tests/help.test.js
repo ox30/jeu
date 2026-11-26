@@ -69,8 +69,9 @@ test('the help says what the « abords » of a port are: its circle on the map, 
   assert.ok(said[0].includes(`« ${fr.map.portBubble} »`), said[0]);
   // Seen from too far the circle is not drawn (the Atlantic view): the sentence says so.
   assert.ok(/de trop loin, la carte ne le dessine pas/.test(said[0]), said[0]);
-  // « Chasse aux U-Boote » and the bubble « Convois » of an escort group use the word too:
-  // they point to the circle, without a figure (each has another « 15 km » of its own).
+  // « Chasse aux U-Boote », the bubble « Convois » of an escort group and « Fin de route d'un
+  // convoi » (2.12.2) use the word too: they point to the circle, without a figure (the first
+  // two have another « 15 km » of their own).
   const hunt = helpRubrics('sea').find((r) => r.id === 'chasse').text.join(' ');
   const where = "aux abords d'un port (son cercle en tirets sur la carte)";
   assert.ok(hunt.includes(where), 'sea:chasse');
@@ -81,12 +82,48 @@ test('the help says what the « abords » of a port are: its circle on the map, 
   const elsewhere = JSON.stringify(fr).split(JSON.stringify(defining).slice(1, -1)).join('');
   const uses = elsewhere.match(/abords d'un port/g) || [];
   const pointed = elsewhere.split(where).length - 1;
-  assert.equal(uses.length, 2, 'the hunt rubric and the bubble');
+  assert.equal(uses.length, 3, 'the hunt rubric, the bubble, the end of a convoy\'s route');
   assert.equal(pointed, uses.length, 'a new « abords d\'un port »: say what they are, or point to the circle');
   // The approaches keep their own distance, where the help gives one.
   const alerts = helpRubrics('time').flatMap((r) => r.text).join(' ');
   assert.ok(alerts.includes(`approches des ports à moins de ${rules.seaComms.portKm} km`), 'time: the approaches');
   assert.notEqual(km, rules.seaComms.portKm);
+});
+
+test('« Fin de route d\'un convoi » says what a line ending in the circle of a port does, with or without an end order', () => {
+  // (2.12.2.) What the simulation does, and tests/convoyend.test.js holds it to:
+  // - a line that ends in the circle goes into port, and an end order the convoy already had is
+  //   dropped (« the order goes with what it was the end of… a line drawn into a port »);
+  // - an end order given after that line takes over: the way in goes (« a line the game took
+  //   into port can be told to end otherwise »);
+  // - by radio, the end order of a relief is read after the routes of that relief (« by radio
+  //   the order waits for the relief… »).
+  const where = "aux abords d'un port (son cercle en tirets sur la carte)";
+  const said = helpRubrics('sea').find((r) => r.id === 'fin-de-route').text.find((p) => p.includes(where));
+  assert.ok(said, 'sea:fin-de-route does not speak of the circle of a port');
+  assert.ok(said.startsWith(`Un tracé qui finit ${where} y entre ; si le convoi avait déjà reçu un ordre de fin, cet ordre est abandonné.`), said);
+  assert.ok(said.includes('Un ordre donné après ce tracé reprend la main, et le convoi n\'entre plus au port.'), said);
+  assert.ok(said.includes('Sous silence radio, un ordre de fin parti à la même relève que le tracé s\'applique après lui.'), said);
+});
+
+test('the help says what the « abords » of an aerodrome are: its circle on the map, by the figure of the rules', () => {
+  // (2.12.2.) The same word for an aerodrome: the dashed circle a squadron's route can end in
+  // with a landing. The word stays « abords », the one of the French aeronautical texts for
+  // what surrounds an aerodrome; the « circuit d'aérodrome » is the path flown there to land,
+  // and the game draws none.
+  const rules = read('data/rules.json');
+  const km = rules.squadron.landBubbleKm;
+  const paragraph = helpRubrics('sheet').find((r) => r.id === 'traces').text.find((p) => p.includes("Les abords d'un aérodrome sont"));
+  assert.ok(paragraph, '« Tracés et ordres sur la carte » does not say what the abords of an aerodrome are');
+  const said = paragraph.match(/Les abords d'un aérodrome sont [^.]*\./)[0];
+  assert.ok(said.includes(`cercle en tirets de ${km} km de rayon`), said);
+  // Seen from too far it is not drawn either.
+  assert.ok(/de trop loin, la carte ne le dessine pas/.test(said), said);
+  // The landing it allows is told in the same paragraph, and the word is used nowhere else,
+  // in any of its forms (d'un aérodrome, de l'aérodrome, des aérodromes).
+  assert.ok(paragraph.includes("se poser si le tracé finit aux abords d'un aérodrome"), paragraph);
+  const elsewhere = JSON.stringify(fr).split(JSON.stringify(paragraph).slice(1, -1)).join('');
+  assert.ok(!/abords (d'un|de l'|des|d'|du) ?(aérodrome|terrain)/i.test(elsewhere), 'a new « abords » of an aerodrome: say what they are');
 });
 
 test('every « ? » bubble links to a rubric that exists, by its title', () => {
